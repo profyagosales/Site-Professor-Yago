@@ -143,3 +143,19 @@ def grade(
         json.dump(result, f, ensure_ascii=False, indent=2)
 
     return result
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Grade OMR PDF")
+    parser.add_argument("pdf_path", help="Path to the student's PDF to grade")
+    parser.add_argument("answer_key", help="JSON mapping of question index to correct option index")
+    parser.add_argument("aluno", help="Student identifier")
+    parser.add_argument("turma", help="Class identifier")
+    parser.add_argument("output_dir", help="Directory to save corrected PDF")
+
+    args = parser.parse_args()
+    key = json.loads(args.answer_key)
+    result = grade(args.pdf_path, key, args.aluno, args.turma, args.output_dir)
+    print(json.dumps(result))

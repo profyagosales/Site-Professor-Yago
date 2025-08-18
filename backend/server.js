@@ -13,6 +13,7 @@ const evaluationRoutes = require('./routes/evaluations');
 const gradesRoutes = require('./routes/grades');
 const cadernoRoutes = require('./routes/caderno');
 const gabaritoRoutes = require('./routes/gabaritos');
+const omrRoutes = require('./routes/omr');
 
 const app = express();
 app.use(cors());
@@ -26,6 +27,7 @@ app.use('/evaluations', evaluationRoutes);
 app.use('/grades', gradesRoutes);
 app.use('/caderno', cadernoRoutes);
 app.use('/gabaritos', gabaritoRoutes);
+app.use('/omr', omrRoutes);
 
 connectDB();
 
