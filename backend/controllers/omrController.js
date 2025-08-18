@@ -4,6 +4,7 @@ const multer = require('multer');
 const Evaluation = require('../models/Evaluation');
 const Student = require('../models/Student');
 const Grade = require('../models/Grade');
+const Gabarito = require('../models/Gabarito');
 const { sendEmail } = require('../services/emailService');
 
 const storage = multer.diskStorage({
@@ -77,7 +78,7 @@ async function processOMR(req, res) {
         return res.status(500).json({ error: 'Erro ao interpretar resultado' });
       }
 
-      const correctedFileName = path.basename(result.pdf_corrigido);
+      const correctedPdfName = path.basename(result.pdf_corrigido);
       let grade = await Grade.findOne({ student: studentId, evaluation: evaluationId });
       if (!grade) {
         grade = new Grade({
@@ -85,14 +86,32 @@ async function processOMR(req, res) {
           evaluation: evaluationId,
           bimester: evaluation.bimester,
           score: result.pontuacao,
-          correctedFile: correctedFileName
+          correctedPdf: correctedPdfName,
+          status: 'corrected'
         });
       } else {
         grade.score = result.pontuacao;
         grade.bimester = evaluation.bimester;
-        grade.correctedFile = correctedFileName;
+        grade.correctedPdf = correctedPdfName;
+        grade.status = 'corrected';
       }
       await grade.save();
+
+      // Link grade to evaluation if not already linked
+      if (!evaluation.grades) evaluation.grades = [];
+      if (!evaluation.grades.find((g) => g.toString() === grade._id.toString())) {
+        evaluation.grades.push(grade._id);
+        await evaluation.save();
+      }
+
+      // Update related gabarito
+      const gabarito = await Gabarito.findOne({ evaluation: evaluationId, student: studentId });
+      if (gabarito) {
+        gabarito.correctedPdf = correctedPdfName;
+        gabarito.score = result.pontuacao;
+        gabarito.status = 'corrected';
+        await gabarito.save();
+      }
 
       try {
         await sendEmail({
@@ -100,7 +119,7 @@ async function processOMR(req, res) {
           subject: 'Resultado da avaliação',
           html: `<p>Olá ${student.name}, sua nota foi ${grade.score}.</p>`,
           attachments: [
-            { filename: correctedFileName, path: result.pdf_corrigido }
+            { filename: correctedPdfName, path: result.pdf_corrigido }
           ]
         });
       } catch (emailErr) {

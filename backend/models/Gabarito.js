@@ -18,6 +18,8 @@ const gabaritoSchema = new mongoose.Schema({
   },
   // Path to the generated PDF for this gabarito
   pdfPath: { type: String, required: true },
+  // Path to the corrected PDF after grading
+  correctedPdf: { type: String },
   // Total value of the evaluation this gabarito belongs to
   totalValue: { type: Number, required: true },
   header: {
@@ -28,7 +30,15 @@ const gabaritoSchema = new mongoose.Schema({
   },
   instructions: { type: String },
   questionCount: { type: Number, required: true },
-  answerKey: [{ type: String }]
+  answerKey: [{ type: String }],
+  // Calculated score for this gabarito
+  score: { type: Number },
+  // Status of the correction process
+  status: {
+    type: String,
+    enum: ['pending', 'corrected'],
+    default: 'pending'
+  }
 });
 
 module.exports = mongoose.model('Gabarito', gabaritoSchema);
