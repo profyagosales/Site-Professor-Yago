@@ -66,7 +66,7 @@ router.put('/:id', async (req, res) => {
 
     const totalVistos = checks.length;
     if (totalVistos > 0) {
-      const evaluationId = checks[0]._id;
+      const cadernoCheckId = checks[0]._id;
       const totalValue = checks[0].totalValue;
       const classStudents = await Student.find({ class: caderno.class }).select('_id');
 
@@ -83,7 +83,7 @@ router.put('/:id', async (req, res) => {
 
         let grade = await Grade.findOne({
           student: studentId,
-          evaluation: evaluationId
+          cadernoCheck: cadernoCheckId
         });
         if (grade) {
           grade.score = nota;
@@ -91,7 +91,7 @@ router.put('/:id', async (req, res) => {
         } else {
           grade = new Grade({
             student: studentId,
-            evaluation: evaluationId,
+            cadernoCheck: cadernoCheckId,
             bimester: caderno.bimester,
             score: nota
           });
