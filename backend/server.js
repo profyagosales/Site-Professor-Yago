@@ -6,11 +6,14 @@ const connectDB = require('./config/db');
 
 const authRoutes = require('./routes/auth');
 const dashboardRoutes = require('./routes/dashboard');
+const emailRoutes = require('./routes/email');
+
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 app.use('/auth', authRoutes);
 app.use('/dashboard', dashboardRoutes);
+app.use('/email', emailRoutes);
 
 connectDB();
 
