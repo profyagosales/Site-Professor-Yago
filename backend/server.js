@@ -4,9 +4,11 @@ const bodyParser = require('body-parser');
 require('dotenv').config();
 const connectDB = require('./config/db');
 
+const authRoutes = require('./routes/auth');
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
+app.use('/auth', authRoutes);
 
 connectDB();
 
