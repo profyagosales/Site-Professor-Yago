@@ -14,6 +14,7 @@ function Navbar() {
         <Link to="/login-professor" className="link-primary">Login Professor</Link>
         <Link to="/login-aluno" className="link-primary">Login Aluno</Link>
         <Link to="/turmas" className="link-primary">Turmas</Link>
+        <Link to="/notas-classe" className="link-primary">Notas</Link>
       </div>
       <button className="md:hidden" onClick={() => setOpen(!open)}>
         <div className="space-y-1">
@@ -27,6 +28,7 @@ function Navbar() {
           <Link to="/login-professor" className="p-2 link-primary" onClick={() => setOpen(false)}>Login Professor</Link>
           <Link to="/login-aluno" className="p-2 link-primary" onClick={() => setOpen(false)}>Login Aluno</Link>
           <Link to="/turmas" className="p-2 link-primary" onClick={() => setOpen(false)}>Turmas</Link>
+          <Link to="/notas-classe" className="p-2 link-primary" onClick={() => setOpen(false)}>Notas</Link>
         </div>
       )}
     </nav>
