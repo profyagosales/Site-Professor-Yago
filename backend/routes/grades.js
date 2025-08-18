@@ -60,7 +60,25 @@ router.get('/class/:id/export', async (req, res) => {
       `attachment; filename="${className.replace(/\s+/g, '_')}_grades.pdf"`
     );
 
-    doc.pipe(res);
+    const stream = doc.pipe(res);
+    const handleStreamError = (streamErr) => {
+      console.error('PDF stream error:', streamErr);
+      if (!res.headersSent) {
+        res.status(500).end('Erro ao exportar notas');
+      } else if (!res.writableEnded) {
+        res.end();
+      }
+    };
+
+    stream.on('finish', () => {
+      if (!res.writableEnded) {
+        res.end();
+      }
+    });
+
+    doc.on('error', handleStreamError);
+    stream.on('error', handleStreamError);
+
     doc.end();
   } catch (err) {
     console.error(err);
