@@ -16,8 +16,10 @@ const redacaoSchema = new mongoose.Schema({
     NC: { type: Number },
     NE: { type: Number },
     NL: { type: Number },
-    type: { type: String },
-    finalScore: { type: Number }
+    tipo: { type: String },
+    finalScore: { type: Number },
+    competencias: [{ type: Number }],
+    anulacao: { type: String }
   },
   correctionPdf: { type: String }
 });
