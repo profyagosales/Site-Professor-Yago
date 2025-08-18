@@ -12,6 +12,10 @@ const evaluationSchema = new mongoose.Schema({
   gabaritos: {
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Gabarito' }],
     default: []
+  },
+  grades: {
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Grade' }],
+    default: []
   }
 });
 

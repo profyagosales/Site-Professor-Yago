@@ -118,6 +118,14 @@ router.post('/', async (req, res) => {
       } else {
         grade = new Grade({ student: studentId, evaluation: evaluationId, score, bimester });
       }
+      grade.status = 'corrected';
+      await grade.save();
+
+      // Link grade to evaluation
+      if (!evaluation.grades.find((g) => g.toString() === grade._id.toString())) {
+        evaluation.grades.push(grade._id);
+        await evaluation.save();
+      }
     } else {
       const cadernoCheck = await CadernoCheck.findById(cadernoCheckId);
       if (!cadernoCheck) {
@@ -136,9 +144,9 @@ router.post('/', async (req, res) => {
           bimester
         });
       }
+      grade.status = 'corrected';
+      await grade.save();
     }
-
-    await grade.save();
 
     const grades = await Grade.find({ student: studentId, bimester });
     const bimesterTotal = grades.reduce((sum, g) => sum + g.score, 0);
