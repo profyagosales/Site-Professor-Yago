@@ -6,6 +6,7 @@ import DashboardProfessor from './pages/DashboardProfessor';
 import DashboardAluno from './pages/DashboardAluno';
 import Turmas from './pages/Turmas';
 import TurmaAlunos from './pages/TurmaAlunos';
+import PerfilAlunoProfessor from './pages/PerfilAlunoProfessor';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <Route path="/dashboard-aluno" element={<DashboardAluno />} />
         <Route path="/turmas" element={<Turmas />} />
         <Route path="/turmas/:id/alunos" element={<TurmaAlunos />} />
+        <Route path="/perfil" element={<PerfilAlunoProfessor />} />
       </Routes>
     </div>
   );
