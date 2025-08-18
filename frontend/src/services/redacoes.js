@@ -24,7 +24,27 @@ export const listarRedacoesAluno = async () => {
   return res.data;
 };
 
+export const listarPendentes = async () => {
+  const token = localStorage.getItem('token');
+  const res = await axios.get(`${API_URL}/redacoes/professor`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    params: { status: 'pendente' },
+  });
+  return res.data;
+};
+
+export const listarCorrigidas = async (filtros = {}) => {
+  const token = localStorage.getItem('token');
+  const res = await axios.get(`${API_URL}/redacoes/professor`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    params: { status: 'corrigida', ...filtros },
+  });
+  return res.data;
+};
+
 export default {
   enviarRedacao,
   listarRedacoesAluno,
+  listarPendentes,
+  listarCorrigidas,
 };

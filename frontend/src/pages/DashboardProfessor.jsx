@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import SendEmailModal from '../components/SendEmailModal';
 
@@ -9,6 +10,7 @@ function DashboardProfessor() {
     progress: 0,
   });
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -28,12 +30,17 @@ function DashboardProfessor() {
 
   return (
     <div className="pt-20 p-md">
-      <button
-        className="btn-primary mb-md"
-        onClick={() => setShowEmailModal(true)}
-      >
-        Enviar e-mail
-      </button>
+      <div className="flex gap-md mb-md">
+        <button className="btn-primary" onClick={() => setShowEmailModal(true)}>
+          Enviar e-mail
+        </button>
+        <button
+          className="btn-primary"
+          onClick={() => navigate('/dashboard-redacoes')}
+        >
+          Redações
+        </button>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
         <div className="flex items-center p-md rounded-lg bg-gray-50/30 backdrop-blur-md border border-gray-200 shadow-subtle">
           <svg
