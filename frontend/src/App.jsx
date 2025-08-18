@@ -9,6 +9,7 @@ import TurmaAlunos from './pages/TurmaAlunos';
 import PerfilAlunoProfessor from './pages/PerfilAlunoProfessor';
 import NotasClasse from './pages/NotasClasse';
 import DetalhesNotaAluno from './pages/DetalhesNotaAluno';
+import CadernoClasse from './pages/CadernoClasse';
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
         <Route path="/perfil" element={<PerfilAlunoProfessor />} />
         <Route path="/notas-classe" element={<NotasClasse />} />
         <Route path="/alunos/:id/notas" element={<DetalhesNotaAluno />} />
+        <Route path="/caderno-classe" element={<CadernoClasse />} />
       </Routes>
     </div>
   );
