@@ -1,8 +1,29 @@
 const express = require('express');
 const Grade = require('../models/Grade');
 const Evaluation = require('../models/Evaluation');
+const Student = require('../models/Student');
 
 const router = express.Router();
+
+// Get grade matrix for a class grouped by bimester
+router.get('/class/:classId', async (req, res) => {
+  try {
+    const students = await Student.find({ class: req.params.classId });
+    const matrix = await Promise.all(
+      students.map(async (student) => {
+        const grades = await Grade.find({ student: student._id });
+        const grouped = grades.reduce((acc, grade) => {
+          acc[grade.bimester] = (acc[grade.bimester] || 0) + grade.score;
+          return acc;
+        }, {});
+        return [1, 2, 3, 4].map((b) => (grouped[b] !== undefined ? grouped[b] : '-'));
+      })
+    );
+    res.json(matrix);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar notas da turma' });
+  }
+});
 
 // Create or update grade and return bimester total
 router.post('/', async (req, res) => {
