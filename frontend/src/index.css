@@ -1,0 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-orange: #F57C00;
+  --color-light-gray: #F5F5F5;
+  --color-white: #FFFFFF;
+  --color-black: #212121;
+}
+
+body {
+  @apply font-sans bg-white text-black;
+}
