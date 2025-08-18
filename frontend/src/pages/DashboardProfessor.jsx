@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import SendEmailModal from '../components/SendEmailModal';
 
 function DashboardProfessor() {
   const [data, setData] = useState({
@@ -7,6 +8,7 @@ function DashboardProfessor() {
     schedules: [],
     progress: 0,
   });
+  const [showEmailModal, setShowEmailModal] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -26,6 +28,12 @@ function DashboardProfessor() {
 
   return (
     <div className="pt-20 p-md">
+      <button
+        className="mb-md px-4 py-2 bg-orange text-white rounded"
+        onClick={() => setShowEmailModal(true)}
+      >
+        Enviar e-mail
+      </button>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
         <div className="flex items-center p-md rounded-lg bg-white/30 backdrop-blur-md border border-white/20 shadow-subtle">
           <svg
@@ -91,6 +99,10 @@ function DashboardProfessor() {
           </div>
         </div>
       </div>
+      <SendEmailModal
+        isOpen={showEmailModal}
+        onClose={() => setShowEmailModal(false)}
+      />
     </div>
   );
 }
