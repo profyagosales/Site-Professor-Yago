@@ -1,9 +1,24 @@
-import Logo from './components/Logo';
+import { Routes, Route } from 'react-router-dom';
+import Navbar from './components/Navbar';
+import LoginProfessor from './pages/LoginProfessor';
+import LoginAluno from './pages/LoginAluno';
+import DashboardProfessor from './pages/DashboardProfessor';
+import DashboardAluno from './pages/DashboardAluno';
+import Turmas from './pages/Turmas';
+import TurmaAlunos from './pages/TurmaAlunos';
 
 function App() {
   return (
-    <div className="p-md bg-lightGray min-h-screen flex items-center justify-center">
-      <Logo />
+    <div className="min-h-screen bg-lightGray pt-16">
+      <Navbar />
+      <Routes>
+        <Route path="/login-professor" element={<LoginProfessor />} />
+        <Route path="/login-aluno" element={<LoginAluno />} />
+        <Route path="/dashboard-professor" element={<DashboardProfessor />} />
+        <Route path="/dashboard-aluno" element={<DashboardAluno />} />
+        <Route path="/turmas" element={<Turmas />} />
+        <Route path="/turmas/:id/alunos" element={<TurmaAlunos />} />
+      </Routes>
     </div>
   );
 }
