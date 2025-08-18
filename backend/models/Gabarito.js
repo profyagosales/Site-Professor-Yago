@@ -16,6 +16,10 @@ const gabaritoSchema = new mongoose.Schema({
     ref: 'Class',
     required: true
   },
+  // Path to the generated PDF for this gabarito
+  pdfPath: { type: String, required: true },
+  // Total value of the evaluation this gabarito belongs to
+  totalValue: { type: Number, required: true },
   header: {
     schoolName: { type: String },
     discipline: { type: String },
@@ -24,9 +28,7 @@ const gabaritoSchema = new mongoose.Schema({
   },
   instructions: { type: String },
   questionCount: { type: Number, required: true },
-  totalValue: { type: Number, required: true },
-  answerKey: [{ type: String }],
-  pdfPath: { type: String, required: true }
+  answerKey: [{ type: String }]
 });
 
 module.exports = mongoose.model('Gabarito', gabaritoSchema);
