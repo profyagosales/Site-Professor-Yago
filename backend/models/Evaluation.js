@@ -5,8 +5,9 @@ const evaluationSchema = new mongoose.Schema({
   totalValue: { type: Number, required: true },
   bimester: { type: Number, required: true },
   classes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Class' }],
-  answerKey: [{ type: String }],
+  numQuestions: { type: Number, required: true },
   questionValue: { type: Number, required: true },
+  answerKey: [{ type: String }],
   applicationDate: { type: Date, required: true }
 });
 
