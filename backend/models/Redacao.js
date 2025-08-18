@@ -6,7 +6,12 @@ const redacaoSchema = new mongoose.Schema({
   bimester: { type: Number, required: true },
   file: { type: String, required: true },
   submittedAt: { type: Date, default: Date.now },
-  status: { type: String, default: 'pendente' },
+  // Status da redação: "pendente" enquanto aguarda correção e "corrigida" após corrigida
+  status: {
+    type: String,
+    enum: ['pendente', 'corrigida'],
+    default: 'pendente'
+  },
   correction: {
     NC: { type: Number },
     NE: { type: Number },
