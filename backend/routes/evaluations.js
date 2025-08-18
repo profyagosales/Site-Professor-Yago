@@ -1,11 +1,17 @@
 const express = require('express');
 const Evaluation = require('../models/Evaluation');
+const auth = require('../middleware/auth');
 
 const router = express.Router();
+
+router.use(auth);
 
 // Create evaluation
 router.post('/', async (req, res) => {
   try {
+    if (req.profile !== 'teacher') {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
     const {
       type,
       bimester,
