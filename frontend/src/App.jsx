@@ -8,6 +8,7 @@ import Turmas from './pages/Turmas';
 import TurmaAlunos from './pages/TurmaAlunos';
 import PerfilAlunoProfessor from './pages/PerfilAlunoProfessor';
 import NotasClasse from './pages/NotasClasse';
+import DetalhesNotaAluno from './pages/DetalhesNotaAluno';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
         <Route path="/turmas/:id/alunos" element={<TurmaAlunos />} />
         <Route path="/perfil" element={<PerfilAlunoProfessor />} />
         <Route path="/notas-classe" element={<NotasClasse />} />
+        <Route path="/alunos/:id/notas" element={<DetalhesNotaAluno />} />
       </Routes>
     </div>
   );
