@@ -26,13 +26,11 @@ async function enviarRedacao(req, res) {
     const pdfBytes = await pdfDoc.save();
 
     const uploadDir = path.join(__dirname, '../uploads/redacoes');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
+    await fs.promises.mkdir(uploadDir, { recursive: true });
 
     const fileName = `redacao-${Date.now()}.pdf`;
     const filePath = path.join(uploadDir, fileName);
-    fs.writeFileSync(filePath, pdfBytes);
+    await fs.promises.writeFile(filePath, pdfBytes);
 
     const redacao = new Redacao({
       student,
