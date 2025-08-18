@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 function NotasClasse() {
@@ -7,6 +8,7 @@ function NotasClasse() {
   const [students, setStudents] = useState([]);
   const [grades, setGrades] = useState([]);
   const [bimester, setBimester] = useState('0');
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchClasses = async () => {
@@ -106,7 +108,7 @@ function NotasClasse() {
                     key={student._id}
                     className={i % 2 === 0 ? 'bg-gray-100' : ''}
                   >
-                    <td className="p-sm border">{student.name}</td>
+                    <td className="p-sm border link-primary cursor-pointer" onClick={() => navigate('/alunos/' + student._id + '/notas')}>{student.name}</td>
                     {displayedBimesters().map((b) => (
                       <td key={b} className="p-sm border text-center">
                         {grades[i] && grades[i][b] !== '-' && grades[i][b] !== undefined
