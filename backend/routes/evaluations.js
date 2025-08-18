@@ -6,11 +6,17 @@ const router = express.Router();
 // Create evaluation
 router.post('/', async (req, res) => {
   try {
-    const { type, totalValue, bimester, classes, numQuestions, questionValue, answerKey } = req.body;
+    const {
+      type,
+      bimester,
+      classes,
+      numQuestions,
+      questionValue,
+      answerKey
+    } = req.body;
 
     if (
       !type ||
-      totalValue === undefined ||
       bimester === undefined ||
       !Array.isArray(classes) ||
       numQuestions === undefined ||
@@ -18,6 +24,14 @@ router.post('/', async (req, res) => {
     ) {
       return res.status(400).json({ error: 'Dados inválidos' });
     }
+
+    if (answerKey && answerKey.length !== numQuestions) {
+      return res
+        .status(400)
+        .json({ error: 'Gabarito incompatível com o número de questões' });
+    }
+
+    const totalValue = numQuestions * questionValue;
 
     const evaluation = new Evaluation({
       type,
