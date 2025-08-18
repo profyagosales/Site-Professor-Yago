@@ -4,8 +4,11 @@ const Evaluation = require('../models/Evaluation');
 const Student = require('../models/Student');
 const Class = require('../models/Class');
 const pdfReport = require('../utils/pdfReport');
+const auth = require('../middleware/auth');
 
 const router = express.Router();
+
+router.use(auth);
 
 // Get grade matrix for a class grouped by bimester
 router.get('/class/:classId', async (req, res) => {
@@ -89,6 +92,9 @@ router.get('/class/:id/export', async (req, res) => {
 // Create or update grade and return bimester total
 router.post('/', async (req, res) => {
   try {
+    if (req.profile !== 'teacher') {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
     const { studentId, evaluationId, score } = req.body;
 
     if (!studentId || !evaluationId || score === undefined) {
