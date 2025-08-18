@@ -53,7 +53,7 @@ function SendEmailModal({ isOpen, onClose }) {
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/50">
-      <div className="bg-white p-md rounded-lg shadow-lg w-full max-w-lg">
+      <div className="card w-full max-w-lg p-md">
         <h2 className="text-xl mb-md">Enviar E-mail</h2>
         {alert && (
           <div
@@ -114,7 +114,7 @@ function SendEmailModal({ isOpen, onClose }) {
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-orange text-white rounded"
+              className="btn-primary"
             >
               Enviar
             </button>

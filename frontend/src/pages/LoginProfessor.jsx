@@ -20,8 +20,8 @@ function LoginProfessor() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-lightGray pt-16">
-      <form onSubmit={handleSubmit(onSubmit)} className="bg-white/80 shadow-lg p-8 rounded-lg w-full max-w-sm">
+    <div className="page-centered">
+      <form onSubmit={handleSubmit(onSubmit)} className="card w-full max-w-sm">
         <h2 className="text-xl mb-4 text-center">Login Professor</h2>
         {error && <p className="text-red-500 mb-2">{error}</p>}
         <input
@@ -36,7 +36,7 @@ function LoginProfessor() {
           {...register('password', { required: true })}
           className="mb-4 w-full p-2 border rounded"
         />
-        <button type="submit" className="w-full bg-orange hover:bg-orange/80 text-white py-2 rounded">
+        <button type="submit" className="btn-primary w-full">
           Entrar
         </button>
       </form>

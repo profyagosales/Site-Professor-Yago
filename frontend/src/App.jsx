@@ -10,7 +10,7 @@ import PerfilAlunoProfessor from './pages/PerfilAlunoProfessor';
 
 function App() {
   return (
-    <div className="min-h-screen bg-lightGray pt-16">
+    <div className="page-wrapper">
       <Navbar />
       <Routes>
         <Route path="/login-professor" element={<LoginProfessor />} />

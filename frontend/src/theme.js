@@ -32,6 +32,10 @@ export const colors = {
 
 export const theme = {
   colors,
+  ui: {
+    background: colors.gray.DEFAULT,
+    primary: colors.orange.DEFAULT,
+  },
   fonts: {
     primary: '"Inter", sans-serif',
   },
