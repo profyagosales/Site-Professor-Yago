@@ -4,6 +4,7 @@ import LoginProfessor from './pages/LoginProfessor';
 import LoginAluno from './pages/LoginAluno';
 import DashboardProfessor from './pages/DashboardProfessor';
 import DashboardAluno from './pages/DashboardAluno';
+import DashboardRedacoes from './pages/DashboardRedacoes';
 import Turmas from './pages/Turmas';
 import TurmaAlunos from './pages/TurmaAlunos';
 import PerfilAlunoProfessor from './pages/PerfilAlunoProfessor';
@@ -22,6 +23,7 @@ function App() {
         <Route path="/login-aluno" element={<LoginAluno />} />
         <Route path="/dashboard-professor" element={<DashboardProfessor />} />
         <Route path="/dashboard-aluno" element={<DashboardAluno />} />
+        <Route path="/dashboard-redacoes" element={<DashboardRedacoes />} />
         <Route path="/turmas" element={<Turmas />} />
         <Route path="/turmas/:id/alunos" element={<TurmaAlunos />} />
         <Route path="/perfil" element={<PerfilAlunoProfessor />} />
