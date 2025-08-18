@@ -17,6 +17,7 @@ function Navbar() {
         <Link to="/notas-classe" className="link-primary">Notas da Classe</Link>
         <Link to="/caderno-classe" className="link-primary">Caderno</Link>
         <Link to="/criar-gabarito" className="link-primary">Criar Gabarito</Link>
+        <Link to="/corrigir-gabaritos" className="link-primary">Corrigir Gabaritos</Link>
       </div>
       <button className="md:hidden" onClick={() => setOpen(!open)}>
         <div className="space-y-1">
@@ -33,6 +34,7 @@ function Navbar() {
           <Link to="/notas-classe" className="p-2 link-primary" onClick={() => setOpen(false)}>Notas da Classe</Link>
           <Link to="/caderno-classe" className="p-2 link-primary" onClick={() => setOpen(false)}>Caderno</Link>
           <Link to="/criar-gabarito" className="p-2 link-primary" onClick={() => setOpen(false)}>Criar Gabarito</Link>
+          <Link to="/corrigir-gabaritos" className="p-2 link-primary" onClick={() => setOpen(false)}>Corrigir Gabaritos</Link>
         </div>
       )}
     </nav>
