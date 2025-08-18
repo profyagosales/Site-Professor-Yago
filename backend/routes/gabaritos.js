@@ -39,13 +39,13 @@ router.post('/', async (req, res) => {
         const gabarito = new Gabarito({
           evaluation: evaluation._id,
           student: student._id,
-          class: classId,
+          class: student.class._id,
+          pdfPath,
+          totalValue: evaluation.totalValue,
           header,
           instructions,
           questionCount: evaluation.numQuestions,
-          totalValue: evaluation.totalValue,
-          answerKey: evaluation.answerKey,
-          pdfPath
+          answerKey: evaluation.answerKey
         });
         await gabarito.save();
         evaluation.gabaritos.push(gabarito._id);
