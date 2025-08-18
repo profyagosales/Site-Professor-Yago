@@ -11,6 +11,7 @@ const classesRoutes = require('./routes/classes');
 const studentsRoutes = require('./routes/students');
 const evaluationRoutes = require('./routes/evaluations');
 const gradesRoutes = require('./routes/grades');
+const cadernoRoutes = require('./routes/caderno');
 
 const app = express();
 app.use(cors());
@@ -22,6 +23,7 @@ app.use('/classes', classesRoutes);
 app.use('/students', studentsRoutes);
 app.use('/evaluations', evaluationRoutes);
 app.use('/grades', gradesRoutes);
+app.use('/caderno', cadernoRoutes);
 
 connectDB();
 
