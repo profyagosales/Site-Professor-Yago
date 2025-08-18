@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { createVisto, updateVisto, getVistos } from '../services/caderno';
 
 function CadernoClasse() {
   const [classes, setClasses] = useState([]);
@@ -26,14 +27,16 @@ function CadernoClasse() {
     if (!cls) return;
     try {
       const [studRes, chkRes] = await Promise.all([
-        axios.get(`http://localhost:5000/students?class=${cls._id}`).catch(() => ({ data: [] })),
-        axios.get(`http://localhost:5000/caderno/${cls._id}/${bim}`).catch(() => ({ data: [] }))
+        axios
+          .get(`http://localhost:5000/students?class=${cls._id}`)
+          .catch(() => ({ data: [] })),
+        getVistos(cls._id, bim).catch(() => [])
       ]);
       const filteredStudents = (studRes.data || []).filter(
         (s) => (s.class && (s.class._id || s.class) === cls._id)
       );
       setStudents(filteredStudents);
-      setChecks(chkRes.data || []);
+      setChecks(chkRes || []);
     } catch (err) {
       console.error('Erro ao carregar vistos', err);
     }
@@ -57,9 +60,7 @@ function CadernoClasse() {
     setChecks(updatedChecks);
     const current = updatedChecks.find((c) => c._id === checkId);
     try {
-      await axios.put(`http://localhost:5000/caderno/${checkId}`, {
-        students: current.students
-      });
+      await updateVisto(checkId, current.students);
     } catch (err) {
       console.error('Erro ao atualizar visto', err);
     }
@@ -67,7 +68,7 @@ function CadernoClasse() {
 
   const handleCreate = async () => {
     try {
-      await axios.post('http://localhost:5000/caderno', {
+      await createVisto({
         class: selectedClass._id,
         description: form.title,
         date: form.date,
