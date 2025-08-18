@@ -9,6 +9,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const emailRoutes = require('./routes/email');
 const classesRoutes = require('./routes/classes');
 const studentsRoutes = require('./routes/students');
+const evaluationRoutes = require('./routes/evaluations');
 
 const app = express();
 app.use(cors());
@@ -18,6 +19,7 @@ app.use('/dashboard', dashboardRoutes);
 app.use('/email', emailRoutes);
 app.use('/classes', classesRoutes);
 app.use('/students', studentsRoutes);
+app.use('/evaluations', evaluationRoutes);
 
 connectDB();
 
