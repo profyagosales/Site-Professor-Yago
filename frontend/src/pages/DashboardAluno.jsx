@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import EnviarRedacaoModal from '../components/EnviarRedacaoModal';
+import { listarRedacoesAluno } from '../services/redacoes';
 
 function DashboardAluno() {
   const [data, setData] = useState({
@@ -7,6 +9,17 @@ function DashboardAluno() {
     schedules: [],
     progress: 0,
   });
+  const [redacoes, setRedacoes] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const loadRedacoes = async () => {
+    try {
+      const res = await listarRedacoesAluno();
+      setRedacoes(res);
+    } catch (err) {
+      console.error('Erro ao carregar redações', err);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -22,6 +35,7 @@ function DashboardAluno() {
     };
 
     fetchData();
+    loadRedacoes();
   }, []);
 
   return (
@@ -82,6 +96,36 @@ function DashboardAluno() {
           </div>
         </div>
       </div>
+
+      <div className="mt-xl">
+        <div className="flex justify-between items-center mb-md">
+          <h2 className="text-xl font-semibold">Minhas Redações</h2>
+          <button className="btn-primary" onClick={() => setIsModalOpen(true)}>
+            Enviar Redação
+          </button>
+        </div>
+        {redacoes.length ? (
+          <ul className="space-y-sm">
+            {redacoes.map((r) => (
+              <li key={r.id} className="flex justify-between p-sm border rounded">
+                <span>{new Date(r.date).toLocaleDateString()}</span>
+                <span className="font-semibold">{r.status}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-black/70">Nenhuma redação enviada.</p>
+        )}
+      </div>
+
+      <EnviarRedacaoModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={() => {
+          setIsModalOpen(false);
+          loadRedacoes();
+        }}
+      />
     </div>
   );
 }
