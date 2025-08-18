@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { getClassMatrix, exportClassPdf } from '../services/grades';
 
 function NotasClasse() {
   const [classes, setClasses] = useState([]);
@@ -25,12 +26,9 @@ function NotasClasse() {
   const loadGrades = async (cls) => {
     setSelectedClass(cls);
     try {
-      const [studentsRes, gradesRes] = await Promise.all([
-        axios.get(`http://localhost:5000/students?class=${cls._id}`),
-        axios.get(`http://localhost:5000/grades/class/${cls._id}`),
-      ]);
-      setStudents(studentsRes.data);
-      setGrades(gradesRes.data);
+      const { students: stud, grades: grd } = await getClassMatrix(cls._id);
+      setStudents(stud);
+      setGrades(grd);
     } catch (err) {
       console.error('Erro ao carregar notas', err);
     }
@@ -41,9 +39,16 @@ function NotasClasse() {
     return [Number(bimester) - 1];
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!selectedClass) return;
-    window.open(`http://localhost:5000/grades/class/${selectedClass._id}/export`, '_blank');
+    try {
+      const blob = await exportClassPdf(selectedClass._id);
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Erro ao exportar PDF', err);
+    }
   };
 
   return (
@@ -98,7 +103,9 @@ function NotasClasse() {
                 <tr className="bg-orange-500 text-white text-left">
                   <th className="p-sm border">Aluno</th>
                   {displayedBimesters().map((b) => (
-                    <th key={b} className="p-sm border text-center">{b + 1}º Bim</th>
+                    <th key={b} className="p-sm border text-center">
+                      {b + 1}º Bim
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -108,7 +115,12 @@ function NotasClasse() {
                     key={student._id}
                     className={i % 2 === 0 ? 'bg-gray-100' : ''}
                   >
-                    <td className="p-sm border link-primary cursor-pointer" onClick={() => navigate('/alunos/' + student._id + '/notas')}>{student.name}</td>
+                    <td
+                      className="p-sm border link-primary cursor-pointer"
+                      onClick={() => navigate(`/alunos/${student._id}/notas`)}
+                    >
+                      {student.name}
+                    </td>
                     {displayedBimesters().map((b) => (
                       <td key={b} className="p-sm border text-center">
                         {grades[i] && grades[i][b] !== '-' && grades[i][b] !== undefined

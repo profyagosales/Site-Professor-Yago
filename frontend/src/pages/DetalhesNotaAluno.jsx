@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { getStudentGrades, exportStudentPdf, sendStudentReport } from '../services/grades';
 
 function DetalhesNotaAluno() {
   const { id } = useParams();
@@ -11,9 +11,9 @@ function DetalhesNotaAluno() {
   useEffect(() => {
     const fetchGrades = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/grades/student/${id}`);
-        setStudent(res.data.student);
-        setBimesters(res.data.bimesters || {});
+        const data = await getStudentGrades(id);
+        setStudent(data.student);
+        setBimesters(data.bimesters || {});
       } catch (err) {
         console.error('Erro ao carregar notas do aluno', err);
       }
@@ -21,13 +21,20 @@ function DetalhesNotaAluno() {
     fetchGrades();
   }, [id]);
 
-  const handleExport = () => {
-    window.open(`http://localhost:5000/grades/student/${id}/export`, '_blank');
+  const handleExport = async () => {
+    try {
+      const blob = await exportStudentPdf(id);
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Erro ao exportar PDF', err);
+    }
   };
 
   const handleSend = async () => {
     try {
-      await axios.post(`http://localhost:5000/grades/student/${id}/send`);
+      await sendStudentReport(id);
       alert('Relatório enviado');
     } catch (err) {
       console.error('Erro ao enviar relatório', err);
