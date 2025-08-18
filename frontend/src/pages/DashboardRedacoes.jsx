@@ -133,12 +133,12 @@ function DashboardRedacoes() {
                     </p>
                   </div>
                 </div>
-                <button className="btn-primary">Visualizar</button>
-              </div>
-            ))}
+                  <button className="btn-secondary">Visualizar</button>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
     </div>
   );
 }
