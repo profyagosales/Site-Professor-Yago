@@ -30,10 +30,7 @@ function TurmaAlunos() {
     <div className="pt-20 p-md">
       <div className="flex justify-between items-center mb-md">
         <h1 className="text-xl">Alunos da Turma {id}</h1>
-        <button
-          onClick={handleAdd}
-          className="px-4 py-2 bg-orange text-white rounded"
-        >
+        <button onClick={handleAdd} className="btn-primary">
           Adicionar Aluno
         </button>
       </div>

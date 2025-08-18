@@ -24,7 +24,7 @@ function PerfilAlunoProfessor() {
   return (
     <div className="pt-20 p-md">
       <div className="max-w-3xl mx-auto space-y-md">
-        <div className="flex flex-col items-center p-md bg-white/30 backdrop-blur-md border border-white/20 rounded-lg shadow-subtle">
+        <div className="flex flex-col items-center p-md bg-gray-50/30 backdrop-blur-md border border-gray-200 rounded-lg shadow-subtle">
           <img
             src={student.photo}
             alt={student.name}
@@ -40,7 +40,7 @@ function PerfilAlunoProfessor() {
           {student.grades.map((g) => (
             <div
               key={g.term}
-              className="p-md bg-white/30 backdrop-blur-md border border-white/20 rounded-lg shadow-subtle"
+              className="p-md bg-gray-50/30 backdrop-blur-md border border-gray-200 rounded-lg shadow-subtle"
             >
               <h2 className="font-semibold mb-2">{g.term}</h2>
               <div className="w-full bg-lightGray h-2 rounded-full mb-2">
@@ -55,16 +55,10 @@ function PerfilAlunoProfessor() {
         </div>
 
         <div className="flex gap-md justify-center">
-          <button
-            onClick={exportPDF}
-            className="px-4 py-2 bg-orange text-white rounded"
-          >
+          <button onClick={exportPDF} className="btn-primary">
             Exportar PDF
           </button>
-          <button
-            onClick={sendEmail}
-            className="px-4 py-2 bg-gray-700 text-white rounded"
-          >
+          <button onClick={sendEmail} className="btn-primary">
             Enviar por E-mail
           </button>
         </div>

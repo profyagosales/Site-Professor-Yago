@@ -48,7 +48,7 @@ function StudentModal({ isOpen, onClose, onSubmit, initialData }) {
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/50">
-      <div className="bg-white p-md rounded-lg w-full max-w-md">
+      <div className="card w-full max-w-md p-md">
         <h2 className="text-xl text-orange mb-md">
           {initialData ? 'Editar Aluno' : 'Novo Aluno'}
         </h2>
@@ -113,7 +113,7 @@ function StudentModal({ isOpen, onClose, onSubmit, initialData }) {
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-orange text-white rounded"
+              className="btn-primary"
             >
               {initialData ? 'Salvar' : 'Criar'}
             </button>

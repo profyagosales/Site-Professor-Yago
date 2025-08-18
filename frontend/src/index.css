@@ -12,5 +12,23 @@
 }
 
 body {
-  @apply font-sans bg-white text-black;
+  @apply font-sans bg-gray-100 text-black;
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-orange text-white px-4 py-2 rounded hover:bg-orange/80;
+  }
+  .link-primary {
+    @apply text-orange hover:text-orange/80;
+  }
+  .card {
+    @apply bg-gray-50/80 shadow-lg p-8 rounded-lg;
+  }
+  .page-wrapper {
+    @apply min-h-screen bg-gray-100 pt-16;
+  }
+  .page-centered {
+    @apply flex items-center justify-center min-h-screen;
+  }
 }

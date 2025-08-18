@@ -39,7 +39,7 @@ function AlunosDaTurma({ classId, onEdit, onDelete }) {
               <td className="p-sm border space-x-sm">
                 <button
                   onClick={() => onEdit && onEdit(student)}
-                  className="text-blue-600"
+                  className="link-primary"
                 >
                   Editar
                 </button>

@@ -27,7 +27,7 @@ function DashboardAluno() {
   return (
     <div className="pt-20 p-md">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
-        <div className="flex items-center p-md rounded-lg bg-white/30 backdrop-blur-md border border-white/20 shadow-subtle">
+        <div className="flex items-center p-md rounded-lg bg-gray-50/30 backdrop-blur-md border border-gray-200 shadow-subtle">
           <svg
             className="w-6 h-6 text-orange mr-3"
             fill="none"
@@ -44,7 +44,7 @@ function DashboardAluno() {
           </div>
         </div>
 
-        <div className="flex items-center p-md rounded-lg bg-white/30 backdrop-blur-md border border-white/20 shadow-subtle">
+        <div className="flex items-center p-md rounded-lg bg-gray-50/30 backdrop-blur-md border border-gray-200 shadow-subtle">
           <svg
             className="w-6 h-6 text-orange mr-3"
             fill="none"
@@ -62,7 +62,7 @@ function DashboardAluno() {
           </div>
         </div>
 
-        <div className="flex items-center p-md rounded-lg bg-white/30 backdrop-blur-md border border-white/20 shadow-subtle">
+        <div className="flex items-center p-md rounded-lg bg-gray-50/30 backdrop-blur-md border border-gray-200 shadow-subtle">
           <svg
             className="w-6 h-6 text-orange mr-3"
             fill="none"
