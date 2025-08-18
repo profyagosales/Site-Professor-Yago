@@ -6,7 +6,7 @@ const redacaoSchema = new mongoose.Schema({
   bimester: { type: Number, required: true },
   file: { type: String, required: true },
   submittedAt: { type: Date, default: Date.now },
-  status: { type: String, default: 'pending' },
+  status: { type: String, default: 'pendente' },
   correction: {
     NC: { type: Number },
     NE: { type: Number },
