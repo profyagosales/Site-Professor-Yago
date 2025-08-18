@@ -19,6 +19,9 @@ body {
   .btn-primary {
     @apply bg-orange text-white px-4 py-2 rounded hover:bg-orange/80;
   }
+  .btn-secondary {
+    @apply bg-gray-200 text-black px-4 py-2 rounded hover:bg-gray-200/80;
+  }
   .link-primary {
     @apply text-orange hover:text-orange/80;
   }
