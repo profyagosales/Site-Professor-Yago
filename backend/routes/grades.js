@@ -2,6 +2,8 @@ const express = require('express');
 const Grade = require('../models/Grade');
 const Evaluation = require('../models/Evaluation');
 const Student = require('../models/Student');
+const Class = require('../models/Class');
+const pdfReport = require('../utils/pdfReport');
 
 const router = express.Router();
 
@@ -22,6 +24,47 @@ router.get('/class/:classId', async (req, res) => {
     res.json(matrix);
   } catch (err) {
     res.status(500).json({ error: 'Erro ao buscar notas da turma' });
+  }
+});
+
+// Export grades as PDF for a class
+router.get('/class/:id/export', async (req, res) => {
+  try {
+    const classId = req.params.id;
+    const classInfo = await Class.findById(classId);
+    const students = await Student.find({ class: classId });
+
+    const data = await Promise.all(
+      students.map(async (student) => {
+        const grades = await Grade.find({ student: student._id });
+        const grouped = grades.reduce((acc, grade) => {
+          acc[grade.bimester] = (acc[grade.bimester] || 0) + grade.score;
+          return acc;
+        }, {});
+        const bimesters = [1, 2, 3, 4].map((b) => grouped[b]);
+        const average =
+          bimesters.filter((b) => b !== undefined).reduce((a, b) => a + b, 0) /
+          (bimesters.filter((b) => b !== undefined).length || 1);
+        return { name: student.name, bimesters, average };
+      })
+    );
+
+    const className = classInfo
+      ? `${classInfo.series}${classInfo.letter} - ${classInfo.discipline}`
+      : 'turma';
+
+    const doc = pdfReport(className, data);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${className.replace(/\s+/g, '_')}_grades.pdf"`
+    );
+
+    doc.pipe(res);
+    doc.end();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro ao exportar notas' });
   }
 });
 
