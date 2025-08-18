@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { FiBook } from 'react-icons/fi';
 import { createVisto, updateVisto, getVistos } from '../services/caderno';
 
 function CadernoClasse() {
@@ -153,38 +154,25 @@ function CadernoClasse() {
       <div className="pt-20 p-md">
         <h1 className="text-2xl text-orange mb-md">Caderno por Turma</h1>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
-          {classes.map((cls) => (
-            <div
-              key={cls._id}
-              className="flex items-center bg-gray-50/30 backdrop-blur-md border border-orange-400 rounded-lg p-md shadow-subtle cursor-pointer"
-              onClick={() => handleClassClick(cls)}
-            >
-              <svg
-                className="w-6 h-6 text-orange mr-3"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
+            {classes.map((cls) => (
+              <div
+                key={cls._id}
+                className="flex items-center bg-white/30 backdrop-blur-md border border-orange-500 rounded-lg p-md shadow-sm cursor-pointer"
+                onClick={() => handleClassClick(cls)}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 20l9-5-9-5-9 5 9 5zm0-10l9-5-9-5-9 5 9 5z"
-                ></path>
-              </svg>
-              <div>
-                <h3 className="text-orange text-lg font-semibold">
-                  {cls.series}ª{cls.letter}
-                </h3>
-                <p className="text-black/70">Disciplina: {cls.discipline}</p>
+                <FiBook className="w-6 h-6 text-orange mr-3" />
+                <div>
+                  <h3 className="text-orange text-lg font-semibold">
+                    {cls.series}ª{cls.letter}
+                  </h3>
+                  <p className="text-black/70">Disciplina: {cls.discipline}</p>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
   return (
     <div className="pt-20 p-md">
@@ -215,47 +203,50 @@ function CadernoClasse() {
         </button>
       </div>
 
-      {checks.map((chk) => (
-        <div
-          key={chk._id}
-          className="mb-md p-md rounded-lg bg-gray-50/30 backdrop-blur-md border border-gray-200 shadow-subtle"
-        >
-          <div className="flex justify-between items-center mb-sm">
-            <div>
-              <h3 className="font-semibold">{chk.description}</h3>
-              <p className="text-sm text-black/70">
-                {new Date(chk.date).toLocaleDateString()}
-              </p>
+        {checks.map((chk) => (
+          <div
+            key={chk._id}
+            className="mb-md p-md rounded-lg bg-white/30 backdrop-blur-md border border-orange-500 shadow-sm"
+          >
+            <div className="flex justify-between items-center mb-sm">
+              <div>
+                <h3 className="font-semibold">{chk.description}</h3>
+                <p className="text-sm text-black/70">
+                  {new Date(chk.date).toLocaleDateString()}
+                </p>
+              </div>
+              <div className="w-40 bg-lightGray rounded-full h-2">
+                <div
+                  className="bg-orange h-2 rounded-full"
+                  style={{ width: `${chk.percentual}%` }}
+                ></div>
+              </div>
             </div>
-            <div className="w-40 bg-lightGray rounded-full h-2">
-              <div
-                className="bg-orange h-2 rounded-full"
-                style={{ width: `${chk.percentual}%` }}
-              ></div>
-            </div>
+            <ul className="space-y-sm">
+              {students.map((st) => {
+                const entry = chk.students.find((s) => s.student === st._id);
+                return (
+                  <li
+                    key={st._id}
+                    className="flex items-center bg-white/30 border border-orange-500 rounded p-sm shadow-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      className="mr-2"
+                      checked={entry ? entry.done : false}
+                      onChange={() => toggleStudent(chk._id, st._id)}
+                    />
+                    {st.name}
+                  </li>
+                );
+              })}
+            </ul>
           </div>
-          <ul className="space-y-sm">
-            {students.map((st) => {
-              const entry = chk.students.find((s) => s.student === st._id);
-              return (
-                <li key={st._id} className="flex items-center">
-                  <input
-                    type="checkbox"
-                    className="mr-2"
-                    checked={entry ? entry.done : false}
-                    onChange={() => toggleStudent(chk._id, st._id)}
-                  />
-                  {st.name}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))}
-      {renderModal()}
-    </div>
-  );
-}
+        ))}
+        {renderModal()}
+      </div>
+    );
+  }
 
 export default CadernoClasse;
 
