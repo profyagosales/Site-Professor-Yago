@@ -1,23 +1,62 @@
 const nodemailer = require('nodemailer');
+require('dotenv').config();
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
+let transporter;
+
+async function createTransporter() {
+  if (transporter) {
+    return transporter;
   }
-});
 
-async function sendEmail({ to, subject, html }) {
+  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, NODE_ENV } = process.env;
+
+  if (SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS) {
+    transporter = nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: Number(SMTP_PORT),
+      secure: Number(SMTP_PORT) === 465,
+      auth: {
+        user: SMTP_USER,
+        pass: SMTP_PASS
+      }
+    });
+  } else if (NODE_ENV !== 'production') {
+    const testAccount = await nodemailer.createTestAccount();
+    console.log('Using Ethereal test account:', testAccount.user);
+    transporter = nodemailer.createTransport({
+      host: 'smtp.ethereal.email',
+      port: 587,
+      auth: {
+        user: testAccount.user,
+        pass: testAccount.pass
+      }
+    });
+  } else {
+    throw new Error('SMTP configuration is missing');
+  }
+
+  return transporter;
+}
+
+async function sendEmail({ to, subject, html, attachments } = {}) {
+  const transport = await createTransporter();
+
   const mailOptions = {
-    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    from: process.env.SMTP_FROM || (transport.options.auth && transport.options.auth.user),
     to,
     subject,
-    html
+    html,
+    attachments
   };
-  await transporter.sendMail(mailOptions);
+
+  const info = await transport.sendMail(mailOptions);
+
+  if (transport.options.host === 'smtp.ethereal.email') {
+    console.log('Preview URL: ' + nodemailer.getTestMessageUrl(info));
+  }
+
+  return info;
 }
 
 module.exports = { sendEmail };
+
