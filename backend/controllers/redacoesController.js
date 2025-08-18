@@ -51,4 +51,54 @@ async function enviarRedacao(req, res) {
   }
 }
 
-module.exports = { upload, enviarRedacao };
+async function listarRedacoes(req, res) {
+  try {
+    const {
+      status,
+      bimestre,
+      turma,
+      aluno,
+      page = 1,
+      limit = 10,
+      sort = '-submittedAt'
+    } = req.query;
+
+    if (!status) {
+      return res.status(400).json({ error: 'Status \u00e9 obrigat\u00f3rio' });
+    }
+
+    const filter = { status };
+    if (bimestre) filter.bimester = Number(bimestre);
+    if (turma) filter.class = turma;
+    if (aluno) filter.student = aluno;
+
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+
+    const query = Redacao.find(filter)
+      .populate('student', 'name rollNumber photo')
+      .populate('class', 'series letter')
+      .sort(sort);
+
+    if (!isNaN(pageNum) && !isNaN(limitNum)) {
+      query.skip((pageNum - 1) * limitNum).limit(limitNum);
+    }
+
+    const [redacoes, total] = await Promise.all([
+      query.exec(),
+      Redacao.countDocuments(filter)
+    ]);
+
+    res.json({
+      redacoes,
+      total,
+      page: pageNum,
+      pages: Math.ceil(total / limitNum)
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro ao listar reda\u00e7\u00f5es' });
+  }
+}
+
+module.exports = { upload, enviarRedacao, listarRedacoes };
