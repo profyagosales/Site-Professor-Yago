@@ -1,7 +1,21 @@
 const mongoose = require('mongoose');
 
 const gabaritoSchema = new mongoose.Schema({
-  evaluation: { type: mongoose.Schema.Types.ObjectId, ref: 'Evaluation', required: true },
+  evaluation: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Evaluation',
+    required: true
+  },
+  student: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Student',
+    required: true
+  },
+  class: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Class',
+    required: true
+  },
   header: {
     schoolName: { type: String },
     discipline: { type: String },
@@ -10,7 +24,9 @@ const gabaritoSchema = new mongoose.Schema({
   },
   instructions: { type: String },
   questionCount: { type: Number, required: true },
-  correctAnswers: [{ type: String, required: true }]
+  totalValue: { type: Number, required: true },
+  answerKey: [{ type: String }],
+  pdfPath: { type: String, required: true }
 });
 
 module.exports = mongoose.model('Gabarito', gabaritoSchema);

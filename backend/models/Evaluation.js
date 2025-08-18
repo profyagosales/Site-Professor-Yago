@@ -8,7 +8,11 @@ const evaluationSchema = new mongoose.Schema({
   numQuestions: { type: Number, required: true },
   questionValue: { type: Number, required: true },
   answerKey: [{ type: String }],
-  applicationDate: { type: Date, required: true }
+  applicationDate: { type: Date, required: true },
+  gabaritos: {
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Gabarito' }],
+    default: []
+  }
 });
 
 module.exports = mongoose.model('Evaluation', evaluationSchema);
