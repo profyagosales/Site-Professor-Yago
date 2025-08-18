@@ -29,7 +29,7 @@ function DashboardProfessor() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
         <div className="flex items-center p-md rounded-lg bg-white/30 backdrop-blur-md border border-white/20 shadow-subtle">
           <svg
-            className="w-8 h-8 text-orange mr-3"
+            className="w-6 h-6 text-orange mr-3"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
@@ -48,7 +48,7 @@ function DashboardProfessor() {
 
         <div className="flex items-center p-md rounded-lg bg-white/30 backdrop-blur-md border border-white/20 shadow-subtle">
           <svg
-            className="w-8 h-8 text-orange mr-3"
+            className="w-6 h-6 text-orange mr-3"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
@@ -68,7 +68,7 @@ function DashboardProfessor() {
 
         <div className="flex items-center p-md rounded-lg bg-white/30 backdrop-blur-md border border-white/20 shadow-subtle">
           <svg
-            className="w-8 h-8 text-orange mr-3"
+            className="w-6 h-6 text-orange mr-3"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
