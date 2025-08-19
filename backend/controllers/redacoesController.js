@@ -3,6 +3,7 @@ const path = require('path');
 const multer = require('multer');
 const { PDFDocument } = require('pdf-lib');
 const Redacao = require('../models/Redacao');
+const { generateCorrectionPdf } = require('../services/pdfService');
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
@@ -113,12 +114,24 @@ async function corrigirRedacao(req, res) {
     const correction = { tipo };
 
     if (tipo === 'PAS/UnB') {
-      const { NC, NE, NL } = req.body;
-      if (typeof NC !== 'number' || typeof NE !== 'number' || typeof NL !== 'number' || NL === 0) {
+      const { NC, NE, NL, comentario } = req.body;
+      if (
+        typeof NC !== 'number' ||
+        typeof NE !== 'number' ||
+        typeof NL !== 'number' ||
+        NL === 0
+      ) {
         return res.status(400).json({ error: 'Dados inválidos para correção PAS/UnB' });
       }
       finalScore = NC - (2 * NE) / NL;
-      Object.assign(correction, { NC, NE, NL, finalScore, competencias: [] });
+      Object.assign(correction, {
+        NC,
+        NE,
+        NL,
+        finalScore,
+        competencias: [],
+        generalComment: comentario
+      });
     } else if (tipo === 'ENEM') {
       const { checklist = {}, competencias = [] } = req.body;
       const invalidComp = !Array.isArray(competencias) || competencias.length !== 5;
@@ -134,10 +147,16 @@ async function corrigirRedacao(req, res) {
         correction.finalScore = finalScore;
         correction.competencias = competencias;
       } else {
-        if (invalidComp || competencias.some((c) => !validScores.includes(c))) {
+        if (
+          invalidComp ||
+          competencias.some(
+            (c) =>
+              typeof c.pontuacao !== 'number' || !validScores.includes(c.pontuacao)
+          )
+        ) {
           return res.status(400).json({ error: 'Competências inválidas' });
         }
-        finalScore = competencias.reduce((sum, val) => sum + val, 0);
+        finalScore = competencias.reduce((sum, c) => sum + c.pontuacao, 0);
         Object.assign(correction, { competencias, finalScore });
       }
     } else {
@@ -147,19 +166,16 @@ async function corrigirRedacao(req, res) {
     redacao.correction = correction;
     redacao.status = 'corrigida';
 
-    const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([600, 400]);
-    page.drawText(`Tipo: ${tipo}`, { x: 50, y: 350, size: 14 });
-    page.drawText(`Nota final: ${finalScore}`, { x: 50, y: 330, size: 14 });
-    if (correction.anulacao) {
-      page.drawText(`Anulação: ${correction.anulacao}`, { x: 50, y: 310, size: 14 });
-    }
-    const pdfBytes = await pdfDoc.save();
+    const pdfBuffer = await generateCorrectionPdf({
+      tipo,
+      ...correction,
+      finalScore
+    });
     const uploadDir = path.join(__dirname, '../uploads/redacoes');
     await fs.promises.mkdir(uploadDir, { recursive: true });
     const pdfName = `correcao-${id}-${Date.now()}.pdf`;
     const pdfPath = path.join(uploadDir, pdfName);
-    await fs.promises.writeFile(pdfPath, pdfBytes);
+    await fs.promises.writeFile(pdfPath, pdfBuffer);
     redacao.correctionPdf = pdfName;
 
     await redacao.save();
