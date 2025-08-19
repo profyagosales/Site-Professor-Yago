@@ -1,17 +1,27 @@
-# React + Vite
+# Frontend - Site Professor Yago
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplicação React construída com Vite para a interface web do projeto.
 
-Currently, two official plugins are available:
+## Scripts
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Execute os comandos a partir do diretório `frontend`:
 
-## Expanding the ESLint configuration
+```bash
+npm install           # instala dependências
+npm run dev           # inicia servidor de desenvolvimento
+npm test              # executa testes unitários
+npm run lint          # verifica o lint
+npm run build         # gera build de produção em dist/
+npm run preview       # visualiza o build
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Também é possível executar os scripts a partir da raiz do repositório adicionando `--prefix frontend`, por exemplo:
 
-## Using the UI
+```bash
+npm run dev --prefix frontend
+```
+
+## Usando a UI
 
 ### Authentication
 
