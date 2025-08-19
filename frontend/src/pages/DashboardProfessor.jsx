@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 import SendEmailModal from '../components/SendEmailModal';
 import NotificationsPanel from '../components/NotificationsPanel';
 import CalendarIcon from '../components/icons/CalendarIcon';
@@ -14,23 +15,52 @@ function DashboardProfessor() {
     progress: 0,
   });
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      setSuccess(null);
       try {
         const token = localStorage.getItem('token');
         const res = await axios.get('http://localhost:5000/dashboard/teacher', {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         setData(res.data);
+        setSuccess('Dados carregados');
+        toast.success('Dados carregados');
       } catch (err) {
         console.error('Erro ao carregar dashboard', err);
+        const message = 'Erro ao carregar dashboard';
+        setError(message);
+        toast.error(message);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchData();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="pt-20 p-md">
+        <p>Carregando...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="pt-20 p-md">
+        <p className="text-red-500">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="pt-20 p-md">

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 import { getClassMatrix, exportClassPdf } from '../services/grades';
 
 function NotasClasse() {
@@ -13,6 +14,7 @@ function NotasClasse() {
   const [errorClasses, setErrorClasses] = useState(null);
   const [loadingGrades, setLoadingGrades] = useState(false);
   const [errorGrades, setErrorGrades] = useState(null);
+  const [success, setSuccess] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -22,9 +24,13 @@ function NotasClasse() {
       try {
         const res = await axios.get('http://localhost:5000/classes');
         setClasses(res.data);
+        setSuccess('Turmas carregadas');
+        toast.success('Turmas carregadas');
       } catch (err) {
         console.error('Erro ao carregar turmas', err);
-        setErrorClasses('Erro ao carregar turmas');
+        const message = 'Erro ao carregar turmas';
+        setErrorClasses(message);
+        toast.error(message);
       } finally {
         setLoadingClasses(false);
       }
@@ -40,9 +46,13 @@ function NotasClasse() {
       const { students: stud, grades: grd } = await getClassMatrix(cls._id);
       setStudents(stud);
       setGrades(grd);
+      setSuccess('Notas carregadas');
+      toast.success('Notas carregadas');
     } catch (err) {
       console.error('Erro ao carregar notas', err);
-      setErrorGrades('Erro ao carregar notas');
+      const message = 'Erro ao carregar notas';
+      setErrorGrades(message);
+      toast.error(message);
     } finally {
       setLoadingGrades(false);
     }
@@ -60,8 +70,12 @@ function NotasClasse() {
       const url = window.URL.createObjectURL(blob);
       window.open(url, '_blank');
       window.URL.revokeObjectURL(url);
+      const message = 'PDF exportado';
+      setSuccess(message);
+      toast.success(message);
     } catch (err) {
       console.error('Erro ao exportar PDF', err);
+      toast.error('Erro ao exportar PDF');
     }
   };
 
@@ -159,6 +173,7 @@ function NotasClasse() {
               </table>
             </div>
           )}
+          {success && <p className="text-green-500 mt-md">{success}</p>}
         </div>
       )}
     </div>

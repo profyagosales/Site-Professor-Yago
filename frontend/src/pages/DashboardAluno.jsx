@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 import EnviarRedacaoModal from '../components/EnviarRedacaoModal';
 import { listarRedacoesAluno } from '../services/redacoes';
 import CalendarIcon from '../components/icons/CalendarIcon';
@@ -14,32 +15,53 @@ function DashboardAluno() {
   });
   const [redacoes, setRedacoes] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
 
-  const loadRedacoes = async () => {
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
     try {
-      const res = await listarRedacoesAluno();
-      setRedacoes(res);
+      const token = localStorage.getItem('token');
+      const res = await axios.get('http://localhost:5000/dashboard/student', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      setData(res.data);
+      const reda = await listarRedacoesAluno();
+      setRedacoes(reda);
+      setSuccess('Dados carregados');
+      toast.success('Dados carregados');
     } catch (err) {
-      console.error('Erro ao carregar redações', err);
+      console.error('Erro ao carregar dashboard', err);
+      const message = 'Erro ao carregar dashboard';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get('http://localhost:5000/dashboard/student', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        setData(res.data);
-      } catch (err) {
-        console.error('Erro ao carregar dashboard', err);
-      }
-    };
-
-    fetchData();
-    loadRedacoes();
+    loadData();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="pt-20 p-md">
+        <p>Carregando...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="pt-20 p-md">
+        <p className="text-red-500">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="pt-20 p-md">

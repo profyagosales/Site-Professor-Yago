@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { FiBook } from 'react-icons/fi';
+import { toast } from 'react-toastify';
 import { createVisto, updateVisto, getVistos } from '../services/caderno';
 
 function CadernoClasse() {
@@ -11,14 +12,27 @@ function CadernoClasse() {
   const [bimester, setBimester] = useState('1');
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ title: '', date: '', bimester: '1', totalValue: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
 
   useEffect(() => {
     const fetchClasses = async () => {
+      setLoading(true);
+      setError(null);
+      setSuccess(null);
       try {
         const res = await axios.get('http://localhost:5000/classes');
         setClasses(res.data);
+        setSuccess('Turmas carregadas');
+        toast.success('Turmas carregadas');
       } catch (err) {
         console.error('Erro ao carregar turmas', err);
+        const message = 'Erro ao carregar turmas';
+        setError(message);
+        toast.error(message);
+      } finally {
+        setLoading(false);
       }
     };
     fetchClasses();
@@ -26,6 +40,9 @@ function CadernoClasse() {
 
   const fetchChecks = async (cls = selectedClass, bim = bimester) => {
     if (!cls) return;
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
     try {
       const [studRes, chkRes] = await Promise.all([
         axios
@@ -38,8 +55,15 @@ function CadernoClasse() {
       );
       setStudents(filteredStudents);
       setChecks(chkRes || []);
+      setSuccess('Dados carregados');
+      toast.success('Dados carregados');
     } catch (err) {
       console.error('Erro ao carregar vistos', err);
+      const message = 'Erro ao carregar vistos';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -68,6 +92,9 @@ function CadernoClasse() {
   };
 
   const handleCreate = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
     try {
       await createVisto({
         class: selectedClass._id,
@@ -79,8 +106,16 @@ function CadernoClasse() {
       setShowModal(false);
       setForm({ title: '', date: '', bimester: '1', totalValue: '' });
       await fetchChecks(selectedClass, form.bimester);
+      const message = 'Visto criado';
+      setSuccess(message);
+      toast.success(message);
     } catch (err) {
       console.error('Erro ao criar visto', err);
+      const message = 'Erro ao criar visto';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -148,6 +183,21 @@ function CadernoClasse() {
       </div>
     );
   };
+  if (loading) {
+    return (
+      <div className="pt-20 p-md">
+        <p>Carregando...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="pt-20 p-md">
+        <p className="text-red-500">{error}</p>
+      </div>
+    );
+  }
 
   if (!selectedClass) {
     return (

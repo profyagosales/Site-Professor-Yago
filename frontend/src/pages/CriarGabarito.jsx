@@ -2,12 +2,15 @@ import { useEffect, useState, useCallback } from 'react';
 import { getClasses } from '../services/classes';
 import { createGabarito } from '../services/gabaritos';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { toast } from 'react-toastify';
 
 function CriarGabarito() {
   const [step, setStep] = useState(1);
   const [classOptions, setClassOptions] = useState([]);
   const [previewUrl, setPreviewUrl] = useState('');
-  const [message, setMessage] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
   const [form, setForm] = useState({
     leftLogo: null,
     rightLogo: null,
@@ -21,7 +24,25 @@ function CriarGabarito() {
   });
 
   useEffect(() => {
-    getClasses().then(setClassOptions).catch((err) => console.error(err));
+    const loadClasses = async () => {
+      setLoading(true);
+      setError(null);
+      setSuccess(null);
+      try {
+        const classes = await getClasses();
+        setClassOptions(classes);
+        setSuccess('Dados carregados');
+        toast.success('Dados carregados');
+      } catch (err) {
+        console.error(err);
+        const message = 'Erro ao carregar turmas';
+        setError(message);
+        toast.error(message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadClasses();
   }, []);
   const generatePreview = useCallback(async () => {
     const pdfDoc = await PDFDocument.create();
@@ -83,16 +104,25 @@ function CriarGabarito() {
   };
 
   const handleSubmit = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
     try {
       const payload = {
         ...form,
         answerKey: (form.answerKey || '').split(/\s*,\s*/)
       };
       await createGabarito(payload);
-      setMessage({ type: 'success', text: 'Gabarito criado com sucesso!' });
+      const message = 'Gabarito criado com sucesso!';
+      setSuccess(message);
+      toast.success(message);
     } catch (err) {
       console.error(err);
-      setMessage({ type: 'error', text: 'Erro ao criar gabarito.' });
+      const message = 'Erro ao criar gabarito.';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -181,6 +211,13 @@ function CriarGabarito() {
         return null;
     }
   };
+  if (loading) {
+    return (
+      <div className="pt-20 p-md">
+        <p>Carregando...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="pt-20 p-md">
@@ -204,11 +241,8 @@ function CriarGabarito() {
             </button>
           )}
         </div>
-        {message && (
-          <p className={message.type === 'success' ? 'text-green-600 mt-sm' : 'text-red-600 mt-sm'}>
-            {message.text}
-          </p>
-        )}
+        {error && <p className="text-red-600 mt-sm">{error}</p>}
+        {success && <p className="text-green-600 mt-sm">{success}</p>}
       </div>
       {previewUrl && (
         <div className="mt-md">

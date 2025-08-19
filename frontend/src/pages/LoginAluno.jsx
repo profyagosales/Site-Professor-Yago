@@ -2,22 +2,41 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 
 function LoginAluno() {
   const { register, handleSubmit } = useForm();
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const navigate = useNavigate();
 
   const onSubmit = async (data) => {
     setError('');
+    setSuccess('');
+    setLoading(true);
     try {
       const res = await axios.post('http://localhost:5000/auth/login-student', data);
       localStorage.setItem('token', res.data.token);
+      setSuccess('Login realizado');
+      toast.success('Login realizado');
       navigate('/dashboard-aluno');
     } catch (err) {
-      setError(err.response?.data?.message || 'Erro ao autenticar');
+      const message = err.response?.data?.message || 'Erro ao autenticar';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="page-centered">
+        <p>Carregando...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="page-centered">

@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import { toast } from 'react-toastify';
+
 function PerfilAlunoProfessor() {
   const student = {
     photo: 'https://via.placeholder.com/150',
@@ -13,13 +16,53 @@ function PerfilAlunoProfessor() {
     ],
   };
 
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+
   const exportPDF = () => {
-    window.print();
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      window.print();
+      const message = 'PDF exportado';
+      setSuccess(message);
+      toast.success(message);
+    } catch (err) {
+      const message = 'Erro ao exportar PDF';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const sendEmail = () => {
-    window.location.href = `mailto:${student.email}?subject=Boletim`;
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      window.location.href = `mailto:${student.email}?subject=Boletim`;
+      const message = 'E-mail preparado';
+      setSuccess(message);
+      toast.success(message);
+    } catch (err) {
+      const message = 'Erro ao enviar e-mail';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="pt-20 p-md">
+        <p>Carregando...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="pt-20 p-md">
@@ -62,6 +105,8 @@ function PerfilAlunoProfessor() {
             Enviar por E-mail
           </button>
         </div>
+        {error && <p className="text-red-500 text-center">{error}</p>}
+        {success && <p className="text-green-500 text-center">{success}</p>}
       </div>
     </div>
   );

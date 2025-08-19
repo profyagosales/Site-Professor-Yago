@@ -1,19 +1,33 @@
 import { useEffect, useState } from 'react';
 import { listarPendentes, listarCorrigidas } from '../services/redacoes';
+import { toast } from 'react-toastify';
 
 function DashboardRedacoes() {
   const [tab, setTab] = useState('pendentes');
   const [pendentes, setPendentes] = useState([]);
   const [corrigidas, setCorrigidas] = useState([]);
   const [filters, setFilters] = useState({ bimestre: '', turma: '', aluno: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
 
   useEffect(() => {
     const loadPendentes = async () => {
+      setLoading(true);
+      setError(null);
+      setSuccess(null);
       try {
         const data = await listarPendentes();
         setPendentes(data.redacoes || []);
+        setSuccess('Dados carregados');
+        toast.success('Dados carregados');
       } catch (err) {
         console.error('Erro ao carregar pendentes', err);
+        const message = 'Erro ao carregar pendentes';
+        setError(message);
+        toast.error(message);
+      } finally {
+        setLoading(false);
       }
     };
     loadPendentes();
@@ -22,6 +36,9 @@ function DashboardRedacoes() {
   useEffect(() => {
     if (tab !== 'corrigidas') return;
     const loadCorrigidas = async () => {
+      setLoading(true);
+      setError(null);
+      setSuccess(null);
       try {
         const params = {};
         if (filters.bimestre) params.bimestre = filters.bimestre;
@@ -29,12 +46,35 @@ function DashboardRedacoes() {
         if (filters.aluno) params.aluno = filters.aluno;
         const data = await listarCorrigidas(params);
         setCorrigidas(data.redacoes || []);
+        setSuccess('Dados carregados');
+        toast.success('Dados carregados');
       } catch (err) {
         console.error('Erro ao carregar corrigidas', err);
+        const message = 'Erro ao carregar corrigidas';
+        setError(message);
+        toast.error(message);
+      } finally {
+        setLoading(false);
       }
     };
     loadCorrigidas();
   }, [tab, filters]);
+
+  if (loading) {
+    return (
+      <div className="pt-20 p-md">
+        <p>Carregando...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="pt-20 p-md">
+        <p className="text-red-500">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="pt-20 p-md">
