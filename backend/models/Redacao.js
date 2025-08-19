@@ -35,7 +35,8 @@ const redacaoSchema = new mongoose.Schema({
       }
     },
     anulacao: { type: String },
-    finalScore: { type: Number }
+    finalScore: { type: Number },
+    generalComment: { type: String }
   },
   correctionPdf: { type: String }
 });
