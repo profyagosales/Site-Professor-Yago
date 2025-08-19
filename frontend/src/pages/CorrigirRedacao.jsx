@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { corrigirRedacao } from '../services/redacoes';
 
@@ -17,17 +17,27 @@ function CorrigirRedacao() {
   const [competencias, setCompetencias] = useState(
     Array.from({ length: 5 }, () => ({ pontuacao: 0, comentario: '' }))
   );
+  const [totalEnem, setTotalEnem] = useState(0);
   const [nc, setNc] = useState(0);
   const [ne, setNe] = useState(0);
   const [nl, setNl] = useState(1);
+  const [pasScore, setPasScore] = useState(0);
   const essayRef = useRef(null);
   const [comments, setComments] = useState([]);
 
   const anulacao = Object.values(checklist).some(Boolean);
-  const totalEnem = anulacao
-    ? 0
-    : competencias.reduce((sum, c) => sum + Number(c.pontuacao || 0), 0);
-  const pasScore = nl ? nc - (2 * ne) / nl : 0;
+
+  useEffect(() => {
+    const total = anulacao
+      ? 0
+      : competencias.reduce((sum, c) => sum + Number(c.pontuacao || 0), 0);
+    setTotalEnem(total);
+  }, [competencias, anulacao]);
+
+  useEffect(() => {
+    const score = nl ? nc - (2 * ne) / nl : 0;
+    setPasScore(score);
+  }, [nc, ne, nl]);
 
   const handleChecklistChange = (key) => {
     setChecklist({ ...checklist, [key]: !checklist[key] });
@@ -205,7 +215,15 @@ function CorrigirRedacao() {
         )}
       </div>
 
-      <button type="submit" className="btn-primary">
+      <button
+        type="submit"
+        className="btn-primary"
+        disabled={
+          tipo === 'ENEM'
+            ? !(totalEnem > 0 || anulacao)
+            : !(nl > 0 && !Number.isNaN(nc) && !Number.isNaN(ne))
+        }
+      >
         Salvar
       </button>
     </form>
