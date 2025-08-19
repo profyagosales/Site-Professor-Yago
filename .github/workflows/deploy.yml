@@ -23,6 +23,11 @@ jobs:
       - name: Build project
         run: npm run build --prefix frontend
       - run: npm run build
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-build
+          path: frontend/dist
       - name: Deploy
         run: echo "Deploying artifacts to the hosting service"
         # TODO: Add deployment commands
