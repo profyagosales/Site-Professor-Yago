@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest --runInBand --detectOpenHandles"
   },
   "keywords": [],
   "author": "",
@@ -25,7 +25,11 @@
     "pdfkit": "^0.17.1"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "concurrently": "^9.2.0",
-    "nodemon": "^3.1.10"
+    "jest": "^30.0.5",
+    "mongodb-memory-server": "^10.2.0",
+    "nodemon": "^3.1.10",
+    "supertest": "^7.1.4"
   }
 }
