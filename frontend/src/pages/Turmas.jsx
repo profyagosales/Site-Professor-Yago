@@ -9,24 +9,16 @@ function Turmas() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
   const navigate = useNavigate();
 
   const fetchClasses = async () => {
     setLoading(true);
-    setError(null);
-    setSuccess(null);
     try {
       const res = await axios.get('http://localhost:5000/classes');
       setClasses(res.data);
-      setSuccess('Turmas carregadas');
-      toast.success('Turmas carregadas');
     } catch (err) {
       console.error('Erro ao carregar turmas', err);
-      const message = 'Erro ao carregar turmas';
-      setError(message);
-      toast.error(message);
+      toast.error('Erro ao carregar turmas');
     } finally {
       setLoading(false);
     }
@@ -37,37 +29,44 @@ function Turmas() {
   }, []);
 
   const handleSubmit = async (data) => {
+    setLoading(true);
     try {
+      let res;
       if (editing) {
-        await axios.put(`http://localhost:5000/classes/${editing._id}`, data);
+        res = await axios.put(
+          `http://localhost:5000/classes/${editing._id}`,
+          data
+        );
+        setClasses((prev) =>
+          prev.map((cls) => (cls._id === editing._id ? res.data : cls))
+        );
       } else {
-        await axios.post('http://localhost:5000/classes', data);
+        res = await axios.post('http://localhost:5000/classes', data);
+        setClasses((prev) => [...prev, res.data]);
       }
+      toast.success('Turma salva com sucesso');
       setShowModal(false);
       setEditing(null);
-      fetchClasses();
-      setSuccess('Turma salva com sucesso');
-      toast.success('Turma salva com sucesso');
     } catch (err) {
       console.error('Erro ao salvar turma', err);
-      const message = 'Erro ao salvar turma';
-      setError(message);
-      toast.error(message);
+      toast.error('Erro ao salvar turma');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm('Deseja excluir esta turma?')) return;
+    setLoading(true);
     try {
       await axios.delete(`http://localhost:5000/classes/${id}`);
-      fetchClasses();
-      setSuccess('Turma excluída');
+      setClasses((prev) => prev.filter((cls) => cls._id !== id));
       toast.success('Turma excluída');
     } catch (err) {
       console.error('Erro ao deletar turma', err);
-      const message = 'Erro ao deletar turma';
-      setError(message);
-      toast.error(message);
+      toast.error('Erro ao deletar turma');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -140,8 +139,6 @@ function Turmas() {
         onSubmit={handleSubmit}
         initialData={editing}
       />
-      {error && <p className="text-red-500 mt-md">{error}</p>}
-      {success && <p className="text-green-500 mt-md">{success}</p>}
     </div>
   );
 }
