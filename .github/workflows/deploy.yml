@@ -7,6 +7,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      MONGO_URI: ${{ secrets.MONGO_URI }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      SMTP: ${{ secrets.SMTP }}
+      APP_DOMAIN: ${{ secrets.APP_DOMAIN }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v3
