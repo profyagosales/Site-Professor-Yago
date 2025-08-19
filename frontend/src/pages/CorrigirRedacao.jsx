@@ -57,7 +57,8 @@ function CorrigirRedacao() {
     selection.removeAllRanges();
   };
 
-  const handleSave = async () => {
+  const handleSave = async (e) => {
+    e.preventDefault();
     const payload = { tipo, comentariosTexto: comments };
     if (tipo === 'ENEM') {
       payload.checklist = checklist;
@@ -81,7 +82,7 @@ function CorrigirRedacao() {
   };
 
   return (
-    <div className="pt-20 p-md space-y-md">
+    <form onSubmit={handleSave} className="pt-20 p-md space-y-md">
       <h1 className="text-2xl font-bold">Corrigir Redação</h1>
 
       <div className="space-y-sm">
@@ -204,10 +205,10 @@ function CorrigirRedacao() {
         )}
       </div>
 
-      <button type="button" className="btn-primary" onClick={handleSave}>
+      <button type="submit" className="btn-primary">
         Salvar
       </button>
-    </div>
+    </form>
   );
 }
 
