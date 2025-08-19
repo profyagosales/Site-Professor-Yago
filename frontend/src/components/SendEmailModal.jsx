@@ -54,7 +54,7 @@ function SendEmailModal({ isOpen, onClose }) {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/50">
       <div className="card w-full max-w-lg p-md">
-        <h2 className="text-xl mb-md">Enviar E-mail</h2>
+        <h2 className="text-xl">Enviar E-mail</h2>
         {alert && (
           <div
             className={`mb-md p-sm rounded ${

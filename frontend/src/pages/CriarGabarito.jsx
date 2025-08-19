@@ -184,8 +184,8 @@ function CriarGabarito() {
 
   return (
     <div className="pt-20 p-md">
-      <h1 className="text-2xl text-orange mb-md">Criar Gabarito</h1>
-      <div className="bg-gray-50/30 backdrop-blur-md border border-gray-300 rounded-lg p-md">
+      <h1 className="text-2xl text-orange">Criar Gabarito</h1>
+      <div className="card">
         {renderStep()}
         <div className="mt-md flex justify-between">
           {step > 1 && (
@@ -212,7 +212,7 @@ function CriarGabarito() {
       </div>
       {previewUrl && (
         <div className="mt-md">
-          <h2 className="text-lg text-orange mb-sm">Prévia</h2>
+          <h2 className="text-lg text-orange">Prévia</h2>
           <iframe src={previewUrl} className="w-full h-96 border" title="preview" />
         </div>
       )}

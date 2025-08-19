@@ -35,7 +35,7 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/50">
       <div className="card w-full max-w-md p-md">
-        <h2 className="text-xl text-orange mb-md">
+        <h2 className="text-xl text-orange">
           {initialData ? 'Editar Turma' : 'Nova Turma'}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-md">

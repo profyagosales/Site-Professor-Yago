@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import ClassModal from '../components/ClassModal';
+import { toast } from 'react-toastify';
 
 function Turmas() {
   const [classes, setClasses] = useState([]);
@@ -32,8 +33,10 @@ function Turmas() {
       setShowModal(false);
       setEditing(null);
       fetchClasses();
+      toast.success('Turma salva com sucesso');
     } catch (err) {
       console.error('Erro ao salvar turma', err);
+      toast.error('Erro ao salvar turma');
     }
   };
 
@@ -42,8 +45,10 @@ function Turmas() {
     try {
       await axios.delete(`http://localhost:5000/classes/${id}`);
       fetchClasses();
+      toast.success('Turma excluída');
     } catch (err) {
       console.error('Erro ao deletar turma', err);
+      toast.error('Erro ao deletar turma');
     }
   };
 
@@ -61,11 +66,11 @@ function Turmas() {
           Nova Turma
         </button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
         {classes.map((cls) => (
           <div
             key={cls._id}
-            className="bg-gray-50/30 backdrop-blur-md border border-gray-300 rounded-lg p-md shadow-subtle"
+            className="card"
           >
             <h3 className="text-orange text-lg font-semibold">
               {cls.series}ª{cls.letter}

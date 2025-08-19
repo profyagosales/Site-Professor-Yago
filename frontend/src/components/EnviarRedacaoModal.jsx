@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { enviarRedacao } from '../services/redacoes';
+import { toast } from 'react-toastify';
 
 function EnviarRedacaoModal({ isOpen, onClose, onSuccess }) {
   const [file, setFile] = useState(null);
@@ -73,8 +74,10 @@ function EnviarRedacaoModal({ isOpen, onClose, onSuccess }) {
       setFile(null);
       setProgress(0);
       onSuccess();
+      toast.success('Redação enviada com sucesso');
     } catch (err) {
       console.error('Erro ao enviar redação', err);
+      toast.error('Erro ao enviar redação');
     }
   };
 
@@ -87,7 +90,7 @@ function EnviarRedacaoModal({ isOpen, onClose, onSuccess }) {
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
       >
-        <h2 className="text-xl text-orange mb-md">Enviar Redação</h2>
+        <h2 className="text-xl text-orange">Enviar Redação</h2>
         <div className="space-y-sm">
           <div className="flex space-x-sm">
             <button

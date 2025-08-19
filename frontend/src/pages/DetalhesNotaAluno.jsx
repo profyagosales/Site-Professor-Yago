@@ -62,13 +62,13 @@ function DetalhesNotaAluno() {
               Voltar
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-md mb-md">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-md mb-md">
             {[1, 2, 3, 4].map((b) => (
               <div
                 key={b}
-                className="p-md bg-gray-50/30 backdrop-blur-md border border-gray-200 rounded-lg shadow-subtle"
+                className="card"
               >
-                <h2 className="font-semibold mb-sm">{b}º Bimestre</h2>
+                <h2 className="font-semibold">{b}º Bimestre</h2>
                 <ul className="space-y-xs">
                   {(bimesters[b] || []).map((ev, idx) => (
                     <li key={idx} className="flex justify-between">

@@ -12,21 +12,39 @@
 }
 
 body {
-  @apply font-sans bg-gray-100 text-black;
+  @apply font-sans bg-gray-100 text-black m-0;
+}
+
+@layer base {
+  h1 {
+    @apply text-2xl font-semibold mb-md;
+  }
+  h2 {
+    @apply text-xl font-semibold mb-md;
+  }
+  h3 {
+    @apply text-lg font-semibold mb-sm;
+  }
+  p {
+    @apply leading-relaxed;
+  }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-orange text-white px-4 py-2 rounded hover:bg-orange/80;
+    @apply bg-orange text-white px-4 py-2 rounded shadow-subtle hover:bg-orange/80 hover:shadow-md transition-colors duration-300;
   }
   .btn-secondary {
-    @apply bg-gray-200 text-black px-4 py-2 rounded hover:bg-gray-200/80;
+    @apply bg-gray-200 text-black px-4 py-2 rounded shadow-subtle hover:bg-gray-200/80 hover:shadow-md transition-colors duration-300;
   }
   .link-primary {
-    @apply text-orange hover:text-orange/80;
+    @apply text-orange hover:text-orange/80 transition-colors duration-300;
   }
   .card {
-    @apply bg-gray-50/80 shadow-lg p-8 rounded-lg;
+    @apply bg-white/30 backdrop-blur-md shadow-lg p-md rounded-lg transition-shadow duration-300;
+  }
+  .card:hover {
+    @apply shadow-xl;
   }
   .page-wrapper {
     @apply min-h-screen bg-gray-100 pt-16;
