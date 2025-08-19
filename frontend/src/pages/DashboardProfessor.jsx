@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import SendEmailModal from '../components/SendEmailModal';
+import NotificationsPanel from '../components/NotificationsPanel';
 
 function DashboardProfessor() {
   const [data, setData] = useState({
@@ -105,6 +106,9 @@ function DashboardProfessor() {
             </p>
           </div>
         </div>
+      </div>
+      <div className="mt-md">
+        <NotificationsPanel />
       </div>
       <SendEmailModal
         isOpen={showEmailModal}
