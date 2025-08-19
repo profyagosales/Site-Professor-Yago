@@ -4,41 +4,65 @@ const Class = require('../models/Class');
 const router = express.Router();
 
 // Get all classes
-router.get('/', async (req, res) => {
+router.get('/', async (req, res, next) => {
   try {
     const classes = await Class.find();
-    res.json(classes);
+    res.status(200).json({
+      success: true,
+      message: 'Turmas obtidas com sucesso',
+      data: classes
+    });
   } catch (err) {
-    res.status(500).json({ error: 'Erro ao buscar turmas' });
+    err.status = 500;
+    err.message = 'Erro ao buscar turmas';
+    next(err);
   }
 });
 
 // Get class by id
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req, res, next) => {
   try {
     const cls = await Class.findById(req.params.id)
       .populate('students')
       .populate('teachers');
-    if (!cls) return res.status(404).json({ error: 'Turma não encontrada' });
-    res.json(cls);
+    if (!cls) {
+      const error = new Error('Turma não encontrada');
+      error.status = 404;
+      throw error;
+    }
+    res.status(200).json({
+      success: true,
+      message: 'Turma obtida com sucesso',
+      data: cls
+    });
   } catch (err) {
-    res.status(500).json({ error: 'Erro ao buscar turma' });
+    if (!err.status) {
+      err.status = 500;
+      err.message = 'Erro ao buscar turma';
+    }
+    next(err);
   }
 });
 
 // Create class
-router.post('/', async (req, res) => {
+router.post('/', async (req, res, next) => {
   try {
     const { series, letter, discipline } = req.body;
     const newClass = await Class.create({ series, letter, discipline });
-    res.status(201).json(newClass);
+    res.status(200).json({
+      success: true,
+      message: 'Turma criada com sucesso',
+      data: newClass
+    });
   } catch (err) {
-    res.status(400).json({ error: 'Erro ao criar turma' });
+    err.status = 400;
+    err.message = 'Erro ao criar turma';
+    next(err);
   }
 });
 
 // Update class
-router.put('/:id', async (req, res) => {
+router.put('/:id', async (req, res, next) => {
   try {
     const { series, letter, discipline } = req.body;
     const updatedClass = await Class.findByIdAndUpdate(
@@ -46,21 +70,45 @@ router.put('/:id', async (req, res) => {
       { series, letter, discipline },
       { new: true }
     );
-    if (!updatedClass) return res.status(404).json({ error: 'Turma não encontrada' });
-    res.json(updatedClass);
+    if (!updatedClass) {
+      const error = new Error('Turma não encontrada');
+      error.status = 404;
+      throw error;
+    }
+    res.status(200).json({
+      success: true,
+      message: 'Turma atualizada com sucesso',
+      data: updatedClass
+    });
   } catch (err) {
-    res.status(400).json({ error: 'Erro ao atualizar turma' });
+    if (!err.status) {
+      err.status = 400;
+      err.message = 'Erro ao atualizar turma';
+    }
+    next(err);
   }
 });
 
 // Delete class
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req, res, next) => {
   try {
     const deletedClass = await Class.findByIdAndDelete(req.params.id);
-    if (!deletedClass) return res.status(404).json({ error: 'Turma não encontrada' });
-    res.json({ message: 'Turma removida' });
+    if (!deletedClass) {
+      const error = new Error('Turma não encontrada');
+      error.status = 404;
+      throw error;
+    }
+    res.status(200).json({
+      success: true,
+      message: 'Turma removida com sucesso',
+      data: null
+    });
   } catch (err) {
-    res.status(500).json({ error: 'Erro ao remover turma' });
+    if (!err.status) {
+      err.status = 500;
+      err.message = 'Erro ao remover turma';
+    }
+    next(err);
   }
 });
 

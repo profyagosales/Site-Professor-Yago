@@ -10,20 +10,26 @@ const router = express.Router();
 router.use(auth);
 
 // Generate gabaritos for students of provided classes
-router.post('/', async (req, res) => {
+router.post('/', async (req, res, next) => {
   try {
     if (req.profile !== 'teacher') {
-      return res.status(403).json({ error: 'Acesso negado' });
+      const error = new Error('Acesso negado');
+      error.status = 403;
+      throw error;
     }
 
     const { evaluationId, classes, header, instructions } = req.body;
     if (!evaluationId || !Array.isArray(classes) || classes.length === 0) {
-      return res.status(400).json({ error: 'Dados inválidos' });
+      const error = new Error('Dados inválidos');
+      error.status = 400;
+      throw error;
     }
 
     const evaluation = await Evaluation.findById(evaluationId);
     if (!evaluation) {
-      return res.status(404).json({ error: 'Avaliação não encontrada' });
+      const error = new Error('Avaliação não encontrada');
+      error.status = 404;
+      throw error;
     }
 
     const created = [];
@@ -54,10 +60,17 @@ router.post('/', async (req, res) => {
     }
 
     await evaluation.save();
-    res.status(201).json({ gabaritos: created });
+    res.status(200).json({
+      success: true,
+      message: 'Gabaritos gerados com sucesso',
+      data: { gabaritos: created }
+    });
   } catch (err) {
-    console.error(err);
-    res.status(400).json({ error: 'Erro ao gerar gabaritos' });
+    if (!err.status) {
+      err.status = 400;
+      err.message = 'Erro ao gerar gabaritos';
+    }
+    next(err);
   }
 });
 

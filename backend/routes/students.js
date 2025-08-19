@@ -17,41 +17,69 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-router.get('/', async (req, res) => {
+router.get('/', async (req, res, next) => {
   try {
     const students = await Student.find().populate('class');
-    res.json(students);
+    res.status(200).json({
+      success: true,
+      message: 'Alunos obtidos com sucesso',
+      data: students
+    });
   } catch (err) {
-    res.status(500).json({ error: 'Erro ao buscar alunos' });
+    err.status = 500;
+    err.message = 'Erro ao buscar alunos';
+    next(err);
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req, res, next) => {
   try {
     const student = await Student.findById(req.params.id).populate('class');
-    if (!student) return res.status(404).json({ error: 'Aluno não encontrado' });
-    res.json(student);
+    if (!student) {
+      const error = new Error('Aluno não encontrado');
+      error.status = 404;
+      throw error;
+    }
+    res.status(200).json({
+      success: true,
+      message: 'Aluno obtido com sucesso',
+      data: student
+    });
   } catch (err) {
-    res.status(400).json({ error: 'ID inválido' });
+    if (!err.status) {
+      err.status = 400;
+      err.message = 'ID inválido';
+    }
+    next(err);
   }
 });
 
-router.post('/', upload.single('photo'), async (req, res) => {
+router.post('/', upload.single('photo'), async (req, res, next) => {
   try {
     const { class: classId, name, email, rollNumber, phone, password } = req.body;
     if (!classId || !name || !email || !rollNumber || !password) {
-      return res.status(400).json({ error: 'Dados obrigatórios ausentes' });
+      const error = new Error('Dados obrigatórios ausentes');
+      error.status = 400;
+      throw error;
     }
     const studentData = { class: classId, name, email, rollNumber, phone, password };
     if (req.file) studentData.photo = req.file.filename;
     const newStudent = await Student.create(studentData);
-    res.status(201).json(newStudent);
+    res.status(200).json({
+      success: true,
+      message: 'Aluno criado com sucesso',
+      data: newStudent
+    });
   } catch (err) {
-    res.status(400).json({ error: 'Erro ao criar aluno' });
+    if (!err.status) {
+      err.status = 400;
+      err.message = 'Erro ao criar aluno';
+    }
+    next(err);
   }
 });
 
-router.put('/:id', upload.single('photo'), async (req, res) => {
+router.put('/:id', upload.single('photo'), async (req, res, next) => {
   try {
     const { class: classId, name, email, rollNumber, phone, password } = req.body;
     if (
@@ -63,11 +91,17 @@ router.put('/:id', upload.single('photo'), async (req, res) => {
       password === undefined &&
       !req.file
     ) {
-      return res.status(400).json({ error: 'Nenhum dado fornecido para atualização' });
+      const error = new Error('Nenhum dado fornecido para atualização');
+      error.status = 400;
+      throw error;
     }
 
     const student = await Student.findById(req.params.id);
-    if (!student) return res.status(404).json({ error: 'Aluno não encontrado' });
+    if (!student) {
+      const error = new Error('Aluno não encontrado');
+      error.status = 404;
+      throw error;
+    }
 
     if (classId !== undefined) student.class = classId;
     if (name !== undefined) student.name = name;
@@ -78,19 +112,39 @@ router.put('/:id', upload.single('photo'), async (req, res) => {
     if (req.file) student.photo = req.file.filename;
 
     await student.save();
-    res.json(student);
+    res.status(200).json({
+      success: true,
+      message: 'Aluno atualizado com sucesso',
+      data: student
+    });
   } catch (err) {
-    res.status(400).json({ error: 'Erro ao atualizar aluno' });
+    if (!err.status) {
+      err.status = 400;
+      err.message = 'Erro ao atualizar aluno';
+    }
+    next(err);
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req, res, next) => {
   try {
     const deletedStudent = await Student.findByIdAndDelete(req.params.id);
-    if (!deletedStudent) return res.status(404).json({ error: 'Aluno não encontrado' });
-    res.json({ message: 'Aluno removido' });
+    if (!deletedStudent) {
+      const error = new Error('Aluno não encontrado');
+      error.status = 404;
+      throw error;
+    }
+    res.status(200).json({
+      success: true,
+      message: 'Aluno removido com sucesso',
+      data: null
+    });
   } catch (err) {
-    res.status(400).json({ error: 'ID inválido' });
+    if (!err.status) {
+      err.status = 400;
+      err.message = 'ID inválido';
+    }
+    next(err);
   }
 });
 

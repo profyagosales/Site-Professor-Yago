@@ -9,15 +9,19 @@ const router = express.Router();
 router.use(auth);
 
 // Register a new caderno check
-router.post('/', async (req, res) => {
+router.post('/', async (req, res, next) => {
   try {
     if (req.profile !== 'teacher') {
-      return res.status(403).json({ error: 'Acesso negado' });
+      const error = new Error('Acesso negado');
+      error.status = 403;
+      throw error;
     }
     const { class: classId, description, date, bimester, totalValue } = req.body;
 
     if (!classId || !date || bimester === undefined || totalValue === undefined) {
-      return res.status(400).json({ error: 'Dados inválidos' });
+      const error = new Error('Dados inválidos');
+      error.status = 400;
+      throw error;
     }
 
     const classStudents = await Student.find({ class: classId }).select('_id');
@@ -33,27 +37,41 @@ router.post('/', async (req, res) => {
     });
 
     await caderno.save();
-    res.status(201).json(caderno);
+    res.status(200).json({
+      success: true,
+      message: 'Visto criado com sucesso',
+      data: caderno
+    });
   } catch (err) {
-    res.status(400).json({ error: 'Erro ao criar visto' });
+    if (!err.status) {
+      err.status = 400;
+      err.message = 'Erro ao criar visto';
+    }
+    next(err);
   }
 });
 
 // Update caderno check and recalculate grades
-router.put('/:id', async (req, res) => {
+router.put('/:id', async (req, res, next) => {
   try {
     if (req.profile !== 'teacher') {
-      return res.status(403).json({ error: 'Acesso negado' });
+      const error = new Error('Acesso negado');
+      error.status = 403;
+      throw error;
     }
 
     const { students } = req.body;
     if (!Array.isArray(students)) {
-      return res.status(400).json({ error: 'Lista de alunos inválida' });
+      const error = new Error('Lista de alunos inválida');
+      error.status = 400;
+      throw error;
     }
 
     const caderno = await CadernoCheck.findById(req.params.id);
     if (!caderno) {
-      return res.status(404).json({ error: 'Visto não encontrado' });
+      const error = new Error('Visto não encontrado');
+      error.status = 404;
+      throw error;
     }
 
     caderno.students = students;
@@ -100,14 +118,22 @@ router.put('/:id', async (req, res) => {
       }
     }
 
-    res.json(caderno);
+    res.status(200).json({
+      success: true,
+      message: 'Visto atualizado com sucesso',
+      data: caderno
+    });
   } catch (err) {
-    res.status(400).json({ error: 'Erro ao atualizar visto' });
+    if (!err.status) {
+      err.status = 400;
+      err.message = 'Erro ao atualizar visto';
+    }
+    next(err);
   }
 });
 
 // Get caderno checks for a class and bimester with progress
-router.get('/:classId/:bimester', async (req, res) => {
+router.get('/:classId/:bimester', async (req, res, next) => {
   try {
     const { classId, bimester } = req.params;
     const checks = await CadernoCheck.find({
@@ -129,9 +155,17 @@ router.get('/:classId/:bimester', async (req, res) => {
       };
     });
 
-    res.json(result);
+    res.status(200).json({
+      success: true,
+      message: 'Vistos encontrados com sucesso',
+      data: result
+    });
   } catch (err) {
-    res.status(500).json({ error: 'Erro ao buscar vistos' });
+    if (!err.status) {
+      err.status = 500;
+      err.message = 'Erro ao buscar vistos';
+    }
+    next(err);
   }
 });
 

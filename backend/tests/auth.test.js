@@ -11,8 +11,9 @@ describe('Auth routes', () => {
       phone: '12345',
       subjects: ['Math']
     });
-    expect(res.status).toBe(201);
-    expect(res.body.token).toBeDefined();
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.token).toBeDefined();
 
     const teacher = await Teacher.findOne({ email: 'john@example.com' });
     expect(teacher).not.toBeNull();
