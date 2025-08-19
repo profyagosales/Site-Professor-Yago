@@ -3,6 +3,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 require('dotenv').config();
 const connectDB = require('./config/db');
+const notificationScheduler = require('./services/notificationScheduler');
 
 const authRoutes = require('./routes/auth');
 const dashboardRoutes = require('./routes/dashboard');
@@ -31,7 +32,9 @@ app.use('/gabaritos', gabaritoRoutes);
 app.use('/omr', omrRoutes);
 app.use('/redacoes', redacoesRoutes);
 
-connectDB();
+connectDB().then(() => {
+  notificationScheduler.loadScheduledNotifications();
+});
 
 app.get('/', (req, res) => {
   res.send('API running');
