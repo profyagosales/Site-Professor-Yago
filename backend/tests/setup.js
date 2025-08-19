@@ -1,10 +1,14 @@
+jest.setTimeout(30000);
 const { MongoMemoryServer } = require('mongodb-memory-server');
 const mongoose = require('mongoose');
+// const path = require('path');
 
 let mongo;
 
 beforeAll(async () => {
   process.env.JWT_SECRET = 'testsecret';
+  process.env.MONGOMS_VERSION = '8.12.2';
+  // process.env.MONGOMS_DOWNLOAD_DIR = path.join(__dirname, '..', '.mongodb-binaries');
   mongo = await MongoMemoryServer.create();
   const uri = mongo.getUri();
   await mongoose.connect(uri);
