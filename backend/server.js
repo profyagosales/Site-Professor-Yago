@@ -16,6 +16,7 @@ const cadernoRoutes = require('./routes/caderno');
 const gabaritoRoutes = require('./routes/gabaritos');
 const omrRoutes = require('./routes/omr');
 const redacoesRoutes = require('./routes/redacoes');
+const notificationRoutes = require('./routes/notifications');
 
 const app = express();
 app.use(cors());
@@ -31,6 +32,7 @@ app.use('/caderno', cadernoRoutes);
 app.use('/gabaritos', gabaritoRoutes);
 app.use('/omr', omrRoutes);
 app.use('/redacoes', redacoesRoutes);
+app.use('/notifications', notificationRoutes);
 
 connectDB().then(() => {
   notificationScheduler.loadScheduledNotifications();
