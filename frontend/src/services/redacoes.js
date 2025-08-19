@@ -22,6 +22,13 @@ export const listarRedacoes = async (status, filters = {}) => {
   return res.data;
 };
 
+// Wrappers for common listing statuses used in the application
+export const listarPendentes = (filters = {}) =>
+  listarRedacoes('pendente', filters);
+
+export const listarCorrigidas = (filters = {}) =>
+  listarRedacoes('corrigida', filters);
+
 export const listarRedacoesAluno = async () => {
   const res = await axios.get(`${API_URL}/redacoes`, {
     headers: authHeaders(),
@@ -48,6 +55,8 @@ export const corrigirRedacao = async (id, payload) => {
 export default {
   enviarRedacao,
   listarRedacoes,
+  listarPendentes,
+  listarCorrigidas,
   listarRedacoesAluno,
   corrigirRedacao,
 };
