@@ -1,17 +1,22 @@
 import { useState } from 'react';
 import { uploadPdf } from '../services/omr';
+import { toast } from 'react-toastify';
 
 function CorrigirGabaritos() {
   const [file, setFile] = useState(null);
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState([]);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!file) return;
     setProgress(0);
     setError('');
+    setSuccess('');
+    setLoading(true);
     try {
       const data = await uploadPdf(file, (evt) => {
         if (evt.total) {
@@ -19,8 +24,14 @@ function CorrigirGabaritos() {
         }
       });
       setResults(data.students || data);
+      setSuccess('Correção concluída');
+      toast.success('Correção concluída');
     } catch {
-      setError('Falha ao enviar PDF');
+      const message = 'Falha ao enviar PDF';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -39,6 +50,7 @@ function CorrigirGabaritos() {
             Enviar
           </button>
         </form>
+        {loading && <p>Carregando...</p>}
         {progress > 0 && progress < 100 && (
           <div className="w-full bg-gray-200 rounded h-4">
             <div
@@ -48,6 +60,7 @@ function CorrigirGabaritos() {
           </div>
         )}
         {error && <p className="text-red-500">{error}</p>}
+        {success && <p className="text-green-500">{success}</p>}
       </div>
       {Array.isArray(results) && results.length > 0 && (
         <div className="mt-md card">

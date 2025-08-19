@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { corrigirRedacao } from '../services/redacoes';
+import { toast } from 'react-toastify';
 
 function CorrigirRedacao() {
   const { id } = useParams();
@@ -24,6 +25,9 @@ function CorrigirRedacao() {
   const [pasScore, setPasScore] = useState(0);
   const essayRef = useRef(null);
   const [comments, setComments] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
 
   const anulacao = Object.values(checklist).some(Boolean);
 
@@ -82,18 +86,37 @@ function CorrigirRedacao() {
       payload.NE = Number(ne);
       payload.NL = Number(nl);
     }
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
     try {
       await corrigirRedacao(id, payload);
-      alert('Correção salva');
+      const message = 'Correção salva';
+      setSuccess(message);
+      toast.success(message);
     } catch (err) {
       console.error(err);
-      alert('Erro ao salvar correção');
+      const message = 'Erro ao salvar correção';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="pt-20 p-md">
+        <p>Carregando...</p>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSave} className="pt-20 p-md space-y-md">
       <h1 className="text-2xl font-bold">Corrigir Redação</h1>
+      {error && <p className="text-red-500">{error}</p>}
+      {success && <p className="text-green-500">{success}</p>}
 
       <div className="space-y-sm">
         <label className="block font-medium">Tipo de correção</label>

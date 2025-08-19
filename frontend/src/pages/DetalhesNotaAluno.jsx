@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getStudentGrades, exportStudentPdf, sendStudentReport } from '../services/grades';
+import { toast } from 'react-toastify';
 
 function DetalhesNotaAluno() {
   const { id } = useParams();
@@ -9,6 +10,7 @@ function DetalhesNotaAluno() {
   const [bimesters, setBimesters] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
 
   useEffect(() => {
     const fetchGrades = async () => {
@@ -34,17 +36,28 @@ function DetalhesNotaAluno() {
       const url = window.URL.createObjectURL(blob);
       window.open(url, '_blank');
       window.URL.revokeObjectURL(url);
+      const message = 'PDF exportado';
+      setSuccess(message);
+      toast.success(message);
     } catch (err) {
       console.error('Erro ao exportar PDF', err);
+      const message = 'Erro ao exportar PDF';
+      setError(message);
+      toast.error(message);
     }
   };
 
   const handleSend = async () => {
     try {
       await sendStudentReport(id);
-      alert('Relatório enviado');
+      const message = 'Relatório enviado';
+      setSuccess(message);
+      toast.success(message);
     } catch (err) {
       console.error('Erro ao enviar relatório', err);
+      const message = 'Erro ao enviar relatório';
+      setError(message);
+      toast.error(message);
     }
   };
 
@@ -93,6 +106,7 @@ function DetalhesNotaAluno() {
               Enviar para o Aluno
             </button>
           </div>
+          {success && <p className="text-green-500 text-center mt-md">{success}</p>}
         </>
       )}
     </div>

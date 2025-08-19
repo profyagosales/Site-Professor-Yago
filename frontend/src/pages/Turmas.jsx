@@ -8,14 +8,27 @@ function Turmas() {
   const [classes, setClasses] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
   const navigate = useNavigate();
 
   const fetchClasses = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
     try {
       const res = await axios.get('http://localhost:5000/classes');
       setClasses(res.data);
+      setSuccess('Turmas carregadas');
+      toast.success('Turmas carregadas');
     } catch (err) {
       console.error('Erro ao carregar turmas', err);
+      const message = 'Erro ao carregar turmas';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -33,10 +46,13 @@ function Turmas() {
       setShowModal(false);
       setEditing(null);
       fetchClasses();
+      setSuccess('Turma salva com sucesso');
       toast.success('Turma salva com sucesso');
     } catch (err) {
       console.error('Erro ao salvar turma', err);
-      toast.error('Erro ao salvar turma');
+      const message = 'Erro ao salvar turma';
+      setError(message);
+      toast.error(message);
     }
   };
 
@@ -45,12 +61,23 @@ function Turmas() {
     try {
       await axios.delete(`http://localhost:5000/classes/${id}`);
       fetchClasses();
+      setSuccess('Turma excluída');
       toast.success('Turma excluída');
     } catch (err) {
       console.error('Erro ao deletar turma', err);
-      toast.error('Erro ao deletar turma');
+      const message = 'Erro ao deletar turma';
+      setError(message);
+      toast.error(message);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="pt-20 p-md">
+        <p>Carregando...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="pt-20 p-md">
@@ -113,6 +140,8 @@ function Turmas() {
         onSubmit={handleSubmit}
         initialData={editing}
       />
+      {error && <p className="text-red-500 mt-md">{error}</p>}
+      {success && <p className="text-green-500 mt-md">{success}</p>}
     </div>
   );
 }
