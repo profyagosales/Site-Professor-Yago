@@ -26,8 +26,8 @@ function CorrigirGabaritos() {
 
   return (
     <div className="pt-20 p-md">
-      <h1 className="text-2xl font-bold mb-md">Corrigir Gabaritos</h1>
-      <div className="bg-gray-50/30 backdrop-blur-md border border-gray-300 rounded-lg p-md shadow-subtle space-y-md">
+      <h1 className="text-2xl font-bold">Corrigir Gabaritos</h1>
+      <div className="card space-y-md">
         <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-md items-end">
           <input
             type="file"
@@ -50,7 +50,7 @@ function CorrigirGabaritos() {
         {error && <p className="text-red-500">{error}</p>}
       </div>
       {Array.isArray(results) && results.length > 0 && (
-        <div className="mt-md bg-gray-50/30 backdrop-blur-md border border-gray-300 rounded-lg p-md shadow-subtle">
+        <div className="mt-md card">
           <div className="overflow-x-auto">
             <table className="min-w-full border">
               <thead>

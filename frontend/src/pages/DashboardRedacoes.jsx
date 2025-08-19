@@ -58,7 +58,7 @@ function DashboardRedacoes() {
           {pendentes.map((r) => (
             <div
               key={r._id}
-              className="flex items-center justify-between p-md rounded-lg bg-gray-50/30 backdrop-blur-md border border-gray-200 shadow-subtle"
+              className="card flex items-center justify-between"
             >
               <div className="flex items-center gap-md">
                 <img
@@ -114,7 +114,7 @@ function DashboardRedacoes() {
             {corrigidas.map((r) => (
               <div
                 key={r._id}
-                className="flex items-center justify-between p-md rounded-lg bg-gray-50/30 backdrop-blur-md border border-gray-200 shadow-subtle"
+                className="card flex items-center justify-between"
               >
                 <div className="flex items-center gap-md">
                   <img

@@ -14,6 +14,7 @@ import CadernoClasse from './pages/CadernoClasse';
 import CriarGabarito from './pages/CriarGabarito';
 import CorrigirGabaritos from './pages/CorrigirGabaritos';
 import CorrigirRedacao from './pages/CorrigirRedacao';
+import { ToastContainer } from 'react-toastify';
 
 function App() {
   return (
@@ -35,6 +36,7 @@ function App() {
         <Route path="/corrigir-gabaritos" element={<CorrigirGabaritos />} />
         <Route path="/redacoes/:id/corrigir" element={<CorrigirRedacao />} />
       </Routes>
+      <ToastContainer position="top-right" autoClose={3000} />
     </div>
   );
 }

@@ -69,17 +69,17 @@ function NotasClasse() {
     <div className="pt-20 p-md">
       {!selectedClass ? (
         <div>
-          <h1 className="text-2xl text-orange mb-md">Notas por Turma</h1>
+          <h1 className="text-2xl text-orange">Notas por Turma</h1>
           {loadingClasses ? (
             <p>Carregando turmas...</p>
           ) : errorClasses ? (
             <p className="text-red-500">{errorClasses}</p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
               {classes.map((cls) => (
                 <div
                   key={cls._id}
-                  className="bg-gray-50/30 backdrop-blur-md border border-gray-300 rounded-lg p-md shadow-subtle cursor-pointer"
+                  className="card cursor-pointer"
                   onClick={() => loadGrades(cls)}
                 >
                   <h3 className="text-orange text-lg font-semibold">

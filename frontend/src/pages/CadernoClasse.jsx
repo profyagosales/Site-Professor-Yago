@@ -89,7 +89,7 @@ function CadernoClasse() {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-black/50">
         <div className="card w-full max-w-md p-md">
-          <h2 className="text-xl mb-md">Novo Visto</h2>
+          <h2 className="text-xl">Novo Visto</h2>
           <div className="space-y-md">
             <div>
               <label className="block mb-1">Título</label>
@@ -152,12 +152,12 @@ function CadernoClasse() {
   if (!selectedClass) {
     return (
       <div className="pt-20 p-md">
-        <h1 className="text-2xl text-orange mb-md">Caderno por Turma</h1>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
+        <h1 className="text-2xl text-orange">Caderno por Turma</h1>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
             {classes.map((cls) => (
               <div
                 key={cls._id}
-                className="flex items-center bg-white/30 backdrop-blur-md border border-orange-500 rounded-lg p-md shadow-sm cursor-pointer"
+                className="card flex items-center border border-orange-500 cursor-pointer"
                 onClick={() => handleClassClick(cls)}
               >
                 <FiBook className="w-6 h-6 text-orange mr-3" />

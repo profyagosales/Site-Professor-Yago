@@ -22,7 +22,7 @@ function LoginProfessor() {
   return (
     <div className="page-centered">
       <form onSubmit={handleSubmit(onSubmit)} className="card w-full max-w-sm">
-        <h2 className="text-xl mb-4 text-center">Login Professor</h2>
+        <h2 className="text-xl text-center">Login Professor</h2>
         {error && <p className="text-red-500 mb-2">{error}</p>}
         <input
           type="email"
