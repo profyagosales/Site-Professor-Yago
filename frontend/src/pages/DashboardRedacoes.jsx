@@ -9,17 +9,14 @@ function DashboardRedacoes() {
   const [filters, setFilters] = useState({ bimestre: '', turma: '', aluno: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
 
   useEffect(() => {
     const loadPendentes = async () => {
       setLoading(true);
       setError(null);
-      setSuccess(null);
       try {
         const data = await listarPendentes();
         setPendentes(data.redacoes || []);
-        setSuccess('Dados carregados');
         toast.success('Dados carregados');
       } catch (err) {
         console.error('Erro ao carregar pendentes', err);
@@ -38,7 +35,6 @@ function DashboardRedacoes() {
     const loadCorrigidas = async () => {
       setLoading(true);
       setError(null);
-      setSuccess(null);
       try {
         const params = {};
         if (filters.bimestre) params.bimestre = filters.bimestre;
@@ -46,7 +42,6 @@ function DashboardRedacoes() {
         if (filters.aluno) params.aluno = filters.aluno;
         const data = await listarCorrigidas(params);
         setCorrigidas(data.redacoes || []);
-        setSuccess('Dados carregados');
         toast.success('Dados carregados');
       } catch (err) {
         console.error('Erro ao carregar corrigidas', err);
