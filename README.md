@@ -13,6 +13,21 @@
 | `SMTP_PORT` | (Optional) Port for the SMTP server. |
 | `SMTP_FROM` | (Optional) Email address used in the "from" field. |
 
+## Exemplo de .env (Produção)
+
+Crie um arquivo `.env` com os valores reais do ambiente:
+
+```env
+MONGODB_URI=mongodb+srv://usuario:senha@cluster/app
+JWT_SECRET=sua_chave_ultrasecreta
+SMTP_HOST=smtp.exemplo.com
+SMTP_PORT=587
+SMTP_USER=usuario
+SMTP_PASS=senha
+SMTP_FROM=no-reply@exemplo.com
+APP_DOMAIN=https://app.exemplo.com
+```
+
 ## Local Setup
 
 1. Install dependencies for both the frontend and backend:
@@ -25,13 +40,29 @@
    npm run dev
    ```
 
+## Rodando testes
+
+Execute todos os testes do projeto:
+
+```bash
+npm test
+```
+
+Ou execute separadamente para backend e frontend:
+
+```bash
+npm test --prefix backend
+npm test --prefix frontend
+```
+
 ## Production
 
 1. Build the frontend:
    ```bash
    npm run build
    ```
-2. Serve the backend:
+2. Certifique-se de que as variáveis de ambiente estejam definidas (veja o exemplo de `.env`).
+3. Execute o servidor Node:
    ```bash
    node backend/server.js
    ```
@@ -45,4 +76,4 @@
 
 ## Deployment Checklist
 
-Refer to [DEPLOY_CHECKLIST.md](DEPLOY_CHECKLIST.md) for steps to validate navigation, gabarito handling, redação workflows, notifications, and branding before deploying to staging or production.
+Refer to [DEPLOY_CHECKLIST.md](./DEPLOY_CHECKLIST.md) for steps to validate navigation, gabarito handling, redação workflows, notifications, and branding before deploying to staging or production.
