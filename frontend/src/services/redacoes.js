@@ -29,8 +29,17 @@ export const listarRedacoesAluno = async () => {
   return res.data;
 };
 
-export const corrigirRedacao = async (id, data) => {
-  const res = await axios.post(`${API_URL}/redacoes/${id}/corrigir`, data, {
+/**
+ * Envia os dados de correção de uma redação.
+ *
+ * @param {string} id      Identificador da redação a ser corrigida.
+ * @param {object} payload Objeto contendo o tipo selecionado, as
+ *                         competências ou os campos de PAS/UnB, o motivo
+ *                         de anulação (quando houver) e as anotações feitas
+ *                         no texto.
+ */
+export const corrigirRedacao = async (id, payload) => {
+  const res = await axios.post(`${API_URL}/redacoes/${id}/corrigir`, payload, {
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
   });
   return res.data;
