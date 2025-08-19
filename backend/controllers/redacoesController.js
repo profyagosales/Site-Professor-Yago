@@ -9,8 +9,8 @@ const upload = multer({ storage });
 
 async function enviarRedacao(req, res) {
   try {
-    const { student, class: classId, bimester } = req.body;
-    if (!student || !classId || !bimester || !req.file) {
+    const { student, class: classId, bimester, type } = req.body;
+    if (!student || !classId || !bimester || !type || !req.file) {
       return res.status(400).json({ error: 'Dados inv\u00e1lidos' });
     }
 
@@ -36,6 +36,7 @@ async function enviarRedacao(req, res) {
       student,
       class: classId,
       bimester,
+      type,
       file: fileName,
       submittedAt: new Date(),
       status: 'pendente'
