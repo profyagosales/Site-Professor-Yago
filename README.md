@@ -1,5 +1,7 @@
 # Site-Professor-Yago
 
+Consulte o [Guia do Usuário](./USER_GUIDE.md) para entender os fluxos de login, envio de redação, correção e visualização de notas.
+
 ## Required Environment Variables
 
 | Variable | Purpose |
