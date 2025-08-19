@@ -15,6 +15,7 @@ const gabaritoRoutes = require('./routes/gabaritos');
 const omrRoutes = require('./routes/omr');
 const redacoesRoutes = require('./routes/redacoes');
 const notificationRoutes = require('./routes/notifications');
+const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 app.use(cors());
@@ -44,5 +45,7 @@ if (isProd) {
     res.send('API running');
   });
 }
+
+app.use(errorHandler);
 
 module.exports = { app };
