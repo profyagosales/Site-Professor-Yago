@@ -12,84 +12,136 @@ const generateToken = (id) => {
 };
 
 // Cadastro de professor
-router.post('/register-teacher', async (req, res) => {
+router.post('/register-teacher', async (req, res, next) => {
   try {
     const { name, email, password, phone, subjects } = req.body;
     const existing = await Teacher.findOne({ email });
     if (existing) {
-      return res.status(400).json({ message: 'Email já cadastrado' });
+      const error = new Error('Email já cadastrado');
+      error.status = 400;
+      throw error;
     }
     const teacher = new Teacher({ name, email, password, phone, subjects });
     await teacher.save();
     const token = generateToken(teacher._id);
-    res.status(201).json({ token });
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: 'Professor cadastrado com sucesso',
+        data: { token }
+      });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Erro ao cadastrar professor' });
+    if (!err.status) {
+      err.status = 500;
+      err.message = 'Erro ao cadastrar professor';
+    }
+    next(err);
   }
 });
 
 // Cadastro de aluno
-router.post('/register-student', async (req, res) => {
+router.post('/register-student', async (req, res, next) => {
   try {
     const { class: classId, name, email, rollNumber, photo, phone, password } = req.body;
     const existing = await Student.findOne({ email });
     if (existing) {
-      return res.status(400).json({ message: 'Email já cadastrado' });
+      const error = new Error('Email já cadastrado');
+      error.status = 400;
+      throw error;
     }
     const student = new Student({ class: classId, name, email, rollNumber, photo, phone, password });
     await student.save();
     const token = generateToken(student._id);
-    res.status(201).json({ token });
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: 'Aluno cadastrado com sucesso',
+        data: { token }
+      });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Erro ao cadastrar aluno' });
+    if (!err.status) {
+      err.status = 500;
+      err.message = 'Erro ao cadastrar aluno';
+    }
+    next(err);
   }
 });
 
 // Login professor
-router.post('/login-teacher', async (req, res) => {
+router.post('/login-teacher', async (req, res, next) => {
   try {
     const { email, password } = req.body;
     const teacher = await Teacher.findOne({ email });
     if (!teacher) {
-      return res.status(400).json({ message: 'Credenciais inválidas' });
+      const error = new Error('Credenciais inválidas');
+      error.status = 400;
+      throw error;
     }
     const isMatch = await bcrypt.compare(password, teacher.password);
     if (!isMatch) {
-      return res.status(400).json({ message: 'Credenciais inválidas' });
+      const error = new Error('Credenciais inválidas');
+      error.status = 400;
+      throw error;
     }
     const token = generateToken(teacher._id);
-    res.json({ token });
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: 'Login do professor realizado com sucesso',
+        data: { token }
+      });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Erro no login do professor' });
+    if (!err.status) {
+      err.status = 500;
+      err.message = 'Erro no login do professor';
+    }
+    next(err);
   }
 });
 
 // Login aluno
-router.post('/login-student', async (req, res) => {
+router.post('/login-student', async (req, res, next) => {
   try {
     const { email, password } = req.body;
     const student = await Student.findOne({ email });
     if (!student) {
-      return res.status(400).json({ message: 'Credenciais inválidas' });
+      const error = new Error('Credenciais inválidas');
+      error.status = 400;
+      throw error;
     }
     const isMatch = await bcrypt.compare(password, student.password);
     if (!isMatch) {
-      return res.status(400).json({ message: 'Credenciais inválidas' });
+      const error = new Error('Credenciais inválidas');
+      error.status = 400;
+      throw error;
     }
     const token = generateToken(student._id);
-    res.json({ token });
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: 'Login do aluno realizado com sucesso',
+        data: { token }
+      });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Erro no login do aluno' });
+    if (!err.status) {
+      err.status = 500;
+      err.message = 'Erro no login do aluno';
+    }
+    next(err);
   }
 });
 
 // Dados do usuário logado
 router.get('/me', auth, (req, res) => {
-  res.json({ user: req.user, profile: req.profile });
+  res.status(200).json({
+    success: true,
+    message: 'Dados do usuário obtidos com sucesso',
+    data: { user: req.user, profile: req.profile }
+  });
 });
 
 module.exports = router;

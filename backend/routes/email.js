@@ -10,11 +10,13 @@ function isEmail(value) {
   return typeof value === 'string' && /\S+@\S+\.\S+/.test(value);
 }
 
-router.post('/send', async (req, res) => {
+router.post('/send', async (req, res, next) => {
   try {
     const { to, subject, html } = req.body;
     if (!Array.isArray(to)) {
-      return res.status(400).json({ message: '"to" must be an array' });
+      const error = new Error('"to" must be an array');
+      error.status = 400;
+      throw error;
     }
 
     const recipients = new Set();
@@ -22,7 +24,9 @@ router.post('/send', async (req, res) => {
       if (mongoose.Types.ObjectId.isValid(item)) {
         const cls = await Class.findById(item).lean();
         if (!cls) {
-          return res.status(400).json({ message: `Class not found: ${item}` });
+          const error = new Error(`Class not found: ${item}`);
+          error.status = 400;
+          throw error;
         }
         const students = await Student.find({ class: item }).select('email').lean();
         students.forEach(student => {
@@ -33,15 +37,24 @@ router.post('/send', async (req, res) => {
       } else if (isEmail(item)) {
         recipients.add(item);
       } else {
-        return res.status(400).json({ message: `Invalid recipient: ${item}` });
+        const error = new Error(`Invalid recipient: ${item}`);
+        error.status = 400;
+        throw error;
       }
     }
 
     await sendEmail({ to: Array.from(recipients), subject, html });
-    res.json({ message: 'Email sent successfully' });
+    res.status(200).json({
+      success: true,
+      message: 'Email enviado com sucesso',
+      data: null
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Error sending email' });
+    if (!err.status) {
+      err.status = 500;
+      err.message = 'Error sending email';
+    }
+    next(err);
   }
 });
 

@@ -9,8 +9,9 @@ describe('Classes routes', () => {
       letter: 'A',
       discipline: 'Math'
     });
-    expect(res.status).toBe(201);
-    expect(res.body.series).toBe(1);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.series).toBe(1);
 
     const cls = await Class.findOne({ series: 1, letter: 'A' });
     expect(cls).not.toBeNull();
@@ -19,6 +20,7 @@ describe('Classes routes', () => {
   it('lists classes', async () => {
     const res = await request(app).get('/classes');
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
   });
 });

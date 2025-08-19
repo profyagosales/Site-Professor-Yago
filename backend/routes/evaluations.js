@@ -7,10 +7,12 @@ const router = express.Router();
 router.use(auth);
 
 // Create evaluation
-router.post('/', async (req, res) => {
+router.post('/', async (req, res, next) => {
   try {
     if (req.profile !== 'teacher') {
-      return res.status(403).json({ error: 'Acesso negado' });
+      const error = new Error('Acesso negado');
+      error.status = 403;
+      throw error;
     }
     const {
       type,
@@ -28,13 +30,15 @@ router.post('/', async (req, res) => {
       numQuestions === undefined ||
       questionValue === undefined
     ) {
-      return res.status(400).json({ error: 'Dados inválidos' });
+      const error = new Error('Dados inválidos');
+      error.status = 400;
+      throw error;
     }
 
     if (answerKey && answerKey.length !== numQuestions) {
-      return res
-        .status(400)
-        .json({ error: 'Gabarito incompatível com o número de questões' });
+      const error = new Error('Gabarito incompatível com o número de questões');
+      error.status = 400;
+      throw error;
     }
 
     const totalValue = numQuestions * questionValue;
@@ -51,9 +55,17 @@ router.post('/', async (req, res) => {
     });
 
     await evaluation.save();
-    res.status(201).json(evaluation);
+    res.status(200).json({
+      success: true,
+      message: 'Avaliação criada com sucesso',
+      data: evaluation
+    });
   } catch (err) {
-    res.status(400).json({ error: 'Erro ao criar avaliação' });
+    if (!err.status) {
+      err.status = 400;
+      err.message = 'Erro ao criar avaliação';
+    }
+    next(err);
   }
 });
 

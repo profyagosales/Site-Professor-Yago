@@ -5,7 +5,7 @@ const Class = require('../models/Class');
 const router = express.Router();
 
 // Teacher dashboard route
-router.get('/dashboard/teacher', async (req, res) => {
+router.get('/dashboard/teacher', async (req, res, next) => {
   try {
     const now = new Date();
     const upcomingEvaluations = await Evaluation.find({
@@ -43,14 +43,15 @@ router.get('/dashboard/teacher', async (req, res) => {
       progress: cls.progress || {}
     }));
 
-    res.json({
-      upcomingEvaluations,
-      classSchedules,
-      contentProgress
+    res.status(200).json({
+      success: true,
+      message: 'Dados do dashboard carregados com sucesso',
+      data: { upcomingEvaluations, classSchedules, contentProgress }
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Error loading dashboard data' });
+    err.status = 500;
+    err.message = 'Error loading dashboard data';
+    next(err);
   }
 });
 
