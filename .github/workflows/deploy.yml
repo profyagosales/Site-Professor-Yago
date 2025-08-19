@@ -1,0 +1,25 @@
+name: Deploy
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: Install dependencies
+        run: npm install
+      - name: Run tests
+        run: npm test
+      - name: Build project
+        run: npm run build
+      - name: Deploy
+        run: echo "Deploying artifacts to the hosting service"
+        # TODO: Add deployment commands
