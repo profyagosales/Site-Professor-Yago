@@ -13,6 +13,7 @@ import DetalhesNotaAluno from './pages/DetalhesNotaAluno';
 import CadernoClasse from './pages/CadernoClasse';
 import CriarGabarito from './pages/CriarGabarito';
 import CorrigirGabaritos from './pages/CorrigirGabaritos';
+import CorrigirRedacao from './pages/CorrigirRedacao';
 
 function App() {
   return (
@@ -32,6 +33,7 @@ function App() {
         <Route path="/caderno-classe" element={<CadernoClasse />} />
         <Route path="/criar-gabarito" element={<CriarGabarito />} />
         <Route path="/corrigir-gabaritos" element={<CorrigirGabaritos />} />
+        <Route path="/redacoes/:id/corrigir" element={<CorrigirRedacao />} />
       </Routes>
     </div>
   );

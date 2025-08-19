@@ -29,8 +29,16 @@ export const listarRedacoesAluno = async () => {
   return res.data;
 };
 
+export const corrigirRedacao = async (id, data) => {
+  const res = await axios.post(`${API_URL}/redacoes/${id}/corrigir`, data, {
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+  });
+  return res.data;
+};
+
 export default {
   enviarRedacao,
   listarRedacoes,
   listarRedacoesAluno,
+  corrigirRedacao,
 };
