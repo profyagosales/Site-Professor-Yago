@@ -14,7 +14,7 @@ router.post('/send', async (req, res, next) => {
   try {
     const { to, subject, html } = req.body;
     if (!Array.isArray(to)) {
-      const error = new Error('"to" must be an array');
+      const error = new Error('Campo "to" deve ser um array');
       error.status = 400;
       throw error;
     }
@@ -24,7 +24,7 @@ router.post('/send', async (req, res, next) => {
       if (mongoose.Types.ObjectId.isValid(item)) {
         const cls = await Class.findById(item).lean();
         if (!cls) {
-          const error = new Error(`Class not found: ${item}`);
+          const error = new Error(`Turma não encontrada: ${item}`);
           error.status = 400;
           throw error;
         }
@@ -37,7 +37,7 @@ router.post('/send', async (req, res, next) => {
       } else if (isEmail(item)) {
         recipients.add(item);
       } else {
-        const error = new Error(`Invalid recipient: ${item}`);
+        const error = new Error(`Destinatário inválido: ${item}`);
         error.status = 400;
         throw error;
       }
@@ -52,7 +52,7 @@ router.post('/send', async (req, res, next) => {
   } catch (err) {
     if (!err.status) {
       err.status = 500;
-      err.message = 'Error sending email';
+      err.message = 'Erro ao enviar email';
     }
     next(err);
   }

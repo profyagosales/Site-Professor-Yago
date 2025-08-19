@@ -13,17 +13,17 @@ router.post('/schedule', async (req, res, next) => {
   try {
     const { message, runAt, targets } = req.body;
     if (typeof message !== 'string' || !message.trim()) {
-      const error = new Error('"message" is required');
+      const error = new Error('Campo "message" é obrigatório');
       error.status = 400;
       throw error;
     }
     if (!isValidDate(runAt)) {
-      const error = new Error('Invalid "runAt" value');
+      const error = new Error('Valor "runAt" inválido');
       error.status = 400;
       throw error;
     }
     if (!Array.isArray(targets) || !targets.every(t => typeof t === 'string')) {
-      const error = new Error('"targets" must be an array of strings');
+      const error = new Error('Campo "targets" deve ser um array de strings');
       error.status = 400;
       throw error;
     }
@@ -45,7 +45,7 @@ router.post('/schedule', async (req, res, next) => {
   } catch (err) {
     if (!err.status) {
       err.status = 500;
-      err.message = 'Error scheduling notification';
+      err.message = 'Erro ao agendar notificação';
     }
     next(err);
   }
@@ -61,7 +61,7 @@ router.get('/', async (req, res, next) => {
     });
   } catch (err) {
     err.status = 500;
-    err.message = 'Error fetching notifications';
+    err.message = 'Erro ao buscar notificações';
     next(err);
   }
 });

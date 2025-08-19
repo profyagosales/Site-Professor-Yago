@@ -22,7 +22,7 @@ async function createTransporter() {
     });
   } else if (NODE_ENV !== 'production') {
     const testAccount = await nodemailer.createTestAccount();
-    console.log('Using Ethereal test account:', testAccount.user);
+    console.log('Usando conta de teste Ethereal:', testAccount.user);
     transporter = nodemailer.createTransport({
       host: 'smtp.ethereal.email',
       port: 587,
@@ -32,7 +32,7 @@ async function createTransporter() {
       }
     });
   } else {
-    throw new Error('SMTP configuration is missing');
+    throw new Error('Configuração SMTP ausente');
   }
 
   return transporter;
@@ -52,7 +52,7 @@ async function sendEmail({ to, subject, html, attachments } = {}) {
   const info = await transport.sendMail(mailOptions);
 
   if (transport.options.host === 'smtp.ethereal.email') {
-    console.log('Preview URL: ' + nodemailer.getTestMessageUrl(info));
+    console.log('URL de visualização: ' + nodemailer.getTestMessageUrl(info));
   }
 
   return info;

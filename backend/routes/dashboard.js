@@ -50,7 +50,7 @@ router.get('/dashboard/teacher', async (req, res, next) => {
     });
   } catch (err) {
     err.status = 500;
-    err.message = 'Error loading dashboard data';
+    err.message = 'Erro ao carregar dados do dashboard';
     next(err);
   }
 });

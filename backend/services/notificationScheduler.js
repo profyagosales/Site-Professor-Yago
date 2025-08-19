@@ -19,13 +19,13 @@ function scheduleNotification(notification) {
     try {
       const targets = notification.targets || [];
       for (const to of targets) {
-        await emailService.sendEmail({ to, subject: 'Notification', html: notification.message });
+        await emailService.sendEmail({ to, subject: 'Notificação', html: notification.message });
       }
       notification.status = 'sent';
       notification.nextRun = null;
       await notification.save();
     } catch (err) {
-      console.error('Error sending notification', err);
+      console.error('Erro ao enviar notificação', err);
       notification.status = 'failed';
       await notification.save();
     } finally {
