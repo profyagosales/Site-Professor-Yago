@@ -42,3 +42,7 @@
 - **Frontend**: Deploy the built frontend on services such as Vercel.
 - **DNS & CORS**: When frontend and backend are hosted separately, configure DNS so the frontend uses your `APP_DOMAIN` and ensure the backend allows that origin in its CORS settings.
 
+
+## Deployment Checklist
+
+Refer to [DEPLOY_CHECKLIST.md](DEPLOY_CHECKLIST.md) for steps to validate navigation, gabarito handling, redação workflows, notifications, and branding before deploying to staging or production.
