@@ -1,9 +1,7 @@
-import axios from 'axios';
-
-const API_URL = 'http://localhost:5000';
+import { api } from './api';
 
 export const getClasses = async () => {
-  const res = await axios.get(`${API_URL}/classes`);
+  const res = await api.get('/classes');
   return res.data;
 };
 

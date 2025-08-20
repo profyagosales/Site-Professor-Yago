@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { api } from '../services/api';
 import { toast } from 'react-toastify';
 import SendEmailModal from '../components/SendEmailModal';
 import NotificationsPanel from '../components/NotificationsPanel';
@@ -26,10 +26,7 @@ function DashboardProfessor() {
       setError(null);
       setSuccess(null);
       try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get('http://localhost:5000/dashboard/teacher', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
+        const res = await api.get('/dashboard');
         setData(res.data);
         setSuccess('Dados carregados');
         toast.success('Dados carregados');
