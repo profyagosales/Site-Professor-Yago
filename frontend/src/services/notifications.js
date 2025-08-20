@@ -1,14 +1,12 @@
-import axios from 'axios';
-
-const API_URL = 'http://localhost:5000';
+import { api } from './api';
 
 export const getNotifications = async () => {
-  const res = await axios.get(`${API_URL}/notifications`);
+  const res = await api.get('/notifications');
   return res.data;
 };
 
 export const scheduleNotification = async (notification) => {
-  const res = await axios.post(`${API_URL}/notifications/schedule`, notification);
+  const res = await api.post('/notifications/schedule', notification);
   return res.data;
 };
 

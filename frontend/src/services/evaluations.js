@@ -1,9 +1,7 @@
-import axios from 'axios';
-
-const API_URL = 'http://localhost:5000';
+import { api } from './api';
 
 export const createEvaluation = async (data) => {
-  const res = await axios.post(`${API_URL}/evaluations`, data);
+  const res = await api.post('/evaluations', data);
   return res.data;
 };
 
