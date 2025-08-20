@@ -11,7 +11,8 @@ Consulte o [Guia do Usuário](./USER_GUIDE.md) para entender os fluxos de login,
 | `SMTP_HOST` | Hostname of the SMTP server used to send emails. |
 | `SMTP_USER` | Username for the SMTP server. |
 | `SMTP_PASS` | Password for the SMTP server. |
-| `APP_DOMAIN` | Public domain where the application is served. |
+| `VITE_API_URL` | Base URL for the backend API used by the frontend. |
+| `APP_DOMAIN` | Public domain where the application is served (used for CORS). |
 | `SMTP_PORT` | (Optional) Port for the SMTP server. |
 | `SMTP_FROM` | (Optional) Email address used in the "from" field. |
 
@@ -28,6 +29,7 @@ SMTP_USER=usuario
 SMTP_PASS=senha
 SMTP_FROM=no-reply@exemplo.com
 APP_DOMAIN=https://app.exemplo.com
+VITE_API_URL=https://api.exemplo.com
 ```
 
 ## Local Setup
@@ -41,8 +43,16 @@ APP_DOMAIN=https://app.exemplo.com
    ```bash
    npm run dev
    ```
+   The backend will be available on http://localhost:5050 and the frontend on http://localhost:5173.
+   Ensure your `.env` sets `VITE_API_URL=http://localhost:5050` and `APP_DOMAIN=http://localhost:5173` for local development.
 
-## Rodando testes
+## Lint, Testes e Build
+
+Para verificar o estilo de código (quando configurado):
+
+```bash
+npm run lint --prefix frontend
+```
 
 Execute todos os testes do projeto:
 
@@ -57,17 +67,24 @@ npm test --prefix backend
 npm test --prefix frontend
 ```
 
+Gere os artefatos de produção:
+
+```bash
+npm run build
+```
+
 ## Production
 
 1. Build the frontend:
    ```bash
    npm run build
    ```
-2. Certifique-se de que as variáveis de ambiente estejam definidas (veja o exemplo de `.env`).
-3. Execute o servidor Node:
+2. Certifique-se de que as variáveis de ambiente estejam definidas (veja o exemplo de `.env`), incluindo `VITE_API_URL` (URL do backend) e `APP_DOMAIN` (domínio público do app).
+3. Execute o servidor Node em modo produção para servir `frontend/dist`:
    ```bash
-   node backend/server.js
+   NODE_ENV=production node backend/server.js
    ```
+   O backend servirá os arquivos estáticos da pasta `frontend/dist` na porta definida por `PORT` (padrão `5050`).
 
 ## Hosting Tips
 
