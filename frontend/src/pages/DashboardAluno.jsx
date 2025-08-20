@@ -120,7 +120,7 @@ function DashboardAluno() {
         onClose={() => setIsModalOpen(false)}
         onSuccess={() => {
           setIsModalOpen(false);
-          loadRedacoes();
+          loadData();
         }}
       />
     </div>
