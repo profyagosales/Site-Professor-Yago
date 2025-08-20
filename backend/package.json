@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest --runInBand --detectOpenHandles"
+    "test": "jest --runInBand --detectOpenHandles",
+    "lint": "npm --prefix ../frontend exec eslint ."
   },
   "keywords": [],
   "author": "",
