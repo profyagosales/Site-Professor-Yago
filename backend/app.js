@@ -17,7 +17,12 @@ const notificationRoutes = require('./routes/notifications');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
-app.use(cors());
+app.use(
+  cors({
+    origin: process.env.APP_DOMAIN || 'http://localhost:5173',
+    credentials: true,
+  })
+);
 app.use(bodyParser.json());
 app.use('/auth', authRoutes);
 app.use('/dashboard', require('./routes/dashboard'));
