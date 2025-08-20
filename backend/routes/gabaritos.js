@@ -7,7 +7,7 @@ const gabaritoPdf = require('../utils/gabaritoPdf');
 
 const router = express.Router();
 
-router.use(auth);
+router.use(auth());
 
 // Generate gabaritos for students of provided classes
 router.post('/', async (req, res, next) => {

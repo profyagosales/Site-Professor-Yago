@@ -136,7 +136,7 @@ router.post('/login-student', async (req, res, next) => {
 });
 
 // Dados do usuário logado
-router.get('/me', auth, (req, res) => {
+router.get('/me', auth(), (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Dados do usuário obtidos com sucesso',

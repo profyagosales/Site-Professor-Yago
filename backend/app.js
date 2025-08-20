@@ -4,7 +4,6 @@ const bodyParser = require('body-parser');
 const path = require('path');
 
 const authRoutes = require('./routes/auth');
-const dashboardRoutes = require('./routes/dashboard');
 const emailRoutes = require('./routes/email');
 const classesRoutes = require('./routes/classes');
 const studentsRoutes = require('./routes/students');
@@ -21,7 +20,7 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 app.use('/auth', authRoutes);
-app.use('/dashboard', dashboardRoutes);
+app.use('/dashboard', require('./routes/dashboard'));
 app.use('/email', emailRoutes);
 app.use('/classes', classesRoutes);
 app.use('/students', studentsRoutes);
