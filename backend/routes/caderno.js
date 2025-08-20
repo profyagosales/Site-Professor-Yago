@@ -6,7 +6,7 @@ const auth = require('../middleware/auth');
 
 const router = express.Router();
 
-router.use(auth);
+router.use(auth());
 
 // Register a new caderno check
 router.post('/', async (req, res, next) => {

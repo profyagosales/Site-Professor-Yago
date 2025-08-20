@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const Teacher = require('../models/Teacher');
 const Student = require('../models/Student');
 
-module.exports = async (req, res, next) => {
+const auth = (role) => async (req, res, next) => {
   const authHeader = req.header('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ message: 'Token não fornecido' });
@@ -27,9 +27,16 @@ module.exports = async (req, res, next) => {
 
     req.user = user;
     req.profile = profile;
+
+    if (role && profile !== role) {
+      return res.status(403).json({ message: 'Acesso negado' });
+    }
+
     next();
   } catch (err) {
     console.error(err);
     res.status(401).json({ message: 'Token inválido' });
   }
 };
+
+module.exports = auth;
