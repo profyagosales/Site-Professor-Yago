@@ -1,15 +1,17 @@
-import api, { pickData, toArray } from '@/services/api';
+import api, { pickData } from '@/services/api';
 
-export const uploadPdf = async (pdfFile, onUploadProgress) => {
+export const uploadPdf = (pdfFile, onUploadProgress) => {
   const formData = new FormData();
   formData.append('pdf', pdfFile);
-  const res = await api.post('/omr/grade', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-    onUploadProgress,
-  });
-  return res.data;
+  return api
+    .post('/omr/grade', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress,
+    })
+    .then(pickData);
 };
 
 export default {
   uploadPdf,
 };
+

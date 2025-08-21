@@ -1,10 +1,9 @@
-import api, { pickData, toArray } from '@/services/api';
+import api, { pickData } from '@/services/api';
 
-export const createEvaluation = async (data) => {
-  const res = await api.post('/evaluations', data);
-  return res.data;
-};
+export const createEvaluation = (data) =>
+  api.post('/evaluations', data).then(pickData);
 
 export default {
-  createEvaluation
+  createEvaluation,
 };
+

@@ -1,14 +1,10 @@
-import api, { pickData, toArray } from '@/services/api';
+import api, { pickData } from '@/services/api';
 
-export const getNotifications = async () => {
-  const res = await api.get('/notifications');
-  return res.data;
-};
+export const getNotifications = () =>
+  api.get('/notifications').then(pickData);
 
-export const scheduleNotification = async (notification) => {
-  const res = await api.post('/notifications/schedule', notification);
-  return res.data;
-};
+export const scheduleNotification = (notification) =>
+  api.post('/notifications/schedule', notification).then(pickData);
 
 export default {
   getNotifications,

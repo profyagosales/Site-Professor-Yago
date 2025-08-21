@@ -1,10 +1,8 @@
-import api, { pickData, toArray } from '@/services/api';
+import api, { pickData } from '@/services/api';
 
-export const getClasses = async () => {
-  const res = await api.get('/classes');
-  return res.data;
-};
+export const getClasses = () => api.get('/classes').then(pickData);
 
 export default {
   getClasses,
 };
+

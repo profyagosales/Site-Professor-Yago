@@ -1,22 +1,16 @@
-import api, { pickData, toArray } from '@/services/api';
+import api, { pickData } from '@/services/api';
 
-export const createVisto = async (data) => {
-  const res = await api.post('/caderno', data);
-  return res.data;
-};
+export const createVisto = (data) => api.post('/caderno', data).then(pickData);
 
-export const updateVisto = async (id, students) => {
-  const res = await api.put(`/caderno/${id}`, { students });
-  return res.data;
-};
+export const updateVisto = (id, students) =>
+  api.put(`/caderno/${id}`, { students }).then(pickData);
 
-export const getVistos = async (classId, bimester) => {
-  const res = await api.get(`/caderno/${classId}/${bimester}`);
-  return res.data;
-};
+export const getVistos = (classId, bimester) =>
+  api.get(`/caderno/${classId}/${bimester}`).then(pickData);
 
 export default {
   createVisto,
   updateVisto,
-  getVistos
+  getVistos,
 };
+
