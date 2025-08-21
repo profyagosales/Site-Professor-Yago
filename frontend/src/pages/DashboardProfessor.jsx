@@ -2,25 +2,16 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api, { pickData, toArray } from '@/services/api';
 import { toast } from 'react-toastify';
-import { asArray } from '@/utils/safe';
 import SendEmailModal from '@/components/SendEmailModal';
 import NotificationsPanel from '@/components/NotificationsPanel';
 import CalendarIcon from '@/components/icons/CalendarIcon';
 import ListIcon from '@/components/icons/ListIcon';
 import BoardIcon from '@/components/icons/BoardIcon';
 
-function getPayload(res) {
-  return res?.data?.data ?? res?.data ?? res ?? {};
-}
-
 function DashboardProfessor() {
-  const [data, setData] = useState({
-    evaluations: [],
-    schedules: [],
-    classes: [],
-    notifications: [],
-    progress: 0,
-  });
+  const [evaluations, setEvaluations] = useState([]);
+  const [schedule, setSchedule] = useState([]);
+  const [progress, setProgress] = useState(0);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -34,20 +25,11 @@ function DashboardProfessor() {
       setSuccess(null);
       try {
         const res = await api.get('/dashboard');
-        const payload = getPayload(res);
-        const metrics = payload.metrics ?? payload.cards ?? {};
-        const newData = {
-          evaluations: asArray(
-            payload.evaluations ?? payload.provas ?? payload.avaliacoes
-          ),
-          schedules: asArray(
-            payload.schedules ?? payload.schedule ?? payload.agenda ?? payload.upcoming
-          ),
-          classes: asArray(payload.classes ?? payload.turmas),
-          notifications: asArray(payload.notifications ?? payload.notificacoes),
-          progress: metrics.progress ?? payload.progress ?? 0,
-        };
-        setData(newData);
+        const data = (pickData ? pickData(res) : (res?.data?.data ?? res?.data ?? res)) || {};
+        const arrify = toArray ? toArray : (v) => (Array.isArray(v) ? v : v ? [v] : []);
+        setEvaluations(arrify(data.upcomingEvaluations || data.evaluations));
+        setSchedule(arrify(data.schedule || data.schedules));
+        setProgress(data.contentProgress ?? data.progress ?? 0);
         setSuccess('Dados carregados');
         toast.success('Dados carregados');
       } catch (err) {
@@ -98,7 +80,7 @@ function DashboardProfessor() {
           <div>
             <p className="font-semibold">Próximas Avaliações</p>
             <p className="text-sm text-black/70">
-              {data.evaluations?.length || 0} agendadas
+              {evaluations.length || 0} agendadas
             </p>
           </div>
         </div>
@@ -108,7 +90,7 @@ function DashboardProfessor() {
           <div>
             <p className="font-semibold">Horários de Aula</p>
             <p className="text-sm text-black/70">
-              {data.schedules?.length || 0} próximos
+              {schedule.length || 0} próximos
             </p>
           </div>
         </div>
@@ -120,11 +102,11 @@ function DashboardProfessor() {
             <div className="w-full bg-lightGray rounded-full h-2 mt-1">
               <div
                 className="bg-orange h-2 rounded-full"
-                style={{ width: `${data.progress || 0}%` }}
+                style={{ width: `${progress || 0}%` }}
               ></div>
             </div>
             <p className="text-sm text-black/70 mt-1">
-              {data.progress || 0}% concluído
+              {progress || 0}% concluído
             </p>
           </div>
         </div>
