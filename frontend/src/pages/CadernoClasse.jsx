@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '@api';
 import { FiBook } from 'react-icons/fi';
 import { toast } from 'react-toastify';
+import { asArray } from '@/utils/safe';
 import { createVisto, updateVisto, getVistos } from '../services/caderno';
 
 function CadernoClasse() {
@@ -23,7 +24,8 @@ function CadernoClasse() {
       setSuccess(null);
       try {
         const res = await api.get('/classes');
-        setClasses(res.data);
+        const classes = asArray(res?.data?.data || res?.data);
+        setClasses(classes);
         setSuccess('Turmas carregadas');
         toast.success('Turmas carregadas');
       } catch (err) {
@@ -50,11 +52,13 @@ function CadernoClasse() {
           .catch(() => ({ data: [] })),
         getVistos(cls._id, bim).catch(() => [])
       ]);
-      const filteredStudents = (studRes.data || []).filter(
+      const allStudents = asArray(studRes?.data);
+      const filteredStudents = allStudents.filter(
         (s) => (s.class && (s.class._id || s.class) === cls._id)
       );
       setStudents(filteredStudents);
-      setChecks(chkRes || []);
+      const checks = asArray(chkRes);
+      setChecks(checks);
       setSuccess('Dados carregados');
       toast.success('Dados carregados');
     } catch (err) {

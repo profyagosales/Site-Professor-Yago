@@ -2,17 +2,12 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '@api';
 import { toast } from 'react-toastify';
+import { asArray } from '@/utils/safe';
 import SendEmailModal from '../components/SendEmailModal';
 import NotificationsPanel from '../components/NotificationsPanel';
 import CalendarIcon from '../components/icons/CalendarIcon';
 import ListIcon from '../components/icons/ListIcon';
 import BoardIcon from '../components/icons/BoardIcon';
-
-function toArray(value) {
-  if (Array.isArray(value)) return value;
-  if (value === undefined || value === null) return [];
-  return [value];
-}
 
 function getPayload(res) {
   return res?.data?.data ?? res?.data ?? res ?? {};
@@ -42,14 +37,14 @@ function DashboardProfessor() {
         const payload = getPayload(res);
         const metrics = payload.metrics ?? payload.cards ?? {};
         const newData = {
-          evaluations: toArray(
+          evaluations: asArray(
             payload.evaluations ?? payload.provas ?? payload.avaliacoes
           ),
-          schedules: toArray(
+          schedules: asArray(
             payload.schedules ?? payload.schedule ?? payload.agenda ?? payload.upcoming
           ),
-          classes: toArray(payload.classes ?? payload.turmas),
-          notifications: toArray(payload.notifications ?? payload.notificacoes),
+          classes: asArray(payload.classes ?? payload.turmas),
+          notifications: asArray(payload.notifications ?? payload.notificacoes),
           progress: metrics.progress ?? payload.progress ?? 0,
         };
         setData(newData);

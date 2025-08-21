@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getNotifications, scheduleNotification } from '../services/notifications';
+import { asArray } from '@/utils/safe';
 
 function NotificationsPanel() {
   const [notifications, setNotifications] = useState([]);
@@ -10,7 +11,7 @@ function NotificationsPanel() {
   const loadNotifications = async () => {
     try {
       const data = await getNotifications();
-      setNotifications(data);
+      setNotifications(asArray(data));
     } catch (err) {
       console.error('Erro ao buscar notificações', err);
     }

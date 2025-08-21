@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '@api';
 import { toast } from 'react-toastify';
+import { asArray } from '@/utils/safe';
 import { getClassMatrix, exportClassPdf } from '../services/grades';
 
 function NotasClasse() {
@@ -23,7 +24,8 @@ function NotasClasse() {
       setErrorClasses(null);
       try {
         const res = await api.get('/classes');
-        setClasses(res.data);
+        const classes = asArray(res?.data?.data || res?.data);
+        setClasses(classes);
         setSuccess('Turmas carregadas');
         toast.success('Turmas carregadas');
       } catch (err) {
@@ -44,8 +46,10 @@ function NotasClasse() {
     setErrorGrades(null);
     try {
       const { students: stud, grades: grd } = await getClassMatrix(cls._id);
-      setStudents(stud);
-      setGrades(grd);
+      const students = asArray(stud);
+      const grades = asArray(grd);
+      setStudents(students);
+      setGrades(grades);
       setSuccess('Notas carregadas');
       toast.success('Notas carregadas');
     } catch (err) {

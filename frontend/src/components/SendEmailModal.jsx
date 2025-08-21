@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '@api';
+import { asArray } from '@/utils/safe';
 
 function SendEmailModal({ isOpen, onClose }) {
   const [classes, setClasses] = useState([]);
@@ -17,8 +18,8 @@ function SendEmailModal({ isOpen, onClose }) {
           api.get('/dashboard/teacher'),
           api.get('/students').catch(() => ({ data: [] }))
         ]);
-        setClasses(classRes.data.contentProgress || []);
-        setStudents(studentRes.data || []);
+        setClasses(asArray(classRes.data.contentProgress));
+        setStudents(asArray(studentRes.data));
       } catch (err) {
         console.error('Erro ao carregar destinatários', err);
       }
