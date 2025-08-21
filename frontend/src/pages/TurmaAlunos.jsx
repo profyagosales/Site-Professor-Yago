@@ -45,7 +45,6 @@ function TurmaAlunos() {
     setSuccess(null);
     try {
       // TODO: Implementar envio para API
-      console.log('Enviar aluno', student);
       setSuccess('Aluno salvo');
       toast.success('Aluno salvo');
     } catch (err) {
