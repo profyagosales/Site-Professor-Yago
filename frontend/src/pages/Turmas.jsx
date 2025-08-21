@@ -14,7 +14,7 @@ function Turmas() {
   const fetchClasses = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('http://localhost:5000/classes');
+      const res = await axios.get('/classes');
       setClasses(res.data);
     } catch (err) {
       console.error('Erro ao carregar turmas', err);
@@ -34,14 +34,14 @@ function Turmas() {
       let res;
       if (editing) {
         res = await axios.put(
-          `http://localhost:5000/classes/${editing._id}`,
+          `/classes/${editing._id}`,
           data
         );
         setClasses((prev) =>
           prev.map((cls) => (cls._id === editing._id ? res.data : cls))
         );
       } else {
-        res = await axios.post('http://localhost:5000/classes', data);
+        res = await axios.post('/classes', data);
         setClasses((prev) => [...prev, res.data]);
       }
       toast.success('Turma salva com sucesso');
@@ -59,7 +59,7 @@ function Turmas() {
     if (!window.confirm('Deseja excluir esta turma?')) return;
     setLoading(true);
     try {
-      await axios.delete(`http://localhost:5000/classes/${id}`);
+      await axios.delete(`/classes/${id}`);
       setClasses((prev) => prev.filter((cls) => cls._id !== id));
       toast.success('Turma excluída');
     } catch (err) {

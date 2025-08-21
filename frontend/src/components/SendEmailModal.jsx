@@ -14,8 +14,8 @@ function SendEmailModal({ isOpen, onClose }) {
     const fetchRecipients = async () => {
       try {
         const [classRes, studentRes] = await Promise.all([
-          axios.get('http://localhost:5000/dashboard/teacher'),
-          axios.get('http://localhost:5000/students').catch(() => ({ data: [] }))
+          axios.get('/dashboard/teacher'),
+          axios.get('/students').catch(() => ({ data: [] }))
         ]);
         setClasses(classRes.data.contentProgress || []);
         setStudents(studentRes.data || []);
@@ -34,7 +34,7 @@ function SendEmailModal({ isOpen, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:5000/email/send', {
+      await axios.post('/email/send', {
         to: recipients,
         subject,
         html: message,

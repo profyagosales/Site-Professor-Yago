@@ -22,7 +22,7 @@ function NotasClasse() {
       setLoadingClasses(true);
       setErrorClasses(null);
       try {
-        const res = await axios.get('http://localhost:5000/classes');
+        const res = await axios.get('/classes');
         setClasses(res.data);
         setSuccess('Turmas carregadas');
         toast.success('Turmas carregadas');
