@@ -26,7 +26,10 @@ function DashboardProfessor() {
       try {
         const res = await api.get('/dashboard');
         const data = (pickData ? pickData(res) : (res?.data?.data ?? res?.data ?? res)) || {};
-        const arrify = toArray ? toArray : (v) => (Array.isArray(v) ? v : v ? [v] : []);
+        const arrify = (v) => {
+          const r = toArray ? toArray(v) : undefined;
+          return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
+        };
         setEvaluations(arrify(data.upcomingEvaluations || data.evaluations));
         setSchedule(arrify(data.schedule || data.schedules));
         setProgress(data.contentProgress ?? data.progress ?? 0);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getNotifications, scheduleNotification } from '@/services/notifications';
-import { asArray } from '@/utils/safe';
+import { toArray } from '@/services/api';
+import { toast } from 'react-toastify';
 
 function NotificationsPanel() {
   const [notifications, setNotifications] = useState([]);
@@ -8,12 +9,18 @@ function NotificationsPanel() {
   const [runAt, setRunAt] = useState('');
   const [targets, setTargets] = useState('');
 
+  const arrify = (v) => {
+    const r = toArray ? toArray(v) : undefined;
+    return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
+  };
+
   const loadNotifications = async () => {
     try {
       const data = await getNotifications();
-      setNotifications(asArray(data));
+      setNotifications(arrify(data));
     } catch (err) {
       console.error('Erro ao buscar notificações', err);
+      toast.error(err.response?.data?.message ?? 'Erro ao buscar notificações');
     }
   };
 
@@ -35,6 +42,7 @@ function NotificationsPanel() {
       loadNotifications();
     } catch (err) {
       console.error('Erro ao agendar notificação', err);
+      toast.error(err.response?.data?.message ?? 'Erro ao agendar notificação');
     }
   };
 
@@ -78,12 +86,12 @@ function NotificationsPanel() {
           Agendar
         </button>
       </form>
-      <div className="space-y-sm">
-        {notifications.map((n) => (
-          <div
-            key={n._id || n.id}
-            className="card p-md"
-          >
+        <div className="space-y-sm">
+          {arrify(notifications).map((n) => (
+            <div
+              key={n._id || n.id}
+              className="card p-md"
+            >
             <h3 className="text-orange font-semibold mb-sm">{n.message}</h3>
             <p className="text-sm text-black/70 mb-sm">
               Próxima execução: {new Date(n.nextRun).toLocaleString()}

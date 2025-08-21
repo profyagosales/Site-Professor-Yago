@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
-import { getClasses } from '@/services/classes';
+import { listClasses } from '@/services/classes';
 import { createGabarito } from '@/services/gabaritos';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { toast } from 'react-toastify';
+import { toArray } from '@/services/api';
 
 function CriarGabarito() {
   const [step, setStep] = useState(1);
@@ -23,19 +24,24 @@ function CriarGabarito() {
     answerKey: ''
   });
 
+  const arrify = (v) => {
+    const r = toArray ? toArray(v) : undefined;
+    return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
+  };
+
   useEffect(() => {
     const loadClasses = async () => {
       setLoading(true);
       setError(null);
       setSuccess(null);
       try {
-        const classes = await getClasses();
-        setClassOptions(classes);
+        const classes = await listClasses();
+        setClassOptions(arrify(classes));
         setSuccess('Dados carregados');
         toast.success('Dados carregados');
       } catch (err) {
         console.error(err);
-        const message = 'Erro ao carregar turmas';
+        const message = err.response?.data?.message ?? 'Erro ao carregar turmas';
         setError(message);
         toast.error(message);
       } finally {
@@ -116,9 +122,21 @@ function CriarGabarito() {
       const message = 'Gabarito criado com sucesso!';
       setSuccess(message);
       toast.success(message);
+      setForm({
+        leftLogo: null,
+        rightLogo: null,
+        schoolName: '',
+        discipline: '',
+        teacher: '',
+        classes: [],
+        numQuestions: '',
+        totalValue: '',
+        answerKey: ''
+      });
+      setStep(1);
     } catch (err) {
       console.error(err);
-      const message = 'Erro ao criar gabarito.';
+      const message = err.response?.data?.message ?? 'Erro ao criar gabarito.';
       setError(message);
       toast.error(message);
     } finally {

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api, { pickData, toArray } from '@/services/api';
+import { toArray } from '@/services/api';
 import { toast } from 'react-toastify';
-import { asArray } from '@/utils/safe';
 import { getClassMatrix, exportClassPdf } from '@/services/grades';
+import { listClasses } from '@/services/classes';
 
 function NotasClasse() {
   const [classes, setClasses] = useState([]);
@@ -23,14 +23,13 @@ function NotasClasse() {
       setLoadingClasses(true);
       setErrorClasses(null);
       try {
-        const res = await api.get('/classes');
-        const classes = asArray(res?.data?.data || res?.data);
-        setClasses(classes);
+        const res = await listClasses();
+        setClasses(toArray(res));
         setSuccess('Turmas carregadas');
         toast.success('Turmas carregadas');
       } catch (err) {
         console.error('Erro ao carregar turmas', err);
-        const message = 'Erro ao carregar turmas';
+        const message = err.response?.data?.message ?? 'Erro ao carregar turmas';
         setErrorClasses(message);
         toast.error(message);
       } finally {
@@ -46,15 +45,15 @@ function NotasClasse() {
     setErrorGrades(null);
     try {
       const { students: stud, grades: grd } = await getClassMatrix(cls._id);
-      const students = asArray(stud);
-      const grades = asArray(grd);
+      const students = toArray(stud);
+      const grades = toArray(grd);
       setStudents(students);
       setGrades(grades);
       setSuccess('Notas carregadas');
       toast.success('Notas carregadas');
     } catch (err) {
       console.error('Erro ao carregar notas', err);
-      const message = 'Erro ao carregar notas';
+      const message = err.response?.data?.message ?? 'Erro ao carregar notas';
       setErrorGrades(message);
       toast.error(message);
     } finally {
