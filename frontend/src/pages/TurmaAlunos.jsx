@@ -1,8 +1,10 @@
 import { useParams } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import AlunosDaTurma from '@/components/AlunosDaTurma';
 import StudentModal from '@/components/StudentModal';
+import { listStudents, deleteStudent } from '@/services/students';
+import { toArray } from '@/services/api';
 
 function TurmaAlunos() {
   const { id } = useParams();
@@ -11,6 +13,19 @@ function TurmaAlunos() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [students, setStudents] = useState([]);
+
+  const loadAlunos = () => {
+    setLoading(true);
+    listStudents({ class: id })
+      .then((res) => setStudents(toArray(res)))
+      .catch(() => toast.error('Erro ao carregar alunos'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadAlunos();
+  }, [id]);
 
   const handleAdd = () => {
     setSelectedStudent(null);
@@ -33,14 +48,24 @@ function TurmaAlunos() {
       console.log('Enviar aluno', student);
       setSuccess('Aluno salvo');
       toast.success('Aluno salvo');
-      setModalOpen(false);
     } catch (err) {
       const message = 'Erro ao salvar aluno';
       setError(message);
       toast.error(message);
+      throw err;
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDelete = (student) => {
+    if (!window.confirm('Deseja excluir este aluno?')) return;
+    deleteStudent(student.id)
+      .then(() => {
+        toast.success('Aluno excluído');
+        loadAlunos();
+      })
+      .catch(() => toast.error('Erro ao excluir aluno'));
   };
 
   if (loading) {
@@ -59,7 +84,12 @@ function TurmaAlunos() {
           Adicionar Aluno
         </button>
       </div>
-      <AlunosDaTurma classId={id} onEdit={handleEdit} onDelete={() => {}} />
+      <AlunosDaTurma
+        classId={id}
+        students={students}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
       {error && <p className="text-red-500">{error}</p>}
       {success && <p className="text-green-500">{success}</p>}
       <StudentModal
@@ -67,6 +97,7 @@ function TurmaAlunos() {
         onClose={handleClose}
         onSubmit={handleSubmit}
         initialData={selectedStudent}
+        onSaved={() => loadAlunos()}
       />
     </div>
   );

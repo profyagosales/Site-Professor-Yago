@@ -1,20 +1,22 @@
-jest.mock('@/services/api');
+jest.mock('@/services/students');
+jest.mock('@/services/api', () => ({
+  toArray: (v) => (Array.isArray(v) ? v : v ? [v] : []),
+}));
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AlunosDaTurma from '@/components/AlunosDaTurma';
+import { listStudents } from '@/services/students';
 
 describe('AlunosDaTurma', () => {
   afterEach(() => {
-    delete global.fetch;
+    jest.clearAllMocks();
   });
 
   test('loads and displays students', async () => {
     const students = [
       { id: 1, number: 1, name: 'Ana', email: 'ana@test.com' }
     ];
-    global.fetch = jest.fn().mockResolvedValue({
-      json: () => Promise.resolve(students)
-    });
+    listStudents.mockResolvedValue(students);
     const onEdit = jest.fn();
 
     render(<AlunosDaTurma classId="1" onEdit={onEdit} />);

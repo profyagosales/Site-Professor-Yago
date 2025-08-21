@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-function StudentModal({ isOpen, onClose, onSubmit, initialData }) {
+function StudentModal({ isOpen, onClose, onSubmit, onSaved, initialData }) {
   const [number, setNumber] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -33,7 +33,7 @@ function StudentModal({ isOpen, onClose, onSubmit, initialData }) {
     }
   }, [photo]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = {};
     if (!number) newErrors.number = 'Informe o número';
@@ -41,7 +41,13 @@ function StudentModal({ isOpen, onClose, onSubmit, initialData }) {
     if (!email.trim()) newErrors.email = 'Informe o e-mail';
     setErrors(newErrors);
     if (Object.keys(newErrors).length) return;
-    onSubmit({ number: Number(number), name, email, photo });
+    try {
+      await onSubmit({ number: Number(number), name, email, photo });
+      onSaved && onSaved();
+      onClose();
+    } catch (err) {
+      // erro tratado no onSubmit
+    }
   };
 
   if (!isOpen) return null;
