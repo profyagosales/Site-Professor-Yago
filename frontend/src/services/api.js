@@ -5,6 +5,9 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5050',
 });
 
+const pickData = (r) => (r?.data?.data ?? r?.data ?? r);
+const toArray = (v) => Array.isArray(v) ? v : (v ? [v] : []);
+
 // injeta token, se existir
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
@@ -13,4 +16,4 @@ api.interceptors.request.use((config) => {
 });
 
 export default api;
-export { api };
+export { api, pickData, toArray };
