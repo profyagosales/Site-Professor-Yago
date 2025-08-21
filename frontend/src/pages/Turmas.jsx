@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api, { pickData, toArray } from '@/services/api';
-import { asArray } from '@/utils/safe';
+import { listClasses, createClass, updateClass, deleteClass } from '@/services/classes';
+import { toArray } from '@/services/api';
 import ClassModal from '@/components/ClassModal';
 import { toast } from 'react-toastify';
 
@@ -12,64 +12,44 @@ function Turmas() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const fetchClasses = async () => {
+  const loadTurmas = () => {
     setLoading(true);
-    try {
-      const res = await api.get('/classes');
-      const classes = asArray(res?.data?.data || res?.data);
-      setClasses(classes);
-    } catch (err) {
-      console.error('Erro ao carregar turmas', err);
-      toast.error('Erro ao carregar turmas');
-    } finally {
-      setLoading(false);
-    }
+    listClasses()
+      .then((res) => setClasses(toArray(res)))
+      .catch(() => toast.error('Erro ao carregar turmas'))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
-    fetchClasses();
+    loadTurmas();
   }, []);
 
-  const handleSubmit = async (data) => {
+  const handleSubmit = (data) => {
     setLoading(true);
-    try {
-      let res;
-      if (editing) {
-        res = await api.put(
-          `/classes/${editing._id}`,
-          data
-        );
-        setClasses((prev) =>
-          prev.map((cls) => (cls._id === editing._id ? res.data : cls))
-        );
-      } else {
-        res = await api.post('/classes', data);
-        setClasses((prev) => [...prev, res.data]);
-      }
-      toast.success('Turma salva com sucesso');
-      setShowModal(false);
-      setEditing(null);
-    } catch (err) {
-      console.error('Erro ao salvar turma', err);
-      toast.error('Erro ao salvar turma');
-    } finally {
-      setLoading(false);
-    }
+    const action = editing
+      ? updateClass(editing._id, data)
+      : createClass(data);
+    action
+      .then(() => {
+        toast.success('Turma salva com sucesso');
+        setShowModal(false);
+        setEditing(null);
+        loadTurmas();
+      })
+      .catch(() => toast.error('Erro ao salvar turma'))
+      .finally(() => setLoading(false));
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = (id) => {
     if (!window.confirm('Deseja excluir esta turma?')) return;
     setLoading(true);
-    try {
-      await api.delete(`/classes/${id}`);
-      setClasses((prev) => prev.filter((cls) => cls._id !== id));
-      toast.success('Turma excluída');
-    } catch (err) {
-      console.error('Erro ao deletar turma', err);
-      toast.error('Erro ao deletar turma');
-    } finally {
-      setLoading(false);
-    }
+    deleteClass(id)
+      .then(() => {
+        toast.success('Turma excluída');
+        loadTurmas();
+      })
+      .catch(() => toast.error('Erro ao deletar turma'))
+      .finally(() => setLoading(false));
   };
 
   if (loading) {
