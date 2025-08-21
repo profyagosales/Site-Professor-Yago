@@ -1,4 +1,4 @@
-jest.mock('axios');
+jest.mock('@api');
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: jest.fn()
@@ -7,11 +7,11 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import LoginAluno from '../pages/LoginAluno';
-import axios from 'axios';
+import api from '@api';
 
 describe('LoginAluno', () => {
   test('submits form and navigates', async () => {
-    axios.post.mockResolvedValue({ data: { token: 'abc' } });
+    api.post.mockResolvedValue({ data: { token: 'abc' } });
     const navigate = jest.fn();
     require('react-router-dom').useNavigate.mockReturnValue(navigate);
 
@@ -26,7 +26,7 @@ describe('LoginAluno', () => {
     await userEvent.click(screen.getByRole('button', { name: /Entrar/i }));
 
     await waitFor(() => {
-      expect(axios.post).toHaveBeenCalledWith(
+      expect(api.post).toHaveBeenCalledWith(
         '/auth/login-student',
         { email: 'aluno@example.com', password: 'senha' }
       );

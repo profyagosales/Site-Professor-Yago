@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '@api';
 import { FiBook } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import { createVisto, updateVisto, getVistos } from '../services/caderno';
@@ -22,7 +22,7 @@ function CadernoClasse() {
       setError(null);
       setSuccess(null);
       try {
-        const res = await axios.get('/classes');
+        const res = await api.get('/classes');
         setClasses(res.data);
         setSuccess('Turmas carregadas');
         toast.success('Turmas carregadas');
@@ -45,7 +45,7 @@ function CadernoClasse() {
     setSuccess(null);
     try {
       const [studRes, chkRes] = await Promise.all([
-        axios
+        api
           .get(`/students?class=${cls._id}`)
           .catch(() => ({ data: [] })),
         getVistos(cls._id, bim).catch(() => [])

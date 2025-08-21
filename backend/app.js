@@ -19,23 +19,20 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
-
 // --- CORS (múltiplas origens) ---
-const extras = (process.env.APP_DOMAIN || '')
-  .split(',')
-  .map(s => s.trim())
-  .filter(Boolean);
-
+const raw = (process.env.APP_DOMAIN || '').split(',').map(s => s.trim()).filter(Boolean);
 const allowList = [
-  ...extras,
-  'http://localhost:5173',
-  'https://localhost:5173',
+  ...new Set([
+    ...raw,
+    'http://localhost:5173',
+    'https://localhost:5173',
+  ])
 ];
 
 app.use(
   cors({
     origin(origin, cb) {
-      if (!origin) return cb(null, true); // permite curl/postman
+      if (!origin) return cb(null, true); // curl, healthchecks
       if (allowList.includes(origin)) return cb(null, true);
       return cb(new Error(`CORS: origem não permitida: ${origin}`));
     },
@@ -61,7 +58,6 @@ app.use('/omr', omrRoutes);
 app.use('/redacoes', redacoesRoutes);
 app.use('/notifications', notificationRoutes);
 
-
 const isProd = process.env.NODE_ENV === 'production';
 if (isProd) {
   const distPath = path.join(__dirname, '../frontend/dist');
@@ -72,7 +68,6 @@ if (isProd) {
 } else {
   app.get('/', (req, res) => res.send('API running'));
 }
-
 
 app.use(errorHandler);
 

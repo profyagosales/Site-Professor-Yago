@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '@api';
 import { toast } from 'react-toastify';
 
 function LoginProfessor() {
@@ -16,7 +16,7 @@ function LoginProfessor() {
     setSuccess('');
     setLoading(true);
     try {
-      const res = await axios.post('/auth/login-teacher', data);
+      const res = await api.post('/auth/login-teacher', data);
       const token = res?.data?.data?.token || res?.data?.token;
       localStorage.setItem('token', token);
       setSuccess('Login realizado');

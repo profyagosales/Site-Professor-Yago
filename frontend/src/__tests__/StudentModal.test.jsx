@@ -1,4 +1,4 @@
-jest.mock('axios');
+jest.mock('@api');
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import StudentModal from '../components/StudentModal';
