@@ -29,16 +29,27 @@ const allowList = [
   ])
 ];
 
-app.use(
-  cors({
-    origin(origin, cb) {
-      if (!origin) return cb(null, true); // curl, healthchecks
-      if (allowList.includes(origin)) return cb(null, true);
-      return cb(new Error(`CORS: origem não permitida: ${origin}`));
-    },
-    credentials: true,
-  })
-);
+const corsMiddleware = cors({
+  origin(origin, cb) {
+    if (!origin) return cb(null, true); // curl, healthchecks
+    if (allowList.includes(origin)) return cb(null, true);
+    return cb(new Error(`CORS: origem não permitida: ${origin}`));
+  },
+  credentials: true,
+});
+
+app.use(corsMiddleware);
+
+try {
+  app.options('*', corsMiddleware);
+} catch (err) {
+  app.use((req, res, next) => {
+    if (req.method === 'OPTIONS') {
+      return corsMiddleware(req, res, () => res.sendStatus(204));
+    }
+    return next();
+  });
+}
 
 app.use(express.json());
 
