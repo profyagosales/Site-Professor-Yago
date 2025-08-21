@@ -25,7 +25,7 @@ function DashboardAluno() {
     setSuccess(null);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:5000/dashboard/student', {
+      const res = await axios.get('/dashboard/student', {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       setData(res.data);

@@ -16,8 +16,9 @@ function LoginProfessor() {
     setSuccess('');
     setLoading(true);
     try {
-      const res = await axios.post('http://localhost:5000/auth/login-teacher', data);
-      localStorage.setItem('token', res.data.token);
+      const res = await axios.post('/auth/login-teacher', data);
+      const token = res?.data?.data?.token || res?.data?.token;
+      localStorage.setItem('token', token);
       setSuccess('Login realizado');
       toast.success('Login realizado');
       navigate('/dashboard-professor');
