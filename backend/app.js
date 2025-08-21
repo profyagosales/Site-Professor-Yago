@@ -19,9 +19,7 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
-/**
- * CORS — permite o front em produção (APP_DOMAIN) e o localhost:5173
- */
+
 const allowList = [
   process.env.APP_DOMAIN && process.env.APP_DOMAIN.trim(), // ex.: https://www.professoryagosales.com.br
   'http://localhost:5173',
@@ -58,10 +56,7 @@ app.use('/omr', omrRoutes);
 app.use('/redacoes', redacoesRoutes);
 app.use('/notifications', notificationRoutes);
 
-/**
- * Servir o front em produção
- * OBS: Express 5 não aceita '*' ou '/*' — use regex /.*/ ou '(.*)'
- */
+
 const isProd = process.env.NODE_ENV === 'production';
 if (isProd) {
   const distPath = path.join(__dirname, '../frontend/dist');
@@ -73,9 +68,7 @@ if (isProd) {
   app.get('/', (req, res) => res.send('API running'));
 }
 
-/**
- * Middleware global de erros (deve ser o último)
- */
+
 app.use(errorHandler);
 
 module.exports = { app };
