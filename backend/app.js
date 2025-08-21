@@ -20,17 +20,22 @@ const errorHandler = require('./middleware/errorHandler');
 const app = express();
 
 
+// --- CORS (múltiplas origens) ---
+const extras = (process.env.APP_DOMAIN || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
 const allowList = [
-  process.env.APP_DOMAIN && process.env.APP_DOMAIN.trim(), // ex.: https://www.professoryagosales.com.br
+  ...extras,
   'http://localhost:5173',
   'https://localhost:5173',
-].filter(Boolean);
+];
 
 app.use(
   cors({
     origin(origin, cb) {
-      // Permite ferramentas sem origin (curl, health checks)
-      if (!origin) return cb(null, true);
+      if (!origin) return cb(null, true); // permite curl/postman
       if (allowList.includes(origin)) return cb(null, true);
       return cb(new Error(`CORS: origem não permitida: ${origin}`));
     },

@@ -27,7 +27,7 @@ describe('LoginProfessor', () => {
 
     await waitFor(() => {
       expect(axios.post).toHaveBeenCalledWith(
-        'http://localhost:5000/auth/login-teacher',
+        '/auth/login-teacher',
         { email: 'prof@example.com', password: 'secret' }
       );
       expect(navigate).toHaveBeenCalledWith('/dashboard-professor');

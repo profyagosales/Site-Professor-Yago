@@ -1,8 +1,12 @@
+// frontend/src/services/api.js
 import axiosLib from 'axios';
 
-const api = axiosLib.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5050',
-});
+const baseURL =
+  (import.meta?.env?.VITE_API_URL) ||
+  (typeof window !== 'undefined' && window.__API_URL__) ||
+  'http://localhost:5050'; // fallback só para dev local
+
+const api = axiosLib.create({ baseURL });
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
@@ -12,4 +16,3 @@ api.interceptors.request.use((config) => {
 
 export default api;
 export { api };
-
