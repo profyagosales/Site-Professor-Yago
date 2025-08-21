@@ -3,11 +3,10 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import AlunosDaTurma from '@/components/AlunosDaTurma';
 import StudentModal from '@/components/StudentModal';
-import { listStudents, deleteStudent } from '@/services/students';
-import { toArray } from '@/services/api';
+import { listStudentsByClass, createStudent, updateStudent, deleteStudent } from '@/services/students';
 
 function TurmaAlunos() {
-  const { id } = useParams();
+  const { id: classId } = useParams();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -16,16 +15,17 @@ function TurmaAlunos() {
   const [students, setStudents] = useState([]);
 
   const loadAlunos = () => {
+    if (!classId) return;
     setLoading(true);
-    listStudents({ class: id })
-      .then((res) => setStudents(toArray(res)))
+    listStudentsByClass(classId)
+      .then((res) => setStudents(Array.isArray(res) ? res : []))
       .catch(() => toast.error('Erro ao carregar alunos'))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     loadAlunos();
-  }, [id]);
+  }, [classId]);
 
   const handleAdd = () => {
     setSelectedStudent(null);
@@ -44,11 +44,19 @@ function TurmaAlunos() {
     setError(null);
     setSuccess(null);
     try {
-      // TODO: Implementar envio para API
-      setSuccess('Aluno salvo');
-      toast.success('Aluno salvo');
+      if (selectedStudent && selectedStudent._id) {
+        await updateStudent(selectedStudent._id, { ...student, class: classId });
+      } else {
+        await createStudent({ ...student, class: classId });
+      }
+      setModalOpen(false);
+      setSelectedStudent(null);
+      await loadAlunos();
+      const message = 'Aluno salvo';
+      setSuccess(message);
+      toast.success(message);
     } catch (err) {
-      const message = 'Erro ao salvar aluno';
+      const message = err.response?.data?.message || 'Erro ao salvar aluno';
       setError(message);
       toast.error(message);
       throw err;
@@ -59,13 +67,21 @@ function TurmaAlunos() {
 
   const handleDelete = (student) => {
     if (!window.confirm('Deseja excluir este aluno?')) return;
-    deleteStudent(student.id)
+    deleteStudent(student._id)
       .then(() => {
         toast.success('Aluno excluído');
         loadAlunos();
       })
       .catch(() => toast.error('Erro ao excluir aluno'));
   };
+
+  if (!classId) {
+    return (
+      <div className="pt-20 p-md">
+        <p>Turma não encontrada</p>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -78,13 +94,13 @@ function TurmaAlunos() {
   return (
     <div className="pt-20 p-md">
       <div className="flex justify-between items-center mb-md">
-        <h1 className="text-xl">Alunos da Turma {id}</h1>
+        <h1 className="text-xl">Alunos da Turma {classId}</h1>
         <button onClick={handleAdd} className="btn-primary">
           Adicionar Aluno
         </button>
       </div>
       <AlunosDaTurma
-        classId={id}
+        classId={classId}
         students={students}
         onEdit={handleEdit}
         onDelete={handleDelete}

@@ -1,9 +1,11 @@
-import api, { pickData } from '@/services/api';
+import api from '@api';
 
-export const createGabarito = (data) =>
-  api.post('/gabaritos', data).then(pickData);
+export async function createGabarito(formData) {
+  const res = await api.post('/gabaritos', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    responseType: 'arraybuffer',
+  });
+  return res.data;
+}
 
-export default {
-  createGabarito,
-};
-
+export default { createGabarito };

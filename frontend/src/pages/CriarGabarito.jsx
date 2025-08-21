@@ -1,272 +1,100 @@
-import { useEffect, useState, useCallback } from 'react';
-import { listClasses } from '@/services/classes';
+import { useEffect, useState } from 'react';
+import api from '@api';
 import { createGabarito } from '@/services/gabaritos';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { toast } from 'react-toastify';
-import { toArray } from '@/services/api';
 
 function CriarGabarito() {
-  const [step, setStep] = useState(1);
-  const [classOptions, setClassOptions] = useState([]);
-  const [previewUrl, setPreviewUrl] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
+  const [classes, setClasses] = useState([]);
   const [form, setForm] = useState({
-    leftLogo: null,
-    rightLogo: null,
+    logoLeft: null,
+    logoRight: null,
     schoolName: '',
     discipline: '',
     teacher: '',
-    classes: [],
-    numQuestions: '',
-    totalValue: '',
-    answerKey: ''
   });
-
-  const arrify = (v) => {
-    const r = toArray ? toArray(v) : undefined;
-    return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
-  };
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const loadClasses = async () => {
-      setLoading(true);
-      setError(null);
-      setSuccess(null);
       try {
-        const classes = await listClasses();
-        setClassOptions(arrify(classes));
-        setSuccess('Dados carregados');
-        toast.success('Dados carregados');
+        const res = await api.get('/classes');
+        const list = Array.isArray(res?.data?.data || res?.data)
+          ? (res.data.data || res.data)
+          : [];
+        setClasses(list);
       } catch (err) {
-        console.error(err);
-        const message = err.response?.data?.message ?? 'Erro ao carregar turmas';
-        setError(message);
-        toast.error(message);
-      } finally {
-        setLoading(false);
+        toast.error(err.response?.data?.message || 'Erro ao carregar turmas');
       }
     };
     loadClasses();
   }, []);
-  const generatePreview = useCallback(async () => {
-    const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([595, 842]);
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const { leftLogo, rightLogo, schoolName, discipline, teacher, answerKey } = form;
 
-    if (leftLogo) {
-      const bytes = await fetch(leftLogo).then((res) => res.arrayBuffer());
-      const img = await pdfDoc.embedPng(bytes);
-      page.drawImage(img, { x: 50, y: 760, width: 50, height: 50 });
+  const handleChange = (e) => {
+    const { name, value, files } = e.target;
+    if (files && files[0]) {
+      setForm((f) => ({ ...f, [name]: files[0] }));
+    } else {
+      setForm((f) => ({ ...f, [name]: value }));
     }
-    if (rightLogo) {
-      const bytes = await fetch(rightLogo).then((res) => res.arrayBuffer());
-      const img = await pdfDoc.embedPng(bytes);
-      page.drawImage(img, { x: 495, y: 760, width: 50, height: 50 });
-    }
-    page.drawText(schoolName || '', { x: 110, y: 790, size: 14, font, color: rgb(0, 0, 0) });
-    page.drawText(`${discipline || ''} - ${teacher || ''}`, { x: 110, y: 770, size: 12, font, color: rgb(0, 0, 0) });
-
-    const answers = (answerKey || '').split(/\s*,\s*/);
-    answers.forEach((ans, i) => {
-      if (ans) {
-        page.drawText(`${i + 1}. ${ans}`, { x: 50, y: 730 - i * 15, size: 12, font, color: rgb(0, 0, 0) });
-      }
-    });
-
-    const pdfBytes = await pdfDoc.save();
-    const blobUrl = URL.createObjectURL(new Blob([pdfBytes], { type: 'application/pdf' }));
-    setPreviewUrl(blobUrl);
-  }, [form]);
-
-  useEffect(() => {
-    generatePreview();
-  }, [generatePreview]);
-
-  const handleFileChange = (e, key) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setForm((prev) => ({ ...prev, [key]: reader.result }));
-    };
-    reader.readAsDataURL(file);
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleClassToggle = (id) => {
-    setForm((prev) => {
-      const classes = prev.classes.includes(id)
-        ? prev.classes.filter((c) => c !== id)
-        : [...prev.classes, id];
-      return { ...prev, classes };
-    });
-  };
-
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setLoading(true);
-    setError(null);
-    setSuccess(null);
     try {
-      const payload = {
-        ...form,
-        answerKey: (form.answerKey || '').split(/\s*,\s*/)
-      };
-      await createGabarito(payload);
-      const message = 'Gabarito criado com sucesso!';
-      setSuccess(message);
-      toast.success(message);
-      setForm({
-        leftLogo: null,
-        rightLogo: null,
-        schoolName: '',
-        discipline: '',
-        teacher: '',
-        classes: [],
-        numQuestions: '',
-        totalValue: '',
-        answerKey: ''
-      });
-      setStep(1);
+      const fd = new FormData();
+      fd.append('logoLeft', form.logoLeft);
+      fd.append('logoRight', form.logoRight);
+      fd.append('schoolName', form.schoolName);
+      fd.append('discipline', form.discipline);
+      fd.append('teacher', form.teacher);
+      const pdfData = await createGabarito(fd);
+      const blob = new Blob([pdfData], { type: 'application/pdf' });
+      setPreviewUrl(URL.createObjectURL(blob));
+      toast.success('Gabarito gerado');
     } catch (err) {
-      console.error(err);
-      const message = err.response?.data?.message ?? 'Erro ao criar gabarito.';
-      setError(message);
-      toast.error(message);
+      toast.error(err.response?.data?.message || 'Erro ao gerar gabarito');
     } finally {
       setLoading(false);
     }
   };
 
-  const renderStep = () => {
-    switch (step) {
-      case 1:
-        return (
-          <div className="grid gap-md">
-            <div className="flex gap-md">
-              <div className="flex-1">
-                <label className="block mb-sm">Logo Esquerda</label>
-                <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'leftLogo')} />
-              </div>
-              <div className="flex-1">
-                <label className="block mb-sm">Logo Direita</label>
-                <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'rightLogo')} />
-              </div>
-            </div>
-            <input
-              className="w-full border p-sm rounded"
-              placeholder="Nome da Escola"
-              name="schoolName"
-              value={form.schoolName}
-              onChange={handleInputChange}
-            />
-            <input
-              className="w-full border p-sm rounded"
-              placeholder="Disciplina"
-              name="discipline"
-              value={form.discipline}
-              onChange={handleInputChange}
-            />
-            <input
-              className="w-full border p-sm rounded"
-              placeholder="Professor"
-              name="teacher"
-              value={form.teacher}
-              onChange={handleInputChange}
-            />
-          </div>
-        );
-      case 2:
-        return (
-          <div className="grid gap-sm">
-            {classOptions.map((cls) => (
-              <label key={cls._id} className="flex items-center space-x-sm">
-                <input
-                  type="checkbox"
-                  checked={form.classes.includes(cls._id)}
-                  onChange={() => handleClassToggle(cls._id)}
-                />
-                <span>{cls.series}ª{cls.letter} - {cls.discipline}</span>
-              </label>
-            ))}
-          </div>
-        );
-      case 3:
-        return (
-          <div className="grid gap-md">
-            <input
-              className="w-full border p-sm rounded"
-              placeholder="Número de questões"
-              name="numQuestions"
-              type="number"
-              value={form.numQuestions}
-              onChange={handleInputChange}
-            />
-            <input
-              className="w-full border p-sm rounded"
-              placeholder="Valor total da prova"
-              name="totalValue"
-              type="number"
-              value={form.totalValue}
-              onChange={handleInputChange}
-            />
-            <input
-              className="w-full border p-sm rounded"
-              placeholder="Gabarito (ex: A,B,C...)"
-              name="answerKey"
-              value={form.answerKey}
-              onChange={handleInputChange}
-            />
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
-  if (loading) {
-    return (
-      <div className="pt-20 p-md">
-        <p>Carregando...</p>
-      </div>
-    );
-  }
-
   return (
     <div className="pt-20 p-md">
-      <h1 className="text-2xl text-orange">Criar Gabarito</h1>
-      <div className="card">
-        {renderStep()}
-        <div className="mt-md flex justify-between">
-          {step > 1 && (
-            <button className="px-4 py-2 border rounded" onClick={() => setStep(step - 1)}>
-              Anterior
-            </button>
-          )}
-          {step < 3 && (
-            <button className="btn-primary ml-auto" onClick={() => setStep(step + 1)}>
-              Próximo
-            </button>
-          )}
-          {step === 3 && (
-            <button className="btn-primary ml-auto" onClick={handleSubmit}>
-              Enviar
-            </button>
-          )}
+      <h1 className="text-2xl text-orange mb-md">Criar Gabarito</h1>
+      <form onSubmit={handleSubmit} className="space-y-md">
+        <div className="flex gap-md">
+          <input type="file" name="logoLeft" accept="image/*" onChange={handleChange} />
+          <input type="file" name="logoRight" accept="image/*" onChange={handleChange} />
         </div>
-        {error && <p className="text-red-600 mt-sm">{error}</p>}
-        {success && <p className="text-green-600 mt-sm">{success}</p>}
-      </div>
+        <input
+          name="schoolName"
+          className="border p-sm rounded w-full"
+          placeholder="Nome da Escola"
+          value={form.schoolName}
+          onChange={handleChange}
+        />
+        <input
+          name="discipline"
+          className="border p-sm rounded w-full"
+          placeholder="Disciplina"
+          value={form.discipline}
+          onChange={handleChange}
+        />
+        <input
+          name="teacher"
+          className="border p-sm rounded w-full"
+          placeholder="Professor"
+          value={form.teacher}
+          onChange={handleChange}
+        />
+        <button type="submit" className="btn-primary" disabled={loading}>
+          {loading ? 'Gerando...' : 'Gerar PDF'}
+        </button>
+      </form>
       {previewUrl && (
-        <div className="mt-md">
-          <h2 className="text-lg text-orange">Prévia</h2>
-          <iframe src={previewUrl} className="w-full h-96 border" title="preview" />
-        </div>
+        <iframe title="Prévia" src={previewUrl} className="w-full h-96 mt-md" />
       )}
     </div>
   );

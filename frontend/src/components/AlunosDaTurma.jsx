@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { listStudents } from '@/services/students';
+import { listStudentsByClass } from '@/services/students';
 import { toArray } from '@/services/api';
 
 function AlunosDaTurma({ classId, students: externalStudents, onEdit, onDelete }) {
@@ -11,7 +11,7 @@ function AlunosDaTurma({ classId, students: externalStudents, onEdit, onDelete }
       return;
     }
     if (!classId) return;
-    listStudents({ class: classId })
+    listStudentsByClass(classId)
       .then((data) => setStudents(toArray(data)))
       .catch((err) => console.error('Erro ao buscar alunos:', err));
   }, [classId, externalStudents]);
@@ -30,7 +30,7 @@ function AlunosDaTurma({ classId, students: externalStudents, onEdit, onDelete }
         </thead>
         <tbody>
           {toArray(students).map((student) => (
-            <tr key={student.id} className="hover:bg-gray-50 text-center">
+            <tr key={student._id || student.id} className="hover:bg-gray-50 text-center">
               <td className="p-sm border">
                 <img
                   src={student.photo || 'https://via.placeholder.com/40'}
@@ -38,7 +38,7 @@ function AlunosDaTurma({ classId, students: externalStudents, onEdit, onDelete }
                   className="w-10 h-10 rounded-full object-cover mx-auto"
                 />
               </td>
-              <td className="p-sm border">{student.number}</td>
+              <td className="p-sm border">{student.rollNumber}</td>
               <td className="p-sm border">{student.name}</td>
               <td className="p-sm border">{student.email}</td>
               <td className="p-sm border space-x-sm">
