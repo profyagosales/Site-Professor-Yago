@@ -53,13 +53,17 @@ app.use('/omr', omrRoutes);
 app.use('/redacoes', redacoesRoutes);
 app.use('/notifications', notificationRoutes);
 
-// Servir o frontend em produção
+
+// ...
 const isProd = process.env.NODE_ENV === 'production';
 if (isProd) {
-  app.use(express.static(path.join(__dirname, '../frontend/dist')));
-  app.get('*', (req, res) =>
-    res.sendFile(path.join(__dirname, '../frontend/dist/index.html'))
-  );
+  const distPath = path.join(__dirname, '../frontend/dist');
+  app.use(express.static(distPath));
+
+  // ✅ Express 5: use '/*' (ou /(.*)) em vez de '*'
+  app.get('/*', (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
 } else {
   app.get('/', (req, res) => res.send('API running'));
 }
