@@ -27,7 +27,7 @@ describe('LoginAluno', () => {
 
     await waitFor(() => {
       expect(axios.post).toHaveBeenCalledWith(
-        'http://localhost:5000/auth/login-student',
+        '/auth/login-student',
         { email: 'aluno@example.com', password: 'senha' }
       );
       expect(navigate).toHaveBeenCalledWith('/dashboard-aluno');
