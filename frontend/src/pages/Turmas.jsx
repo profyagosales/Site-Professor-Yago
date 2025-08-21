@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '@api';
+import { asArray } from '@/utils/safe';
 import ClassModal from '../components/ClassModal';
 import { toast } from 'react-toastify';
 
@@ -15,7 +16,8 @@ function Turmas() {
     setLoading(true);
     try {
       const res = await api.get('/classes');
-      setClasses(res.data);
+      const classes = asArray(res?.data?.data || res?.data);
+      setClasses(classes);
     } catch (err) {
       console.error('Erro ao carregar turmas', err);
       toast.error('Erro ao carregar turmas');
