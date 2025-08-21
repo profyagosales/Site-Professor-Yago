@@ -1,15 +1,20 @@
 import { useEffect, useState } from 'react';
+import { listStudents } from '@/services/students';
+import { toArray } from '@/services/api';
 
-function AlunosDaTurma({ classId, onEdit, onDelete }) {
+function AlunosDaTurma({ classId, students: externalStudents, onEdit, onDelete }) {
   const [students, setStudents] = useState([]);
 
   useEffect(() => {
+    if (externalStudents !== undefined) {
+      setStudents(externalStudents);
+      return;
+    }
     if (!classId) return;
-    fetch(`/students?class=${classId}`)
-      .then((res) => res.json())
-      .then((data) => setStudents(data))
+    listStudents({ class: classId })
+      .then((data) => setStudents(toArray(data)))
       .catch((err) => console.error('Erro ao buscar alunos:', err));
-  }, [classId]);
+  }, [classId, externalStudents]);
 
   return (
     <div className="overflow-x-auto">
@@ -24,7 +29,7 @@ function AlunosDaTurma({ classId, onEdit, onDelete }) {
           </tr>
         </thead>
         <tbody>
-          {students.map((student) => (
+          {toArray(students).map((student) => (
             <tr key={student.id} className="hover:bg-gray-50 text-center">
               <td className="p-sm border">
                 <img
