@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getNotifications, scheduleNotification } from '../services/notifications';
+import { getNotifications, scheduleNotification } from '@/services/notifications';
 import { asArray } from '@/utils/safe';
 
 function NotificationsPanel() {

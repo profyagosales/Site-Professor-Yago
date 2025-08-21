@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { uploadPdf } from '../services/omr';
+import { uploadPdf } from '@/services/omr';
 import { toast } from 'react-toastify';
 
 function CorrigirGabaritos() {

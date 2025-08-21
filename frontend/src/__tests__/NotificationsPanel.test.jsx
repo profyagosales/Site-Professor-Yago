@@ -1,13 +1,13 @@
-jest.mock('@api');
+jest.mock('@/services/api');
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import NotificationsPanel from '../components/NotificationsPanel';
+import NotificationsPanel from '@/components/NotificationsPanel';
 
-jest.mock('../services/notifications', () => ({
+jest.mock('@/services/notifications', () => ({
   getNotifications: jest.fn().mockResolvedValue([{ id:1, message:'Oi', nextRun: new Date().toISOString() }]),
   scheduleNotification: jest.fn().mockResolvedValue({})
 }));
-const { getNotifications, scheduleNotification } = require('../services/notifications');
+const { getNotifications, scheduleNotification } = require('@/services/notifications');
 
 describe('NotificationsPanel', () => {
   test('loads and schedules notifications', async () => {

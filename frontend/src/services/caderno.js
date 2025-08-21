@@ -1,4 +1,4 @@
-import api from '@api';
+import api, { pickData, toArray } from '@/services/api';
 
 export const createVisto = async (data) => {
   const res = await api.post('/caderno', data);

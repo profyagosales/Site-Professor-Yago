@@ -1,7 +1,7 @@
-jest.mock('@api');
+jest.mock('@/services/api');
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import ClassModal from '../components/ClassModal';
+import ClassModal from '@/components/ClassModal';
 
 describe('ClassModal', () => {
   test('submits class data', async () => {

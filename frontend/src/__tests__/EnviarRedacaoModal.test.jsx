@@ -1,11 +1,11 @@
-jest.mock('@api');
+jest.mock('@/services/api');
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import EnviarRedacaoModal from '../components/EnviarRedacaoModal';
+import EnviarRedacaoModal from '@/components/EnviarRedacaoModal';
 
 jest.mock('react-toastify', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
-jest.mock('../services/redacoes', () => ({ enviarRedacao: jest.fn().mockResolvedValue({}) }));
-const { enviarRedacao } = require('../services/redacoes');
+jest.mock('@/services/redacoes', () => ({ enviarRedacao: jest.fn().mockResolvedValue({}) }));
+const { enviarRedacao } = require('@/services/redacoes');
 
 describe('EnviarRedacaoModal', () => {
   test('uploads file', async () => {

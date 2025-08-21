@@ -1,4 +1,4 @@
-import api from '@api';
+import api, { pickData, toArray } from '@/services/api';
 
 export const getClassMatrix = async (classId) => {
   const [studentsRes, gradesRes] = await Promise.all([

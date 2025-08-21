@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import api from '@api';
+import api, { pickData, toArray } from '@/services/api';
 import { FiBook } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import { asArray } from '@/utils/safe';
-import { createVisto, updateVisto, getVistos } from '../services/caderno';
+import { createVisto, updateVisto, getVistos } from '@/services/caderno';
 
 function CadernoClasse() {
   const [classes, setClasses] = useState([]);

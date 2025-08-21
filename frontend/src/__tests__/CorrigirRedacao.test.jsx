@@ -1,10 +1,10 @@
-jest.mock('@api');
+jest.mock('@/services/api');
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import CorrigirRedacao from '../pages/CorrigirRedacao';
+import CorrigirRedacao from '@/pages/CorrigirRedacao';
 
-jest.mock('../services/redacoes', () => ({ corrigirRedacao: jest.fn() }));
+jest.mock('@/services/redacoes', () => ({ corrigirRedacao: jest.fn() }));
 
 describe('CorrigirRedacao', () => {
   test('changes fields by tipo', async () => {

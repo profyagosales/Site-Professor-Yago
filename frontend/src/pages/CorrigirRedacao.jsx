@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { corrigirRedacao } from '../services/redacoes';
+import { corrigirRedacao } from '@/services/redacoes';
 import { toast } from 'react-toastify';
 
 function CorrigirRedacao() {

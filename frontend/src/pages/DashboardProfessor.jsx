@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '@api';
+import api, { pickData, toArray } from '@/services/api';
 import { toast } from 'react-toastify';
 import { asArray } from '@/utils/safe';
-import SendEmailModal from '../components/SendEmailModal';
-import NotificationsPanel from '../components/NotificationsPanel';
-import CalendarIcon from '../components/icons/CalendarIcon';
-import ListIcon from '../components/icons/ListIcon';
-import BoardIcon from '../components/icons/BoardIcon';
+import SendEmailModal from '@/components/SendEmailModal';
+import NotificationsPanel from '@/components/NotificationsPanel';
+import CalendarIcon from '@/components/icons/CalendarIcon';
+import ListIcon from '@/components/icons/ListIcon';
+import BoardIcon from '@/components/icons/BoardIcon';
 
 function getPayload(res) {
   return res?.data?.data ?? res?.data ?? res ?? {};

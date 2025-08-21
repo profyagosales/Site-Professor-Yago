@@ -1,15 +1,15 @@
-jest.mock('@api');
+jest.mock('@/services/api');
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: jest.fn(),
 }));
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import DashboardProfessor from '../pages/DashboardProfessor';
-import api from '@api';
+import DashboardProfessor from '@/pages/DashboardProfessor';
+import api, { pickData, toArray } from '@/services/api';
 
-jest.mock('../components/NotificationsPanel', () => () => <div />);
-jest.mock('../components/SendEmailModal', () => () => <div />);
+jest.mock('@/components/NotificationsPanel', () => () => <div />);
+jest.mock('@/components/SendEmailModal', () => () => <div />);
 
 describe('DashboardProfessor', () => {
   test('renders dashboard metrics', async () => {

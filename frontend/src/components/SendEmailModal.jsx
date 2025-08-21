@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import api from '@api';
+import api, { pickData, toArray } from '@/services/api';
 import { asArray } from '@/utils/safe';
 
 function SendEmailModal({ isOpen, onClose }) {

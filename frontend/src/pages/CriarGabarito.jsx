@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import { getClasses } from '../services/classes';
-import { createGabarito } from '../services/gabaritos';
+import { getClasses } from '@/services/classes';
+import { createGabarito } from '@/services/gabaritos';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { toast } from 'react-toastify';
 
