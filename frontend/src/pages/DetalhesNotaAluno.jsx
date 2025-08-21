@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getStudentGrades, exportStudentPdf, sendStudentReport } from '../services/grades';
+import { getStudentGrades, exportStudentPdf, sendStudentReport } from '@/services/grades';
 import { toast } from 'react-toastify';
 
 function DetalhesNotaAluno() {

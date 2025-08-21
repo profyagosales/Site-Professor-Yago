@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '@api';
+import api, { pickData, toArray } from '@/services/api';
 import { asArray } from '@/utils/safe';
-import ClassModal from '../components/ClassModal';
+import ClassModal from '@/components/ClassModal';
 import { toast } from 'react-toastify';
 
 function Turmas() {

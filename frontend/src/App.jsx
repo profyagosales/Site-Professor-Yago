@@ -1,22 +1,22 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Navbar from './components/Navbar';
-import LoginProfessor from './pages/LoginProfessor';
-import LoginAluno from './pages/LoginAluno';
-import DashboardProfessor from './pages/DashboardProfessor';
-import DashboardAluno from './pages/DashboardAluno';
-import DashboardRedacoes from './pages/DashboardRedacoes';
-import Turmas from './pages/Turmas';
-import TurmaAlunos from './pages/TurmaAlunos';
-import PerfilAlunoProfessor from './pages/PerfilAlunoProfessor';
-import NotasClasse from './pages/NotasClasse';
-import DetalhesNotaAluno from './pages/DetalhesNotaAluno';
-import CadernoClasse from './pages/CadernoClasse';
-import CriarGabarito from './pages/CriarGabarito';
-import CorrigirGabaritos from './pages/CorrigirGabaritos';
-import CorrigirRedacao from './pages/CorrigirRedacao';
+import Navbar from '@/components/Navbar';
+import LoginProfessor from '@/pages/LoginProfessor';
+import LoginAluno from '@/pages/LoginAluno';
+import DashboardProfessor from '@/pages/DashboardProfessor';
+import DashboardAluno from '@/pages/DashboardAluno';
+import DashboardRedacoes from '@/pages/DashboardRedacoes';
+import Turmas from '@/pages/Turmas';
+import TurmaAlunos from '@/pages/TurmaAlunos';
+import PerfilAlunoProfessor from '@/pages/PerfilAlunoProfessor';
+import NotasClasse from '@/pages/NotasClasse';
+import DetalhesNotaAluno from '@/pages/DetalhesNotaAluno';
+import CadernoClasse from '@/pages/CadernoClasse';
+import CriarGabarito from '@/pages/CriarGabarito';
+import CorrigirGabaritos from '@/pages/CorrigirGabaritos';
+import CorrigirRedacao from '@/pages/CorrigirRedacao';
 import { ToastContainer } from 'react-toastify';
-import Protected from './components/Protected';
-import { isAuthed } from './services/auth';
+import Protected from '@/components/Protected';
+import { isAuthed } from '@/services/auth';
 
 function App() {
   return (

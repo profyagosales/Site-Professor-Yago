@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { listarPendentes, listarCorrigidas } from '../services/redacoes';
+import { listarPendentes, listarCorrigidas } from '@/services/redacoes';
 import { toast } from 'react-toastify';
 
 function DashboardRedacoes() {

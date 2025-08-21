@@ -1,8 +1,8 @@
 import { useParams } from 'react-router-dom';
 import { useState } from 'react';
 import { toast } from 'react-toastify';
-import AlunosDaTurma from '../components/AlunosDaTurma';
-import StudentModal from '../components/StudentModal';
+import AlunosDaTurma from '@/components/AlunosDaTurma';
+import StudentModal from '@/components/StudentModal';
 
 function TurmaAlunos() {
   const { id } = useParams();

@@ -1,4 +1,4 @@
-import api from '@api';
+import api, { pickData, toArray } from '@/services/api';
 
 export const createEvaluation = async (data) => {
   const res = await api.post('/evaluations', data);

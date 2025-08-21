@@ -1,7 +1,7 @@
-jest.mock('@api');
+jest.mock('@/services/api');
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import AlunosDaTurma from '../components/AlunosDaTurma';
+import AlunosDaTurma from '@/components/AlunosDaTurma';
 
 describe('AlunosDaTurma', () => {
   afterEach(() => {

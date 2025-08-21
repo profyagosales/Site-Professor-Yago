@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import api from '@api';
+import api, { pickData, toArray } from '@/services/api';
 import { toast } from 'react-toastify';
-import EnviarRedacaoModal from '../components/EnviarRedacaoModal';
-import { listarRedacoesAluno } from '../services/redacoes';
-import CalendarIcon from '../components/icons/CalendarIcon';
-import ListIcon from '../components/icons/ListIcon';
-import BoardIcon from '../components/icons/BoardIcon';
+import EnviarRedacaoModal from '@/components/EnviarRedacaoModal';
+import { listarRedacoesAluno } from '@/services/redacoes';
+import CalendarIcon from '@/components/icons/CalendarIcon';
+import ListIcon from '@/components/icons/ListIcon';
+import BoardIcon from '@/components/icons/BoardIcon';
 
 function DashboardAluno() {
   const [data, setData] = useState({

@@ -1,4 +1,4 @@
-import api from '@api';
+import api, { pickData, toArray } from '@/services/api';
 
 export const getNotifications = async () => {
   const res = await api.get('/notifications');

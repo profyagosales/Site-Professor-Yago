@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '@api';
+import api, { pickData, toArray } from '@/services/api';
 import { toast } from 'react-toastify';
 import { asArray } from '@/utils/safe';
-import { getClassMatrix, exportClassPdf } from '../services/grades';
+import { getClassMatrix, exportClassPdf } from '@/services/grades';
 
 function NotasClasse() {
   const [classes, setClasses] = useState([]);

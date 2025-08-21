@@ -1,4 +1,4 @@
-import api from '@api';
+import api, { pickData, toArray } from '@/services/api';
 
 export const enviarRedacao = async (formData) => {
   const res = await api.post('/redacoes/enviar', formData, {

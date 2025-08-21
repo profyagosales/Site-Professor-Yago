@@ -1,5 +1,5 @@
 import { Navigate } from 'react-router-dom';
-import { isAuthed } from '../services/auth';
+import { isAuthed } from '@/services/auth';
 
 const Protected = ({ children }) => {
   if (!isAuthed()) {

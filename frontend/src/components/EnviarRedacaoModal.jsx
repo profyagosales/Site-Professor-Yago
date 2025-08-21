@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { enviarRedacao } from '../services/redacoes';
+import { enviarRedacao } from '@/services/redacoes';
 import { toast } from 'react-toastify';
 
 function EnviarRedacaoModal({ isOpen, onClose, onSuccess }) {
