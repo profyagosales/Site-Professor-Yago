@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import api, { pickData, toArray } from '@/services/api';
+import api, { pickData } from '@/services/api';
 import { toast } from 'react-toastify';
 
 function LoginAluno() {
@@ -17,7 +17,7 @@ function LoginAluno() {
     setLoading(true);
     try {
       const res = await api.post('/auth/login-student', data);
-      const token = res?.data?.data?.token || res?.data?.token;
+      const token = res?.data?.data?.token ?? res?.data?.token;
       localStorage.setItem('token', token);
       setSuccess('Login realizado');
       toast.success('Login realizado');
