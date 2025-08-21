@@ -1,17 +1,13 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import { fileURLToPath } from 'url';
-import { dirname, resolve } from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname  = dirname(__filename);
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      // qualquer import 'axios' usará o client central
-      axios: resolve(__dirname, 'src/services/api.js'),
+      '@': path.resolve(__dirname, 'src'),
+      '@api': path.resolve(__dirname, 'src/services/api.js'),
     },
   },
-});
+})

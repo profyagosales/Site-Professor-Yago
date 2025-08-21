@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '@api';
 import ClassModal from '../components/ClassModal';
 import { toast } from 'react-toastify';
 
@@ -14,7 +14,7 @@ function Turmas() {
   const fetchClasses = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/classes');
+      const res = await api.get('/classes');
       setClasses(res.data);
     } catch (err) {
       console.error('Erro ao carregar turmas', err);
@@ -33,7 +33,7 @@ function Turmas() {
     try {
       let res;
       if (editing) {
-        res = await axios.put(
+        res = await api.put(
           `/classes/${editing._id}`,
           data
         );
@@ -41,7 +41,7 @@ function Turmas() {
           prev.map((cls) => (cls._id === editing._id ? res.data : cls))
         );
       } else {
-        res = await axios.post('/classes', data);
+        res = await api.post('/classes', data);
         setClasses((prev) => [...prev, res.data]);
       }
       toast.success('Turma salva com sucesso');
@@ -59,7 +59,7 @@ function Turmas() {
     if (!window.confirm('Deseja excluir esta turma?')) return;
     setLoading(true);
     try {
-      await axios.delete(`/classes/${id}`);
+      await api.delete(`/classes/${id}`);
       setClasses((prev) => prev.filter((cls) => cls._id !== id));
       toast.success('Turma excluída');
     } catch (err) {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '@api';
 import { toast } from 'react-toastify';
 import { getClassMatrix, exportClassPdf } from '../services/grades';
 
@@ -22,7 +22,7 @@ function NotasClasse() {
       setLoadingClasses(true);
       setErrorClasses(null);
       try {
-        const res = await axios.get('/classes');
+        const res = await api.get('/classes');
         setClasses(res.data);
         setSuccess('Turmas carregadas');
         toast.success('Turmas carregadas');

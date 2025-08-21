@@ -1,13 +1,11 @@
-// frontend/src/services/api.js
-import axiosLib from 'axios';
+import axios from 'axios';
 
-const baseURL =
-  (import.meta?.env?.VITE_API_URL) ||
-  (typeof window !== 'undefined' && window.__API_URL__) ||
-  'http://localhost:5050'; // fallback só para dev local
+// baseURL vem do ambiente em produção; cai para localhost no dev
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5050',
+});
 
-const api = axiosLib.create({ baseURL });
-
+// injeta token, se existir
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '@api';
 import { toast } from 'react-toastify';
 import EnviarRedacaoModal from '../components/EnviarRedacaoModal';
 import { listarRedacoesAluno } from '../services/redacoes';
@@ -24,10 +24,7 @@ function DashboardAluno() {
     setError(null);
     setSuccess(null);
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get('/dashboard/student', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res = await api.get('/dashboard/student');
       setData(res.data);
       const reda = await listarRedacoesAluno();
       setRedacoes(reda);

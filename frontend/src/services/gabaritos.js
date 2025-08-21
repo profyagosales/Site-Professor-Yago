@@ -1,4 +1,4 @@
-import { api } from './api';
+import api from '@api';
 
 export const createGabarito = async (data) => {
   const res = await api.post('/gabaritos', data);
