@@ -1,41 +1,21 @@
-import api, { pickData, toArray } from '@/services/api';
+import api, { pickData } from '@/services/api';
 
-export const getClassMatrix = async (classId) => {
-  const [studentsRes, gradesRes] = await Promise.all([
-    api.get(`/students?class=${classId}`),
-    api.get(`/grades/class/${classId}`)
-  ]);
-  return { students: studentsRes.data, grades: gradesRes.data };
-};
+export const getClassMatrix = (classId) =>
+  api.get(`/grades/class/${classId}`).then(pickData);
 
-export const getStudentGrades = async (studentId) => {
-  const res = await api.get(`/grades/student/${studentId}`);
-  return res.data;
-};
+export const getStudentGrades = (studentId) =>
+  api.get(`/grades/student/${studentId}`).then(pickData);
 
-export const postGrade = async (data) => {
-  const res = await api.post('/grades', data);
-  return res.data;
-};
+export const postGrade = (data) => api.post('/grades', data).then(pickData);
 
-export const exportClassPdf = async (classId) => {
-  const res = await api.get(`/grades/class/${classId}/export`, {
-    responseType: 'blob'
-  });
-  return res.data;
-};
+export const exportClassPdf = (classId) =>
+  api.get(`/grades/class/${classId}/export`, { responseType: 'blob' }).then(pickData);
 
-export const exportStudentPdf = async (studentId) => {
-  const res = await api.get(`/grades/student/${studentId}/export`, {
-    responseType: 'blob'
-  });
-  return res.data;
-};
+export const exportStudentPdf = (studentId) =>
+  api.get(`/grades/student/${studentId}/export`, { responseType: 'blob' }).then(pickData);
 
-export const sendStudentReport = async (studentId) => {
-  const res = await api.post(`/grades/student/${studentId}/send`);
-  return res.data;
-};
+export const sendStudentReport = (studentId) =>
+  api.post(`/grades/student/${studentId}/send`).then(pickData);
 
 export default {
   getClassMatrix,
@@ -43,5 +23,6 @@ export default {
   postGrade,
   exportClassPdf,
   exportStudentPdf,
-  sendStudentReport
+  sendStudentReport,
 };
+

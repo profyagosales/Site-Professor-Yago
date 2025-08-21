@@ -1,10 +1,9 @@
-import api, { pickData, toArray } from '@/services/api';
+import api, { pickData } from '@/services/api';
 
-export const createGabarito = async (data) => {
-  const res = await api.post('/gabaritos', data);
-  return res.data;
-};
+export const createGabarito = (data) =>
+  api.post('/gabaritos', data).then(pickData);
 
 export default {
   createGabarito,
 };
+
