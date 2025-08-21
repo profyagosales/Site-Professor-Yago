@@ -4,7 +4,7 @@ import { FiBook } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import { createVisto, updateVisto, getVistos } from '@/services/caderno';
 import { listClasses } from '@/services/classes';
-import { listStudents } from '@/services/students';
+import { listStudentsByClass } from '@/services/students';
 
 function CadernoClasse() {
   const [classes, setClasses] = useState([]);
@@ -25,7 +25,7 @@ function CadernoClasse() {
       setSuccess(null);
       try {
         const res = await listClasses();
-        setClasses(toArray(res));
+        setClasses(Array.isArray(res) ? res : []);
         setSuccess('Turmas carregadas');
         toast.success('Turmas carregadas');
       } catch (err) {
@@ -47,13 +47,12 @@ function CadernoClasse() {
     setSuccess(null);
     try {
       const [studRes, chkRes] = await Promise.all([
-        listStudents({ class: cls._id }).catch(() => []),
+        listStudentsByClass(cls._id).catch(() => []),
         getVistos(cls._id, bim).catch(() => [])
       ]);
-      const allStudents = toArray(studRes);
-      const filteredStudents = allStudents.filter(
-        (s) => (s.class && (s.class._id || s.class) === cls._id)
-      );
+      const filteredStudents = Array.isArray(studRes)
+        ? studRes.filter((s) => (s.class && (s.class._id || s.class) === cls._id))
+        : [];
       setStudents(filteredStudents);
       const checks = toArray(chkRes);
       setChecks(checks);
@@ -207,7 +206,7 @@ function CadernoClasse() {
       <div className="pt-20 p-md">
         <h1 className="text-2xl text-orange">Caderno por Turma</h1>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
-            {classes.map((cls) => (
+            {(Array.isArray(classes) ? classes : []).map((cls) => (
               <div
                 key={cls._id}
                 className="card flex items-center border border-orange-500 cursor-pointer"
@@ -256,7 +255,7 @@ function CadernoClasse() {
         </button>
       </div>
 
-        {checks.map((chk) => (
+        {(Array.isArray(checks) ? checks : []).map((chk) => (
           <div
             key={chk._id}
             className="mb-md p-md rounded-lg bg-white/30 backdrop-blur-md border border-orange-500 shadow-sm"
@@ -265,7 +264,9 @@ function CadernoClasse() {
               <div>
                 <h3 className="font-semibold">{chk.description}</h3>
                 <p className="text-sm text-black/70">
-                  {new Date(chk.date).toLocaleDateString()}
+                  {chk.date && !isNaN(new Date(chk.date))
+                    ? new Date(chk.date).toLocaleDateString()
+                    : '—'}
                 </p>
               </div>
               <div className="w-40 bg-lightGray rounded-full h-2">
@@ -276,7 +277,7 @@ function CadernoClasse() {
               </div>
             </div>
             <ul className="space-y-sm">
-              {students.map((st) => {
+              {(Array.isArray(students) ? students : []).map((st) => {
                 const entry = chk.students.find((s) => s.student === st._id);
                 return (
                   <li

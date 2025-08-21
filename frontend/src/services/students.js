@@ -1,21 +1,27 @@
-import api, { pickData } from '@/services/api';
+import api from '@api';
 
-export const listStudents = (params = {}) =>
-  api.get('/students', { params }).then(pickData);
+export async function listStudentsByClass(classId) {
+  if (!classId) return [];
+  const r = await api.get(`/students?class=${classId}`);
+  const data = r?.data?.data || r?.data;
+  return Array.isArray(data) ? data : [];
+}
 
-export const createStudent = (student) =>
-  api.post('/students', student).then(pickData);
+export async function createStudent(payload) {
+  return (await api.post('/students', payload))?.data?.data || {};
+}
 
-export const updateStudent = (id, student) =>
-  api.put(`/students/${id}`, student).then(pickData);
+export async function updateStudent(id, payload) {
+  return (await api.put(`/students/${id}`, payload))?.data?.data || {};
+}
 
-export const deleteStudent = (id) =>
-  api.delete(`/students/${id}`).then(pickData);
+export async function deleteStudent(id) {
+  return (await api.delete(`/students/${id}`))?.data;
+}
 
 export default {
-  listStudents,
+  listStudentsByClass,
   createStudent,
   updateStudent,
   deleteStudent,
 };
-

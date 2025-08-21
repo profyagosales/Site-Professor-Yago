@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { listClasses, createClass, updateClass, deleteClass } from '@/services/classes';
-import { toArray } from '@/services/api';
 import ClassModal from '@/components/ClassModal';
 import { toast } from 'react-toastify';
 
@@ -15,7 +14,7 @@ function Turmas() {
   const loadTurmas = () => {
     setLoading(true);
     listClasses()
-      .then((res) => setClasses(toArray(res)))
+      .then((res) => setClasses(Array.isArray(res) ? res : []))
       .catch(() => toast.error('Erro ao carregar turmas'))
       .finally(() => setLoading(false));
   };
@@ -75,7 +74,7 @@ function Turmas() {
         </button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
-        {classes.map((cls) => (
+        {(Array.isArray(classes) ? classes : []).map((cls) => (
           <div
             key={cls._id}
             className="card"
