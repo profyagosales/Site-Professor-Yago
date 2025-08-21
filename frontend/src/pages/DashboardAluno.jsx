@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import api, { pickData, toArray } from '@/services/api';
+import api, { toArray } from '@/services/api';
 import { toast } from 'react-toastify';
 import EnviarRedacaoModal from '@/components/EnviarRedacaoModal';
 import { listarRedacoesAluno } from '@/services/redacoes';
@@ -19,20 +19,29 @@ function DashboardAluno() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
+  const arrify = (v) => {
+    const r = toArray ? toArray(v) : undefined;
+    return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
+  };
+
   const loadData = async () => {
     setLoading(true);
     setError(null);
     setSuccess(null);
     try {
       const res = await api.get('/dashboard/student');
-      setData(res.data);
+      setData({
+        evaluations: arrify(res.data.evaluations),
+        schedules: arrify(res.data.schedules),
+        progress: res.data.progress || 0,
+      });
       const reda = await listarRedacoesAluno();
-      setRedacoes(reda);
+      setRedacoes(arrify(reda));
       setSuccess('Dados carregados');
       toast.success('Dados carregados');
     } catch (err) {
       console.error('Erro ao carregar dashboard', err);
-      const message = 'Erro ao carregar dashboard';
+      const message = err.response?.data?.message ?? 'Erro ao carregar dashboard';
       setError(message);
       toast.error(message);
     } finally {

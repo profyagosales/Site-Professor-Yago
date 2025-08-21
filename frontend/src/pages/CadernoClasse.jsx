@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import api, { pickData, toArray } from '@/services/api';
+import { toArray } from '@/services/api';
 import { FiBook } from 'react-icons/fi';
 import { toast } from 'react-toastify';
-import { asArray } from '@/utils/safe';
 import { createVisto, updateVisto, getVistos } from '@/services/caderno';
+import { listClasses } from '@/services/classes';
+import { listStudents } from '@/services/students';
 
 function CadernoClasse() {
   const [classes, setClasses] = useState([]);
@@ -23,14 +24,13 @@ function CadernoClasse() {
       setError(null);
       setSuccess(null);
       try {
-        const res = await api.get('/classes');
-        const classes = asArray(res?.data?.data || res?.data);
-        setClasses(classes);
+        const res = await listClasses();
+        setClasses(toArray(res));
         setSuccess('Turmas carregadas');
         toast.success('Turmas carregadas');
       } catch (err) {
         console.error('Erro ao carregar turmas', err);
-        const message = 'Erro ao carregar turmas';
+        const message = err.response?.data?.message ?? 'Erro ao carregar turmas';
         setError(message);
         toast.error(message);
       } finally {
@@ -47,23 +47,21 @@ function CadernoClasse() {
     setSuccess(null);
     try {
       const [studRes, chkRes] = await Promise.all([
-        api
-          .get(`/students?class=${cls._id}`)
-          .catch(() => ({ data: [] })),
+        listStudents({ class: cls._id }).catch(() => []),
         getVistos(cls._id, bim).catch(() => [])
       ]);
-      const allStudents = asArray(studRes?.data);
+      const allStudents = toArray(studRes);
       const filteredStudents = allStudents.filter(
         (s) => (s.class && (s.class._id || s.class) === cls._id)
       );
       setStudents(filteredStudents);
-      const checks = asArray(chkRes);
+      const checks = toArray(chkRes);
       setChecks(checks);
       setSuccess('Dados carregados');
       toast.success('Dados carregados');
     } catch (err) {
       console.error('Erro ao carregar vistos', err);
-      const message = 'Erro ao carregar vistos';
+      const message = err.response?.data?.message ?? 'Erro ao carregar vistos';
       setError(message);
       toast.error(message);
     } finally {
@@ -92,6 +90,7 @@ function CadernoClasse() {
       await updateVisto(checkId, current.students);
     } catch (err) {
       console.error('Erro ao atualizar visto', err);
+      toast.error(err.response?.data?.message ?? 'Erro ao atualizar visto');
     }
   };
 
@@ -115,7 +114,7 @@ function CadernoClasse() {
       toast.success(message);
     } catch (err) {
       console.error('Erro ao criar visto', err);
-      const message = 'Erro ao criar visto';
+      const message = err.response?.data?.message ?? 'Erro ao criar visto';
       setError(message);
       toast.error(message);
     } finally {

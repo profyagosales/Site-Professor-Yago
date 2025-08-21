@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { listarPendentes, listarCorrigidas } from '@/services/redacoes';
 import { toast } from 'react-toastify';
+import { toArray } from '@/services/api';
 
 function DashboardRedacoes() {
   const [tab, setTab] = useState('pendentes');
@@ -16,11 +17,11 @@ function DashboardRedacoes() {
       setError(null);
       try {
         const data = await listarPendentes();
-        setPendentes(data.redacoes || []);
+        setPendentes(toArray(data.redacoes));
         toast.success('Dados carregados');
       } catch (err) {
         console.error('Erro ao carregar pendentes', err);
-        const message = 'Erro ao carregar pendentes';
+        const message = err.response?.data?.message ?? 'Erro ao carregar pendentes';
         setError(message);
         toast.error(message);
       } finally {
@@ -41,11 +42,11 @@ function DashboardRedacoes() {
         if (filters.turma) params.turma = filters.turma;
         if (filters.aluno) params.aluno = filters.aluno;
         const data = await listarCorrigidas(params);
-        setCorrigidas(data.redacoes || []);
+        setCorrigidas(toArray(data.redacoes));
         toast.success('Dados carregados');
       } catch (err) {
         console.error('Erro ao carregar corrigidas', err);
-        const message = 'Erro ao carregar corrigidas';
+        const message = err.response?.data?.message ?? 'Erro ao carregar corrigidas';
         setError(message);
         toast.error(message);
       } finally {

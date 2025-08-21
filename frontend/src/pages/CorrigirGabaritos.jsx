@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { uploadPdf } from '@/services/omr';
 import { toast } from 'react-toastify';
+import { toArray } from '@/services/api';
 
 function CorrigirGabaritos() {
   const [file, setFile] = useState(null);
@@ -23,11 +24,11 @@ function CorrigirGabaritos() {
           setProgress(Math.round((evt.loaded * 100) / evt.total));
         }
       });
-      setResults(data.students || data);
+      setResults(toArray(data.students || data));
       setSuccess('Correção concluída');
       toast.success('Correção concluída');
-    } catch {
-      const message = 'Falha ao enviar PDF';
+    } catch (err) {
+      const message = err.response?.data?.message ?? 'Erro ao enviar PDF';
       setError(message);
       toast.error(message);
     } finally {

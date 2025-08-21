@@ -4,5 +4,5 @@ const api = {
   put: jest.fn(() => Promise.resolve({ data: {} })),
   delete: jest.fn(() => Promise.resolve({ data: {} })),
 };
-export default api;
-export { api };
+const toArray = (v) => (Array.isArray(v) ? v : v ? [v] : []);
+module.exports = { __esModule: true, default: api, api, toArray };

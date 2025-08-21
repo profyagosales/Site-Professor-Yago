@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
-import api, { pickData, toArray } from '@/services/api';
-import { asArray } from '@/utils/safe';
+import { toArray } from '@/services/api';
+import { listClasses } from '@/services/classes';
+import { listStudents } from '@/services/students';
+import { sendEmail } from '@/services/email';
+import { toast } from 'react-toastify';
 
 function SendEmailModal({ isOpen, onClose }) {
   const [classes, setClasses] = useState([]);
@@ -10,21 +13,22 @@ function SendEmailModal({ isOpen, onClose }) {
   const [message, setMessage] = useState('');
   const [alert, setAlert] = useState(null);
 
+  const loadRecipients = async () => {
+    try {
+      const [classRes, studentRes] = await Promise.all([
+        listClasses(),
+        listStudents().catch(() => [])
+      ]);
+      setClasses(toArray(classRes));
+      setStudents(toArray(studentRes));
+    } catch (err) {
+      console.error('Erro ao carregar destinatários', err);
+      toast.error(err.response?.data?.message ?? 'Erro ao carregar destinatários');
+    }
+  };
+
   useEffect(() => {
-    if (!isOpen) return;
-    const fetchRecipients = async () => {
-      try {
-        const [classRes, studentRes] = await Promise.all([
-          api.get('/dashboard/teacher'),
-          api.get('/students').catch(() => ({ data: [] }))
-        ]);
-        setClasses(asArray(classRes.data.contentProgress));
-        setStudents(asArray(studentRes.data));
-      } catch (err) {
-        console.error('Erro ao carregar destinatários', err);
-      }
-    };
-    fetchRecipients();
+    if (isOpen) loadRecipients();
   }, [isOpen]);
 
   const handleChange = (e) => {
@@ -35,7 +39,7 @@ function SendEmailModal({ isOpen, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/email/send', {
+      await sendEmail({
         to: recipients,
         subject,
         html: message,
@@ -44,9 +48,13 @@ function SendEmailModal({ isOpen, onClose }) {
       setRecipients([]);
       setSubject('');
       setMessage('');
+      onClose();
+      loadRecipients();
     } catch (err) {
       console.error(err);
-      setAlert({ type: 'error', text: 'Erro ao enviar e-mail.' });
+      const messageErr = err.response?.data?.message ?? 'Erro ao enviar e-mail.';
+      setAlert({ type: 'error', text: messageErr });
+      toast.error(messageErr);
     }
   };
 
