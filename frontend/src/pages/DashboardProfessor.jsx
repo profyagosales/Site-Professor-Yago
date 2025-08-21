@@ -8,10 +8,22 @@ import CalendarIcon from '../components/icons/CalendarIcon';
 import ListIcon from '../components/icons/ListIcon';
 import BoardIcon from '../components/icons/BoardIcon';
 
+function toArray(value) {
+  if (Array.isArray(value)) return value;
+  if (value === undefined || value === null) return [];
+  return [value];
+}
+
+function getPayload(res) {
+  return res?.data?.data ?? res?.data ?? res ?? {};
+}
+
 function DashboardProfessor() {
   const [data, setData] = useState({
     evaluations: [],
     schedules: [],
+    classes: [],
+    notifications: [],
     progress: 0,
   });
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -27,7 +39,20 @@ function DashboardProfessor() {
       setSuccess(null);
       try {
         const res = await api.get('/dashboard');
-        setData(res.data);
+        const payload = getPayload(res);
+        const metrics = payload.metrics ?? payload.cards ?? {};
+        const newData = {
+          evaluations: toArray(
+            payload.evaluations ?? payload.provas ?? payload.avaliacoes
+          ),
+          schedules: toArray(
+            payload.schedules ?? payload.schedule ?? payload.agenda ?? payload.upcoming
+          ),
+          classes: toArray(payload.classes ?? payload.turmas),
+          notifications: toArray(payload.notifications ?? payload.notificacoes),
+          progress: metrics.progress ?? payload.progress ?? 0,
+        };
+        setData(newData);
         setSuccess('Dados carregados');
         toast.success('Dados carregados');
       } catch (err) {
