@@ -1,7 +1,5 @@
 jest.mock('@/services/students');
-jest.mock('@/services/api', () => ({
-  toArray: (v) => (Array.isArray(v) ? v : v ? [v] : []),
-}));
+jest.mock('@/services/api');
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AlunosDaTurma from '@/components/AlunosDaTurma';
