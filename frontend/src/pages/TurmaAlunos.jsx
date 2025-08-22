@@ -9,6 +9,7 @@ import { listStudents, createStudent, updateStudent, deleteStudent } from '@/ser
 function TurmaAlunos() {
   const { classId } = useParams();
   const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [students, setStudents] = useState([]);
@@ -32,23 +33,49 @@ function TurmaAlunos() {
   }, [classId]);
 
   const handleAdd = () => {
+    setEditing(null);
     setModalOpen(true);
   };
 
-  const handleClose = () => setModalOpen(false);
+  const handleClose = () => {
+    setModalOpen(false);
+    setEditing(null);
+  };
 
-  const handleCreate = async (student) => {
+  const handleSubmit = async (student) => {
     setLoading(true);
     setError(null);
     try {
-      await createStudent({ ...student, class: classId });
+      if (editing) {
+        await updateStudent(editing._id, student);
+      } else {
+        await createStudent({ ...student, class: classId });
+      }
       toast.success('Aluno salvo');
+      handleClose();
       loadStudents();
     } catch (err) {
       const message = err.response?.data?.message || 'Erro ao salvar aluno';
       setError(message);
       toast.error(message);
       throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (student) => {
+    if (!window.confirm('Deseja excluir este aluno?')) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await deleteStudent(student._id || student.id);
+      toast.success('Aluno excluído');
+      loadStudents();
+    } catch (err) {
+      const message = err.response?.data?.message || 'Erro ao excluir aluno';
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -78,12 +105,21 @@ function TurmaAlunos() {
           Adicionar Aluno
         </button>
       </div>
-      <AlunosDaTurma classId={classId} students={students} />
+      <AlunosDaTurma
+        classId={classId}
+        students={arrify(students)}
+        onEdit={(st) => {
+          setEditing(st);
+          setModalOpen(true);
+        }}
+        onDelete={handleDelete}
+      />
       {error && <p className="text-red-500">{error}</p>}
       <StudentModal
         isOpen={modalOpen}
         onClose={handleClose}
-        onCreate={handleCreate}
+        onSubmit={handleSubmit}
+        initialData={editing || {}}
       />
     </div>
   );

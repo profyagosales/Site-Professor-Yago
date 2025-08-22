@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-function StudentModal({ isOpen, onClose, onCreate }) {
+function StudentModal({ isOpen, onClose, onSubmit, initialData = {} }) {
   const [number, setNumber] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -10,14 +10,14 @@ function StudentModal({ isOpen, onClose, onCreate }) {
 
   useEffect(() => {
     if (isOpen) {
-      setNumber('');
-      setName('');
-      setEmail('');
+      setNumber(initialData.number ?? '');
+      setName(initialData.name ?? '');
+      setEmail(initialData.email ?? '');
       setPhoto(null);
-      setPreview('');
+      setPreview(initialData.photo ?? '');
       setErrors({});
     }
-  }, [isOpen]);
+  }, [isOpen, initialData]);
 
   useEffect(() => {
     if (photo) {
@@ -36,10 +36,10 @@ function StudentModal({ isOpen, onClose, onCreate }) {
     setErrors(newErrors);
     if (Object.keys(newErrors).length) return;
     try {
-      await onCreate({ number: Number(number), name, email, photo });
+      await onSubmit({ number: Number(number), name, email, photo });
       onClose();
     } catch (err) {
-      // erro tratado no onCreate
+      // erro tratado no onSubmit
     }
   };
 
@@ -48,7 +48,9 @@ function StudentModal({ isOpen, onClose, onCreate }) {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/50">
       <div className="card w-full max-w-md p-md">
-        <h2 className="text-xl text-orange">Novo Aluno</h2>
+        <h2 className="text-xl text-orange">
+          {initialData && initialData._id ? 'Editar Aluno' : 'Novo Aluno'}
+        </h2>
         <form onSubmit={handleSubmit} className="space-y-md">
           <div className="flex flex-col items-center">
             {preview && (
@@ -96,7 +98,7 @@ function StudentModal({ isOpen, onClose, onCreate }) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-              {errors.email && (
+            {errors.email && (
               <p className="text-red-600 text-sm mt-1">{errors.email}</p>
             )}
           </div>
@@ -112,7 +114,7 @@ function StudentModal({ isOpen, onClose, onCreate }) {
               type="submit"
               className="btn-primary"
             >
-              Criar
+              Salvar
             </button>
           </div>
         </form>

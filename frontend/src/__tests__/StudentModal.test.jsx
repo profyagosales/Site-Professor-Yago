@@ -17,7 +17,7 @@ describe('StudentModal', () => {
     await userEvent.type(number, '1');
     await userEvent.type(name, 'João');
     await userEvent.type(email, 'joao@example.com');
-    await userEvent.click(screen.getByRole('button', { name: /Criar/i }));
+    await userEvent.click(screen.getByRole('button', { name: /Salvar/i }));
 
     expect(onSubmit).toHaveBeenCalledWith({ number: 1, name: 'João', email: 'joao@example.com', photo: null });
   });
