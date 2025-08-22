@@ -5,6 +5,7 @@ import AlunosDaTurma from '@/components/AlunosDaTurma';
 import StudentModal from '@/components/StudentModal';
 import { toArray } from '@api';
 import { listStudents, createStudent, updateStudent, deleteStudent } from '@/services/students';
+import { getClass } from '@/services/classes';
 
 function TurmaAlunos() {
   const { classId } = useParams();
@@ -13,6 +14,9 @@ function TurmaAlunos() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [students, setStudents] = useState([]);
+  const [classData, setClassData] = useState(null);
+  const [classLoading, setClassLoading] = useState(false);
+  const [classError, setClassError] = useState(null);
 
   const arrify = (v) => {
     const r = toArray ? toArray(v) : undefined;
@@ -27,6 +31,20 @@ function TurmaAlunos() {
       .catch(() => toast.error('Erro ao carregar alunos'))
       .finally(() => setLoading(false));
   };
+
+  useEffect(() => {
+    if (!classId) return;
+    setClassLoading(true);
+    setClassError(null);
+    getClass(classId)
+      .then((res) => setClassData(res))
+      .catch((err) => {
+        const message = err.response?.data?.message || 'Erro ao carregar turma';
+        setClassError(message);
+        toast.error(message);
+      })
+      .finally(() => setClassLoading(false));
+  }, [classId]);
 
   useEffect(() => {
     loadStudents();
@@ -89,7 +107,7 @@ function TurmaAlunos() {
     );
   }
 
-  if (loading) {
+  if (classLoading || loading) {
     return (
       <div className="pt-20 p-md">
         <p>Carregando...</p>
@@ -97,10 +115,22 @@ function TurmaAlunos() {
     );
   }
 
+  if (classError) {
+    return (
+      <div className="pt-20 p-md">
+        <p className="text-red-500">{classError}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="pt-20 p-md">
       <div className="flex justify-between items-center mb-md">
-        <h1 className="text-xl">Alunos da Turma {classId}</h1>
+        <h1 className="text-xl">
+          {classData
+            ? `${classData.series}º ${classData.letter} — ${classData.discipline}`
+            : `Turma ${classId}`}
+        </h1>
         <button onClick={handleAdd} className="btn-primary">
           Adicionar Aluno
         </button>
