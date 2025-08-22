@@ -4,7 +4,7 @@ import { FiBook } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import { createVisto, updateVisto, getVistos } from '@/services/caderno';
 import { listClasses } from '@/services/classes';
-import { listStudentsByClass } from '@/services/students';
+import { listStudents } from '@/services/students';
 
 function CadernoClasse() {
   const [classes, setClasses] = useState([]);
@@ -47,7 +47,7 @@ function CadernoClasse() {
     setSuccess(null);
     try {
       const [studRes, chkRes] = await Promise.all([
-        listStudentsByClass(cls._id).catch(() => []),
+        listStudents(cls._id).catch(() => []),
         getVistos(cls._id, bim).catch(() => [])
       ]);
       const filteredStudents = Array.isArray(studRes)

@@ -3,8 +3,8 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import AlunosDaTurma from '@/components/AlunosDaTurma';
 import StudentModal from '@/components/StudentModal';
-import { listStudents, createStudent } from '@/services/students';
 import { toArray } from '@api';
+import { listStudents, createStudent, updateStudent, deleteStudent } from '@/services/students';
 
 function TurmaAlunos() {
   const { classId } = useParams();
@@ -17,7 +17,7 @@ function TurmaAlunos() {
     if (!classId) return;
     setLoading(true);
     listStudents({ class: classId })
-      .then((res) => setStudents(toArray(res)))
+      .then((res) => setStudents(Array.isArray(res) ? res : []))
       .catch(() => toast.error('Erro ao carregar alunos'))
       .finally(() => setLoading(false));
   };
