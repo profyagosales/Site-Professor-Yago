@@ -11,6 +11,11 @@ function CorrigirGabaritos() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
 
+  const arrify = (v) => {
+    const r = toArray ? toArray(v) : undefined;
+    return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!file) return;
@@ -24,7 +29,7 @@ function CorrigirGabaritos() {
           setProgress(Math.round((evt.loaded * 100) / evt.total));
         }
       });
-      setResults(toArray(data.students || data));
+      setResults(arrify(data.students || data));
       setSuccess('Correção concluída');
       toast.success('Correção concluída');
     } catch (err) {
@@ -63,7 +68,7 @@ function CorrigirGabaritos() {
         {error && <p className="text-red-500">{error}</p>}
         {success && <p className="text-green-500">{success}</p>}
       </div>
-      {Array.isArray(results) && results.length > 0 && (
+      {arrify(results).length > 0 && (
         <div className="mt-md card">
           <div className="overflow-x-auto">
             <table className="min-w-full border">
@@ -74,7 +79,7 @@ function CorrigirGabaritos() {
                 </tr>
               </thead>
               <tbody>
-                {results.map((r, idx) => (
+                {arrify(results).map((r, idx) => (
                   <tr key={idx}>
                     <td className="border px-2 py-1">{r.name || r.student}</td>
                     <td className="border px-2 py-1 text-center">{r.grade || r.score}</td>

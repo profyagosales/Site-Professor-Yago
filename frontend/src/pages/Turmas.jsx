@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { listClasses, createClass, updateClass, deleteClass } from '@/services/classes';
 import ClassModal from '@/components/ClassModal';
 import { toast } from 'react-toastify';
+import { toArray } from '@api';
 
 function Turmas() {
   const [classes, setClasses] = useState([]);
@@ -11,10 +12,15 @@ function Turmas() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  const arrify = (v) => {
+    const r = toArray ? toArray(v) : undefined;
+    return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
+  };
+
   const loadTurmas = () => {
     setLoading(true);
     listClasses()
-      .then((res) => setClasses(Array.isArray(res) ? res : []))
+      .then((res) => setClasses(arrify(res)))
       .catch(() => toast.error('Erro ao carregar turmas'))
       .finally(() => setLoading(false));
   };
@@ -74,7 +80,7 @@ function Turmas() {
         </button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
-        {(Array.isArray(classes) ? classes : []).map((cls) => (
+        {arrify(classes).map((cls) => (
           <div
             key={cls._id}
             className="card"

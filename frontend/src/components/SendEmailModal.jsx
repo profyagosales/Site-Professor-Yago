@@ -13,14 +13,19 @@ function SendEmailModal({ isOpen, onClose }) {
   const [message, setMessage] = useState('');
   const [alert, setAlert] = useState(null);
 
+  const arrify = (v) => {
+    const r = toArray ? toArray(v) : undefined;
+    return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
+  };
+
   const loadRecipients = async () => {
     try {
       const [classRes, studentRes] = await Promise.all([
         listClasses(),
         listStudents().catch(() => [])
       ]);
-      setClasses(toArray(classRes));
-      setStudents(toArray(studentRes));
+      setClasses(arrify(classRes));
+      setStudents(arrify(studentRes));
     } catch (err) {
       console.error('Erro ao carregar destinatários', err);
       toast.error(err.response?.data?.message ?? 'Erro ao carregar destinatários');
@@ -84,12 +89,12 @@ function SendEmailModal({ isOpen, onClose }) {
               value={recipients}
               onChange={handleChange}
             >
-              {classes.map((cls) => (
+              {arrify(classes).map((cls) => (
                 <option key={cls.classId} value={cls.classId}>
                   Turma {cls.series}{cls.letter} - {cls.discipline}
                 </option>
               ))}
-              {students.map((st) => (
+              {arrify(students).map((st) => (
                 <option key={st._id} value={st.email}>
                   {st.name} ({st.email})
                 </option>

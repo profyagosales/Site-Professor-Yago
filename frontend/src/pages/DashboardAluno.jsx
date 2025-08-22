@@ -109,7 +109,7 @@ function DashboardAluno() {
         </div>
         {redacoes.length ? (
           <ul className="space-y-sm">
-            {redacoes.map((r) => (
+            {arrify(redacoes).map((r) => (
               <li key={r.id} className="flex justify-between p-sm border rounded">
                 <span>{new Date(r.date).toLocaleDateString()}</span>
                 <span className="font-semibold">{r.status}</span>

@@ -13,11 +13,16 @@ function TurmaAlunos() {
   const [error, setError] = useState(null);
   const [students, setStudents] = useState([]);
 
+  const arrify = (v) => {
+    const r = toArray ? toArray(v) : undefined;
+    return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
+  };
+
   const loadStudents = () => {
     if (!classId) return;
     setLoading(true);
     listStudents({ class: classId })
-      .then((res) => setStudents(Array.isArray(res) ? res : []))
+      .then((res) => setStudents(arrify(res)))
       .catch(() => toast.error('Erro ao carregar alunos'))
       .finally(() => setLoading(false));
   };

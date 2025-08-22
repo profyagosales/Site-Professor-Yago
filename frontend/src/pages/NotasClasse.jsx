@@ -18,13 +18,18 @@ function NotasClasse() {
   const [success, setSuccess] = useState(null);
   const navigate = useNavigate();
 
+  const arrify = (v) => {
+    const r = toArray ? toArray(v) : undefined;
+    return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
+  };
+
   useEffect(() => {
     const fetchClasses = async () => {
       setLoadingClasses(true);
       setErrorClasses(null);
       try {
         const res = await listClasses();
-        setClasses(toArray(res));
+        setClasses(arrify(res));
         setSuccess('Turmas carregadas');
         toast.success('Turmas carregadas');
       } catch (err) {
@@ -45,8 +50,8 @@ function NotasClasse() {
     setErrorGrades(null);
     try {
       const { students: stud, grades: grd } = await getClassMatrix(cls._id);
-      const students = toArray(stud);
-      const grades = toArray(grd);
+      const students = arrify(stud);
+      const grades = arrify(grd);
       setStudents(students);
       setGrades(grades);
       setSuccess('Notas carregadas');
@@ -93,7 +98,7 @@ function NotasClasse() {
             <p className="text-red-500">{errorClasses}</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
-              {classes.map((cls) => (
+              {arrify(classes).map((cls) => (
                 <div
                   key={cls._id}
                   className="card cursor-pointer"
@@ -152,7 +157,7 @@ function NotasClasse() {
                   </tr>
                 </thead>
                 <tbody>
-                  {students.map((student, i) => (
+                  {arrify(students).map((student, i) => (
                     <tr
                       key={student._id}
                       className={i % 2 === 0 ? 'bg-gray-100' : ''}

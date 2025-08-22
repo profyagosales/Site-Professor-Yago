@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getStudentGrades, exportStudentPdf, sendStudentReport } from '@/services/grades';
 import { toast } from 'react-toastify';
+import { toArray } from '@api';
 
 function DetalhesNotaAluno() {
   const { id } = useParams();
@@ -11,6 +12,11 @@ function DetalhesNotaAluno() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+
+  const arrify = (v) => {
+    const r = toArray ? toArray(v) : undefined;
+    return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
+  };
 
   useEffect(() => {
     const fetchGrades = async () => {
@@ -76,27 +82,30 @@ function DetalhesNotaAluno() {
             </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-md mb-md">
-            {[1, 2, 3, 4].map((b) => (
-              <div
-                key={b}
-                className="card"
-              >
-                <h2 className="font-semibold">{b}º Bimestre</h2>
-                <ul className="space-y-xs">
-                  {(bimesters[b] || []).map((ev, idx) => (
-                    <li key={idx} className="flex justify-between">
-                      <span>{ev.type}</span>
-                      <span>
-                        {ev.score} / {ev.totalValue}
-                      </span>
-                    </li>
-                  ))}
-                  {(!bimesters[b] || bimesters[b].length === 0) && (
-                    <li className="text-sm text-black/70">Sem avaliações</li>
-                  )}
-                </ul>
-              </div>
-            ))}
+            {[1, 2, 3, 4].map((b) => {
+              const events = arrify(bimesters[b]);
+              return (
+                <div
+                  key={b}
+                  className="card"
+                >
+                  <h2 className="font-semibold">{b}º Bimestre</h2>
+                  <ul className="space-y-xs">
+                    {events.map((ev, idx) => (
+                      <li key={idx} className="flex justify-between">
+                        <span>{ev.type}</span>
+                        <span>
+                          {ev.score} / {ev.totalValue}
+                        </span>
+                      </li>
+                    ))}
+                    {events.length === 0 && (
+                      <li className="text-sm text-black/70">Sem avaliações</li>
+                    )}
+                  </ul>
+                </div>
+              );
+            })}
           </div>
           <div className="flex gap-md justify-center">
             <button className="btn-primary" onClick={handleExport}>
