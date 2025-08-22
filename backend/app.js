@@ -15,6 +15,7 @@ const omrRoutes = require('./routes/omr');
 const redacoesRoutes = require('./routes/redacoes');
 const notificationRoutes = require('./routes/notifications');
 const dashboardRoutes = require('./routes/dashboard');
+const contentsRoutes = require('./routes/contents');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -68,6 +69,7 @@ app.use('/gabaritos', gabaritoRoutes);
 app.use('/omr', omrRoutes);
 app.use('/redacoes', redacoesRoutes);
 app.use('/notifications', notificationRoutes);
+app.use('/contents', contentsRoutes);
 
 const isProd = process.env.NODE_ENV === 'production';
 if (isProd) {
