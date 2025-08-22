@@ -47,16 +47,34 @@ router.get('/:id', async (req, res, next) => {
 // Create class
 router.post('/', async (req, res, next) => {
   try {
-    const { series, letter, discipline } = req.body;
-    const newClass = await Class.create({ series, letter, discipline });
+    const { series, letter, discipline, schedule } = req.body;
+    if (
+      schedule !== undefined &&
+      (!Array.isArray(schedule) ||
+        !schedule.every(
+          (s) => typeof s.day === 'number' && typeof s.slot === 'number'
+        ))
+    ) {
+      const error = new Error('Campo "schedule" inválido');
+      error.status = 400;
+      throw error;
+    }
+    const newClass = await Class.create({
+      series,
+      letter,
+      discipline,
+      schedule,
+    });
     res.status(200).json({
       success: true,
       message: 'Turma criada com sucesso',
-      data: newClass
+      data: newClass,
     });
   } catch (err) {
-    err.status = 400;
-    err.message = 'Erro ao criar turma';
+    if (!err.status) {
+      err.status = 400;
+      err.message = 'Erro ao criar turma';
+    }
     next(err);
   }
 });
@@ -64,10 +82,21 @@ router.post('/', async (req, res, next) => {
 // Update class
 router.put('/:id', async (req, res, next) => {
   try {
-    const { series, letter, discipline } = req.body;
+    const { series, letter, discipline, schedule } = req.body;
+    if (
+      schedule !== undefined &&
+      (!Array.isArray(schedule) ||
+        !schedule.every(
+          (s) => typeof s.day === 'number' && typeof s.slot === 'number'
+        ))
+    ) {
+      const error = new Error('Campo "schedule" inválido');
+      error.status = 400;
+      throw error;
+    }
     const updatedClass = await Class.findByIdAndUpdate(
       req.params.id,
-      { series, letter, discipline },
+      { series, letter, discipline, schedule },
       { new: true }
     );
     if (!updatedClass) {
@@ -78,7 +107,7 @@ router.put('/:id', async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Turma atualizada com sucesso',
-      data: updatedClass
+      data: updatedClass,
     });
   } catch (err) {
     if (!err.status) {
