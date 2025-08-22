@@ -1,4 +1,4 @@
-jest.mock('@/services/api');
+jest.mock('@api');
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import EnviarRedacaoModal from '@/components/EnviarRedacaoModal';

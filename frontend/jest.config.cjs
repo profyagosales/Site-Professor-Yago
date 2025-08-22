@@ -5,7 +5,7 @@ module.exports = {
   },
   setupFilesAfterEnv: ['<rootDir>/setupTests.js'],
   moduleNameMapper: {
-    '^@/services/api$': '<rootDir>/src/__mocks__/api.js',
+    '^@api$': '<rootDir>/src/__mocks__/api.js',
     '^@/(.*)$': '<rootDir>/src/$1',
     '\\.(css|less|scss|sass)$': '<rootDir>/src/__mocks__/styleMock.js'
   }

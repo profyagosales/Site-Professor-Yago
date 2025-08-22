@@ -1,4 +1,4 @@
-jest.mock('@/services/api');
+jest.mock('@api');
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: jest.fn(),
@@ -6,7 +6,7 @@ jest.mock('react-router-dom', () => ({
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import DashboardProfessor from '@/pages/DashboardProfessor';
-import api, { pickData, toArray } from '@/services/api';
+import api, { pickData, toArray } from '@api';
 
 jest.mock('@/components/NotificationsPanel', () => () => <div />);
 jest.mock('@/components/SendEmailModal', () => () => <div />);

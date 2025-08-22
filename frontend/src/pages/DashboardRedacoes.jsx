@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { listarPendentes, listarCorrigidas } from '@/services/redacoes';
 import { toast } from 'react-toastify';
-import { toArray } from '@/services/api';
+import { toArray } from '@api';
 
 function DashboardRedacoes() {
   const [tab, setTab] = useState('pendentes');

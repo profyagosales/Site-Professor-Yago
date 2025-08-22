@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getNotifications, scheduleNotification } from '@/services/notifications';
-import { toArray } from '@/services/api';
+import { toArray } from '@api';
 import { toast } from 'react-toastify';
 
 function NotificationsPanel() {

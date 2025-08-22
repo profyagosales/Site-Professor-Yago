@@ -1,4 +1,4 @@
-jest.mock('@/services/api');
+jest.mock('@api');
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: jest.fn()
@@ -7,7 +7,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import LoginProfessor from '@/pages/LoginProfessor';
-import api, { pickData, toArray } from '@/services/api';
+import api, { pickData, toArray } from '@api';
 
 describe('LoginProfessor', () => {
   test('submits form and navigates', async () => {

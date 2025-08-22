@@ -1,4 +1,4 @@
-import api, { pickData } from '@/services/api';
+import api, { pickData } from '@api';
 
 export const getClassMatrix = (classId) =>
   api.get(`/grades/class/${classId}`).then(pickData);
