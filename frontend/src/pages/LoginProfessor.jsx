@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import api, { pickData } from '@api';
+import api from '@api';
 import { toast } from 'react-toastify';
 
 function LoginProfessor() {
@@ -17,12 +17,12 @@ function LoginProfessor() {
     setLoading(true);
     try {
       const res = await api.post('/auth/login-teacher', data);
-      const { token, role } = res?.data?.data ?? res?.data;
+      const { token } = res?.data?.data || res?.data || {};
       if (token) localStorage.setItem('token', token);
-      if (role) localStorage.setItem('role', role);
+      localStorage.setItem('role', 'teacher');
       setSuccess('Login realizado');
       toast.success('Login realizado');
-      navigate('/dashboard-professor');
+      navigate('/dashboard-professor', { replace: true });
     } catch (err) {
       const message = err.response?.data?.message || 'Erro ao autenticar';
       setError(message);
@@ -31,6 +31,12 @@ function LoginProfessor() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (localStorage.getItem('token')) {
+      navigate('/dashboard-professor', { replace: true });
+    }
+  }, [navigate]);
 
   if (loading) {
     return (

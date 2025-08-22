@@ -1,6 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Navbar from '@/components/Navbar';
-import Landing from '@/pages/Landing';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import Home from '@/pages/Home';
 import LoginProfessor from '@/pages/LoginProfessor';
 import LoginAluno from '@/pages/LoginAluno';
 import DashboardProfessor from '@/pages/DashboardProfessor';
@@ -15,32 +14,64 @@ import CadernoClasse from '@/pages/CadernoClasse';
 import CriarGabarito from '@/pages/CriarGabarito';
 import CorrigirGabaritos from '@/pages/CorrigirGabaritos';
 import CorrigirRedacao from '@/pages/CorrigirRedacao';
+import Header from '@/components/Header';
 import { ToastContainer } from 'react-toastify';
 import RequireAuth from '@/components/RequireAuth';
+
+const HIDE_HEADER_ON = ['/', '/login-professor', '/login-aluno'];
+
+function Layout({ children }) {
+  const location = useLocation();
+  const hideHeader = HIDE_HEADER_ON.includes(location.pathname);
+  return (
+    <>
+      {!hideHeader && <Header />}
+      {children}
+    </>
+  );
+}
+
+function getRole() {
+  return localStorage.getItem('role');
+}
+
+function isAuthed() {
+  return Boolean(localStorage.getItem('token'));
+}
+
+function AutoRedirectFromHome() {
+  const role = getRole();
+  if (isAuthed() && role === 'teacher') return <Navigate to="/dashboard-professor" replace />;
+  if (isAuthed() && role === 'student') return <Navigate to="/dashboard-aluno" replace />;
+  return <Home />;
+}
 
 function App() {
   return (
     <BrowserRouter>
-      <div className="page-wrapper">
-        <Navbar />
+      <Layout>
         <Routes>
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<AutoRedirectFromHome />} />
           <Route path="/login-professor" element={<LoginProfessor />} />
           <Route path="/login-aluno" element={<LoginAluno />} />
           <Route
             path="/dashboard-professor"
             element={
-              <RequireAuth role="teacher">
+              isAuthed() && getRole() === 'teacher' ? (
                 <DashboardProfessor />
-              </RequireAuth>
+              ) : (
+                <Navigate to="/login-professor" replace />
+              )
             }
           />
           <Route
             path="/dashboard-aluno"
             element={
-              <RequireAuth role="student">
+              isAuthed() && getRole() === 'student' ? (
                 <DashboardAluno />
-              </RequireAuth>
+              ) : (
+                <Navigate to="/login-aluno" replace />
+              )
             }
           />
           <Route
@@ -125,8 +156,8 @@ function App() {
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-        <ToastContainer position="top-right" autoClose={3000} />
-      </div>
+      </Layout>
+      <ToastContainer position="top-right" autoClose={3000} />
     </BrowserRouter>
   );
 }

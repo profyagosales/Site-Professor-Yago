@@ -31,7 +31,7 @@ describe('LoginAluno', () => {
         '/auth/login-student',
         { email: 'aluno@example.com', password: 'senha' }
       );
-      expect(navigate).toHaveBeenCalledWith('/dashboard-aluno');
+      expect(navigate).toHaveBeenCalledWith('/dashboard-aluno', { replace: true });
       expect(localStorage.getItem('token')).toBe('abc');
       expect(localStorage.getItem('role')).toBe('student');
     });
