@@ -2,11 +2,12 @@ const request = require('supertest');
 const { app } = require('../app');
 
 describe('Notifications routes', () => {
-  it('validates schedule data', async () => {
-    const res = await request(app).post('/notifications/schedule').send({
+  it('validates notification data', async () => {
+    const res = await request(app).post('/notifications').send({
       message: '',
-      runAt: 'invalid',
-      targets: []
+      sendAt: 'invalid',
+      classIds: [],
+      emails: []
     });
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty('message');

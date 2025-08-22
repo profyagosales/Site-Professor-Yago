@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { listClasses } from '@/services/classes';
-import { sendEmail } from '@/services/email';
-import { scheduleNotification } from '@/services/notifications';
+import { createNotification } from '@/services/notifications';
 import { toArray } from '@api';
 import { toast } from 'react-toastify';
 
@@ -40,15 +39,14 @@ function AvisosCard() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const targets = [...selectedClasses];
-      if (extraEmail) targets.push(extraEmail);
-      if (mode === 'now') {
-        await sendEmail({ to: targets, subject: 'Aviso', html: message });
-        toast.success('Aviso enviado');
-      } else {
-        await scheduleNotification({ message, runAt, targets });
-        toast.success('Aviso agendado');
-      }
+      const payload = {
+        message,
+        sendAt: mode === 'schedule' ? runAt : null,
+        classIds: selectedClasses,
+        emails: extraEmail ? [extraEmail] : [],
+      };
+      await createNotification(payload);
+      toast.success(mode === 'now' ? 'Aviso enviado' : 'Aviso agendado');
       setMessage('');
       setSelectedClasses([]);
       setExtraEmail('');
