@@ -31,7 +31,7 @@ describe('LoginProfessor', () => {
         '/auth/login-teacher',
         { email: 'prof@example.com', password: 'secret' }
       );
-      expect(navigate).toHaveBeenCalledWith('/dashboard-professor');
+      expect(navigate).toHaveBeenCalledWith('/dashboard-professor', { replace: true });
       expect(localStorage.getItem('token')).toBe('123');
       expect(localStorage.getItem('role')).toBe('teacher');
     });

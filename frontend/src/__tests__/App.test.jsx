@@ -2,7 +2,7 @@ jest.mock('@api');
 import { render, screen } from '@testing-library/react';
 import App from '@/App';
 
-jest.mock('@/components/Navbar', () => () => <div>Navbar</div>);
+jest.mock('@/components/Header', () => () => <div>Header</div>);
 
 describe('App navigation', () => {
   test('renders login professor route', () => {
