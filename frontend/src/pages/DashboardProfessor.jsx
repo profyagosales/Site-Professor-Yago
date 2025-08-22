@@ -3,49 +3,68 @@ import { useNavigate } from 'react-router-dom';
 import api, { pickData, toArray } from '@api';
 import { toast } from 'react-toastify';
 import SendEmailModal from '@/components/SendEmailModal';
-import NotificationsPanel from '@/components/NotificationsPanel';
+import AvisosCard from '@/components/AvisosCard';
+import NewContentModal from '@/components/NewContentModal';
 import CalendarIcon from '@/components/icons/CalendarIcon';
 import ListIcon from '@/components/icons/ListIcon';
 import BoardIcon from '@/components/icons/BoardIcon';
+import { listClasses } from '@/services/classes';
 
 function DashboardProfessor() {
   const [evaluations, setEvaluations] = useState([]);
   const [schedule, setSchedule] = useState([]);
-  const [progress, setProgress] = useState(0);
+  const [contentProgress, setContentProgress] = useState([]);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showContentModal, setShowContentModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      setSuccess(null);
-      try {
-        const res = await api.get('/dashboard');
-        const data = (pickData ? pickData(res) : (res?.data?.data ?? res?.data ?? res)) || {};
-        const arrify = (v) => {
-          const r = toArray ? toArray(v) : undefined;
-          return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
-        };
-        setEvaluations(arrify(data.upcomingEvaluations || data.evaluations));
-        setSchedule(arrify(data.schedule || data.schedules));
-        setProgress(data.contentProgress ?? data.progress ?? 0);
-        setSuccess('Dados carregados');
-        toast.success('Dados carregados');
-      } catch (err) {
-        console.error('Erro ao carregar dashboard', err);
-        const message = 'Erro ao carregar dashboard';
-        setError(message);
-        toast.error(message);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const loadDashboard = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const [dashRes, classRes] = await Promise.all([
+        api.get('/dashboard'),
+        listClasses().catch(() => []),
+      ]);
+      const data =
+        (pickData ? pickData(dashRes) : dashRes?.data?.data ?? dashRes?.data ?? dashRes) ||
+        {};
+      const arrify = (v) => {
+        const r = toArray ? toArray(v) : undefined;
+        return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
+      };
+      setEvaluations(arrify(data.upcomingEvaluations || data.evaluations));
+      setSchedule(arrify(data.schedule || data.schedules));
+      const clsMap = arrify(classRes).reduce((acc, c) => {
+        acc[c.classId] = c;
+        return acc;
+      }, {});
+      const progressArr = arrify(data.contentProgress).map((p) => ({
+        ...p,
+        completion: p.completion ?? p.progress ?? 0,
+        className: clsMap[p.classId]
+          ? `Turma ${clsMap[p.classId].series}${clsMap[p.classId].letter} - ${clsMap[p.classId].discipline}`
+          : p.classId,
+      }));
+      setContentProgress(progressArr);
+      setSuccess('Dados carregados');
+      toast.success('Dados carregados');
+    } catch (err) {
+      console.error('Erro ao carregar dashboard', err);
+      const message = 'Erro ao carregar dashboard';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchData();
+  useEffect(() => {
+    loadDashboard();
   }, []);
 
   if (loading) {
@@ -98,28 +117,56 @@ function DashboardProfessor() {
           </div>
         </div>
 
-        <div className="card flex items-center">
-          <BoardIcon className="w-6 h-6 text-orange mr-3" />
-          <div className="flex-1">
-            <p className="font-semibold">Progresso do Conteúdo</p>
-            <div className="w-full bg-lightGray rounded-full h-2 mt-1">
-              <div
-                className="bg-orange h-2 rounded-full"
-                style={{ width: `${progress || 0}%` }}
-              ></div>
+        <div className="card">
+          <div className="flex items-start">
+            <BoardIcon className="w-6 h-6 text-orange mr-3 mt-1" />
+            <div className="flex-1">
+              <p className="font-semibold">Progresso do Conteúdo</p>
+              <div className="space-y-sm mt-2">
+                {contentProgress.map((p) => (
+                  <div key={p.classId}>
+                    <div className="flex justify-between text-sm">
+                      <span>{p.className}</span>
+                      <span>{Math.round(p.completion)}%</span>
+                    </div>
+                    <div className="w-full bg-lightGray rounded-full h-2">
+                      <div
+                        className="bg-orange h-2 rounded-full"
+                        style={{ width: `${p.completion}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-sm mt-md">
+                <button
+                  className="btn-primary flex-1"
+                  onClick={() => navigate('/conteudos')}
+                >
+                  Gerenciar conteúdos
+                </button>
+                <button
+                  className="btn-primary flex-1"
+                  onClick={() => setShowContentModal(true)}
+                >
+                  Novo conteúdo
+                </button>
+              </div>
             </div>
-            <p className="text-sm text-black/70 mt-1">
-              {progress || 0}% concluído
-            </p>
           </div>
         </div>
       </div>
       <div className="mt-md">
-        <NotificationsPanel />
+        <AvisosCard />
       </div>
       <SendEmailModal
         isOpen={showEmailModal}
         onClose={() => setShowEmailModal(false)}
+      />
+      <NewContentModal
+        isOpen={showContentModal}
+        onClose={() => setShowContentModal(false)}
+        onSuccess={loadDashboard}
       />
     </div>
   );
