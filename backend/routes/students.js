@@ -29,7 +29,9 @@ router.post('/', upload.single('photo'), async (req, res, next) => {
     const classId = req.body.classId || req.body.class;
     const { number, name, email } = req.body;
     if (!classId || !number || !name || !email) {
-      return res.status(400).json('Dados obrigatórios ausentes');
+      return res
+        .status(400)
+        .json('Parâmetros obrigatórios: classId, number, name e email');
     }
 
     const studentData = {
