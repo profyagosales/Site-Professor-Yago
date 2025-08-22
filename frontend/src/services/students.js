@@ -1,20 +1,21 @@
-import api from '@api';
+import { api } from '@api';
 
-export async function listStudents() {
-  const r = await api.get('/students');
-  const data = r?.data?.data ?? r?.data;
-  return Array.isArray(data) ? data : [];
-}
-
-export async function listStudentsByClass(classId) {
-  if (!classId) return [];
-  const r = await api.get(`/students?class=${classId}`);
-  const data = r?.data?.data ?? r?.data;
-  return Array.isArray(data) ? data : [];
+export async function listStudents(classId) {
+  const { data } = await api.get('/students', { params: { classId } });
+  return data?.data ?? data;
 }
 
 export async function createStudent(payload) {
-  return (await api.post('/students', payload))?.data?.data ?? {};
+  const formData = new FormData();
+  Object.entries(payload ?? {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      formData.append(key, value);
+    }
+  });
+  const { data } = await api.post('/students', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data?.data ?? data;
 }
 
 export async function updateStudent(id, payload) {
@@ -27,7 +28,6 @@ export async function deleteStudent(id) {
 
 export default {
   listStudents,
-  listStudentsByClass,
   createStudent,
   updateStudent,
   deleteStudent,
