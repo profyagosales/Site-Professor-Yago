@@ -11,7 +11,8 @@ import api, { pickData, toArray } from '@api';
 
 describe('LoginAluno', () => {
   test('submits form and navigates', async () => {
-    api.post.mockResolvedValue({ data: { token: 'abc' } });
+    localStorage.clear();
+    api.post.mockResolvedValue({ data: { token: 'abc', role: 'student' } });
     const navigate = jest.fn();
     require('react-router-dom').useNavigate.mockReturnValue(navigate);
 
@@ -31,6 +32,8 @@ describe('LoginAluno', () => {
         { email: 'aluno@example.com', password: 'senha' }
       );
       expect(navigate).toHaveBeenCalledWith('/dashboard-aluno');
+      expect(localStorage.getItem('token')).toBe('abc');
+      expect(localStorage.getItem('role')).toBe('student');
     });
   });
 });

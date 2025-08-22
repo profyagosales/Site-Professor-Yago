@@ -91,7 +91,7 @@ router.post('/login-teacher', async (req, res, next) => {
       .json({
         success: true,
         message: 'Login do professor realizado com sucesso',
-        data: { token }
+        data: { token, role: 'teacher' }
       });
   } catch (err) {
     if (!err.status) {
@@ -124,7 +124,7 @@ router.post('/login-student', async (req, res, next) => {
       .json({
         success: true,
         message: 'Login do aluno realizado com sucesso',
-        data: { token }
+        data: { token, role: 'student' }
       });
   } catch (err) {
     if (!err.status) {
