@@ -1,13 +1,5 @@
 import { Navigate } from 'react-router-dom';
 
-const getRoleFromToken = (token) => {
-  try {
-    return JSON.parse(atob(token.split('.')[1]))?.role;
-  } catch {
-    return null;
-  }
-};
-
 const RequireAuth = ({ children, role }) => {
   const token = localStorage.getItem('token');
   if (!token) {
@@ -15,7 +7,7 @@ const RequireAuth = ({ children, role }) => {
   }
 
   if (role) {
-    const userRole = getRoleFromToken(token);
+    const userRole = localStorage.getItem('role');
     if (userRole !== role) {
       return <Navigate to="/" replace />;
     }
