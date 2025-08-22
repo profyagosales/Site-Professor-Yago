@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '@api';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { createGabarito } from '@/services/gabaritos';
 import { toast } from 'react-toastify';
 
@@ -39,19 +40,84 @@ function CriarGabarito() {
     }
   };
 
+  const embedImage = async (pdfDoc, file) => {
+    if (!file) return null;
+    const buffer = await file.arrayBuffer();
+    const type = (file.type || file.name || '').toLowerCase();
+    try {
+      if (type.includes('png')) return await pdfDoc.embedPng(buffer);
+      return await pdfDoc.embedJpg(buffer);
+    } catch {
+      return null;
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage([595, 842]);
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+      const left = await embedImage(pdfDoc, form.logoLeft);
+      const right = await embedImage(pdfDoc, form.logoRight);
+
+      const margin = 40;
+      const top = 800;
+
+      if (left) {
+        const scale = 60 / left.height;
+        page.drawImage(left, {
+          x: margin,
+          y: top - left.height * scale,
+          width: left.width * scale,
+          height: left.height * scale,
+        });
+      }
+
+      if (right) {
+        const scale = 60 / right.height;
+        const width = right.width * scale;
+        page.drawImage(right, {
+          x: 595 - margin - width,
+          y: top - right.height * scale,
+          width,
+          height: right.height * scale,
+        });
+      }
+
+      page.drawText(form.schoolName || '', {
+        x: margin,
+        y: top - 80,
+        size: 16,
+        font,
+        color: rgb(0, 0, 0),
+      });
+      page.drawText(form.discipline || '', {
+        x: margin,
+        y: top - 105,
+        size: 12,
+        font,
+      });
+      page.drawText(form.teacher || '', {
+        x: margin,
+        y: top - 125,
+        size: 12,
+        font,
+      });
+
+      const pdfBytes = await pdfDoc.save();
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      setPreviewUrl(URL.createObjectURL(blob));
+
       const fd = new FormData();
       fd.append('logoLeft', form.logoLeft);
       fd.append('logoRight', form.logoRight);
       fd.append('schoolName', form.schoolName);
       fd.append('discipline', form.discipline);
       fd.append('teacher', form.teacher);
-      const pdfData = await createGabarito(fd);
-      const blob = new Blob([pdfData], { type: 'application/pdf' });
-      setPreviewUrl(URL.createObjectURL(blob));
+      await createGabarito(fd);
       toast.success('Gabarito gerado');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Erro ao gerar gabarito');
@@ -65,8 +131,8 @@ function CriarGabarito() {
       <h1 className="text-2xl text-orange mb-md">Criar Gabarito</h1>
       <form onSubmit={handleSubmit} className="space-y-md">
         <div className="flex gap-md">
-          <input type="file" name="logoLeft" accept="image/*" onChange={handleChange} />
-          <input type="file" name="logoRight" accept="image/*" onChange={handleChange} />
+          <input type="file" name="logoLeft" accept="image/png,image/jpeg" onChange={handleChange} />
+          <input type="file" name="logoRight" accept="image/png,image/jpeg" onChange={handleChange} />
         </div>
         <input
           name="schoolName"
