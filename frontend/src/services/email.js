@@ -1,7 +1,8 @@
-import api, { pickData } from '@/services/api';
+import api from '@api';
 
-export const sendEmail = (body) =>
-  api.post('/email/send', body).then(pickData);
+export async function sendEmail(payload) {
+  return (await api.post('/email/send', payload))?.data;
+}
 
 export default {
   sendEmail,

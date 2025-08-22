@@ -1,9 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import DashboardAluno from '@/pages/DashboardAluno';
-import api, { pickData, toArray } from '@/services/api';
+import api, { pickData, toArray } from '@api';
 
-jest.mock('@/services/api');
+jest.mock('@api');
 jest.mock('@/components/EnviarRedacaoModal', () => () => <div />);
 jest.mock('@/services/redacoes', () => ({ listarRedacoesAluno: jest.fn().mockResolvedValue([{ id:1, date:'2024-01-01', status:'Enviado' }]) }));
 

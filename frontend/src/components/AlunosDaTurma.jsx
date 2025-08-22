@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { listStudentsByClass } from '@/services/students';
-import { toArray } from '@/services/api';
+import { toArray } from '@api';
 
 function AlunosDaTurma({ classId, students: externalStudents, onEdit, onDelete }) {
   const [students, setStudents] = useState([]);

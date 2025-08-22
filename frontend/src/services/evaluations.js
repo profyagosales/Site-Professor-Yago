@@ -1,4 +1,4 @@
-import api, { pickData } from '@/services/api';
+import api, { pickData } from '@api';
 
 export const createEvaluation = (data) =>
   api.post('/evaluations', data).then(pickData);

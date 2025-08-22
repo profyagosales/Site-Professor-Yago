@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api, { pickData, toArray } from '@/services/api';
+import api, { pickData, toArray } from '@api';
 import { toast } from 'react-toastify';
 import SendEmailModal from '@/components/SendEmailModal';
 import NotificationsPanel from '@/components/NotificationsPanel';

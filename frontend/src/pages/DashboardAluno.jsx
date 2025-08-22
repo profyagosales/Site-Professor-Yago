@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import api, { toArray } from '@/services/api';
+import api, { toArray } from '@api';
 import { toast } from 'react-toastify';
 import EnviarRedacaoModal from '@/components/EnviarRedacaoModal';
 import { listarRedacoesAluno } from '@/services/redacoes';

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import api, { pickData } from '@/services/api';
+import api, { pickData } from '@api';
 import { toast } from 'react-toastify';
 
 function LoginProfessor() {

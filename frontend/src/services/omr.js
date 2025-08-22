@@ -1,4 +1,4 @@
-import api, { pickData } from '@/services/api';
+import api, { pickData } from '@api';
 
 export const uploadPdf = (pdfFile, onUploadProgress) => {
   const formData = new FormData();
