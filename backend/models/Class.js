@@ -4,6 +4,12 @@ const classSchema = new mongoose.Schema({
   series: { type: Number, required: true },
   letter: { type: String, required: true },
   discipline: { type: String, required: true },
+  schedule: [
+    {
+      day: Number,
+      slot: Number
+    }
+  ],
   teachers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' }],
   students: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Student' }]
 });

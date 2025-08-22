@@ -17,8 +17,18 @@ describe('ClassModal', () => {
     await userEvent.selectOptions(serie, '1');
     await userEvent.type(letra, 'A');
     await userEvent.type(disciplina, 'Matemática');
+    await userEvent.click(
+      screen.getByRole('button', { name: /Adicionar Horário/i })
+    );
+    await userEvent.selectOptions(screen.getByLabelText('Dia'), '1');
+    await userEvent.type(screen.getByLabelText('Slot'), '2');
     await userEvent.click(screen.getByRole('button', { name: /Criar/i }));
 
-    expect(onSubmit).toHaveBeenCalledWith({ series: 1, letter: 'A', discipline: 'Matemática' });
+    expect(onSubmit).toHaveBeenCalledWith({
+      series: 1,
+      letter: 'A',
+      discipline: 'Matemática',
+      schedule: [{ day: 1, slot: 2 }],
+    });
   });
 });
