@@ -5,6 +5,11 @@ import { toArray } from '@api';
 function AlunosDaTurma({ classId, students: externalStudents, onEdit, onDelete }) {
   const [students, setStudents] = useState([]);
 
+  const arrify = (v) => {
+    const r = toArray ? toArray(v) : undefined;
+    return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
+  };
+
   useEffect(() => {
     if (externalStudents !== undefined) {
       setStudents(externalStudents);
@@ -12,7 +17,7 @@ function AlunosDaTurma({ classId, students: externalStudents, onEdit, onDelete }
     }
     if (!classId) return;
     listStudents({ class: classId })
-      .then((data) => setStudents(toArray(data)))
+      .then((data) => setStudents(arrify(data)))
       .catch((err) => console.error('Erro ao buscar alunos:', err));
   }, [classId, externalStudents]);
 
@@ -29,7 +34,7 @@ function AlunosDaTurma({ classId, students: externalStudents, onEdit, onDelete }
           </tr>
         </thead>
         <tbody>
-          {toArray(students).map((student) => (
+          {arrify(students).map((student) => (
             <tr key={student._id || student.id} className="hover:bg-gray-50 text-center">
               <td className="p-sm border">
                 <img

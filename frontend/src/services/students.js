@@ -1,15 +1,20 @@
-import { api } from '@api';
+import { api, toArray } from '@api';
 
-export async function listStudents(params = {}) {
-  const r = await api.get('/students', { params });
-  const data = r?.data?.data ?? r?.data;
-  return Array.isArray(data) ? data : [];
-}
+const arrify = (v) => {
+  const r = toArray ? toArray(v) : undefined;
+  return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
+};
 
-
-export async function listStudents(classId) {
-  const { data } = await api.get('/students', { params: { classId } });
-  return data?.data ?? data;
+export async function listStudents(query = {}) {
+  const params = typeof query === 'string'
+    ? { classId: query }
+    : { ...query };
+  if (params.class) {
+    params.classId = params.class;
+    delete params.class;
+  }
+  const { data } = await api.get('/students', { params });
+  return arrify(data?.data ?? data);
 }
 
 export async function createStudent(payload) {

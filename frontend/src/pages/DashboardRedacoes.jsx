@@ -11,13 +11,18 @@ function DashboardRedacoes() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const arrify = (v) => {
+    const r = toArray ? toArray(v) : undefined;
+    return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
+  };
+
   useEffect(() => {
     const loadPendentes = async () => {
       setLoading(true);
       setError(null);
       try {
         const data = await listarPendentes();
-        setPendentes(toArray(data.redacoes));
+        setPendentes(arrify(data.redacoes));
         toast.success('Dados carregados');
       } catch (err) {
         console.error('Erro ao carregar pendentes', err);
@@ -42,7 +47,7 @@ function DashboardRedacoes() {
         if (filters.turma) params.turma = filters.turma;
         if (filters.aluno) params.aluno = filters.aluno;
         const data = await listarCorrigidas(params);
-        setCorrigidas(toArray(data.redacoes));
+        setCorrigidas(arrify(data.redacoes));
         toast.success('Dados carregados');
       } catch (err) {
         console.error('Erro ao carregar corrigidas', err);
@@ -91,7 +96,7 @@ function DashboardRedacoes() {
 
       {tab === 'pendentes' && (
         <div className="space-y-md">
-          {pendentes.map((r) => (
+          {arrify(pendentes).map((r) => (
             <div
               key={r._id}
               className="card flex items-center justify-between"
@@ -147,7 +152,7 @@ function DashboardRedacoes() {
             />
           </div>
           <div className="space-y-md">
-            {corrigidas.map((r) => (
+            {arrify(corrigidas).map((r) => (
               <div
                 key={r._id}
                 className="card flex items-center justify-between"

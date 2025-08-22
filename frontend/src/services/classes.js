@@ -1,10 +1,13 @@
-import api from '@api';
+import api, { toArray } from '@api';
+
+const arrify = (v) => {
+  const r = toArray ? toArray(v) : undefined;
+  return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
+};
 
 export async function listClasses() {
   const r = await api.get('/classes');
-  return Array.isArray(r?.data?.data)
-    ? r.data.data
-    : (Array.isArray(r?.data) ? r.data : []);
+  return arrify(r?.data?.data ?? r?.data);
 }
 
 export async function createClass(payload) {

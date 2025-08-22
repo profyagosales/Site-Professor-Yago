@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'react-toastify';
+import { toArray } from '@api';
 
 function PerfilAlunoProfessor() {
   const student = {
@@ -19,6 +20,11 @@ function PerfilAlunoProfessor() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+
+  const arrify = (v) => {
+    const r = toArray ? toArray(v) : undefined;
+    return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
+  };
 
   const exportPDF = () => {
     setLoading(true);
@@ -80,7 +86,7 @@ function PerfilAlunoProfessor() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
-          {student.grades.map((g) => (
+          {arrify(student.grades).map((g) => (
             <div
               key={g.term}
               className="card"

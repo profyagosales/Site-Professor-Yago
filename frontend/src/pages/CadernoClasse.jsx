@@ -18,6 +18,11 @@ function CadernoClasse() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
+  const arrify = (v) => {
+    const r = toArray ? toArray(v) : undefined;
+    return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
+  };
+
   useEffect(() => {
     const fetchClasses = async () => {
       setLoading(true);
@@ -25,7 +30,7 @@ function CadernoClasse() {
       setSuccess(null);
       try {
         const res = await listClasses();
-        setClasses(Array.isArray(res) ? res : []);
+        setClasses(arrify(res));
         setSuccess('Turmas carregadas');
         toast.success('Turmas carregadas');
       } catch (err) {
@@ -50,11 +55,10 @@ function CadernoClasse() {
         listStudents(cls._id).catch(() => []),
         getVistos(cls._id, bim).catch(() => [])
       ]);
-      const filteredStudents = Array.isArray(studRes)
-        ? studRes.filter((s) => (s.class && (s.class._id || s.class) === cls._id))
-        : [];
+      const filteredStudents = arrify(studRes)
+        .filter((s) => (s.class && (s.class._id || s.class) === cls._id));
       setStudents(filteredStudents);
-      const checks = toArray(chkRes);
+      const checks = arrify(chkRes);
       setChecks(checks);
       setSuccess('Dados carregados');
       toast.success('Dados carregados');
@@ -75,9 +79,9 @@ function CadernoClasse() {
   };
 
   const toggleStudent = async (checkId, studentId) => {
-    const updatedChecks = checks.map((chk) => {
+    const updatedChecks = arrify(checks).map((chk) => {
       if (chk._id !== checkId) return chk;
-      const studentsUpdated = chk.students.map((s) =>
+      const studentsUpdated = arrify(chk.students).map((s) =>
         s.student === studentId ? { ...s, done: !s.done } : s
       );
       const percentual = studentsUpdated.filter((s) => s.done).length / studentsUpdated.length * 100;
@@ -206,7 +210,7 @@ function CadernoClasse() {
       <div className="pt-20 p-md">
         <h1 className="text-2xl text-orange">Caderno por Turma</h1>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
-            {(Array.isArray(classes) ? classes : []).map((cls) => (
+            {arrify(classes).map((cls) => (
               <div
                 key={cls._id}
                 className="card flex items-center border border-orange-500 cursor-pointer"
@@ -255,7 +259,7 @@ function CadernoClasse() {
         </button>
       </div>
 
-        {(Array.isArray(checks) ? checks : []).map((chk) => (
+        {arrify(checks).map((chk) => (
           <div
             key={chk._id}
             className="mb-md p-md rounded-lg bg-white/30 backdrop-blur-md border border-orange-500 shadow-sm"
@@ -277,7 +281,7 @@ function CadernoClasse() {
               </div>
             </div>
             <ul className="space-y-sm">
-              {(Array.isArray(students) ? students : []).map((st) => {
+              {arrify(students).map((st) => {
                 const entry = chk.students.find((s) => s.student === st._id);
                 return (
                   <li
