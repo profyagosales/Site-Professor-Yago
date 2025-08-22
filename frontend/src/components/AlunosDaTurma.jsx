@@ -11,7 +11,7 @@ function AlunosDaTurma({ classId, students: externalStudents, onEdit, onDelete }
       return;
     }
     if (!classId) return;
-    listStudents(classId)
+    listStudents({ class: classId })
       .then((data) => setStudents(toArray(data)))
       .catch((err) => console.error('Erro ao buscar alunos:', err));
   }, [classId, externalStudents]);

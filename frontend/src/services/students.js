@@ -1,5 +1,12 @@
 import { api } from '@api';
 
+export async function listStudents(params = {}) {
+  const r = await api.get('/students', { params });
+  const data = r?.data?.data ?? r?.data;
+  return Array.isArray(data) ? data : [];
+}
+
+
 export async function listStudents(classId) {
   const { data } = await api.get('/students', { params: { classId } });
   return data?.data ?? data;
