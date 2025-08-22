@@ -14,6 +14,7 @@ import CadernoClasse from '@/pages/CadernoClasse';
 import CriarGabarito from '@/pages/CriarGabarito';
 import CorrigirGabaritos from '@/pages/CorrigirGabaritos';
 import CorrigirRedacao from '@/pages/CorrigirRedacao';
+import Conteudos from '@/pages/Conteudos';
 import Header from '@/components/Header';
 import { ToastContainer } from 'react-toastify';
 import RequireAuth from '@/components/RequireAuth';
@@ -154,6 +155,7 @@ function App() {
               </RequireAuth>
             }
           />
+          <Route path="/conteudos" element={<Conteudos />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
