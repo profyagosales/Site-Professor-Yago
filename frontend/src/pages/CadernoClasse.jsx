@@ -2,7 +2,13 @@ import { useEffect, useState } from 'react';
 import { toArray } from '@api';
 import { FiBook } from 'react-icons/fi';
 import { toast } from 'react-toastify';
-import { createVisto, updateVisto, getVistos } from '@/services/caderno';
+import {
+  createVisto,
+  updateVisto,
+  getVistos,
+  getConfig,
+  updateConfig,
+} from '@/services/caderno';
 import { listClasses } from '@/services/classes';
 import { listStudents } from '@/services/students';
 
@@ -13,7 +19,9 @@ function CadernoClasse() {
   const [checks, setChecks] = useState([]);
   const [bimester, setBimester] = useState('1');
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ title: '', date: '', bimester: '1', totalValue: '' });
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [form, setForm] = useState({ title: '', date: '', term: '1', presentStudentIds: [] });
+  const [configForm, setConfigForm] = useState({ 1: '', 2: '', 3: '', 4: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -51,15 +59,24 @@ function CadernoClasse() {
     setError(null);
     setSuccess(null);
     try {
-      const [studRes, chkRes] = await Promise.all([
+      const [studRes, chkRes, cfgRes] = await Promise.all([
         listStudents(cls._id).catch(() => []),
-        getVistos(cls._id, bim).catch(() => [])
+        getVistos(cls._id, bim).catch(() => []),
+        getConfig(cls._id).catch(() => ({ totals: {} }))
       ]);
-      const filteredStudents = arrify(studRes)
-        .filter((s) => (s.class && (s.class._id || s.class) === cls._id));
+      const filteredStudents = arrify(studRes).filter(
+        (s) => s.class && (s.class._id || s.class) === cls._id
+      );
       setStudents(filteredStudents);
       const checks = arrify(chkRes);
       setChecks(checks);
+      const totals = cfgRes?.totals || {};
+      setConfigForm({
+        1: totals['1'] ?? '',
+        2: totals['2'] ?? '',
+        3: totals['3'] ?? '',
+        4: totals['4'] ?? '',
+      });
       setSuccess('Dados carregados');
       toast.success('Dados carregados');
     } catch (err) {
@@ -79,18 +96,17 @@ function CadernoClasse() {
   };
 
   const toggleStudent = async (checkId, studentId) => {
-    const updatedChecks = arrify(checks).map((chk) => {
-      if (chk._id !== checkId) return chk;
-      const studentsUpdated = arrify(chk.students).map((s) =>
-        s.student === studentId ? { ...s, done: !s.done } : s
-      );
-      const percentual = studentsUpdated.filter((s) => s.done).length / studentsUpdated.length * 100;
-      return { ...chk, students: studentsUpdated, percentual };
-    });
-    setChecks(updatedChecks);
-    const current = updatedChecks.find((c) => c._id === checkId);
+    const current = arrify(checks).find((c) => c._id === checkId);
+    if (!current) return;
+    let present = arrify(current.presentStudentIds);
+    if (present.includes(studentId)) {
+      present = present.filter((id) => id !== studentId);
+    } else {
+      present.push(studentId);
+    }
     try {
-      await updateVisto(checkId, current.students);
+      await updateVisto(checkId, present);
+      await fetchChecks(selectedClass, bimester);
     } catch (err) {
       console.error('Erro ao atualizar visto', err);
       toast.error(err.response?.data?.message ?? 'Erro ao atualizar visto');
@@ -102,16 +118,17 @@ function CadernoClasse() {
     setError(null);
     setSuccess(null);
     try {
+      const term = form.term;
       await createVisto({
         class: selectedClass._id,
-        description: form.title,
+        title: form.title,
         date: form.date,
-        bimester: Number(form.bimester),
-        totalValue: Number(form.totalValue)
+        term: Number(term),
+        presentStudentIds: form.presentStudentIds,
       });
       setShowModal(false);
-      setForm({ title: '', date: '', bimester: '1', totalValue: '' });
-      await fetchChecks(selectedClass, form.bimester);
+      setForm({ title: '', date: '', term: bimester, presentStudentIds: [] });
+      await fetchChecks(selectedClass, term);
       const message = 'Visto criado';
       setSuccess(message);
       toast.success(message);
@@ -122,6 +139,31 @@ function CadernoClasse() {
       toast.error(message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleFormStudent = (id) => {
+    setForm((prev) => {
+      const arr = arrify(prev.presentStudentIds);
+      return arr.includes(id)
+        ? { ...prev, presentStudentIds: arr.filter((s) => s !== id) }
+        : { ...prev, presentStudentIds: [...arr, id] };
+    });
+  };
+
+  const handleSaveConfig = async () => {
+    try {
+      await updateConfig(selectedClass._id, {
+        1: Number(configForm[1] || 0),
+        2: Number(configForm[2] || 0),
+        3: Number(configForm[3] || 0),
+        4: Number(configForm[4] || 0),
+      });
+      setShowConfigModal(false);
+      await fetchChecks(selectedClass, bimester);
+    } catch (err) {
+      console.error('Erro ao salvar configuração', err);
+      toast.error(err.response?.data?.message ?? 'Erro ao salvar configuração');
     }
   };
 
@@ -154,8 +196,8 @@ function CadernoClasse() {
               <label className="block mb-1">Bimestre</label>
               <select
                 className="w-full border p-sm rounded"
-                value={form.bimester}
-                onChange={(e) => setForm({ ...form, bimester: e.target.value })}
+                value={form.term}
+                onChange={(e) => setForm({ ...form, term: e.target.value })}
               >
                 <option value="1">1º Bimestre</option>
                 <option value="2">2º Bimestre</option>
@@ -164,13 +206,20 @@ function CadernoClasse() {
               </select>
             </div>
             <div>
-              <label className="block mb-1">Valor total do caderno no bimestre</label>
-              <input
-                type="number"
-                className="w-full border p-sm rounded"
-                value={form.totalValue}
-                onChange={(e) => setForm({ ...form, totalValue: e.target.value })}
-              />
+              <label className="block mb-1">Alunos presentes</label>
+              <ul className="space-y-sm max-h-40 overflow-y-auto">
+                {arrify(students).map((st) => (
+                  <li key={st._id} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      className="mr-2"
+                      checked={arrify(form.presentStudentIds).includes(st._id)}
+                      onChange={() => toggleFormStudent(st._id)}
+                    />
+                    {st.name}
+                  </li>
+                ))}
+              </ul>
             </div>
             <div className="flex justify-end space-x-sm">
               <button
@@ -181,6 +230,42 @@ function CadernoClasse() {
                 Cancelar
               </button>
               <button type="button" className="btn-primary" onClick={handleCreate}>
+                Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderConfigModal = () => {
+    if (!showConfigModal) return null;
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-black/50">
+        <div className="card w-full max-w-md p-md">
+          <h2 className="text-xl">Configurar Totais</h2>
+          <div className="space-y-md">
+            {[1, 2, 3, 4].map((b) => (
+              <div key={b}>
+                <label className="block mb-1">{b}º Bimestre</label>
+                <input
+                  type="number"
+                  className="w-full border p-sm rounded"
+                  value={configForm[b]}
+                  onChange={(e) => setConfigForm({ ...configForm, [b]: e.target.value })}
+                />
+              </div>
+            ))}
+            <div className="flex justify-end space-x-sm">
+              <button
+                type="button"
+                className="px-4 py-2 border rounded"
+                onClick={() => setShowConfigModal(false)}
+              >
+                Cancelar
+              </button>
+              <button type="button" className="btn-primary" onClick={handleSaveConfig}>
                 Salvar
               </button>
             </div>
@@ -254,9 +339,14 @@ function CadernoClasse() {
           <option value="3">3º Bimestre</option>
           <option value="4">4º Bimestre</option>
         </select>
-        <button className="btn-primary" onClick={() => setShowModal(true)}>
-          Novo Visto
-        </button>
+        <div className="space-x-sm">
+          <button className="btn-primary" onClick={() => setShowConfigModal(true)}>
+            Config Totais
+          </button>
+          <button className="btn-primary" onClick={() => setShowModal(true)}>
+            Novo Visto
+          </button>
+        </div>
       </div>
 
         {arrify(checks).map((chk) => (
@@ -266,7 +356,7 @@ function CadernoClasse() {
           >
             <div className="flex justify-between items-center mb-sm">
               <div>
-                <h3 className="font-semibold">{chk.description}</h3>
+                <h3 className="font-semibold">{chk.title}</h3>
                 <p className="text-sm text-black/70">
                   {chk.date && !isNaN(new Date(chk.date))
                     ? new Date(chk.date).toLocaleDateString()
@@ -282,7 +372,7 @@ function CadernoClasse() {
             </div>
             <ul className="space-y-sm">
               {arrify(students).map((st) => {
-                const entry = chk.students.find((s) => s.student === st._id);
+                const checked = arrify(chk.presentStudentIds).includes(st._id);
                 return (
                   <li
                     key={st._id}
@@ -291,7 +381,7 @@ function CadernoClasse() {
                     <input
                       type="checkbox"
                       className="mr-2"
-                      checked={entry ? entry.done : false}
+                      checked={checked}
                       onChange={() => toggleStudent(chk._id, st._id)}
                     />
                     {st.name}
@@ -302,6 +392,7 @@ function CadernoClasse() {
           </div>
         ))}
         {renderModal()}
+        {renderConfigModal()}
       </div>
     );
   }

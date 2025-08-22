@@ -149,7 +149,7 @@ router.post('/', async (req, res, next) => {
         error.status = 404;
         throw error;
       }
-      bimester = cadernoCheck.bimester;
+      bimester = cadernoCheck.term;
       grade = await Grade.findOne({ student: studentId, cadernoCheck: cadernoCheckId });
       if (grade) {
         grade.score = score;
