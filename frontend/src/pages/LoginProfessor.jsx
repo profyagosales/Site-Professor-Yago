@@ -17,8 +17,9 @@ function LoginProfessor() {
     setLoading(true);
     try {
       const res = await api.post('/auth/login-teacher', data);
-      const token = res?.data?.data?.token ?? res?.data?.token;
-      localStorage.setItem('token', token);
+      const { token, role } = res?.data?.data ?? res?.data;
+      if (token) localStorage.setItem('token', token);
+      if (role) localStorage.setItem('role', role);
       setSuccess('Login realizado');
       toast.success('Login realizado');
       navigate('/dashboard-professor');

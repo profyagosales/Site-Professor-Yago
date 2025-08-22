@@ -1,23 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Logo from './Logo';
-
-const getRoleFromToken = (token) => {
-  try {
-    return JSON.parse(atob(token.split('.')[1]))?.role;
-  } catch {
-    return null;
-  }
-};
+import { isAuthed } from '@/services/auth';
 
 function Navbar() {
   const [open, setOpen] = useState(false);
   const [auth, setAuth] = useState({ authed: false, role: null });
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      setAuth({ authed: true, role: getRoleFromToken(token) });
+    const { authed, role } = isAuthed();
+    if (authed) {
+      setAuth({ authed, role });
     }
   }, []);
 

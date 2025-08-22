@@ -1,2 +1,7 @@
-export const isAuthed = () => !!localStorage.getItem('token');
+export const getRole = () => localStorage.getItem('role');
+
+export const isAuthed = () => ({
+  authed: !!localStorage.getItem('token'),
+  role: getRole()
+});
 
