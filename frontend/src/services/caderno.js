@@ -2,15 +2,23 @@ import api, { pickData } from '@api';
 
 export const createVisto = (data) => api.post('/caderno', data).then(pickData);
 
-export const updateVisto = (id, students) =>
-  api.put(`/caderno/${id}`, { students }).then(pickData);
+export const updateVisto = (id, presentStudentIds) =>
+  api.put(`/caderno/${id}`, { presentStudentIds }).then(pickData);
 
-export const getVistos = (classId, bimester) =>
-  api.get(`/caderno/${classId}/${bimester}`).then(pickData);
+export const getVistos = (classId, term) =>
+  api.get(`/caderno/${classId}/${term}`).then(pickData);
+
+export const getConfig = (classId) =>
+  api.get(`/caderno/config/${classId}`).then(pickData);
+
+export const updateConfig = (classId, totals) =>
+  api.put(`/caderno/config/${classId}`, { totals }).then(pickData);
 
 export default {
   createVisto,
   updateVisto,
   getVistos,
+  getConfig,
+  updateConfig,
 };
 
