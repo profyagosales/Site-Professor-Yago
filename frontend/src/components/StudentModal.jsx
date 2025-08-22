@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-function StudentModal({ isOpen, onClose, onSubmit, onSaved, initialData }) {
+function StudentModal({ isOpen, onClose, onCreate }) {
   const [number, setNumber] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -9,21 +9,15 @@ function StudentModal({ isOpen, onClose, onSubmit, onSaved, initialData }) {
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    if (initialData) {
-      setNumber(String(initialData.number || ''));
-      setName(initialData.name || '');
-      setEmail(initialData.email || '');
-      setPreview(initialData.photo || '');
-      setPhoto(null);
-    } else {
+    if (isOpen) {
       setNumber('');
       setName('');
       setEmail('');
       setPhoto(null);
       setPreview('');
+      setErrors({});
     }
-    setErrors({});
-  }, [initialData, isOpen]);
+  }, [isOpen]);
 
   useEffect(() => {
     if (photo) {
@@ -42,11 +36,10 @@ function StudentModal({ isOpen, onClose, onSubmit, onSaved, initialData }) {
     setErrors(newErrors);
     if (Object.keys(newErrors).length) return;
     try {
-      await onSubmit({ number: Number(number), name, email, photo });
-      onSaved && onSaved();
+      await onCreate({ number: Number(number), name, email, photo });
       onClose();
     } catch (err) {
-      // erro tratado no onSubmit
+      // erro tratado no onCreate
     }
   };
 
@@ -55,9 +48,7 @@ function StudentModal({ isOpen, onClose, onSubmit, onSaved, initialData }) {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/50">
       <div className="card w-full max-w-md p-md">
-        <h2 className="text-xl text-orange">
-          {initialData ? 'Editar Aluno' : 'Novo Aluno'}
-        </h2>
+        <h2 className="text-xl text-orange">Novo Aluno</h2>
         <form onSubmit={handleSubmit} className="space-y-md">
           <div className="flex flex-col items-center">
             {preview && (
@@ -105,7 +96,7 @@ function StudentModal({ isOpen, onClose, onSubmit, onSaved, initialData }) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-            {errors.email && (
+              {errors.email && (
               <p className="text-red-600 text-sm mt-1">{errors.email}</p>
             )}
           </div>
@@ -121,7 +112,7 @@ function StudentModal({ isOpen, onClose, onSubmit, onSaved, initialData }) {
               type="submit"
               className="btn-primary"
             >
-              {initialData ? 'Salvar' : 'Criar'}
+              Criar
             </button>
           </div>
         </form>

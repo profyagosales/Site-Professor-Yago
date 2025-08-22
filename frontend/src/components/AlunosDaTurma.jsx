@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { listStudentsByClass } from '@/services/students';
+import { listStudents } from '@/services/students';
 import { toArray } from '@api';
 
 function AlunosDaTurma({ classId, students: externalStudents, onEdit, onDelete }) {
@@ -11,7 +11,7 @@ function AlunosDaTurma({ classId, students: externalStudents, onEdit, onDelete }
       return;
     }
     if (!classId) return;
-    listStudentsByClass(classId)
+    listStudents({ class: classId })
       .then((data) => setStudents(toArray(data)))
       .catch((err) => console.error('Erro ao buscar alunos:', err));
   }, [classId, externalStudents]);
