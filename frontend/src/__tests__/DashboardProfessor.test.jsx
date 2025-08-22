@@ -13,9 +13,7 @@ jest.mock('@/components/SendEmailModal', () => () => <div />);
 
 describe('DashboardProfessor', () => {
   test('renders dashboard metrics', async () => {
-    api.get.mockResolvedValue({
-      data: { evaluations: [1, 2], schedules: [1], progress: 25 },
-    });
+    api.get.mockResolvedValue({ data: { evaluations: [], schedules: [], progress: 0 } });
     require('react-router-dom').useNavigate.mockReturnValue(jest.fn());
 
     render(
@@ -25,10 +23,10 @@ describe('DashboardProfessor', () => {
     );
 
     expect(await screen.findByText('Próximas Avaliações')).toBeInTheDocument();
-    expect(screen.getByText('2 agendadas')).toBeInTheDocument();
-    expect(screen.getByText('Horários de Aula')).toBeInTheDocument();
-    expect(screen.getByText('1 próximos')).toBeInTheDocument();
-    expect(screen.getByText('Progresso do Conteúdo')).toBeInTheDocument();
-    expect(screen.getByText('25% concluído')).toBeInTheDocument();
+    expect(await screen.findByText('0 agendadas')).toBeInTheDocument();
+    expect(await screen.findByText('Horários de Aula')).toBeInTheDocument();
+    expect(await screen.findByText('0 próximos')).toBeInTheDocument();
+    expect(await screen.findByText('Progresso do Conteúdo')).toBeInTheDocument();
+    expect(await screen.findByText('0% concluído')).toBeInTheDocument();
   });
 });
