@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
+import Landing from '@/pages/Landing';
 import LoginProfessor from '@/pages/LoginProfessor';
 import LoginAluno from '@/pages/LoginAluno';
 import DashboardProfessor from '@/pages/DashboardProfessor';
@@ -15,8 +16,7 @@ import CriarGabarito from '@/pages/CriarGabarito';
 import CorrigirGabaritos from '@/pages/CorrigirGabaritos';
 import CorrigirRedacao from '@/pages/CorrigirRedacao';
 import { ToastContainer } from 'react-toastify';
-import Protected from '@/components/Protected';
-import { isAuthed } from '@/services/auth';
+import RequireAuth from '@/components/RequireAuth';
 
 function App() {
   return (
@@ -24,117 +24,106 @@ function App() {
       <div className="page-wrapper">
         <Navbar />
         <Routes>
-          <Route
-            path="/"
-            element={
-              <Navigate
-                to={isAuthed() ? '/dashboard-professor' : '/login-professor'}
-                replace
-              />
-            }
-          />
+          <Route path="/" element={<Landing />} />
           <Route path="/login-professor" element={<LoginProfessor />} />
           <Route path="/login-aluno" element={<LoginAluno />} />
           <Route
             path="/dashboard-professor"
             element={
-              <Protected>
+              <RequireAuth role="teacher">
                 <DashboardProfessor />
-              </Protected>
+              </RequireAuth>
             }
           />
           <Route
             path="/dashboard-aluno"
             element={
-              <Protected>
+              <RequireAuth role="student">
                 <DashboardAluno />
-              </Protected>
+              </RequireAuth>
             }
           />
           <Route
             path="/dashboard-redacoes"
             element={
-              <Protected>
+              <RequireAuth role="teacher">
                 <DashboardRedacoes />
-              </Protected>
+              </RequireAuth>
             }
           />
           <Route
             path="/turmas"
             element={
-              <Protected>
+              <RequireAuth role="teacher">
                 <Turmas />
-              </Protected>
+              </RequireAuth>
             }
           />
           <Route
             path="/turmas/:id/alunos"
             element={
-              <Protected>
+              <RequireAuth role="teacher">
                 <TurmaAlunos />
-              </Protected>
+              </RequireAuth>
             }
           />
           <Route
             path="/perfil"
             element={
-              <Protected>
+              <RequireAuth>
                 <PerfilAlunoProfessor />
-              </Protected>
+              </RequireAuth>
             }
           />
           <Route
             path="/notas-classe"
             element={
-              <Protected>
+              <RequireAuth role="teacher">
                 <NotasClasse />
-              </Protected>
+              </RequireAuth>
             }
           />
           <Route
             path="/alunos/:id/notas"
             element={
-              <Protected>
+              <RequireAuth role="teacher">
                 <DetalhesNotaAluno />
-              </Protected>
+              </RequireAuth>
             }
           />
           <Route
             path="/caderno-classe"
             element={
-              <Protected>
+              <RequireAuth role="teacher">
                 <CadernoClasse />
-              </Protected>
+              </RequireAuth>
             }
           />
           <Route
             path="/criar-gabarito"
             element={
-              <Protected>
+              <RequireAuth role="teacher">
                 <CriarGabarito />
-              </Protected>
+              </RequireAuth>
             }
           />
           <Route
             path="/corrigir-gabaritos"
             element={
-              <Protected>
+              <RequireAuth role="teacher">
                 <CorrigirGabaritos />
-              </Protected>
+              </RequireAuth>
             }
           />
           <Route
             path="/redacoes/:id/corrigir"
             element={
-              <Protected>
+              <RequireAuth role="teacher">
                 <CorrigirRedacao />
-              </Protected>
+              </RequireAuth>
             }
           />
-          <Route
-            path="*"
-            element={<Navigate to="/" replace />}
-          />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <ToastContainer position="top-right" autoClose={3000} />
       </div>
