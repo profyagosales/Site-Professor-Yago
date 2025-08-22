@@ -9,16 +9,11 @@ jest.mock('@/services/classes', () => ({
   ]),
 }));
 
-jest.mock('@/services/email', () => ({
-  sendEmail: jest.fn().mockResolvedValue({}),
-}));
-
 jest.mock('@/services/notifications', () => ({
-  scheduleNotification: jest.fn().mockResolvedValue({}),
+  createNotification: jest.fn().mockResolvedValue({}),
 }));
 
-const { sendEmail } = require('@/services/email');
-const { scheduleNotification } = require('@/services/notifications');
+const { createNotification } = require('@/services/notifications');
 
 describe('AvisosCard', () => {
   test('sends notice immediately', async () => {
@@ -33,7 +28,9 @@ describe('AvisosCard', () => {
     const extra = screen.getByLabelText(/Email adicional/);
     await userEvent.type(extra, 'x@y.com');
     await userEvent.click(screen.getByRole('button', { name: /Enviar/i }));
-    expect(sendEmail).toHaveBeenCalled();
+    expect(createNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ sendAt: null })
+    );
   });
 
   test('schedules notice', async () => {
@@ -50,6 +47,8 @@ describe('AvisosCard', () => {
     const date = screen.getByLabelText('Data e hora');
     await userEvent.type(date, '2025-01-01T00:00');
     await userEvent.click(screen.getByRole('button', { name: /Agendar/i }));
-    expect(scheduleNotification).toHaveBeenCalled();
+    expect(createNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ sendAt: '2025-01-01T00:00' })
+    );
   });
 });

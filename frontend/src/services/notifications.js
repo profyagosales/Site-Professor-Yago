@@ -3,11 +3,11 @@ import api, { pickData } from '@api';
 export const getNotifications = () =>
   api.get('/notifications').then(pickData);
 
-export const scheduleNotification = (notification) =>
-  api.post('/notifications/schedule', notification).then(pickData);
+export const createNotification = (payload) =>
+  api.post('/notifications', payload).then(pickData);
 
 export default {
   getNotifications,
-  scheduleNotification,
+  createNotification,
 };
 
