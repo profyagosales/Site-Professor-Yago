@@ -5,7 +5,7 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
   const [series, setSeries] = useState('');
   const [letter, setLetter] = useState('');
   const [discipline, setDiscipline] = useState('');
-  const [schedule, setSchedule] = useState([]);
+  const [schedule, setSchedule] = useState({ day: '', slot: '' });
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
@@ -13,18 +13,19 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
       setSeries(String(initialData.series));
       setLetter(initialData.letter);
       setDiscipline(initialData.discipline);
-      const sched = Array.isArray(initialData.schedule)
-        ? initialData.schedule.map((s) => ({
-            day: String(s.day),
-            slot: String(s.slot),
-          }))
-        : [];
-      setSchedule(sched);
+      const sched =
+        Array.isArray(initialData.schedule) && initialData.schedule.length
+          ? initialData.schedule[0]
+          : initialData.schedule || { day: '', slot: '' };
+      setSchedule({
+        day: String(sched.day || ''),
+        slot: String(sched.slot || ''),
+      });
     } else {
       setSeries('');
       setLetter('');
       setDiscipline('');
-      setSchedule([]);
+      setSchedule({ day: '', slot: '' });
     }
     setErrors({});
   }, [initialData, isOpen]);
@@ -35,15 +36,15 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
     if (!series) newErrors.series = 'Selecione a série';
     if (!letter.trim()) newErrors.letter = 'Informe a letra';
     if (!discipline.trim()) newErrors.discipline = 'Informe a disciplina';
-    if (schedule.some((s) => !s.day || !s.slot)) {
-      newErrors.schedule = 'Preencha todos os horários';
+    if (!schedule.day || !schedule.slot) {
+      newErrors.schedule = 'Preencha o horário';
     }
     setErrors(newErrors);
     if (Object.keys(newErrors).length) return;
-    const normalizedSchedule = schedule.map((s) => ({
-      day: Number(s.day),
-      slot: Number(s.slot),
-    }));
+    const normalizedSchedule = {
+      day: schedule.day,
+      slot: Number(schedule.slot),
+    };
     onSubmit({
       series: Number(series),
       letter,
