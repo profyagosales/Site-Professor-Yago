@@ -17,13 +17,14 @@ Este guia descreve os principais fluxos do sistema: login de professor e aluno, 
 
 ## Login do Aluno
 1. Acesse `/login-aluno`.
-2. Preencha suas credenciais e clique em **Entrar**.
+2. Informe seu número, telefone e senha e clique em **Entrar**.
 3. Após o login, você é direcionado para `/dashboard-aluno`.
 4. Exemplo de requisição:
    ```
    POST /auth/login-student
    {
-     "email": "aluno@example.com",
+     "rollNumber": 1,
+     "phone": "999999999",
      "password": "senha"
    }
    ```

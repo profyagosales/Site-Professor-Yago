@@ -12,7 +12,7 @@ import api, { pickData, toArray } from '@api';
 describe('LoginAluno', () => {
   test('submits form and navigates', async () => {
     localStorage.clear();
-    api.post.mockResolvedValue({ data: { token: 'abc', role: 'student' } });
+    api.post.mockResolvedValue({ data: { success: true, message: '', data: { token: 'abc', role: 'student' } } });
     const navigate = jest.fn();
     require('react-router-dom').useNavigate.mockReturnValue(navigate);
 
@@ -22,14 +22,15 @@ describe('LoginAluno', () => {
       </MemoryRouter>
     );
 
-    await userEvent.type(screen.getByPlaceholderText(/Email/i), 'aluno@example.com');
+    await userEvent.type(screen.getByPlaceholderText(/Número/i), '1');
+    await userEvent.type(screen.getByPlaceholderText(/Telefone/i), '999999999');
     await userEvent.type(screen.getByPlaceholderText(/Senha/i), 'senha');
     await userEvent.click(screen.getByRole('button', { name: /Entrar/i }));
 
     await waitFor(() => {
       expect(api.post).toHaveBeenCalledWith(
         '/auth/login-student',
-        { email: 'aluno@example.com', password: 'senha' }
+        { rollNumber: '1', phone: '999999999', password: 'senha' }
       );
       expect(navigate).toHaveBeenCalledWith('/dashboard-aluno', { replace: true });
       expect(localStorage.getItem('token')).toBe('abc');

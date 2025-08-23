@@ -52,9 +52,15 @@ function LoginAluno() {
         <h2 className="text-xl text-center">Login Aluno</h2>
         {error && <p className="text-red-500 mb-2">{error}</p>}
         <input
-          type="email"
-          placeholder="Email"
-          {...register('email', { required: true })}
+          type="number"
+          placeholder="Número"
+          {...register('rollNumber', { required: true })}
+          className="mb-4 w-full p-2 border rounded"
+        />
+        <input
+          type="tel"
+          placeholder="Telefone"
+          {...register('phone', { required: true })}
           className="mb-4 w-full p-2 border rounded"
         />
         <input
