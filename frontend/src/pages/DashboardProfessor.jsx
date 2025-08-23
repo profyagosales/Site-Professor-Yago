@@ -25,24 +25,31 @@ function DashboardProfessor(){
   const navigate = useNavigate()
 
   useEffect(() => {
-    getCurrentUser()
-      .then(u => {
+    let abort = false
+    ;(async () => {
+      try {
+        const u = await getCurrentUser()
+        if (abort) return
         setUser(u)
-        return Promise.all([
+        if (!u?.id) return
+        const [c, e, a, s] = await Promise.all([
           listUpcomingContents({ teacherId: u.id }).catch(() => { toast.error('Não foi possível carregar conteúdos'); return [] }),
           listUpcomingExams({ teacherId: u.id }).catch(() => { toast.error('Não foi possível carregar avaliações'); return [] }),
           listAnnouncements({ teacherId: u.id }).catch(() => { toast.error('Não foi possível carregar avisos'); return [] }),
           getTeacherWeeklySchedule(u.id).catch(() => { toast.error('Não foi possível carregar horário'); return [] })
         ])
-      })
-      .then(([c,e,a,s]) => {
+        if (abort) return
         setContents(c)
         setExams(e)
         setAnnouncements(a)
         setSchedule(s)
-      })
-      .catch(() => toast.error('Não foi possível carregar usuário'))
-      .finally(() => setLoading(false))
+      } catch {
+        if (!abort) toast.error('Não foi possível carregar usuário')
+      } finally {
+        if (!abort) setLoading(false)
+      }
+    })()
+    return () => { abort = true }
   }, [])
 
   const handleLogout = () => {
@@ -51,7 +58,7 @@ function DashboardProfessor(){
   }
 
   const reloadContents = async () => {
-    if(!user) return
+    if(!user?.id) return
     try {
       const data = await listUpcomingContents({ teacherId: user.id })
       setContents(data)
@@ -59,7 +66,7 @@ function DashboardProfessor(){
   }
 
   const reloadAnnouncements = async () => {
-    if(!user) return
+    if(!user?.id) return
     try {
       const data = await listAnnouncements({ teacherId: user.id })
       setAnnouncements(data)

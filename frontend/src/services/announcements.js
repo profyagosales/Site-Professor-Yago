@@ -1,6 +1,7 @@
 import api from '@api'
 
 export async function listAnnouncements({ teacherId, limit = 3 }){
+  if (!teacherId) return []
   const { data } = await api.get(`/teachers/${teacherId}/announcements`, { params: { limit } })
   return data
 }

@@ -1,44 +1,20 @@
-import api from '@api';
+import api from '@api'
 
-export const listStudents = (query = {}) => {
-  const params =
-    typeof query === 'string' ? { classId: query } : { ...query };
-  if (params.class) {
-    params.classId = params.class;
-    delete params.class;
-  }
-  return api.get('/students', { params });
-};
+export async function listStudentsByClass(classId) {
+  const { data } = await api.get(`/classes/${classId}/students`)
+  return data
+}
 
-export const createStudent = (classId, student) => {
-  const formData = new FormData();
-  Object.entries(student ?? {}).forEach(([key, value]) => {
-    if (value !== undefined && value !== null) {
-      formData.append(key === 'rollNumber' ? 'number' : key, value);
-    }
-  });
-  return api.post(`/classes/${classId}/students`, formData, {
+export async function createStudent(fd) {
+  const classId = String(fd.get('classId'))
+  const { data } = await api.post(`/classes/${classId}/students`, fd, {
     headers: { 'Content-Type': 'multipart/form-data' },
-  });
-};
-
-export const updateStudent = (id, student) => {
-  const formData = new FormData();
-  Object.entries(student ?? {}).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
-      formData.append(key === 'rollNumber' ? 'number' : key, value);
-    }
-  });
-  return api.put(`/students/${id}`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
-};
-
-export const deleteStudent = (id) => api.delete(`/students/${id}`);
+  })
+  return data
+}
 
 export default {
-  listStudents,
+  listStudentsByClass,
   createStudent,
-  updateStudent,
-  deleteStudent,
-};
+}
+

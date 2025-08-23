@@ -1,9 +1,9 @@
 import { useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import StudentModal from '@/components/StudentModal';
-import { getClassById, listStudents } from '@/services/classes';
-import { createStudent, updateStudent } from '@/services/students';
+import NewStudentModal from '@/components/NewStudentModal';
+import { getClassById } from '@/services/classes';
+import { listStudentsByClass } from '@/services/students';
 
 function TurmaAlunos() {
   const { classId } = useParams();
@@ -11,8 +11,7 @@ function TurmaAlunos() {
   const [loading, setLoading] = useState(false);
   const [classData, setClassData] = useState(null);
   const [classLoading, setClassLoading] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [isNewOpen, setIsNewOpen] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
@@ -31,10 +30,10 @@ function TurmaAlunos() {
       .finally(() => setClassLoading(false));
   }, [classId]);
 
-  const loadStudents = () => {
+  const reloadStudents = () => {
     if (!classId) return;
     setLoading(true);
-    listStudents(classId)
+    listStudentsByClass(classId)
       .then((data) => setStudents(Array.isArray(data) ? data : []))
       .catch((err) => {
         if (err.response?.status !== 404) {
@@ -45,29 +44,8 @@ function TurmaAlunos() {
   };
 
   useEffect(() => {
-    loadStudents();
+    reloadStudents();
   }, [classId]);
-
-  const handleSubmit = async (form) => {
-    try {
-      if (selectedStudent && selectedStudent._id) {
-        await updateStudent(selectedStudent._id, form);
-        toast.success('Aluno atualizado');
-      } else {
-        await createStudent(classId, form);
-        toast.success('Aluno salvo');
-      }
-      setModalOpen(false);
-      loadStudents();
-    } catch (err) {
-      if (err.response?.status === 409) {
-        toast.error('E-mail já utilizado');
-      } else {
-        const message = err.response?.data?.message || 'Erro ao salvar aluno';
-        toast.error(message);
-      }
-    }
-  };
 
   if (notFound) {
     return (
@@ -89,8 +67,7 @@ function TurmaAlunos() {
         </h1>
         <button
           onClick={() => {
-            setSelectedStudent(null);
-            setModalOpen(true);
+            setIsNewOpen(true);
           }}
           className="btn-primary"
         >
@@ -110,7 +87,6 @@ function TurmaAlunos() {
                 <th className="p-sm border">Nome</th>
                 <th className="p-sm border">Telefone</th>
                 <th className="p-sm border">E-mail</th>
-                <th className="p-sm border">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -140,17 +116,6 @@ function TurmaAlunos() {
                     <td className="p-sm border">{student.name}</td>
                     <td className="p-sm border">{student.phone}</td>
                     <td className="p-sm border">{student.email}</td>
-                    <td className="p-sm border">
-                      <button
-                        onClick={() => {
-                          setSelectedStudent(student);
-                          setModalOpen(true);
-                        }}
-                        className="btn-secondary text-sm"
-                      >
-                        Editar
-                      </button>
-                    </td>
                   </tr>
                 ))
               )}
@@ -158,12 +123,11 @@ function TurmaAlunos() {
           </table>
         </div>
       )}
-
-      <StudentModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onSubmit={handleSubmit}
-        initialData={selectedStudent}
+      <NewStudentModal
+        classId={classId}
+        isOpen={isNewOpen}
+        onClose={() => setIsNewOpen(false)}
+        onCreated={reloadStudents}
       />
     </div>
   );

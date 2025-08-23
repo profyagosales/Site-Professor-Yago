@@ -15,6 +15,7 @@ export async function createContent(payload) {
 }
 
 export async function listUpcomingContents({ teacherId, daysAhead = 14, limit = 5 }) {
+  if (!teacherId) return [];
   const { data } = await api.get(
     `/teachers/${teacherId}/contents/upcoming`,
     { params: { daysAhead, limit } }
