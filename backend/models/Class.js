@@ -6,9 +6,13 @@ const classSchema = new mongoose.Schema({
   discipline: { type: String, required: true },
   schedule: [
     {
-      day: { type: String, enum: ['SEGUNDA', 'TERCA', 'QUARTA', 'QUINTA', 'SEXTA'] },
-      slot: { type: Number, enum: [1, 2, 3] }
-    }
+      day: {
+        type: String,
+        enum: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'],
+      },
+      slot: { type: Number, enum: [1, 2, 3] },
+      time: { type: String },
+    },
   ],
   teachers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' }],
   students: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Student' }]

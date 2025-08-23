@@ -7,8 +7,20 @@ const Student = require('../models/Student');
 const router = express.Router();
 const upload = multer();
 
-const allowedDays = ['SEGUNDA', 'TERCA', 'QUARTA', 'QUINTA', 'SEXTA'];
+const dayMap = {
+  SEGUNDA: 'MONDAY',
+  TERCA: 'TUESDAY',
+  QUARTA: 'WEDNESDAY',
+  QUINTA: 'THURSDAY',
+  SEXTA: 'FRIDAY',
+};
+const allowedDays = Object.keys(dayMap);
 const allowedSlots = [1, 2, 3];
+const slotTimes = {
+  1: '07:00',
+  2: '09:00',
+  3: '11:00',
+};
 
 // Get all classes
 router.get('/', async (req, res, next) => {
@@ -69,11 +81,16 @@ router.post('/', async (req, res, next) => {
       error.status = 400;
       throw error;
     }
+    const normalizedSchedule = schedule.map((s) => ({
+      day: dayMap[s.day],
+      slot: s.slot,
+      time: slotTimes[s.slot],
+    }));
     const newClass = await Class.create({
       series,
       letter,
       discipline,
-      schedule,
+      schedule: normalizedSchedule,
     });
     res.status(200).json({
       success: true,
@@ -107,9 +124,14 @@ router.put('/:id', async (req, res, next) => {
       error.status = 400;
       throw error;
     }
+    const normalizedSchedule = schedule.map((s) => ({
+      day: dayMap[s.day],
+      slot: s.slot,
+      time: slotTimes[s.slot],
+    }));
     const updatedClass = await Class.findByIdAndUpdate(
       req.params.id,
-      { series, letter, discipline, schedule },
+      { series, letter, discipline, schedule: normalizedSchedule },
       { new: true }
     );
     if (!updatedClass) {

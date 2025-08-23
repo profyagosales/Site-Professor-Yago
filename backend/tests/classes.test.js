@@ -14,10 +14,19 @@ describe('Classes routes', () => {
     expect(res.body.success).toBe(true);
     expect(res.body.data.series).toBe(1);
     expect(res.body.data.schedule).toHaveLength(1);
+    expect(res.body.data.schedule[0]).toMatchObject({
+      day: 'MONDAY',
+      slot: 2,
+      time: '09:00',
+    });
 
     const cls = await Class.findOne({ series: 1, letter: 'A' });
     expect(cls).not.toBeNull();
-    expect(cls.schedule[0]).toMatchObject({ day: 'SEGUNDA', slot: 2 });
+    expect(cls.schedule[0]).toMatchObject({
+      day: 'MONDAY',
+      slot: 2,
+      time: '09:00',
+    });
   });
 
   it('validates schedule data', async () => {
