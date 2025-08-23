@@ -4,6 +4,7 @@ const evaluationSchema = new mongoose.Schema({
   name: { type: String, required: true },
   value: { type: Number, required: true, min: 0, max: 10 },
   bimester: { type: Number, required: true },
+  kind: { type: String },
   classes: [
     {
       classId: { type: mongoose.Schema.Types.ObjectId, ref: 'Class', required: true },
@@ -18,7 +19,9 @@ const evaluationSchema = new mongoose.Schema({
   grades: {
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Grade' }],
     default: []
-  }
+  },
+  meta: { type: mongoose.Schema.Types.Mixed },
+  link: { type: String }
 });
 
 module.exports = mongoose.model('Evaluation', evaluationSchema);

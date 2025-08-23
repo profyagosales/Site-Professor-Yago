@@ -13,6 +13,7 @@ const cadernoRoutes = require('./routes/caderno');
 const gabaritoRoutes = require('./routes/gabaritos');
 const omrRoutes = require('./routes/omr');
 const redacoesRoutes = require('./routes/redacoes');
+const essaysRoutes = require('./routes/essays');
 const notificationRoutes = require('./routes/notifications');
 const dashboardRoutes = require('./routes/dashboard');
 const contentsRoutes = require('./routes/contents');
@@ -68,6 +69,7 @@ app.use('/caderno', cadernoRoutes);
 app.use('/gabaritos', gabaritoRoutes);
 app.use('/omr', omrRoutes);
 app.use('/redacoes', redacoesRoutes);
+app.use('/essays', essaysRoutes);
 app.use('/notifications', notificationRoutes);
 app.use('/contents', contentsRoutes);
 
