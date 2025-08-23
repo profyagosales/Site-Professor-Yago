@@ -134,6 +134,10 @@ function clamp(num, min, max) {
   return Math.min(Math.max(num, min), max);
 }
 
+function roundToTwoDecimals(num) {
+  return Math.round(num * 100) / 100;
+}
+
 // Grade essay
 async function gradeEssay(req, res) {
   try {
@@ -176,21 +180,21 @@ async function gradeEssay(req, res) {
         return res.status(400).json({ message: 'Competências inválidas' });
       }
       rawScore = scores.reduce((sum, s) => sum + Number(s || 0), 0);
+      rawScore = Math.round(rawScore);
       const normalized = rawScore / 1000;
       scaledScore = roundToOneDecimal(weight * normalized);
       if (scaledScore > weight) scaledScore = weight;
     } else {
       const NC = Number(pasBreakdown.NC);
-      const NE = Number(pasBreakdown.NE);
       const NL = Number(pasBreakdown.NL);
+      const NE = essay.annotations.filter((a) => a.color === 'green').length;
       if (
         isNaN(NC) || NC < 0 || NC > 10 ||
-        isNaN(NE) || NE < 0 ||
         isNaN(NL) || NL < 1
       ) {
         return res.status(400).json({ message: 'Dados inválidos para PAS' });
       }
-      rawScore = clamp(NC - (2 * NE) / Math.max(NL, 1), 0, 10);
+      rawScore = roundToTwoDecimals(clamp(NC - (2 * NE) / Math.max(NL, 1), 0, 10));
       const normalized = rawScore / 10;
       scaledScore = roundToOneDecimal(weight * normalized);
       if (scaledScore > weight) scaledScore = weight;
@@ -262,7 +266,7 @@ async function updateAnnotations(req, res) {
       essay.pasBreakdown = essay.pasBreakdown || {};
       essay.pasBreakdown.NE = NE;
       const { NC = 0, NL = 1 } = essay.pasBreakdown;
-      essay.rawScore = clamp(NC - (2 * NE) / Math.max(NL, 1), 0, 10);
+      essay.rawScore = roundToTwoDecimals(clamp(NC - (2 * NE) / Math.max(NL, 1), 0, 10));
       if (essay.bimestreWeight != null) {
         const normalized = essay.rawScore / 10;
         essay.scaledScore = roundToOneDecimal(essay.bimestreWeight * normalized);

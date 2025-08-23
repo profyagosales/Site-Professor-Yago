@@ -63,4 +63,10 @@ const essaySchema = new mongoose.Schema({
   comments: { type: String, default: null }
 }, { timestamps: true });
 
+essaySchema.index({ studentId: 1 });
+essaySchema.index({ classId: 1 });
+essaySchema.index({ status: 1 });
+essaySchema.index({ bimester: 1 });
+essaySchema.index({ type: 1 });
+
 module.exports = mongoose.model('Essay', essaySchema, 'essays');

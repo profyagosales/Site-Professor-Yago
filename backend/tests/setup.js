@@ -1,4 +1,5 @@
 jest.setTimeout(30000);
+jest.mock('cloudinary');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 const mongoose = require('mongoose');
 // const path = require('path');
