@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import LogoHero from "@/components/landing/LogoHero";
+import { YSLogoAlive } from "@/components/YSLogoAlive";
 import "@/styles/landing.css";
 
 export default function Landing() {
@@ -8,7 +8,7 @@ export default function Landing() {
   return (
     <main className="auth-bg no-nav">
       <div className="mx-auto flex max-w-3xl flex-col items-center justify-center gap-10 px-6">
-        <LogoHero />
+        <YSLogoAlive />
 
         <div className="flex items-center gap-4" role="group" aria-label="Escolha de acesso">
           <button
