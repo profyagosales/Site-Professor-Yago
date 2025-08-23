@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { lazy, Suspense } from "react";
 import Landing from '@/pages/Landing';
 import LoginProfessor from '@/pages/LoginProfessor';
 import LoginAluno from '@/pages/LoginAluno';
@@ -20,7 +21,8 @@ import Header from '@/components/Header';
 import { ToastContainer } from 'react-toastify';
 import RequireAuth from '@/components/RequireAuth';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import flags from '@/config/features';
+import flags from "@/config/features";
+const Redacao = lazy(() => import("@/pages/professor/redacao"));
 
 const HIDE_HEADER_ON = ['/', '/login-professor', '/login-aluno'];
 
@@ -96,7 +98,18 @@ function App() {
                   </RequireAuth>
                 }
               />
+              <Route
+                path="/professor/redacao"
+                element={
+                  <RequireAuth role="teacher">
+                    <Suspense fallback={<p>Carregando...</p>}>
+                      <Redacao />
+                    </Suspense>
+                  </RequireAuth>
+                }
+              />
             </>
+          
           )}
           <Route
             path="/turmas"
