@@ -4,6 +4,7 @@ import LoginProfessor from '@/pages/LoginProfessor';
 import LoginAluno from '@/pages/LoginAluno';
 import DashboardProfessor from '@/pages/DashboardProfessor';
 import DashboardAluno from '@/pages/DashboardAluno';
+import EnviarRedacao from '@/pages/EnviarRedacao';
 import DashboardRedacoes from '@/pages/DashboardRedacoes';
 import Turmas from '@/pages/Turmas';
 import TurmaAlunos from '@/pages/TurmaAlunos';
@@ -73,6 +74,14 @@ function App() {
               ) : (
                 <Navigate to="/login-aluno" replace />
               )
+            }
+          />
+          <Route
+            path="/aluno/redacao"
+            element={
+              <RequireAuth role="student">
+                <EnviarRedacao />
+              </RequireAuth>
             }
           />
           <Route

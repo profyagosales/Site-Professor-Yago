@@ -17,7 +17,7 @@ import { FaPen, FaStar, FaFilePdf, FaBook } from 'react-icons/fa'
 
 function ShortcutCards() {
   const shortcuts = [
-    { path: '/aluno/redacoes', title: 'Redações', subtitle: 'Minhas redações', icon: <FaPen className="text-orange w-6 h-6" /> },
+    { path: '/aluno/redacao', title: 'Redações', subtitle: 'Minhas redações', icon: <FaPen className="text-orange w-6 h-6" /> },
     { path: '/aluno/notas', title: 'Notas', subtitle: 'Resumo por bimestre', icon: <FaStar className="text-orange w-6 h-6" /> },
     { path: '/aluno/gabaritos', title: 'Gabaritos', subtitle: 'PDFs corrigidos', icon: <FaFilePdf className="text-orange w-6 h-6" /> },
     { path: '/aluno/caderno', title: 'Caderno', subtitle: 'Vistos do bimestre', icon: <FaBook className="text-orange w-6 h-6" /> },
