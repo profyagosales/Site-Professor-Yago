@@ -1,7 +1,11 @@
 import axios from "axios";
+import { API_URL } from "./env";
 
-const baseURL = import.meta.env.VITE_API_URL || "/api";
-export const api = axios.create({ baseURL, withCredentials: true });
+export const api = axios.create({ baseURL: API_URL, withCredentials: true });
+
+if (!import.meta.env.VITE_API_URL) {
+  console.warn("VITE_API_URL ausente; usando /api");
+}
 
 // Interceptor to avoid breaking UI on API errors
 api.interceptors.response.use(
