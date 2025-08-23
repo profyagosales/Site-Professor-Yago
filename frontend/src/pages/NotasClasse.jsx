@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toArray } from '@api';
 import { toast } from 'react-toastify';
@@ -64,6 +64,22 @@ function NotasClasse() {
     } finally {
       setLoadingGrades(false);
     }
+  };
+
+  const getAssessmentsScore = (grade) => {
+    if (grade === '-' || grade === undefined || grade === null) return '-';
+    if (typeof grade === 'object') return grade.assessments ?? '-';
+    return grade;
+  };
+
+  const getTotalScore = (grade) => {
+    if (grade === '-' || grade === undefined || grade === null) return '-';
+    if (typeof grade === 'object') {
+      const assessments = Number(grade.assessments) || 0;
+      const caderno = Number(grade.caderno) || 0;
+      return assessments + caderno;
+    }
+    return grade;
   };
 
   const displayedBimesters = () => {
@@ -150,9 +166,10 @@ function NotasClasse() {
                   <tr className="bg-orange-500 text-white text-left">
                     <th className="p-sm border">Aluno</th>
                     {displayedBimesters().map((b) => (
-                      <th key={b} className="p-sm border text-center">
-                        {b + 1}º Bim
-                      </th>
+                      <Fragment key={b}>
+                        <th className="p-sm border text-center">{b + 1}º Bim</th>
+                        <th className="p-sm border text-center">Total</th>
+                      </Fragment>
                     ))}
                   </tr>
                 </thead>
@@ -168,13 +185,27 @@ function NotasClasse() {
                       >
                         {student.name}
                       </td>
-                      {displayedBimesters().map((b) => (
-                        <td key={b} className="p-sm border text-center">
-                          {grades[i] && grades[i][b] !== '-' && grades[i][b] !== undefined
-                            ? grades[i][b]
-                            : '-'}
-                        </td>
-                      ))}
+                      {displayedBimesters().map((b) => {
+                        const grade = grades[i] ? grades[i][b] : undefined;
+                        const assessment = getAssessmentsScore(grade);
+                        const total = getTotalScore(grade);
+                        const totalClass =
+                          typeof total === 'number'
+                            ? total < 5
+                              ? 'text-red-600'
+                              : 'text-green-600'
+                            : '';
+                        return (
+                          <Fragment key={b}>
+                            <td className="p-sm border text-center">
+                              {assessment !== undefined ? assessment : '-'}
+                            </td>
+                            <td className={`p-sm border text-center ${totalClass}`}>
+                              {total !== '-' ? total : '-'}
+                            </td>
+                          </Fragment>
+                        );
+                      })}
                     </tr>
                   ))}
                 </tbody>
