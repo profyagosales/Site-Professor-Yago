@@ -84,8 +84,6 @@ function TurmaAlunos() {
 
       {loading ? (
         <p>Carregando...</p>
-      ) : students.length === 0 ? (
-        <p>Nenhum aluno cadastrado</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full border">
@@ -99,24 +97,35 @@ function TurmaAlunos() {
               </tr>
             </thead>
             <tbody>
-              {students.map((student) => (
-                <tr
-                  key={student._id || student.id}
-                  className="hover:bg-gray-50 text-center"
-                >
-                  <td className="p-sm border">
-                    <img
-                      src={student.photo || 'https://via.placeholder.com/40'}
-                      alt="foto"
-                      className="w-10 h-10 rounded-full object-cover mx-auto"
-                    />
+              {students.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan="5"
+                    className="p-sm border text-center text-gray-500"
+                  >
+                    Nenhum aluno cadastrado
                   </td>
-                  <td className="p-sm border">{student.number}</td>
-                  <td className="p-sm border">{student.name}</td>
-                  <td className="p-sm border">{student.phone}</td>
-                  <td className="p-sm border">{student.email}</td>
                 </tr>
-              ))}
+              ) : (
+                students.map((student) => (
+                  <tr
+                    key={student._id || student.id}
+                    className="hover:bg-gray-50 text-center"
+                  >
+                    <td className="p-sm border">
+                      <img
+                        src={student.photo || 'https://via.placeholder.com/40'}
+                        alt="foto"
+                        className="w-10 h-10 rounded-full object-cover mx-auto"
+                      />
+                    </td>
+                    <td className="p-sm border">{student.number}</td>
+                    <td className="p-sm border">{student.name}</td>
+                    <td className="p-sm border">{student.phone}</td>
+                    <td className="p-sm border">{student.email}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
