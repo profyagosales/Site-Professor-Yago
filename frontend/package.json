@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "ts-node --transpile-only scripts/check-api.ts || node scripts/check-api.ts",
     "build": "vite build",
     "lint": "eslint \"src/**/*.{js,jsx}\" --max-warnings=0",
     "preview": "vite preview",
@@ -45,6 +46,7 @@
     "madge": "^8.0.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
+    "ts-node": "^10.9.2",
     "vite": "^7.1.2"
   },
   "overrides": {

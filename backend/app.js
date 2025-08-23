@@ -55,6 +55,7 @@ try {
 }
 
 app.use(express.json());
+app.get('/health', (req, res) => res.sendStatus(200));
 
 /**
  * Rotas da API
