@@ -9,4 +9,13 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src'),
     },
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_URL || 'http://localhost:3333',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/api/, ''),
+      },
+    },
+  },
 })
