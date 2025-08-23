@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import SchedulePicker from './SchedulePicker';
 
 function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
   const [series, setSeries] = useState('');
@@ -51,20 +52,6 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
     });
   };
 
-  const handleScheduleChange = (index, field, value) => {
-    const updated = schedule.slice();
-    updated[index] = { ...updated[index], [field]: value };
-    setSchedule(updated);
-  };
-
-  const addSchedule = () => {
-    setSchedule([...schedule, { day: '', slot: '' }]);
-  };
-
-  const removeSchedule = (index) => {
-    setSchedule(schedule.filter((_, i) => i !== index));
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -112,48 +99,7 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
           </div>
           <div>
             <label className="block mb-1">Horários</label>
-            {schedule.map((s, idx) => (
-              <div key={idx} className="flex items-center gap-sm mb-sm">
-                <select
-                  aria-label="Dia"
-                  className="border p-sm rounded"
-                  value={s.day}
-                  onChange={(e) =>
-                    handleScheduleChange(idx, 'day', e.target.value)
-                  }
-                >
-                  <option value="">Dia</option>
-                  <option value="1">Segunda</option>
-                  <option value="2">Terça</option>
-                  <option value="3">Quarta</option>
-                  <option value="4">Quinta</option>
-                  <option value="5">Sexta</option>
-                </select>
-                <input
-                  type="number"
-                  aria-label="Slot"
-                  className="border p-sm rounded w-24"
-                  value={s.slot}
-                  onChange={(e) =>
-                    handleScheduleChange(idx, 'slot', e.target.value)
-                  }
-                />
-                <button
-                  type="button"
-                  className="text-red-600"
-                  onClick={() => removeSchedule(idx)}
-                >
-                  Remover
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              className="px-3 py-1 border rounded"
-              onClick={addSchedule}
-            >
-              Adicionar Horário
-            </button>
+            <SchedulePicker value={schedule} onChange={setSchedule} />
             {errors.schedule && (
               <p className="text-red-600 text-sm mt-1">{errors.schedule}</p>
             )}
