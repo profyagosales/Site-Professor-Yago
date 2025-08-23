@@ -3,6 +3,10 @@ import api, { pickData } from '@api';
 export const getClassMatrix = (classId) =>
   api.get(`/grades/class/${classId}`).then(pickData);
 
+// Alias to getClassMatrix for clarity when only totals are needed
+export const getClassTotals = (classId) =>
+  api.get(`/grades/class/${classId}`).then(pickData);
+
 export const getStudentGrades = (studentId) =>
   api.get(`/grades/student/${studentId}`).then(pickData);
 
@@ -19,6 +23,7 @@ export const sendStudentReport = (studentId) =>
 
 export default {
   getClassMatrix,
+  getClassTotals,
   getStudentGrades,
   postGrade,
   exportClassPdf,
