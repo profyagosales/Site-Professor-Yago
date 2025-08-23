@@ -22,8 +22,17 @@ export const createStudent = (classId, student) => {
   });
 };
 
-export const updateStudent = (id, payload) =>
-  api.put(`/students/${id}`, payload);
+export const updateStudent = (id, student) => {
+  const formData = new FormData();
+  Object.entries(student ?? {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      formData.append(key === 'rollNumber' ? 'number' : key, value);
+    }
+  });
+  return api.put(`/students/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
 
 export const deleteStudent = (id) => api.delete(`/students/${id}`);
 

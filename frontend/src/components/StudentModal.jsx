@@ -34,22 +34,32 @@ function StudentModal({ isOpen, onClose, onSubmit, initialData = {} }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = {};
-    if (!number) newErrors.number = 'Informe o número';
     if (!name.trim()) newErrors.name = 'Informe o nome';
-    if (!phone.trim()) newErrors.phone = 'Informe o telefone';
     if (!email.trim()) newErrors.email = 'Informe o e-mail';
-    if (!password.trim()) newErrors.password = 'Informe a senha';
+    else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = 'E-mail inválido';
+
+    if (initialData && initialData._id) {
+      if (password && password.length < 6)
+        newErrors.password = 'Senha deve ter ao menos 6 caracteres';
+    } else {
+      if (!password.trim()) newErrors.password = 'Informe a senha';
+      else if (password.length < 6)
+        newErrors.password = 'Senha deve ter ao menos 6 caracteres';
+    }
+
     setErrors(newErrors);
     if (Object.keys(newErrors).length) return;
+
     try {
-      await onSubmit({
-        number: Number(number),
+      const payload = {
         name,
-        phone,
         email,
-        password,
-        photo,
-      });
+        ...(number ? { number: Number(number) } : {}),
+        ...(phone ? { phone } : {}),
+        ...(password ? { password } : {}),
+        ...(photo ? { photo } : {}),
+      };
+      await onSubmit(payload);
       onClose();
     } catch (err) {
       // erro tratado no onSubmit
@@ -87,9 +97,6 @@ function StudentModal({ isOpen, onClose, onSubmit, initialData = {} }) {
               value={number}
               onChange={(e) => setNumber(e.target.value)}
             />
-            {errors.number && (
-              <p className="text-red-600 text-sm mt-1">{errors.number}</p>
-            )}
           </div>
           <div>
             <label className="block mb-1">Nome</label>
@@ -111,9 +118,6 @@ function StudentModal({ isOpen, onClose, onSubmit, initialData = {} }) {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
             />
-            {errors.phone && (
-              <p className="text-red-600 text-sm mt-1">{errors.phone}</p>
-            )}
           </div>
           <div>
             <label className="block mb-1">E-mail</label>
