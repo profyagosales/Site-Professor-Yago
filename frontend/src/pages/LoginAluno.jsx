@@ -1,82 +1,37 @@
-import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
-import { loginStudent } from '@api';
-import LogoYS from '@/components/LogoYS';
-import '@/components/login.css';
+import "@/styles/landing.css";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { loginStudent } from "@api";
 
-function LoginAluno() {
-  const { register, handleSubmit } = useForm();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const navigate = useNavigate();
+export default function LoginAluno() {
+  const [numero, setNumero] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [senha, setSenha] = useState("");
+  const nav = useNavigate();
 
-  const onSubmit = async (data) => {
-    setError('');
-    setLoading(true);
-    try {
-      const { token, role } = await loginStudent(data);
-      if (token) localStorage.setItem('token', token);
-      localStorage.setItem('role', role || 'student');
-      toast.success('Login realizado');
-      navigate(role === 'student' ? '/dashboard-aluno' : '/', { replace: true });
-    } catch (err) {
-      const message = err.response?.data?.message || 'Erro ao autenticar';
-      setError(message);
-      toast.error(message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const role = localStorage.getItem('role');
-    if (token && role === 'student') {
-      navigate('/dashboard-aluno', { replace: true });
-    }
-  }, [navigate]);
-
-  if (loading) {
-    return (
-      <div className="page-centered">
-        <p>Carregando...</p>
-      </div>
-    );
+  async function onSubmit(e) {
+    e.preventDefault();
+    const { token, role } = await loginStudent({ rollNumber: numero, phone: telefone, password: senha });
+    if (token) localStorage.setItem("token", token);
+    localStorage.setItem("role", role || "student");
+    nav("/dashboard-aluno", { replace: true });
   }
 
   return (
-    <main className="login-screen no-nav">
-      <LogoYS size={120} showWords={false} />
-      <form onSubmit={handleSubmit(onSubmit)} className="login-card">
-        <h2 className="text-xl text-center">Login Aluno</h2>
-        {error && <p className="text-red-500 mb-2">{error}</p>}
-        <input
-          type="number"
-          placeholder="Número"
-          {...register('rollNumber', { required: true })}
-          className="form-field"
-        />
-        <input
-          type="tel"
-          placeholder="Telefone"
-          {...register('phone', { required: true })}
-          className="form-field"
-        />
-        <input
-          type="password"
-          placeholder="Senha"
-          {...register('password', { required: true })}
-          className="form-field"
-        />
-        <button type="submit" className="btn-submit">
-          Entrar
-        </button>
+    <main className="auth-bg">
+      <form className="auth-card" onSubmit={onSubmit}>
+        <div className="auth-watermark">YS</div>
+        <h1 className="auth-title">Login Aluno</h1>
+
+        <input className="auth-field" placeholder="Número" value={numero}
+               onChange={(e) => setNumero(e.target.value)} required />
+        <input className="auth-field" placeholder="Telefone" value={telefone}
+               onChange={(e) => setTelefone(e.target.value)} required />
+        <input className="auth-field" type="password" placeholder="Senha" value={senha}
+               onChange={(e) => setSenha(e.target.value)} required />
+
+        <button className="auth-submit" type="submit">Entrar</button>
       </form>
     </main>
   );
 }
-
-export default LoginAluno;
-

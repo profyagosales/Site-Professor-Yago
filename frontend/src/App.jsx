@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import Home from '@/pages/Home';
+import Landing from '@/pages/Landing';
 import LoginProfessor from '@/pages/LoginProfessor';
 import LoginAluno from '@/pages/LoginAluno';
 import DashboardProfessor from '@/pages/DashboardProfessor';
@@ -41,11 +41,11 @@ function isAuthed() {
   return Boolean(localStorage.getItem('token'));
 }
 
-function AutoRedirectFromHome() {
+function AutoRedirectFromLanding() {
   const role = getRole();
   if (isAuthed() && role === 'teacher') return <Navigate to="/dashboard-professor" replace />;
   if (isAuthed() && role === 'student') return <Navigate to="/dashboard-aluno" replace />;
-  return <Home />;
+  return <Landing />;
 }
 
 function App() {
@@ -53,7 +53,7 @@ function App() {
     <BrowserRouter>
       <Layout>
         <Routes>
-          <Route path="/" element={<AutoRedirectFromHome />} />
+          <Route path="/" element={<AutoRedirectFromLanding />} />
           <Route path="/login-professor" element={<LoginProfessor />} />
           <Route path="/login-aluno" element={<LoginAluno />} />
           <Route
