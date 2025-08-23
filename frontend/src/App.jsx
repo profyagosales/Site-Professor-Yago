@@ -19,6 +19,7 @@ import Conteudos from '@/pages/Conteudos';
 import Header from '@/components/Header';
 import { ToastContainer } from 'react-toastify';
 import RequireAuth from '@/components/RequireAuth';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 const HIDE_HEADER_ON = ['/', '/login-professor', '/login-aluno'];
 
@@ -104,7 +105,9 @@ function App() {
             path="/turmas/:classId/alunos"
             element={
               <RequireAuth role="teacher">
-                <TurmaAlunos />
+                <ErrorBoundary>
+                  <TurmaAlunos />
+                </ErrorBoundary>
               </RequireAuth>
             }
           />

@@ -1,29 +1,32 @@
-import { useEffect, useMemo, useState } from 'react'
-import { createStudent } from '@/services/students'
+import { useMemo, useState } from 'react'
+import { create } from '@/services/students'
 import { toast } from 'react-toastify'
 
 const initialForm = {
+  photoFile: null,
   number: '',
   name: '',
   phone: '',
   email: '',
   password: '',
-  avatar: null,
 }
 
 export default function NewStudentModal({ classId, isOpen, onClose, onCreated }) {
   const [form, setForm] = useState(initialForm)
   const [submitting, setSubmitting] = useState(false)
 
-  // NÃO remonte o modal a cada render: remonte (reset) só quando abrir.
-  useEffect(() => {
-    if (isOpen) setForm(initialForm)
-  }, [isOpen])
+  function handleClose() {
+    setForm(initialForm)
+    onClose?.()
+  }
 
   const disabled = useMemo(() => {
     return (
       submitting ||
-      !form.name.trim() || !form.email.trim() || !form.password.trim()
+      !form.name.trim() ||
+      !form.email.trim() ||
+      !form.password.trim() ||
+      !form.number.trim()
     )
   }, [submitting, form])
 
@@ -34,21 +37,24 @@ export default function NewStudentModal({ classId, isOpen, onClose, onCreated })
   async function handleSubmit(e) {
     e.preventDefault()
     if (disabled) return
+    if (!/^[0-9]+$/.test(form.number)) {
+      toast.error('Número inválido')
+      return
+    }
+    if (form.password.length < 6) {
+      toast.error('Senha muito curta')
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      toast.error('E-mail inválido')
+      return
+    }
     setSubmitting(true)
     try {
-      const fd = new FormData()
-      fd.append('classId', classId)
-      fd.append('number', String(form.number ?? '').trim())
-      fd.append('name', form.name.trim())
-      fd.append('phone', form.phone.trim())
-      fd.append('email', form.email.trim())
-      fd.append('password', form.password) // será hash no backend
-      if (form.avatar) fd.append('avatar', form.avatar)
-
-      const created = await createStudent(fd) // POST /classes/:id/students (multipart)
+      const created = await create(classId, form)
       toast.success('Aluno criado')
       onCreated?.(created)
-      onClose()
+      handleClose()
     } catch (err) {
       console.error(err)
       toast.error('Erro ao criar aluno')
@@ -70,7 +76,7 @@ export default function NewStudentModal({ classId, isOpen, onClose, onCreated })
             <input
               type="file"
               accept="image/*"
-              onChange={(e) => set('avatar', e.target.files?.[0] ?? null)}
+              onChange={(e) => set('photoFile', e.target.files?.[0] ?? null)}
               className="block w-full rounded-lg border border-gray-300 p-2"
             />
           </div>
@@ -134,7 +140,7 @@ export default function NewStudentModal({ classId, isOpen, onClose, onCreated })
           </div>
 
           <div className="mt-6 flex items-center justify-end gap-3">
-            <button type="button" onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2">
+            <button type="button" onClick={handleClose} className="rounded-lg border border-gray-300 px-4 py-2">
               Cancelar
             </button>
             <button

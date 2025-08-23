@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import NewStudentModal from '@/components/NewStudentModal';
 import { getClassById } from '@/services/classes';
-import { listStudentsByClass } from '@/services/students';
+import { list } from '@/services/students';
 
 function TurmaAlunos() {
   const { classId } = useParams();
@@ -33,10 +33,10 @@ function TurmaAlunos() {
   const reloadStudents = () => {
     if (!classId) return;
     setLoading(true);
-    listStudentsByClass(classId)
-      .then((data) => setStudents(Array.isArray(data) ? data : []))
+    list(classId)
+      .then((data) => setStudents(Array.isArray(data) ? data.filter(Boolean) : []))
       .catch((err) => {
-        if (err.response?.status !== 404) {
+        if (err?.message) {
           toast.error('Erro ao carregar alunos');
         }
       })
@@ -100,22 +100,22 @@ function TurmaAlunos() {
                   </td>
                 </tr>
               ) : (
-                students.map((student) => (
+                students.filter(Boolean).map((student) => (
                   <tr
-                    key={student._id || student.id}
+                    key={student?._id || student?.id}
                     className="hover:bg-gray-50 text-center"
                   >
                     <td className="p-sm border">
                       <img
-                        src={student.photo || 'https://via.placeholder.com/40'}
+                        src={student?.photo || 'https://via.placeholder.com/40'}
                         alt="foto"
                         className="w-10 h-10 rounded-full object-cover mx-auto"
                       />
                     </td>
-                    <td className="p-sm border">{student.number}</td>
-                    <td className="p-sm border">{student.name}</td>
-                    <td className="p-sm border">{student.phone}</td>
-                    <td className="p-sm border">{student.email}</td>
+                    <td className="p-sm border">{student?.number ?? ''}</td>
+                    <td className="p-sm border">{student?.name ?? ''}</td>
+                    <td className="p-sm border">{student?.phone ?? ''}</td>
+                    <td className="p-sm border">{student?.email ?? ''}</td>
                   </tr>
                 ))
               )}
@@ -127,7 +127,9 @@ function TurmaAlunos() {
         classId={classId}
         isOpen={isNewOpen}
         onClose={() => setIsNewOpen(false)}
-        onCreated={reloadStudents}
+        onCreated={(student) => {
+          setStudents((prev) => [...prev, student]);
+        }}
       />
     </div>
   );
