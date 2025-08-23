@@ -1,8 +1,9 @@
 import axios from 'axios';
+import { API_BASE } from '@/lib/api';
 
-// baseURL vem do ambiente em produção; cai para localhost no dev
+// baseURL centralizado; cai para /api por padrão
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5050',
+  baseURL: API_BASE,
 });
 
 const pickData = (r) => (r?.data?.data ?? r?.data ?? r);

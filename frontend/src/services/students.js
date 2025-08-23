@@ -1,30 +1,39 @@
-import api from '@api'
+import { api } from '@/lib/api';
 
-export async function listStudentsByClass(classId) {
-  const { data } = await api.get(`/classes/${classId}/students`)
-  return data
+export async function list(classId) {
+  if (!classId) return [];
+  const res = await fetch(api(`/classes/${classId}/students`));
+  if (!res.ok) throw new Error('Failed to load students');
+  return res.json();
 }
 
-// Backwards-compatible alias for callers expecting a `listStudents` export
-// The service still requires a class identifier and falls back to the
-// class-based endpoint. When called without a class ID, the request will
-// reject and callers are expected to handle the failure (e.g. returning an
-// empty array).
-export async function listStudents(classId) {
-  return listStudentsByClass(classId)
+export async function create(classId, payload) {
+  const { photoFile, number, name, phone, email, password } = payload;
+  let body;
+  let headers = {};
+  if (photoFile) {
+    const fd = new FormData();
+    fd.append('classId', classId);
+    fd.append('number', number);
+    fd.append('name', name);
+    fd.append('phone', phone);
+    fd.append('email', email);
+    fd.append('password', password);
+    fd.append('photo', photoFile);
+    body = fd;
+  } else {
+    body = JSON.stringify({ number, name, phone, email, password, classId });
+    headers['Content-Type'] = 'application/json';
+  }
+  const res = await fetch(api(`/classes/${classId}/students`), {
+    method: 'POST',
+    headers,
+    body,
+  });
+  if (!res.ok) {
+    throw new Error('Failed to create student');
+  }
+  return res.json();
 }
 
-export async function createStudent(fd) {
-  const classId = String(fd.get('classId'))
-  const { data } = await api.post(`/classes/${classId}/students`, fd, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
-  return data
-}
-
-export default {
-  listStudentsByClass,
-  listStudents,
-  createStudent,
-}
-
+export default { list, create };

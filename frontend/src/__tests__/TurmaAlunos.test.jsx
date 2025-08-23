@@ -14,7 +14,7 @@ jest.mock('@/services/classes', () => ({
 }));
 
 jest.mock('@/services/students', () => ({
-  listStudentsByClass: jest.fn(),
+  list: jest.fn(),
 }));
 
 jest.mock('react-toastify', () => ({
@@ -25,9 +25,9 @@ describe('TurmaAlunos page', () => {
   test('renders class info and students', async () => {
     require('react-router-dom').useParams.mockReturnValue({ classId: '1' });
     const { getClassById } = require('@/services/classes');
-    const { listStudentsByClass } = require('@/services/students');
+    const { list } = require('@/services/students');
     getClassById.mockResolvedValue({ series: 1, letter: 'A', discipline: 'Mat' });
-    listStudentsByClass.mockResolvedValue([
+    list.mockResolvedValue([
       { id: 1, number: 1, name: 'Ana', phone: '123', email: 'a@test.com' },
     ]);
 
@@ -44,9 +44,9 @@ describe('TurmaAlunos page', () => {
   test('shows not found message', async () => {
     require('react-router-dom').useParams.mockReturnValue({ classId: '99' });
     const { getClassById } = require('@/services/classes');
-    const { listStudentsByClass } = require('@/services/students');
+    const { list } = require('@/services/students');
     getClassById.mockRejectedValue({ response: { status: 404 } });
-    listStudentsByClass.mockResolvedValue([]);
+    list.mockResolvedValue([]);
 
     render(
       <MemoryRouter>
