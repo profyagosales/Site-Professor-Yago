@@ -1,14 +1,16 @@
 const mongoose = require('mongoose');
 
 const evaluationSchema = new mongoose.Schema({
-  type: { type: String, required: true },
-  totalValue: { type: Number, required: true },
+  name: { type: String, required: true },
+  value: { type: Number, required: true, min: 0, max: 10 },
   bimester: { type: Number, required: true },
-  classes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Class' }],
-  numQuestions: { type: Number, required: true },
-  questionValue: { type: Number, required: true },
+  classes: [
+    {
+      classId: { type: mongoose.Schema.Types.ObjectId, ref: 'Class', required: true },
+      date: { type: Date, required: true }
+    }
+  ],
   answerKey: [{ type: String }],
-  applicationDate: { type: Date, required: true },
   gabaritos: {
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Gabarito' }],
     default: []
