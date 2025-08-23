@@ -1,4 +1,4 @@
-import { api } from '@/lib/http';
+import { api } from '@/lib/api';
 
 export const getStudentProfile = async () => (await api.get('/me')).data
 

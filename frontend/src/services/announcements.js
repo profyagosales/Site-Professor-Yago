@@ -1,4 +1,4 @@
-import { api } from '@/lib/http';
+import { api } from '@/lib/api';
 
 export async function listAnnouncements({ teacherId, limit = 3 }) {
   if (!teacherId) return [];

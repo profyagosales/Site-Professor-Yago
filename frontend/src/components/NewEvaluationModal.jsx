@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { listClasses } from '@/services/classes';
 import { createEvaluation } from '@/services/evaluations';
-import { toArray } from '@/lib/http';
+import { toArray } from '@/lib/api';
 import { toast } from 'react-toastify';
 
 function NewEvaluationModal({ isOpen, onClose, onSuccess }) {

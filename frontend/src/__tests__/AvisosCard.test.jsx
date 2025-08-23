@@ -1,4 +1,4 @@
-jest.mock('@/lib/http');
+jest.mock('@/lib/api');
 import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AvisosCard from '@/components/AvisosCard';

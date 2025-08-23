@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getStudentGrades, exportStudentPdf, sendStudentReport } from '@/services/grades';
 import { toast } from 'react-toastify';
-import { toArray } from '@/lib/http';
+import { toArray } from '@/lib/api';
 
 function DetalhesNotaAluno() {
   const { id } = useParams();
