@@ -16,7 +16,7 @@ export default function Header() {
   const role = getRole();
   const menu = role === 'teacher' ? TEACHER_MENU : [];
   return (
-    <header className="w-full border-b bg-white">
+    <header className="app-nav w-full border-b bg-white">
       <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
         <Link to="/" className="font-bold text-orange-600">Professor Yago</Link>
         <nav className="flex gap-4">

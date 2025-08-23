@@ -53,3 +53,8 @@ body {
     @apply flex items-center justify-center min-h-screen;
   }
 }
+
+/* Hide the navigation bar when any descendant has the no-nav class */
+body:has(.no-nav) .app-nav {
+  @apply hidden;
+}
