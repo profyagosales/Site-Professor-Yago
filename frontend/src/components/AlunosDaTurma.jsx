@@ -1,25 +1,5 @@
-import { useEffect, useState } from 'react';
-import { listStudents } from '@/services/students';
-import { toArray } from '@api';
-
-function AlunosDaTurma({ classId, students: externalStudents, onEdit, onDelete }) {
-  const [students, setStudents] = useState([]);
-
-  const arrify = (v) => {
-    const r = toArray ? toArray(v) : undefined;
-    return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
-  };
-
-  useEffect(() => {
-    if (externalStudents !== undefined) {
-      setStudents(externalStudents);
-      return;
-    }
-    if (!classId) return;
-    listStudents({ class: classId })
-      .then((data) => setStudents(arrify(data)))
-      .catch((err) => console.error('Erro ao buscar alunos:', err));
-  }, [classId, externalStudents]);
+function AlunosDaTurma({ students = [], onEdit, onDelete }) {
+  const arrify = (v) => (Array.isArray(v) ? v : v ? [v] : []);
 
   return (
     <div className="overflow-x-auto">
