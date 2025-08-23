@@ -7,7 +7,18 @@ const api = {
 const pickData = (r) => (r?.data?.data ?? r?.data ?? r);
 const toArray = (v) => (Array.isArray(v) ? v : v ? [v] : []);
 const loginTeacher = jest.fn(() => Promise.resolve({}));
-const loginStudent = jest.fn(() => Promise.resolve({}));
+const loginStudent = jest.fn(() => Promise.resolve(true));
+const loginStudentLegacy = jest.fn(() => Promise.resolve({}));
 api.loginTeacher = loginTeacher;
 api.loginStudent = loginStudent;
-module.exports = { __esModule: true, default: api, api, pickData, toArray, loginTeacher, loginStudent };
+api.loginStudentLegacy = loginStudentLegacy;
+module.exports = {
+  __esModule: true,
+  default: api,
+  api,
+  pickData,
+  toArray,
+  loginTeacher,
+  loginStudent,
+  loginStudentLegacy,
+};

@@ -16,7 +16,23 @@ api.interceptors.request.use((config) => {
 });
 
 const loginTeacher = (data) => api.post('/auth/login-teacher', data).then(pickData);
-const loginStudent = (data) => api.post('/auth/login-student', data).then(pickData);
+
+// versão padrão: autentica aluno por email e senha
+export async function loginStudent({ email, password }) {
+  return axios
+    .post('/auth/login-student', { email, password })
+    .then((r) => r.data?.ok);
+}
+
+// compatibilidade temporária com a antiga assinatura
+const loginStudentLegacy = (data) =>
+  api.post('/auth/login-student', data).then(pickData);
 
 export default api;
-export { api, pickData, toArray, loginTeacher, loginStudent };
+export {
+  api,
+  pickData,
+  toArray,
+  loginTeacher,
+  loginStudentLegacy,
+};
