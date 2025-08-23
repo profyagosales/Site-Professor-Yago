@@ -28,6 +28,7 @@ describe('NewStudentModal', () => {
     await userEvent.type(password, 'segredo');
     await userEvent.click(screen.getByRole('button', { name: /salvar/i }));
 
+
     expect(create).toHaveBeenCalledTimes(1);
     const payload = create.mock.calls[0][1];
     expect(payload.name).toBe('João');
