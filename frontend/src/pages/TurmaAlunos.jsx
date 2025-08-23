@@ -4,7 +4,6 @@ import { toast } from 'react-toastify';
 import StudentModal from '@/components/StudentModal';
 import { getClassById, listStudents } from '@/services/classes';
 import { createStudent } from '@/services/students';
-import { pickData } from '@api';
 
 function TurmaAlunos() {
   const { classId } = useParams();
@@ -13,14 +12,21 @@ function TurmaAlunos() {
   const [classData, setClassData] = useState(null);
   const [classLoading, setClassLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
     if (!classId) return;
     setClassLoading(true);
+    setNotFound(false);
     getClassById(classId)
-      .then(pickData)
       .then(setClassData)
-      .catch(() => toast.error('Erro ao carregar turma'))
+      .catch((err) => {
+        if (err.response?.status === 404) {
+          setNotFound(true);
+        } else {
+          toast.error('Erro ao carregar turma');
+        }
+      })
       .finally(() => setClassLoading(false));
   }, [classId]);
 
@@ -28,9 +34,12 @@ function TurmaAlunos() {
     if (!classId) return;
     setLoading(true);
     listStudents(classId)
-      .then(pickData)
       .then((data) => setStudents(Array.isArray(data) ? data : []))
-      .catch(() => toast.error('Erro ao carregar alunos'))
+      .catch((err) => {
+        if (err.response?.status !== 404) {
+          toast.error('Erro ao carregar alunos');
+        }
+      })
       .finally(() => setLoading(false));
   };
 
@@ -50,7 +59,7 @@ function TurmaAlunos() {
     }
   };
 
-  if (!classId) {
+  if (notFound) {
     return (
       <div className="pt-20 p-md">
         <p>Turma não encontrada</p>
