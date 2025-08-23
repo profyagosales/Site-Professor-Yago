@@ -4,15 +4,20 @@
   "description": "",
   "main": "index.js",
   "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "nodemon --prefix backend backend/server.js",
     "dev:client": "npm run dev --prefix frontend",
-    "build": "pnpm --filter frontend build",
+    "build": "npm run -w frontend build || vite build",
     "typecheck": "echo \"No typecheck configured\"",
-    "lint": "pnpm --filter backend lint && pnpm --filter frontend lint",
+    "lint": "npm run lint -w backend && npm run lint -w frontend",
     "test": "npm test --prefix backend && npm test --prefix frontend",
-    "prepush": "pnpm typecheck && pnpm build"
+    "prepush": "npm run typecheck && npm run build",
+    "postinstall": "node -v && npm -v"
   },
   "keywords": [],
   "author": "",
