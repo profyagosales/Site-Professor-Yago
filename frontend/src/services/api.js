@@ -19,9 +19,7 @@ const loginTeacher = (data) => api.post('/auth/login-teacher', data).then(pickDa
 
 // versão padrão: autentica aluno por email e senha
 export async function loginStudent({ email, password }) {
-  return axios
-    .post('/auth/login-student', { email, password })
-    .then((r) => r.data?.ok);
+  return api.post('/auth/login-student', { email, password }).then(pickData);
 }
 
 // compatibilidade temporária com a antiga assinatura

@@ -13,7 +13,8 @@ import { toast } from 'react-toastify';
 
 describe('LoginAluno', () => {
   test('submits form and navigates on success', async () => {
-    loginStudent.mockResolvedValue(true);
+    localStorage.clear();
+    loginStudent.mockResolvedValue({ token: 'abc', role: 'student' });
     const navigate = jest.fn();
     require('react-router-dom').useNavigate.mockReturnValue(navigate);
 
@@ -29,12 +30,14 @@ describe('LoginAluno', () => {
 
     await waitFor(() => {
       expect(loginStudent).toHaveBeenCalledWith({ email: 'a@b.com', password: 'senha' });
-      expect(navigate).toHaveBeenCalledWith('/dashboard-aluno');
+      expect(navigate).toHaveBeenCalledWith('/dashboard-aluno', { replace: true });
+      expect(localStorage.getItem('token')).toBe('abc');
+      expect(localStorage.getItem('role')).toBe('student');
     });
   });
 
   test('shows error toast on failure', async () => {
-    loginStudent.mockResolvedValue(false);
+    loginStudent.mockResolvedValue({});
     const navigate = jest.fn();
     require('react-router-dom').useNavigate.mockReturnValue(navigate);
 
