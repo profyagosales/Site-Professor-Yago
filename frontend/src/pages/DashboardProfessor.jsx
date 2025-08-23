@@ -1,188 +1,134 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import api, { pickData, toArray } from '@api';
-import { toast } from 'react-toastify';
-import SendEmailModal from '@/components/SendEmailModal';
-import AvisosCard from '@/components/AvisosCard';
-import NewContentModal from '@/components/NewContentModal';
-import NewEvaluationModal from '@/components/NewEvaluationModal';
-import CalendarIcon from '@/components/icons/CalendarIcon';
-import ListIcon from '@/components/icons/ListIcon';
-import BoardIcon from '@/components/icons/BoardIcon';
-import { listClasses } from '@/services/classes';
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
+import ProfileHeader from '@/components/ProfileHeader'
+import ScheduleTable from '@/components/ScheduleTable'
+import SendEmailModal from '@/components/SendEmailModal'
+import QuickContentModal from '@/components/QuickContentModal'
+import AnnouncementModal from '@/components/AnnouncementModal'
+import { getCurrentUser, logout } from '@/services/auth'
+import { listUpcomingContents } from '@/services/contents'
+import { listUpcomingExams } from '@/services/exams'
+import { listAnnouncements } from '@/services/announcements'
+import { getTeacherWeeklySchedule } from '@/services/schedule'
 
-function DashboardProfessor() {
-  const [evaluations, setEvaluations] = useState([]);
-  const [schedule, setSchedule] = useState([]);
-  const [contentProgress, setContentProgress] = useState([]);
-  const [showEmailModal, setShowEmailModal] = useState(false);
-  const [showContentModal, setShowContentModal] = useState(false);
-  const [showEvaluationModal, setShowEvaluationModal] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
-  const navigate = useNavigate();
-
-  const loadDashboard = async () => {
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
-    try {
-      const [dashRes, classRes] = await Promise.all([
-        api.get('/dashboard'),
-        listClasses().catch(() => []),
-      ]);
-      const data =
-        (pickData ? pickData(dashRes) : dashRes?.data?.data ?? dashRes?.data ?? dashRes) ||
-        {};
-      const arrify = (v) => {
-        const r = toArray ? toArray(v) : undefined;
-        return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
-      };
-      setEvaluations(arrify(data.upcomingEvaluations || data.evaluations));
-      setSchedule(arrify(data.schedule || data.schedules));
-      const clsMap = arrify(classRes).reduce((acc, c) => {
-        acc[c.classId] = c;
-        return acc;
-      }, {});
-      const progressArr = arrify(data.contentProgress).map((p) => ({
-        ...p,
-        completion: p.completion ?? p.progress ?? 0,
-        className: clsMap[p.classId]
-          ? `Turma ${clsMap[p.classId].series}${clsMap[p.classId].letter} - ${clsMap[p.classId].discipline}`
-          : p.classId,
-      }));
-      setContentProgress(progressArr);
-      setSuccess('Dados carregados');
-      toast.success('Dados carregados');
-    } catch (err) {
-      console.error('Erro ao carregar dashboard', err);
-      const message = 'Erro ao carregar dashboard';
-      setError(message);
-      toast.error(message);
-    } finally {
-      setLoading(false);
-    }
-  };
+function DashboardProfessor(){
+  const [user, setUser] = useState(null)
+  const [contents, setContents] = useState([])
+  const [exams, setExams] = useState([])
+  const [announcements, setAnnouncements] = useState([])
+  const [schedule, setSchedule] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showEmail, setShowEmail] = useState(false)
+  const [contentOpen, setContentOpen] = useState(false)
+  const [announcementOpen, setAnnouncementOpen] = useState(false)
+  const navigate = useNavigate()
 
   useEffect(() => {
-    loadDashboard();
-  }, []);
+    getCurrentUser()
+      .then(u => {
+        setUser(u)
+        return Promise.all([
+          listUpcomingContents({ teacherId: u.id }).catch(() => { toast.error('Não foi possível carregar conteúdos'); return [] }),
+          listUpcomingExams({ teacherId: u.id }).catch(() => { toast.error('Não foi possível carregar avaliações'); return [] }),
+          listAnnouncements({ teacherId: u.id }).catch(() => { toast.error('Não foi possível carregar avisos'); return [] }),
+          getTeacherWeeklySchedule(u.id).catch(() => { toast.error('Não foi possível carregar horário'); return [] })
+        ])
+      })
+      .then(([c,e,a,s]) => {
+        setContents(c)
+        setExams(e)
+        setAnnouncements(a)
+        setSchedule(s)
+      })
+      .catch(() => toast.error('Não foi possível carregar usuário'))
+      .finally(() => setLoading(false))
+  }, [])
 
-  if (loading) {
-    return (
-      <div className="pt-20 p-md">
-        <p>Carregando...</p>
-      </div>
-    );
+  const handleLogout = () => {
+    logout()
+    navigate('/')
   }
 
-  if (error) {
-    return (
-      <div className="pt-20 p-md">
-        <p className="text-red-500">{error}</p>
-      </div>
-    );
+  const reloadContents = async () => {
+    if(!user) return
+    try {
+      const data = await listUpcomingContents({ teacherId: user.id })
+      setContents(data)
+    } catch { toast.error('Não foi possível carregar conteúdos') }
   }
+
+  const reloadAnnouncements = async () => {
+    if(!user) return
+    try {
+      const data = await listAnnouncements({ teacherId: user.id })
+      setAnnouncements(data)
+    } catch { toast.error('Não foi possível carregar avisos') }
+  }
+
+  if(!user) return <div className="pt-20 p-md"><p>Carregando...</p></div>
 
   return (
-    <div className="pt-20 p-md">
-      <div className="flex gap-md mb-md">
-        <button className="btn-primary" onClick={() => setShowEmailModal(true)}>
-          Enviar e-mail
-        </button>
-        <button
-          className="btn-primary"
-          onClick={() => navigate('/dashboard-redacoes')}
-        >
-          Redações
-        </button>
-        <button
-          className="btn-primary"
-          onClick={() => setShowEvaluationModal(true)}
-        >
-          Nova avaliação
-        </button>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
-        <div className="card flex items-center">
-          <CalendarIcon className="w-6 h-6 text-orange mr-3" />
-          <div>
-            <p className="font-semibold">Próximas Avaliações</p>
-            <p className="text-sm text-black/70">
-              {evaluations.length || 0} agendadas
-            </p>
-          </div>
-        </div>
+    <div className="pt-4 p-md space-y-md">
+      <ProfileHeader name={user.name} subtitle="Professor" avatarUrl={user.avatarUrl} onLogout={handleLogout} />
 
-        <div className="card flex items-center">
-          <ListIcon className="w-6 h-6 text-orange mr-3" />
-          <div>
-            <p className="font-semibold">Horários de Aula</p>
-            <p className="text-sm text-black/70">
-              {schedule.length || 0} próximos
-            </p>
+      <div className="flex flex-wrap gap-md">
+        <button className="btn-primary" onClick={() => setShowEmail(true)}>Enviar e-mail</button>
+        <button className="btn-primary" onClick={() => setAnnouncementOpen(true)}>Adicionar aviso</button>
+        <button className="btn-primary" onClick={() => setContentOpen(true)}>Adicionar conteúdo</button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
+        <div className="card">
+          <div className="flex items-center justify-between mb-sm">
+            <h3 className="text-orange font-semibold">Próximos conteúdos</h3>
+            <button className="link-primary" onClick={() => navigate('/conteudos')}>Ver todos</button>
           </div>
+          {loading ? <p>Carregando...</p> : contents.length ? (
+            <ul className="space-y-1">
+              {contents.map(c => (
+                <li key={c.id} className="text-sm">{c.title} — {c.className} — {new Date(c.date).toLocaleDateString()}</li>
+              ))}
+            </ul>
+          ) : <p className="text-sm text-black/60">Nenhum conteúdo próximo</p>}
         </div>
 
         <div className="card">
-          <div className="flex items-start">
-            <BoardIcon className="w-6 h-6 text-orange mr-3 mt-1" />
-            <div className="flex-1">
-              <p className="font-semibold">Progresso do Conteúdo</p>
-              <div className="space-y-sm mt-2">
-                {contentProgress.map((p) => (
-                  <div key={p.classId}>
-                    <div className="flex justify-between text-sm">
-                      <span>{p.className}</span>
-                      <span>{Math.round(p.completion)}%</span>
-                    </div>
-                    <div className="w-full bg-lightGray rounded-full h-2">
-                      <div
-                        className="bg-orange h-2 rounded-full"
-                        style={{ width: `${p.completion}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-sm mt-md">
-                <button
-                  className="btn-primary flex-1"
-                  onClick={() => navigate('/conteudos')}
-                >
-                  Gerenciar conteúdos
-                </button>
-                <button
-                  className="btn-primary flex-1"
-                  onClick={() => setShowContentModal(true)}
-                >
-                  Novo conteúdo
-                </button>
-              </div>
-            </div>
+          <div className="flex items-center justify-between mb-sm">
+            <h3 className="text-orange font-semibold">Próximas avaliações</h3>
+            <button className="link-primary" onClick={() => navigate('/notas-classe')}>Ver todos</button>
           </div>
+          {loading ? <p>Carregando...</p> : exams.length ? (
+            <ul className="space-y-1">
+              {exams.map(e => (
+                <li key={e.id} className="text-sm">{e.title} — {e.className} — {new Date(e.date).toLocaleDateString()}</li>
+              ))}
+            </ul>
+          ) : <p className="text-sm text-black/60">Sem avaliações</p>}
         </div>
+
+        <div className="card">
+          <div className="flex items-center justify-between mb-sm">
+            <h3 className="text-orange font-semibold">Avisos recentes</h3>
+            <button className="link-primary" onClick={() => navigate('/avisos')}>Ver todos</button>
+          </div>
+          {loading ? <p>Carregando...</p> : announcements.length ? (
+            <ul className="space-y-1">
+              {announcements.map(a => (
+                <li key={a.id} className="text-sm">{a.title || a.message} — {new Date(a.createdAt).toLocaleDateString()}</li>
+              ))}
+            </ul>
+          ) : <p className="text-sm text-black/60">Sem avisos</p>}
+        </div>
+
+        <ScheduleTable schedules={schedule} />
       </div>
-      <div className="mt-md">
-        <AvisosCard />
-      </div>
-      <SendEmailModal
-        isOpen={showEmailModal}
-        onClose={() => setShowEmailModal(false)}
-      />
-      <NewContentModal
-        isOpen={showContentModal}
-        onClose={() => setShowContentModal(false)}
-        onSuccess={loadDashboard}
-      />
-      <NewEvaluationModal
-        isOpen={showEvaluationModal}
-        onClose={() => setShowEvaluationModal(false)}
-        onSuccess={loadDashboard}
-      />
+
+      <SendEmailModal isOpen={showEmail} onClose={() => setShowEmail(false)} />
+      <QuickContentModal open={contentOpen} onClose={() => setContentOpen(false)} onSaved={reloadContents} />
+      <AnnouncementModal open={announcementOpen} onClose={() => setAnnouncementOpen(false)} onSaved={reloadAnnouncements} />
     </div>
-  );
+  )
 }
 
-export default DashboardProfessor;
+export default DashboardProfessor

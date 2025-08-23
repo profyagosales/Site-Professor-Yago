@@ -16,11 +16,11 @@ function LoginProfessor() {
     setError('');
     setLoading(true);
     try {
-      const { token } = await loginTeacher(data);
+      const { token, role } = await loginTeacher(data);
       if (token) localStorage.setItem('token', token);
-      localStorage.setItem('role', 'teacher');
+      localStorage.setItem('role', role || 'teacher');
       toast.success('Login realizado');
-      navigate('/dashboard-professor', { replace: true });
+      navigate(role === 'teacher' ? '/dashboard-professor' : '/');
     } catch (err) {
       const message = err.response?.data?.message || 'Erro ao autenticar';
       setError(message);
@@ -31,7 +31,9 @@ function LoginProfessor() {
   };
 
   useEffect(() => {
-    if (localStorage.getItem('token')) {
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+    if (token && role === 'teacher') {
       navigate('/dashboard-professor', { replace: true });
     }
   }, [navigate]);
