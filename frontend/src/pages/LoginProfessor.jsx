@@ -20,7 +20,7 @@ function LoginProfessor() {
       if (token) localStorage.setItem('token', token);
       localStorage.setItem('role', role || 'teacher');
       toast.success('Login realizado');
-      navigate(role === 'teacher' ? '/dashboard-professor' : '/');
+      navigate(role === 'teacher' ? '/dashboard-professor' : '/', { replace: true });
     } catch (err) {
       const message = err.response?.data?.message || 'Erro ao autenticar';
       setError(message);

@@ -8,9 +8,11 @@ const SLOTS = [
 ]
 const DAYS = ['Segunda','Terça','Quarta','Quinta','Sexta']
 
-export default function ScheduleTable({ schedules=[] }) {
+export default function ScheduleTable({ schedules = [] }) {
   const map = new Map()
-  schedules.forEach(s => map.set(`${s.day}-${s.slot}`, s.label))
+  ;(Array.isArray(schedules) ? schedules : []).forEach(s =>
+    map.set(`${s.day}-${s.slot}`, s.label)
+  )
 
   return (
     <div className="st-card">
