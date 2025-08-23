@@ -1,101 +1,52 @@
 import { useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import AlunosDaTurma from '@/components/AlunosDaTurma';
 import StudentModal from '@/components/StudentModal';
-import { toArray } from '@api';
-import { listStudents, createStudent, updateStudent, deleteStudent } from '@/services/students';
-import { getClass } from '@/services/classes';
+import { getClassById, listStudents } from '@/services/classes';
+import { createStudent } from '@/services/students';
+import { pickData } from '@api';
 
 function TurmaAlunos() {
   const { classId } = useParams();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [classData, setClassData] = useState(null);
   const [classLoading, setClassLoading] = useState(false);
-  const [classError, setClassError] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
-  const arrify = (v) => {
-    const r = toArray ? toArray(v) : undefined;
-    return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
-  };
+  useEffect(() => {
+    if (!classId) return;
+    setClassLoading(true);
+    getClassById(classId)
+      .then(pickData)
+      .then(setClassData)
+      .catch(() => toast.error('Erro ao carregar turma'))
+      .finally(() => setClassLoading(false));
+  }, [classId]);
 
   const loadStudents = () => {
     if (!classId) return;
     setLoading(true);
-    listStudents({ class: classId })
-      .then((res) => setStudents(arrify(res)))
+    listStudents(classId)
+      .then(pickData)
+      .then((data) => setStudents(Array.isArray(data) ? data : []))
       .catch(() => toast.error('Erro ao carregar alunos'))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
-    if (!classId) return;
-    setClassLoading(true);
-    setClassError(null);
-    getClass(classId)
-      .then((res) => setClassData(res))
-      .catch((err) => {
-        const message = err.response?.data?.message || 'Erro ao carregar turma';
-        setClassError(message);
-        toast.error(message);
-      })
-      .finally(() => setClassLoading(false));
-  }, [classId]);
-
-  useEffect(() => {
     loadStudents();
   }, [classId]);
 
-  const handleAdd = () => {
-    setEditing(null);
-    setModalOpen(true);
-  };
-
-  const handleClose = () => {
-    setModalOpen(false);
-    setEditing(null);
-  };
-
-  const handleSubmit = async (student) => {
-    setLoading(true);
-    setError(null);
+  const handleSubmit = async (form) => {
     try {
-      if (editing) {
-        await updateStudent(editing._id, student);
-      } else {
-        await createStudent({ ...student, class: classId });
-      }
+      await createStudent(classId, form);
       toast.success('Aluno salvo');
-      handleClose();
+      setModalOpen(false);
       loadStudents();
     } catch (err) {
       const message = err.response?.data?.message || 'Erro ao salvar aluno';
-      setError(message);
       toast.error(message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDelete = async (student) => {
-    if (!window.confirm('Deseja excluir este aluno?')) return;
-    setLoading(true);
-    setError(null);
-    try {
-      await deleteStudent(student._id || student.id);
-      toast.success('Aluno excluído');
-      loadStudents();
-    } catch (err) {
-      const message = err.response?.data?.message || 'Erro ao excluir aluno';
-      setError(message);
-      toast.error(message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -107,49 +58,65 @@ function TurmaAlunos() {
     );
   }
 
-  if (classLoading || loading) {
-    return (
-      <div className="pt-20 p-md">
-        <p>Carregando...</p>
-      </div>
-    );
-  }
-
-  if (classError) {
-    return (
-      <div className="pt-20 p-md">
-        <p className="text-red-500">{classError}</p>
-      </div>
-    );
-  }
-
   return (
     <div className="pt-20 p-md">
       <div className="flex justify-between items-center mb-md">
         <h1 className="text-xl">
-          {classData
+          {classLoading
+            ? 'Carregando...'
+            : classData
             ? `${classData.series}º ${classData.letter} — ${classData.discipline}`
             : `Turma ${classId}`}
         </h1>
-        <button onClick={handleAdd} className="btn-primary">
-          Adicionar Aluno
+        <button onClick={() => setModalOpen(true)} className="btn-primary">
+          Novo Aluno
         </button>
       </div>
-      <AlunosDaTurma
-        classId={classId}
-        students={arrify(students)}
-        onEdit={(st) => {
-          setEditing(st);
-          setModalOpen(true);
-        }}
-        onDelete={handleDelete}
-      />
-      {error && <p className="text-red-500">{error}</p>}
+
+      {loading ? (
+        <p>Carregando...</p>
+      ) : students.length === 0 ? (
+        <p>Nenhum aluno cadastrado</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full border">
+            <thead>
+              <tr className="bg-gray-100 text-left">
+                <th className="p-sm border">Foto</th>
+                <th className="p-sm border">Nº</th>
+                <th className="p-sm border">Nome</th>
+                <th className="p-sm border">Telefone</th>
+                <th className="p-sm border">E-mail</th>
+              </tr>
+            </thead>
+            <tbody>
+              {students.map((student) => (
+                <tr
+                  key={student._id || student.id}
+                  className="hover:bg-gray-50 text-center"
+                >
+                  <td className="p-sm border">
+                    <img
+                      src={student.photo || 'https://via.placeholder.com/40'}
+                      alt="foto"
+                      className="w-10 h-10 rounded-full object-cover mx-auto"
+                    />
+                  </td>
+                  <td className="p-sm border">{student.rollNumber}</td>
+                  <td className="p-sm border">{student.name}</td>
+                  <td className="p-sm border">{student.phone}</td>
+                  <td className="p-sm border">{student.email}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       <StudentModal
         isOpen={modalOpen}
-        onClose={handleClose}
+        onClose={() => setModalOpen(false)}
         onSubmit={handleSubmit}
-        initialData={editing || {}}
       />
     </div>
   );
