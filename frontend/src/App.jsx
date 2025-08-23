@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { lazy, Suspense } from "react";
 import Landing from '@/pages/Landing';
 import LoginProfessor from '@/pages/LoginProfessor';
 import LoginAluno from '@/pages/LoginAluno';
@@ -19,6 +20,9 @@ import Conteudos from '@/pages/Conteudos';
 import Header from '@/components/Header';
 import { ToastContainer } from 'react-toastify';
 import RequireAuth from '@/components/RequireAuth';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import flags from "@/config/features";
+const Redacao = lazy(() => import("@/pages/professor/redacao"));
 
 const HIDE_HEADER_ON = ['/', '/login-professor', '/login-aluno'];
 
@@ -76,22 +80,37 @@ function App() {
               )
             }
           />
-          <Route
-            path="/aluno/redacao"
-            element={
-              <RequireAuth role="student">
-                <EnviarRedacao />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/dashboard-redacoes"
-            element={
-              <RequireAuth role="teacher">
-                <DashboardRedacoes />
-              </RequireAuth>
-            }
-          />
+          {flags.redaction && (
+            <>
+              <Route
+                path="/aluno/redacao"
+                element={
+                  <RequireAuth role="student">
+                    <EnviarRedacao />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/dashboard-redacoes"
+                element={
+                  <RequireAuth role="teacher">
+                    <DashboardRedacoes />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/professor/redacao"
+                element={
+                  <RequireAuth role="teacher">
+                    <Suspense fallback={<p>Carregando...</p>}>
+                      <Redacao />
+                    </Suspense>
+                  </RequireAuth>
+                }
+              />
+            </>
+          
+          )}
           <Route
             path="/turmas"
             element={
@@ -104,7 +123,9 @@ function App() {
             path="/turmas/:classId/alunos"
             element={
               <RequireAuth role="teacher">
-                <TurmaAlunos />
+                <ErrorBoundary>
+                  <TurmaAlunos />
+                </ErrorBoundary>
               </RequireAuth>
             }
           />
@@ -156,14 +177,16 @@ function App() {
               </RequireAuth>
             }
           />
-          <Route
-            path="/redacoes/:id/corrigir"
-            element={
-              <RequireAuth role="teacher">
-                <CorrigirRedacao />
-              </RequireAuth>
-            }
-          />
+          {flags.redaction && (
+            <Route
+              path="/redacoes/:id/corrigir"
+              element={
+                <RequireAuth role="teacher">
+                  <CorrigirRedacao />
+                </RequireAuth>
+              }
+            />
+          )}
           <Route path="/conteudos" element={<Conteudos />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
@@ -174,4 +197,3 @@ function App() {
 }
 
 export default App;
-
