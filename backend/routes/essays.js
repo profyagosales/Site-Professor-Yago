@@ -8,7 +8,8 @@ const {
   createEssay,
   listEssays,
   gradeEssay,
-  updateAnnotations
+  updateAnnotations,
+  renderCorrection
 } = require('../controllers/essaysController');
 
 const router = express.Router();
@@ -23,5 +24,6 @@ router.post('/', auth(), upload.single('file'), createEssay);
 router.get('/', auth(), listEssays);
 router.patch('/:id/grade', auth('teacher'), upload.single('correctedFile'), gradeEssay);
 router.patch('/:id/annotations', auth('teacher'), updateAnnotations);
+router.post('/:id/render-correction', auth('teacher'), renderCorrection);
 
 module.exports = router;
