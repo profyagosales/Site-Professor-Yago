@@ -1,7 +1,11 @@
 const express = require('express');
+const multer = require('multer');
+const auth = require('../middleware/auth');
 const Class = require('../models/Class');
+const Student = require('../models/Student');
 
 const router = express.Router();
+const upload = multer();
 
 // Get all classes
 router.get('/', async (req, res, next) => {
@@ -140,5 +144,64 @@ router.delete('/:id', async (req, res, next) => {
     next(err);
   }
 });
+
+// List students of a class
+router.get('/:id/students', auth(), async (req, res, next) => {
+  try {
+    const students = await Student.find({ class: req.params.id });
+    res.status(200).json({
+      success: true,
+      message: 'Alunos obtidos com sucesso',
+      data: students || []
+    });
+  } catch (err) {
+    err.status = 400;
+    err.message = 'Erro ao buscar alunos';
+    next(err);
+  }
+});
+
+// Create student for a class
+router.post(
+  '/:id/students',
+  auth(),
+  upload.single('photo'),
+  async (req, res, next) => {
+    try {
+      const { number, name, email, password, phone } = req.body;
+      if (!number || !name || !email || !password) {
+        const error = new Error(
+          'Campos obrigatórios: number, name, email, password'
+        );
+        error.status = 400;
+        throw error;
+      }
+
+      const studentData = {
+        class: req.params.id,
+        rollNumber: number,
+        name,
+        email,
+        password,
+        phone,
+      };
+      if (req.file) {
+        studentData.photo = req.file.buffer.toString('base64');
+      }
+      const newStudent = await Student.create(studentData);
+      res.status(200).json({
+        success: true,
+        message: 'Aluno criado com sucesso',
+        data: newStudent,
+      });
+    } catch (err) {
+      if (!err.status) {
+        err.status = 400;
+        err.message = 'Erro ao criar aluno';
+      }
+      next(err);
+    }
+  }
+);
 
 module.exports = router;
