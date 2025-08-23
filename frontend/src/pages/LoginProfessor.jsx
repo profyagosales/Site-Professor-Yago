@@ -1,26 +1,24 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import api from '@api';
 import { toast } from 'react-toastify';
+import { loginTeacher } from '@api';
+import LogoYS from '@/components/LogoYS';
+import '@/components/login.css';
 
 function LoginProfessor() {
   const { register, handleSubmit } = useForm();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const navigate = useNavigate();
 
   const onSubmit = async (data) => {
     setError('');
-    setSuccess('');
     setLoading(true);
     try {
-      const res = await api.post('/auth/login-teacher', data);
-      const { token } = res?.data?.data || res?.data || {};
+      const { token } = await loginTeacher(data);
       if (token) localStorage.setItem('token', token);
       localStorage.setItem('role', 'teacher');
-      setSuccess('Login realizado');
       toast.success('Login realizado');
       navigate('/dashboard-professor', { replace: true });
     } catch (err) {
@@ -47,27 +45,28 @@ function LoginProfessor() {
   }
 
   return (
-    <div className="page-centered">
-      <form onSubmit={handleSubmit(onSubmit)} className="card w-full max-w-sm">
+    <main className="login-screen no-nav">
+      <LogoYS size={120} showWords={false} />
+      <form onSubmit={handleSubmit(onSubmit)} className="login-card">
         <h2 className="text-xl text-center">Login Professor</h2>
         {error && <p className="text-red-500 mb-2">{error}</p>}
         <input
           type="email"
           placeholder="Email"
           {...register('email', { required: true })}
-          className="mb-4 w-full p-2 border rounded"
+          className="form-field"
         />
         <input
           type="password"
           placeholder="Senha"
           {...register('password', { required: true })}
-          className="mb-4 w-full p-2 border rounded"
+          className="form-field"
         />
-        <button type="submit" className="btn-primary w-full">
+        <button type="submit" className="btn-submit">
           Entrar
         </button>
       </form>
-    </div>
+    </main>
   );
 }
 

@@ -3,11 +3,11 @@ import './login.css';
 
 const words = ['Yago', 'School', 'Online'];
 
-const LogoYS = () => (
+const LogoYS = ({ size = 120, showWords = true }) => (
   <div className="logo-ys">
     <svg
-      width="120"
-      height="60"
+      width={size}
+      height={size / 2}
       viewBox="0 0 120 60"
       xmlns="http://www.w3.org/2000/svg"
     >
@@ -41,11 +41,13 @@ const LogoYS = () => (
         YS
       </text>
     </svg>
-    <div className="rotating-words">
-      {words.map((word, index) => (
-        <span key={word} style={{ '--i': index }}>{word}</span>
-      ))}
-    </div>
+    {showWords && (
+      <div className="rotating-words">
+        {words.map((word, index) => (
+          <span key={word} style={{ '--i': index }}>{word}</span>
+        ))}
+      </div>
+    )}
   </div>
 );
 
