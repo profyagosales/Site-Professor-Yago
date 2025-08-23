@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 function StudentModal({ isOpen, onClose, onSubmit, initialData = {} }) {
-  const [rollNumber, setRollNumber] = useState('');
+  const [number, setNumber] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -12,7 +12,7 @@ function StudentModal({ isOpen, onClose, onSubmit, initialData = {} }) {
 
   useEffect(() => {
     if (isOpen) {
-      setRollNumber(initialData.rollNumber ?? '');
+      setNumber(initialData.number ?? '');
       setName(initialData.name ?? '');
       setPhone(initialData.phone ?? '');
       setEmail(initialData.email ?? '');
@@ -34,7 +34,7 @@ function StudentModal({ isOpen, onClose, onSubmit, initialData = {} }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = {};
-    if (!rollNumber) newErrors.rollNumber = 'Informe o número';
+    if (!number) newErrors.number = 'Informe o número';
     if (!name.trim()) newErrors.name = 'Informe o nome';
     if (!phone.trim()) newErrors.phone = 'Informe o telefone';
     if (!email.trim()) newErrors.email = 'Informe o e-mail';
@@ -43,7 +43,7 @@ function StudentModal({ isOpen, onClose, onSubmit, initialData = {} }) {
     if (Object.keys(newErrors).length) return;
     try {
       await onSubmit({
-        rollNumber: Number(rollNumber),
+        number: Number(number),
         name,
         phone,
         email,
@@ -84,11 +84,11 @@ function StudentModal({ isOpen, onClose, onSubmit, initialData = {} }) {
             <input
               type="number"
               className="w-full border p-sm rounded"
-              value={rollNumber}
-              onChange={(e) => setRollNumber(e.target.value)}
+              value={number}
+              onChange={(e) => setNumber(e.target.value)}
             />
-            {errors.rollNumber && (
-              <p className="text-red-600 text-sm mt-1">{errors.rollNumber}</p>
+            {errors.number && (
+              <p className="text-red-600 text-sm mt-1">{errors.number}</p>
             )}
           </div>
           <div>

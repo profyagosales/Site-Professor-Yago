@@ -5,7 +5,7 @@ import AlunosDaTurma from '@/components/AlunosDaTurma';
 describe('AlunosDaTurma', () => {
   test('displays students passed via prop', async () => {
     const students = [
-      { id: 1, rollNumber: 1, name: 'Ana', email: 'ana@test.com' },
+      { id: 1, number: 1, name: 'Ana', email: 'ana@test.com' },
     ];
     const onEdit = jest.fn();
 

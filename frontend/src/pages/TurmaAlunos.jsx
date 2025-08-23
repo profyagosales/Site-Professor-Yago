@@ -111,7 +111,7 @@ function TurmaAlunos() {
                       className="w-10 h-10 rounded-full object-cover mx-auto"
                     />
                   </td>
-                  <td className="p-sm border">{student.rollNumber}</td>
+                  <td className="p-sm border">{student.number}</td>
                   <td className="p-sm border">{student.name}</td>
                   <td className="p-sm border">{student.phone}</td>
                   <td className="p-sm border">{student.email}</td>
