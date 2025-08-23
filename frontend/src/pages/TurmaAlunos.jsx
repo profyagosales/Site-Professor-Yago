@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import StudentModal from '@/components/StudentModal';
 import { getClassById, listStudents } from '@/services/classes';
-import { createStudent } from '@/services/students';
+import { createStudent, updateStudent } from '@/services/students';
 
 function TurmaAlunos() {
   const { classId } = useParams();
@@ -12,6 +12,7 @@ function TurmaAlunos() {
   const [classData, setClassData] = useState(null);
   const [classLoading, setClassLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
@@ -49,13 +50,22 @@ function TurmaAlunos() {
 
   const handleSubmit = async (form) => {
     try {
-      await createStudent(classId, form);
-      toast.success('Aluno salvo');
+      if (selectedStudent && selectedStudent._id) {
+        await updateStudent(selectedStudent._id, form);
+        toast.success('Aluno atualizado');
+      } else {
+        await createStudent(classId, form);
+        toast.success('Aluno salvo');
+      }
       setModalOpen(false);
       loadStudents();
     } catch (err) {
-      const message = err.response?.data?.message || 'Erro ao salvar aluno';
-      toast.error(message);
+      if (err.response?.status === 409) {
+        toast.error('E-mail já utilizado');
+      } else {
+        const message = err.response?.data?.message || 'Erro ao salvar aluno';
+        toast.error(message);
+      }
     }
   };
 
@@ -77,7 +87,13 @@ function TurmaAlunos() {
             ? `${classData.series}º ${classData.letter} — ${classData.discipline}`
             : `Turma ${classId}`}
         </h1>
-        <button onClick={() => setModalOpen(true)} className="btn-primary">
+        <button
+          onClick={() => {
+            setSelectedStudent(null);
+            setModalOpen(true);
+          }}
+          className="btn-primary"
+        >
           Novo Aluno
         </button>
       </div>
@@ -94,13 +110,14 @@ function TurmaAlunos() {
                 <th className="p-sm border">Nome</th>
                 <th className="p-sm border">Telefone</th>
                 <th className="p-sm border">E-mail</th>
+                <th className="p-sm border">Ações</th>
               </tr>
             </thead>
             <tbody>
               {students.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="5"
+                    colSpan="6"
                     className="p-sm border text-center text-gray-500"
                   >
                     Nenhum aluno cadastrado
@@ -123,6 +140,17 @@ function TurmaAlunos() {
                     <td className="p-sm border">{student.name}</td>
                     <td className="p-sm border">{student.phone}</td>
                     <td className="p-sm border">{student.email}</td>
+                    <td className="p-sm border">
+                      <button
+                        onClick={() => {
+                          setSelectedStudent(student);
+                          setModalOpen(true);
+                        }}
+                        className="btn-secondary text-sm"
+                      >
+                        Editar
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}
@@ -135,6 +163,7 @@ function TurmaAlunos() {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         onSubmit={handleSubmit}
+        initialData={selectedStudent}
       />
     </div>
   );
