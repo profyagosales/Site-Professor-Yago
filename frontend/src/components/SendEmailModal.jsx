@@ -34,7 +34,7 @@ function SendEmailModal({ isOpen, onClose }) {
 
   useEffect(() => {
     if (isOpen) loadRecipients();
-  }, [isOpen]);
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChange = (e) => {
     const selected = Array.from(e.target.selectedOptions).map(opt => opt.value);

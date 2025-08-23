@@ -207,7 +207,6 @@ export default function DashboardAluno() {
       setLoading(false)
     }
   }
-
   useEffect(() => {
     const role = localStorage.getItem('role')
     if (role !== 'student') {
@@ -215,7 +214,7 @@ export default function DashboardAluno() {
       return
     }
     load()
-  }, [term])
+  }, [term]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return <div className="p-md">Carregando...</div>

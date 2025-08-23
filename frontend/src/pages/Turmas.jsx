@@ -24,10 +24,9 @@ function Turmas() {
       .catch(() => toast.error('Erro ao carregar turmas'))
       .finally(() => setLoading(false));
   };
-
   useEffect(() => {
     loadTurmas();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = (data) => {
     setLoading(true);

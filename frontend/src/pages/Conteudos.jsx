@@ -36,10 +36,9 @@ function Conteudos() {
       .catch(() => toast.error('Erro ao carregar dados'))
       .finally(() => setLoading(false));
   };
-
   useEffect(() => {
     loadData();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = arrify(contents).filter(
     (c) =>
