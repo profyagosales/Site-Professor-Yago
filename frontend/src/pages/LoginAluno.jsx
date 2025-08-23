@@ -2,19 +2,22 @@ import "@/styles/landing.css";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginStudent } from "@api";
+import { toast } from "react-toastify";
 
 export default function LoginAluno() {
-  const [numero, setNumero] = useState("");
-  const [telefone, setTelefone] = useState("");
+  const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const nav = useNavigate();
 
   async function onSubmit(e) {
     e.preventDefault();
-    const { token, role } = await loginStudent({ rollNumber: numero, phone: telefone, password: senha });
-    if (token) localStorage.setItem("token", token);
-    localStorage.setItem("role", role || "student");
-    nav("/dashboard-aluno", { replace: true });
+    try {
+      const ok = await loginStudent({ email, password: senha });
+      if (ok) nav("/dashboard-aluno");
+      else toast.error("E-mail ou senha inválidos");
+    } catch {
+      toast.error("E-mail ou senha inválidos");
+    }
   }
 
   return (
@@ -23,14 +26,31 @@ export default function LoginAluno() {
         <div className="auth-watermark">YS</div>
         <h1 className="auth-title">Login Aluno</h1>
 
-        <input className="auth-field" placeholder="Número" value={numero}
-               onChange={(e) => setNumero(e.target.value)} required />
-        <input className="auth-field" placeholder="Telefone" value={telefone}
-               onChange={(e) => setTelefone(e.target.value)} required />
-        <input className="auth-field" type="password" placeholder="Senha" value={senha}
-               onChange={(e) => setSenha(e.target.value)} required />
+        <input
+          className="auth-field"
+          type="email"
+          placeholder="E-mail"
+          aria-label="E-mail"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
 
-        <button className="auth-submit" type="submit">Entrar</button>
+        <input
+          className="auth-field"
+          type="password"
+          placeholder="Senha"
+          aria-label="Senha"
+          autoComplete="current-password"
+          value={senha}
+          onChange={(e) => setSenha(e.target.value)}
+          required
+        />
+
+        <button className="auth-submit" type="submit">
+          Entrar
+        </button>
       </form>
     </main>
   );
