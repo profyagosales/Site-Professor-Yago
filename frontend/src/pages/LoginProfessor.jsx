@@ -1,7 +1,7 @@
 import "@/styles/landing.css"; // para usar o mesmo gradiente/estilos
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { loginTeacher } from "@api"; // ajuste ao serviço existente
+import { loginTeacher } from '@/services/auth';
 
 export default function LoginProfessor() {
   const [email, setEmail] = useState("");

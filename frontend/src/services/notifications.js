@@ -1,4 +1,4 @@
-import api, { pickData } from '@api';
+import { api, pickData } from '@/lib/http';
 
 export const getNotifications = () =>
   api.get('/notifications').then(pickData);

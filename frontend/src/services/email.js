@@ -1,4 +1,4 @@
-import api from '@api';
+import { api } from '@/lib/http';
 
 export async function sendEmail(payload) {
   return (await api.post('/email/send', payload))?.data;

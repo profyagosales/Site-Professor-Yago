@@ -213,6 +213,7 @@ export default function DashboardAluno() {
 
   useEffect(() => {
     load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [term])
 
   useEffect(() => {

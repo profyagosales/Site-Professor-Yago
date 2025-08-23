@@ -1,4 +1,4 @@
-import api, { pickData } from '@api';
+import { api, pickData } from '@/lib/http';
 
 export const createEvaluation = ({ name, value, bimester, classes }) =>
   api

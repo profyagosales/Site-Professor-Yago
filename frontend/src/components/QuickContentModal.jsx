@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { listClasses } from '@/services/classes'
 import { quickCreateContent } from '@/services/contents'
-import { toArray } from '@api'
+import { toArray } from '@/lib/http'
 import { toast } from 'react-toastify'
 
 export default function QuickContentModal({ open, onClose, onSaved }) {

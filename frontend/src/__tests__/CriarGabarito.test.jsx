@@ -1,4 +1,4 @@
-jest.mock('@api');
+jest.mock('@/lib/http');
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import CriarGabarito from '@/pages/CriarGabarito';

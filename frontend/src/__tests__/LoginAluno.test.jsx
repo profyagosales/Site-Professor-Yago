@@ -1,4 +1,4 @@
-jest.mock('@api');
+jest.mock('@/services/auth');
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: jest.fn(),
@@ -8,7 +8,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import LoginAluno from '@/pages/LoginAluno';
-import { loginStudent } from '@api';
+import { loginStudent } from '@/services/auth';
 import { toast } from 'react-toastify';
 
 describe('LoginAluno', () => {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { toArray } from '@api';
+import { toArray } from '@/lib/http';
 import { listClasses } from '@/services/classes';
 import { listStudents } from '@/services/students';
 import { sendEmail } from '@/services/email';
