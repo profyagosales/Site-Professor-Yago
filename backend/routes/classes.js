@@ -7,6 +7,9 @@ const Student = require('../models/Student');
 const router = express.Router();
 const upload = multer();
 
+const allowedDays = ['SEGUNDA', 'TERCA', 'QUARTA', 'QUINTA', 'SEXTA'];
+const allowedSlots = [1, 2, 3];
+
 // Get all classes
 router.get('/', async (req, res, next) => {
   try {
@@ -53,11 +56,14 @@ router.post('/', async (req, res, next) => {
   try {
     const { series, letter, discipline, schedule } = req.body;
     if (
-      schedule !== undefined &&
-      (!Array.isArray(schedule) ||
-        !schedule.every(
-          (s) => typeof s.day === 'number' && typeof s.slot === 'number'
-        ))
+      !Array.isArray(schedule) ||
+      schedule.length === 0 ||
+      !schedule.every(
+        (s) =>
+          s &&
+          allowedDays.includes(s.day) &&
+          allowedSlots.includes(s.slot)
+      )
     ) {
       const error = new Error('Campo "schedule" inválido');
       error.status = 400;
@@ -88,11 +94,14 @@ router.put('/:id', async (req, res, next) => {
   try {
     const { series, letter, discipline, schedule } = req.body;
     if (
-      schedule !== undefined &&
-      (!Array.isArray(schedule) ||
-        !schedule.every(
-          (s) => typeof s.day === 'number' && typeof s.slot === 'number'
-        ))
+      !Array.isArray(schedule) ||
+      schedule.length === 0 ||
+      !schedule.every(
+        (s) =>
+          s &&
+          allowedDays.includes(s.day) &&
+          allowedSlots.includes(s.slot)
+      )
     ) {
       const error = new Error('Campo "schedule" inválido');
       error.status = 400;

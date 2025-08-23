@@ -8,7 +8,7 @@ describe('Classes routes', () => {
       series: 1,
       letter: 'A',
       discipline: 'Math',
-      schedule: [{ day: 1, slot: 2 }],
+      schedule: [{ day: 'SEGUNDA', slot: 2 }],
     });
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
@@ -17,7 +17,7 @@ describe('Classes routes', () => {
 
     const cls = await Class.findOne({ series: 1, letter: 'A' });
     expect(cls).not.toBeNull();
-    expect(cls.schedule[0]).toMatchObject({ day: 1, slot: 2 });
+    expect(cls.schedule[0]).toMatchObject({ day: 'SEGUNDA', slot: 2 });
   });
 
   it('validates schedule data', async () => {
