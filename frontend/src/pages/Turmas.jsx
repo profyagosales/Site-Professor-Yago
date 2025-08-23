@@ -17,12 +17,22 @@ function Turmas() {
     return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
   };
 
-  const loadTurmas = () => {
+  const loadTurmas = async () => {
     setLoading(true);
-    listClasses()
-      .then((res) => setClasses(arrify(res)))
-      .catch(() => toast.error('Erro ao carregar turmas'))
-      .finally(() => setLoading(false));
+    try {
+      const res = await listClasses();
+      setClasses(arrify(res));
+    } catch (e) {
+      const status = e?.response?.status;
+      const msg =
+        status === 404
+          ? 'Serviço de turmas indisponível (404). Verifique a URL da API.'
+          : 'Erro ao carregar turmas. Tente novamente.';
+      toast.error(msg);
+      setClasses([]);
+    } finally {
+      setLoading(false);
+    }
   };
   useEffect(() => {
     loadTurmas();
