@@ -46,8 +46,12 @@ describe('Class students routes', () => {
   });
 
   it('returns 410 for deprecated /students route', async () => {
-    const res = await request(app).get('/students');
+    const token = await registerTeacher();
+    const res = await request(app)
+      .get('/students')
+      .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(410);
+    expect(res.body.success).toBe(false);
   });
 });
 
