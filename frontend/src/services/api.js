@@ -16,6 +16,7 @@ api.interceptors.request.use((config) => {
 });
 
 const loginTeacher = (data) => api.post('/auth/login-teacher', data).then(pickData);
+const loginStudent = (data) => api.post('/auth/login-student', data).then(pickData);
 
 export default api;
-export { api, pickData, toArray, loginTeacher };
+export { api, pickData, toArray, loginTeacher, loginStudent };

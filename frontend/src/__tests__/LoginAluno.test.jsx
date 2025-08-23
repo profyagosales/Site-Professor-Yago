@@ -7,12 +7,12 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import LoginAluno from '@/pages/LoginAluno';
-import api, { pickData, toArray } from '@api';
+import { loginStudent } from '@api';
 
 describe('LoginAluno', () => {
   test('submits form and navigates', async () => {
     localStorage.clear();
-    api.post.mockResolvedValue({ data: { success: true, message: '', data: { token: 'abc', role: 'student' } } });
+    loginStudent.mockResolvedValue({ token: 'abc', role: 'student' });
     const navigate = jest.fn();
     require('react-router-dom').useNavigate.mockReturnValue(navigate);
 
@@ -28,10 +28,11 @@ describe('LoginAluno', () => {
     await userEvent.click(screen.getByRole('button', { name: /Entrar/i }));
 
     await waitFor(() => {
-      expect(api.post).toHaveBeenCalledWith(
-        '/auth/login-student',
-        { rollNumber: '1', phone: '999999999', password: 'senha' }
-      );
+      expect(loginStudent).toHaveBeenCalledWith({
+        rollNumber: '1',
+        phone: '999999999',
+        password: 'senha'
+      });
       expect(navigate).toHaveBeenCalledWith('/dashboard-aluno', { replace: true });
       expect(localStorage.getItem('token')).toBe('abc');
       expect(localStorage.getItem('role')).toBe('student');

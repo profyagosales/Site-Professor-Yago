@@ -1,26 +1,24 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import api from '@api';
 import { toast } from 'react-toastify';
+import { loginStudent } from '@api';
+import LogoYS from '@/components/LogoYS';
+import '@/components/login.css';
 
 function LoginAluno() {
   const { register, handleSubmit } = useForm();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const navigate = useNavigate();
 
   const onSubmit = async (data) => {
     setError('');
-    setSuccess('');
     setLoading(true);
     try {
-      const res = await api.post('/auth/login-student', data);
-      const { token } = res?.data?.data || res?.data || {};
+      const { token } = await loginStudent(data);
       if (token) localStorage.setItem('token', token);
       localStorage.setItem('role', 'student');
-      setSuccess('Login realizado');
       toast.success('Login realizado');
       navigate('/dashboard-aluno', { replace: true });
     } catch (err) {
@@ -47,34 +45,36 @@ function LoginAluno() {
   }
 
   return (
-    <div className="page-centered">
-      <form onSubmit={handleSubmit(onSubmit)} className="card w-full max-w-sm">
+    <main className="login-screen no-nav">
+      <LogoYS size={120} showWords={false} />
+      <form onSubmit={handleSubmit(onSubmit)} className="login-card">
         <h2 className="text-xl text-center">Login Aluno</h2>
         {error && <p className="text-red-500 mb-2">{error}</p>}
         <input
           type="number"
           placeholder="Número"
           {...register('rollNumber', { required: true })}
-          className="mb-4 w-full p-2 border rounded"
+          className="form-field"
         />
         <input
           type="tel"
           placeholder="Telefone"
           {...register('phone', { required: true })}
-          className="mb-4 w-full p-2 border rounded"
+          className="form-field"
         />
         <input
           type="password"
           placeholder="Senha"
           {...register('password', { required: true })}
-          className="mb-4 w-full p-2 border rounded"
+          className="form-field"
         />
-        <button type="submit" className="btn-primary w-full">
+        <button type="submit" className="btn-submit">
           Entrar
         </button>
       </form>
-    </div>
+    </main>
   );
 }
 
 export default LoginAluno;
+
