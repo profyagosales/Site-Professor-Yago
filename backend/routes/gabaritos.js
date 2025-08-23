@@ -1,11 +1,12 @@
 const express = require('express');
 const multer = require('multer');
+const auth = require('../middleware/auth');
 const { buildGabaritoPDF } = require('../utils/gabaritoPdf');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-router.post('/', upload.fields([{ name: 'logoLeft' }, { name: 'logoRight' }]), async (req, res, next) => {
+router.post('/', auth(), upload.fields([{ name: 'logoLeft' }, { name: 'logoRight' }]), async (req, res, next) => {
   try {
     const logoLeft = (req.files?.logoLeft?.[0]) || null;
     const logoRight = (req.files?.logoRight?.[0]) || null;

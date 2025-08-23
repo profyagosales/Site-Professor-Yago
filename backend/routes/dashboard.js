@@ -7,7 +7,8 @@ const Content = require('../models/Content');
 const router = express.Router();
 
 async function getContentProgress(req) {
-  const teacherId = req.user._id;
+  const teacherId = req.user && req.user._id;
+  if (!teacherId) return [];
 
   const bimester =
     req.query.bimester !== undefined

@@ -11,9 +11,10 @@ beforeAll(async () => {
   process.env.MONGOMS_VERSION = '7.0.3';
   process.env.MONGOMS_ARCHIVE_NAME =
     'mongodb-linux-x86_64-ubuntu2204-7.0.3.tgz';
-  process.env.MONGOMS_STORAGE_ENGINE = 'wiredTiger';
   // process.env.MONGOMS_DOWNLOAD_DIR = path.join(__dirname, '..', '.mongodb-binaries');
-  mongo = await MongoMemoryServer.create();
+  mongo = await MongoMemoryServer.create({
+    instance: { storageEngine: 'wiredTiger' },
+  });
   const uri = mongo.getUri();
   await mongoose.connect(uri);
 });

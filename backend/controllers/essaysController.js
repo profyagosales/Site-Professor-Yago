@@ -230,7 +230,7 @@ async function gradeEssay(req, res) {
       correctedUrl
     });
 
-    if (sendEmail) {
+    if (typeof sendEmail === 'function') {
       const student = await Student.findById(essay.studentId);
       const classInfo = await Class.findById(essay.classId);
       const html = `<!DOCTYPE html><p>Olá ${student.name},</p>

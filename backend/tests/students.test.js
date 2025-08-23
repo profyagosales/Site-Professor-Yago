@@ -1,6 +1,7 @@
 const request = require('supertest');
 const mongoose = require('mongoose');
 const { app } = require('../app');
+const Class = require('../models/Class');
 
 const registerTeacher = async () => {
   const res = await request(app)
@@ -27,12 +28,8 @@ describe('Class students routes', () => {
 
   it('creates a student in class', async () => {
     const token = await registerTeacher();
-    const classRes = await request(app).post('/classes').send({
-      series: 1,
-      letter: 'A',
-      discipline: 'Math',
-    });
-    const classId = classRes.body.data._id;
+    const classDoc = await Class.create({ series: 1, letter: 'A', discipline: 'Math' });
+    const classId = classDoc._id;
     const res = await request(app)
       .post(`/classes/${classId}/students`)
       .set('Authorization', `Bearer ${token}`)

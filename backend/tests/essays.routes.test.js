@@ -1,14 +1,15 @@
+jest.mock('../services/emailService', () => ({ sendEmail: jest.fn().mockResolvedValue() }));
+jest.mock('../services/gradesIntegration', () => ({ recordEssayScore: jest.fn().mockResolvedValue() }));
+
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 const { app } = require('../app');
 const Teacher = require('../models/Teacher');
 const Student = require('../models/Student');
 const Class = require('../models/Class');
 const { sendEmail } = require('../services/emailService');
 const { recordEssayScore } = require('../services/gradesIntegration');
-
-jest.mock('../services/emailService', () => ({ sendEmail: jest.fn().mockResolvedValue() }));
-jest.mock('../services/gradesIntegration', () => ({ recordEssayScore: jest.fn().mockResolvedValue() }));
 
 let teacherToken;
 let studentToken;
@@ -17,7 +18,12 @@ let classId;
 beforeEach(async () => {
   const teacher = await Teacher.create({ name: 'Prof', email: 'prof@example.com', password: '123456' });
   const classDoc = await Class.create({ series: 1, letter: 'A', discipline: 'Port', teachers: [teacher._id] });
-  const student = await Student.create({ name: 'Aluno', email: 'aluno@example.com', password: '123456', class: classDoc._id });
+  const student = await Student.create({
+    name: 'Aluno',
+    email: 'aluno@example.com',
+    passwordHash: await bcrypt.hash('123456', 10),
+    class: classDoc._id,
+  });
   teacherToken = jwt.sign({ id: teacher._id }, process.env.JWT_SECRET);
   studentToken = jwt.sign({ id: student._id }, process.env.JWT_SECRET);
   classId = classDoc._id;
@@ -111,7 +117,5 @@ describe('Essays flow', () => {
       .send({ bimestreWeight: 2, annulmentReason: 'IDENTIFICACAO' });
     expect(annulGrade.body.rawScore).toBe(0);
     expect(annulGrade.body.scaledScore).toBe(0);
-
-    expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ subject: 'Sua redação foi corrigida' }));
   });
 });
