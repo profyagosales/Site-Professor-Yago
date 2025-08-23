@@ -41,7 +41,7 @@ router.post('/', upload.single('photo'), async (req, res, next) => {
       email
     };
     if (req.file) {
-      studentData.photo = req.file.buffer;
+      studentData.photo = req.file.buffer.toString('base64');
     }
     const newStudent = await Student.create(studentData);
     res.status(200).json(newStudent);
