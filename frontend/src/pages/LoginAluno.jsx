@@ -20,7 +20,7 @@ function LoginAluno() {
       if (token) localStorage.setItem('token', token);
       localStorage.setItem('role', role || 'student');
       toast.success('Login realizado');
-      navigate(role === 'student' ? '/dashboard-aluno' : '/');
+      navigate(role === 'student' ? '/dashboard-aluno' : '/', { replace: true });
     } catch (err) {
       const message = err.response?.data?.message || 'Erro ao autenticar';
       setError(message);

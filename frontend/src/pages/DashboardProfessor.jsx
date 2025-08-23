@@ -95,7 +95,7 @@ function DashboardProfessor(){
 
         <div className="card">
           <div className="flex items-center justify-between mb-sm">
-            <h3 className="text-orange font-semibold">Próximas avaliações</h3>
+            <h3 className="text-orange font-semibold">Próximas Avaliações</h3>
             <button className="link-primary" onClick={() => navigate('/notas-classe')}>Ver todos</button>
           </div>
           {loading ? <p>Carregando...</p> : exams.length ? (
