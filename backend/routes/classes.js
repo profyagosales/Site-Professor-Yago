@@ -1,5 +1,7 @@
 const express = require('express');
 const multer = require('multer');
+const bcrypt = require('bcrypt');
+const { body, validationResult } = require('express-validator');
 const auth = require('../middleware/auth');
 const Class = require('../models/Class');
 const Student = require('../models/Student');
@@ -197,13 +199,24 @@ router.post(
   '/:id/students',
   auth(),
   upload.single('photo'),
+  [body('email').isEmail(), body('password').isLength({ min: 6 })],
   async (req, res, next) => {
     try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        const error = new Error('Dados inválidos');
+        error.status = 400;
+        throw error;
+      }
       const { number, name, email, password, phone } = req.body;
-      if (!number || !name || !email || !password) {
-        const error = new Error(
-          'Campos obrigatórios: number, name, email, password'
-        );
+      if (!number || !name) {
+        const error = new Error('Campos obrigatórios: number, name');
+        error.status = 400;
+        throw error;
+      }
+      const existing = await Student.findOne({ email: email.toLowerCase() });
+      if (existing) {
+        const error = new Error('Email já cadastrado');
         error.status = 400;
         throw error;
       }
@@ -213,22 +226,85 @@ router.post(
         rollNumber: number,
         name,
         email,
-        password,
         phone,
+        passwordHash: await bcrypt.hash(password, 10),
       };
       if (req.file) {
         studentData.photo = req.file.buffer.toString('base64');
       }
       const newStudent = await Student.create(studentData);
+      const { passwordHash, ...studentSafe } = newStudent.toObject();
       res.status(200).json({
         success: true,
         message: 'Aluno criado com sucesso',
-        data: newStudent,
+        data: studentSafe,
       });
     } catch (err) {
       if (!err.status) {
         err.status = 400;
         err.message = 'Erro ao criar aluno';
+      }
+      next(err);
+    }
+  }
+);
+
+// Update student for a class
+router.put(
+  '/:classId/students/:studentId',
+  auth(),
+  upload.single('photo'),
+  [body('email').optional().isEmail(), body('password').optional().isLength({ min: 6 })],
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        const error = new Error('Dados inválidos');
+        error.status = 400;
+        throw error;
+      }
+      const { classId, studentId } = req.params;
+      const { number, name, email, password, phone } = req.body;
+      const updates = {};
+      if (number !== undefined) updates.rollNumber = number;
+      if (name !== undefined) updates.name = name;
+      if (email !== undefined) {
+        const lower = email.toLowerCase();
+        const existing = await Student.findOne({ email: lower, _id: { $ne: studentId } });
+        if (existing) {
+          const error = new Error('Email já cadastrado');
+          error.status = 400;
+          throw error;
+        }
+        updates.email = lower;
+      }
+      if (password) {
+        updates.passwordHash = await bcrypt.hash(password, 10);
+      }
+      if (phone !== undefined) updates.phone = phone;
+      if (req.file) {
+        updates.photo = req.file.buffer.toString('base64');
+      }
+      const student = await Student.findOneAndUpdate(
+        { _id: studentId, class: classId },
+        updates,
+        { new: true }
+      );
+      if (!student) {
+        const error = new Error('Aluno não encontrado');
+        error.status = 404;
+        throw error;
+      }
+      const { passwordHash, ...studentSafe } = student.toObject();
+      res.status(200).json({
+        success: true,
+        message: 'Aluno atualizado com sucesso',
+        data: studentSafe,
+      });
+    } catch (err) {
+      if (!err.status) {
+        err.status = 400;
+        err.message = 'Erro ao atualizar aluno';
       }
       next(err);
     }

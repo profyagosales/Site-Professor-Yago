@@ -17,7 +17,7 @@ const auth = (role) => async (req, res, next) => {
     let profile = 'teacher';
 
     if (!user) {
-      user = await Student.findById(decoded.id).select('-password');
+      user = await Student.findById(decoded.id).select('-passwordHash');
       profile = 'student';
     }
 
