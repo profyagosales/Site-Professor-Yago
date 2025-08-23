@@ -106,7 +106,7 @@ router.post('/login-teacher', async (req, res, next) => {
 router.post('/login-student', async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    const student = await Student.findOne({ email });
+    const student = await Student.findOne({ email }).select('+password');
     if (!student) {
       const error = new Error('Credenciais inválidas');
       error.status = 400;
