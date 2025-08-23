@@ -1,4 +1,4 @@
-import api, { toArray } from '@api';
+import { api, toArray } from '@/lib/http';
 
 const arrify = (v) => {
   const r = toArray ? toArray(v) : undefined;

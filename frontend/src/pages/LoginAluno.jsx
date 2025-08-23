@@ -1,7 +1,7 @@
 import "@/styles/landing.css";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { loginStudent } from "@api";
+import { loginStudent } from '@/services/auth';
 import { toast } from "react-toastify";
 
 export default function LoginAluno() {

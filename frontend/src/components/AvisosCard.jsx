@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { listClasses } from '@/services/classes';
 import { createNotification } from '@/services/notifications';
-import { toArray } from '@api';
+import { toArray } from '@/lib/http';
 import { toast } from 'react-toastify';
 
 function AvisosCard() {

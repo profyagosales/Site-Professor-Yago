@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { uploadPdf } from '@/services/omr';
 import { toast } from 'react-toastify';
-import { toArray } from '@api';
+import { toArray } from '@/lib/http';
 
 function CorrigirGabaritos() {
   const [file, setFile] = useState(null);

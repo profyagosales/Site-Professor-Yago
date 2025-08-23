@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { listClasses } from '@/services/classes';
 import { listContents, createContent, updateContent, deleteContent } from '@/services/contents';
-import { toArray } from '@api';
+import { toArray } from '@/lib/http';
 
 function Conteudos() {
   const [contents, setContents] = useState([]);

@@ -1,4 +1,4 @@
-import api from '@api';
+import { api } from '@/lib/http';
 
 export const getRole = () => localStorage.getItem('role');
 
@@ -12,8 +12,25 @@ export async function getCurrentUser() {
   return data;
 }
 
+export const loginTeacher = (data) =>
+  api.post('/auth/login-teacher', data).then((r) => r.data);
+
+export async function loginStudent({ email, password }) {
+  const { data } = await api.post('/auth/login-student', { email, password });
+  return data;
+}
+
 export function logout() {
   localStorage.removeItem('token');
   localStorage.removeItem('role');
 }
+
+export default {
+  getRole,
+  isAuthed,
+  getCurrentUser,
+  loginTeacher,
+  loginStudent,
+  logout,
+};
 

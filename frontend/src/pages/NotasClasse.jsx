@@ -1,6 +1,6 @@
 import { useEffect, useState, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toArray } from '@api';
+import { toArray } from '@/lib/http';
 import { toast } from 'react-toastify';
 import { getClassMatrix, exportClassPdf } from '@/services/grades';
 import { listClasses } from '@/services/classes';

@@ -1,16 +1,15 @@
-import { api } from '@/lib/api';
+import { api } from '@/lib/http';
 
 export async function listStudents(classId) {
   if (!classId) return [];
-  const res = await fetch(api(`/classes/${classId}/students`));
-  if (!res.ok) throw new Error('Failed to load students');
-  return res.json();
+  const { data } = await api.get(`/classes/${classId}/students`);
+  return data;
 }
 
 export async function create(classId, payload) {
   const { photoFile, number, name, phone, email, password } = payload;
-  let body;
-  let headers = {};
+  let data;
+  const config = {};
   if (photoFile) {
     const fd = new FormData();
     fd.append('classId', classId);
@@ -20,20 +19,13 @@ export async function create(classId, payload) {
     fd.append('email', email);
     fd.append('password', password);
     fd.append('photo', photoFile);
-    body = fd;
+    data = fd;
+    config.headers = { 'Content-Type': 'multipart/form-data' };
   } else {
-    body = JSON.stringify({ number, name, phone, email, password, classId });
-    headers['Content-Type'] = 'application/json';
+    data = { number, name, phone, email, password, classId };
   }
-  const res = await fetch(api(`/classes/${classId}/students`), {
-    method: 'POST',
-    headers,
-    body,
-  });
-  if (!res.ok) {
-    throw new Error('Failed to create student');
-  }
-  return res.json();
+  const res = await api.post(`/classes/${classId}/students`, data, config);
+  return res.data;
 }
 
 export const list = listStudents;

@@ -1,74 +1,63 @@
-import { api } from '@/lib/api';
+import { api } from '@/lib/http';
 
 export async function listThemes() {
-  const res = await fetch(api('/redactions/themes'));
-  if (!res.ok) throw new Error('failed to list themes');
-  return res.json();
+  const { data } = await api.get('/redactions/themes');
+  return data;
 }
 
 export async function createTheme(payload: { name: string }) {
-  const res = await fetch(api('/redactions/themes'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error('failed to create theme');
-  return res.json();
+  const { data } = await api.post('/redactions/themes', payload);
+  return data;
 }
 
 export async function listSubmissionsByTeacher() {
-  const res = await fetch(api('/redactions/submissions/teacher'));
-  if (!res.ok) throw new Error('failed to list submissions');
-  return res.json();
+  const { data } = await api.get('/redactions/submissions/teacher');
+  return data;
 }
 
 export async function createSubmission(formData: FormData) {
   if (!formData) throw new Error('formData required');
-  const res = await fetch(api('/redactions/submissions'), {
-    method: 'POST',
-    body: formData,
-  });
-  if (!res.ok) throw new Error('failed to create submission');
-  return res.json();
+  const { data } = await api.post('/redactions/submissions', formData);
+  return data;
 }
 
 export async function getSubmission(submissionId: string) {
   if (!submissionId) throw new Error('submissionId required');
-  const res = await fetch(api(`/redactions/submissions/${submissionId}`));
-  if (!res.ok) throw new Error('failed to get submission');
-  return res.json();
+  const { data } = await api.get(`/redactions/submissions/${submissionId}`);
+  return data;
 }
 
-export async function gradeEnem(submissionId: string, payload: { enemScore: number }) {
+export async function gradeEnem(
+  submissionId: string,
+  payload: { enemScore: number }
+) {
   if (!submissionId) throw new Error('submissionId required');
-  const res = await fetch(api(`/redactions/submissions/${submissionId}/grade-enem`), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error('failed to grade ENEM');
-  return res.json();
+  const { data } = await api.post(
+    `/redactions/submissions/${submissionId}/grade-enem`,
+    payload
+  );
+  return data;
 }
 
-export async function gradePas(submissionId: string, payload: { NC?: number; NE?: number; NL?: number }) {
+export async function gradePas(
+  submissionId: string,
+  payload: { NC?: number; NE?: number; NL?: number }
+) {
   if (!submissionId) throw new Error('submissionId required');
-  const res = await fetch(api(`/redactions/submissions/${submissionId}/grade-pas`), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error('failed to grade PAS');
-  return res.json();
+  const { data } = await api.post(
+    `/redactions/submissions/${submissionId}/grade-pas`,
+    payload
+  );
+  return data;
 }
 
 export async function sendCorrectedPdf(submissionId: string) {
   if (!submissionId) throw new Error('submissionId required');
-  const res = await fetch(api(`/redactions/submissions/${submissionId}/corrected-pdf`), {
-    method: 'POST',
-  });
-  if (!res.ok) throw new Error('failed to send corrected pdf');
+  const res = await api.post(
+    `/redactions/submissions/${submissionId}/corrected-pdf`
+  );
   try {
-    return await res.json();
+    return res.data;
   } catch {
     return undefined;
   }
