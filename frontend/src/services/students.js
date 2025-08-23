@@ -5,6 +5,15 @@ export async function listStudentsByClass(classId) {
   return data
 }
 
+// Backwards-compatible alias for callers expecting a `listStudents` export
+// The service still requires a class identifier and falls back to the
+// class-based endpoint. When called without a class ID, the request will
+// reject and callers are expected to handle the failure (e.g. returning an
+// empty array).
+export async function listStudents(classId) {
+  return listStudentsByClass(classId)
+}
+
 export async function createStudent(fd) {
   const classId = String(fd.get('classId'))
   const { data } = await api.post(`/classes/${classId}/students`, fd, {
@@ -15,6 +24,7 @@ export async function createStudent(fd) {
 
 export default {
   listStudentsByClass,
+  listStudents,
   createStudent,
 }
 
