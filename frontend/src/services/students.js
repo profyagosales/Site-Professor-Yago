@@ -1,6 +1,6 @@
 import { api } from '@/lib/api';
 
-export async function list(classId) {
+export async function listStudents(classId) {
   if (!classId) return [];
   const res = await fetch(api(`/classes/${classId}/students`));
   if (!res.ok) throw new Error('Failed to load students');
@@ -36,4 +36,5 @@ export async function create(classId, payload) {
   return res.json();
 }
 
-export default { list, create };
+export const list = listStudents;
+export default { list: listStudents, listStudents, create };
