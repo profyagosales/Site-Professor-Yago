@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom';
+import flags from '@/config/features';
 
 const TEACHER_MENU = [
   { to: '/turmas', label: 'Turmas' },
   { to: '/notas-classe', label: 'Notas da Classe' },
   { to: '/caderno-classe', label: 'Caderno' },
   { to: '/corrigir-gabaritos', label: 'Gabarito' },
-  { to: '/dashboard-redacoes', label: 'Redação' }
+  ...(flags.redaction ? [{ to: '/dashboard-redacoes', label: 'Redação' }] : []),
 ];
 
 function getRole() {

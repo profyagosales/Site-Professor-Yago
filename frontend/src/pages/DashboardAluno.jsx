@@ -14,10 +14,13 @@ import {
 } from '@/services/student'
 import { logout } from '@/services/auth'
 import { FaPen, FaStar, FaFilePdf, FaBook } from 'react-icons/fa'
+import flags from '@/config/features'
 
 function ShortcutCards() {
   const shortcuts = [
-    { path: '/aluno/redacao', title: 'Redações', subtitle: 'Minhas redações', icon: <FaPen className="text-orange w-6 h-6" /> },
+    ...(flags.redaction
+      ? [{ path: '/aluno/redacao', title: 'Redações', subtitle: 'Minhas redações', icon: <FaPen className="text-orange w-6 h-6" /> }]
+      : []),
     { path: '/aluno/notas', title: 'Notas', subtitle: 'Resumo por bimestre', icon: <FaStar className="text-orange w-6 h-6" /> },
     { path: '/aluno/gabaritos', title: 'Gabaritos', subtitle: 'PDFs corrigidos', icon: <FaFilePdf className="text-orange w-6 h-6" /> },
     { path: '/aluno/caderno', title: 'Caderno', subtitle: 'Vistos do bimestre', icon: <FaBook className="text-orange w-6 h-6" /> },
@@ -202,66 +205,40 @@ export default function DashboardAluno() {
       setGrades(gr)
     } catch (err) {
       console.error(err)
-      toast.error('Erro ao carregar dashboard')
+      toast.error('Erro ao carregar dados')
     } finally {
       setLoading(false)
     }
   }
+
   useEffect(() => {
-    const role = localStorage.getItem('role')
-    if (role !== 'student') {
-      navigate('/')
-      return
-    }
     load()
-  }, [term]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [term])
 
-  if (loading) {
-    return <div className="p-md">Carregando...</div>
-  }
-
-  if (!student) return null
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    const role = localStorage.getItem('role')
+    if (!token || role !== 'student') {
+      navigate('/login-aluno')
+    }
+  }, [navigate])
 
   return (
     <div className="p-md space-y-md">
-      <ProfileHeader
-        name={student.name}
-        subtitle={`Aluno — ${student.className}`}
-        avatarUrl={student.avatarUrl}
-        onLogout={() => {
-          logout()
-          navigate('/')
-        }}
-      />
-
+      <ProfileHeader profile={student} onLogout={logout} />
       <ShortcutCards />
-
-      <div className="grid md:grid-cols-2 gap-md">
-        <ExamsCard exams={exams} />
-        <ContentsCard contents={contents} />
-        <AnnouncementsCard items={ann} />
-        <ScheduleTable schedules={sched} />
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-md">
-        <div>
-          <div className="mb-sm flex items-center gap-2">
-            <label htmlFor="term">Bimestre:</label>
-            <select
-              id="term"
-              value={term}
-              onChange={(e) => setTerm(Number(e.target.value))}
-              className="border p-1 rounded"
-            >
-              {[1, 2, 3, 4].map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </div>
-          <GradesBox grades={grades} />
+      <div className="grid lg:grid-cols-2 gap-md">
+        <div className="space-y-md">
+          <ScheduleTable schedule={sched} />
+          <ContentsCard contents={contents} />
         </div>
+        <div className="space-y-md">
+          <ExamsCard exams={exams} />
+          <AnnouncementsCard items={ann} />
+        </div>
+      </div>
+      <div className="grid lg:grid-cols-2 gap-md">
+        <GradesBox grades={grades} />
         <NotebookBox nb={nb} />
       </div>
     </div>
