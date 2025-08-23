@@ -23,6 +23,7 @@ import RequireAuth from '@/components/RequireAuth';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import flags from "@/config/features";
 const Redacao = lazy(() => import("@/pages/professor/redacao"));
+const RedacaoWorkspace = lazy(() => import("@/pages/professor/redacao/Workspace"));
 
 const HIDE_HEADER_ON = ['/', '/login-professor', '/login-aluno'];
 
@@ -104,6 +105,16 @@ function App() {
                   <RequireAuth role="teacher">
                     <Suspense fallback={<p>Carregando...</p>}>
                       <Redacao />
+                    </Suspense>
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/professor/redacao/:id"
+                element={
+                  <RequireAuth role="teacher">
+                    <Suspense fallback={<p>Carregando...</p>}>
+                      <RedacaoWorkspace />
                     </Suspense>
                   </RequireAuth>
                 }
