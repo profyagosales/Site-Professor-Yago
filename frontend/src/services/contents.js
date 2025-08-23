@@ -14,6 +14,19 @@ export async function createContent(payload) {
   return (await api.post('/contents', payload))?.data;
 }
 
+export async function listUpcomingContents({ teacherId, daysAhead = 14, limit = 5 }) {
+  const { data } = await api.get(
+    `/teachers/${teacherId}/contents/upcoming`,
+    { params: { daysAhead, limit } }
+  );
+  return data;
+}
+
+export async function quickCreateContent(payload) {
+  const { data } = await api.post('/contents', payload);
+  return data;
+}
+
 export async function updateContent(id, payload) {
   return (await api.patch(`/contents/${id}`, payload))?.data;
 }
@@ -27,4 +40,6 @@ export default {
   createContent,
   updateContent,
   deleteContent,
+  listUpcomingContents,
+  quickCreateContent,
 };

@@ -16,11 +16,11 @@ function LoginAluno() {
     setError('');
     setLoading(true);
     try {
-      const { token } = await loginStudent(data);
+      const { token, role } = await loginStudent(data);
       if (token) localStorage.setItem('token', token);
-      localStorage.setItem('role', 'student');
+      localStorage.setItem('role', role || 'student');
       toast.success('Login realizado');
-      navigate('/dashboard-aluno', { replace: true });
+      navigate(role === 'student' ? '/dashboard-aluno' : '/');
     } catch (err) {
       const message = err.response?.data?.message || 'Erro ao autenticar';
       setError(message);
@@ -31,7 +31,9 @@ function LoginAluno() {
   };
 
   useEffect(() => {
-    if (localStorage.getItem('token')) {
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+    if (token && role === 'student') {
       navigate('/dashboard-aluno', { replace: true });
     }
   }, [navigate]);
