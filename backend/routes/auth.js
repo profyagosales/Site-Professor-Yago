@@ -53,13 +53,11 @@ router.post('/register-student', async (req, res, next) => {
     const student = new Student({ class: classId, name, email, rollNumber, photo, phone, password });
     await student.save();
     const token = generateToken(student._id);
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: 'Aluno cadastrado com sucesso',
-        data: { token }
-      });
+    res.status(200).json({
+      success: true,
+      message: 'Aluno cadastrado com sucesso',
+      data: { token, role: 'student' }
+    });
   } catch (err) {
     if (!err.status) {
       err.status = 500;
@@ -105,8 +103,8 @@ router.post('/login-teacher', async (req, res, next) => {
 // Login aluno
 router.post('/login-student', async (req, res, next) => {
   try {
-    const { email, password } = req.body;
-    const student = await Student.findOne({ email }).select('+password');
+    const { rollNumber, phone, password } = req.body;
+    const student = await Student.findOne({ rollNumber, phone }).select('+password');
     if (!student) {
       const error = new Error('Credenciais inválidas');
       error.status = 400;
@@ -119,13 +117,11 @@ router.post('/login-student', async (req, res, next) => {
       throw error;
     }
     const token = generateToken(student._id);
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: 'Login do aluno realizado com sucesso',
-        data: { token, role: 'student' }
-      });
+    res.status(200).json({
+      success: true,
+      message: 'Login do aluno realizado com sucesso',
+      data: { token, role: 'student' }
+    });
   } catch (err) {
     if (!err.status) {
       err.status = 500;

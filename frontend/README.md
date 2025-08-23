@@ -30,18 +30,22 @@ Students and teachers must authenticate to receive a JWT token. The token is sav
 ```bash
 curl -X POST http://localhost:5000/auth/login-student \
   -H "Content-Type: application/json" \
-  -d '{"email":"aluno@example.com","password":"senha"}'
+  -d '{"rollNumber":1,"phone":"999999999","password":"senha"}'
 ```
 
 **Resposta**
 
 ```json
-{ "token": "<jwt>" }
+{
+  "success": true,
+  "message": "Login do aluno realizado com sucesso",
+  "data": { "token": "<jwt>", "role": "student" }
+}
 ```
 
 ### Students
 
-1. Acesse `/login-aluno` e faça login com seu e-mail e senha.
+1. Acesse `/login-aluno` e faça login com seu número, telefone e senha.
 2. No painel, clique em **Enviar redação** para fazer upload de uma imagem.
 3. O arquivo é enviado para `/redacoes/enviar` junto com turma e bimestre.
 4. Acompanhe o status das suas redações no painel.
