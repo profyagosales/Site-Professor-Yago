@@ -12,9 +12,14 @@ export default function LoginAluno() {
   async function onSubmit(e) {
     e.preventDefault();
     try {
-      const ok = await loginStudent({ email, password: senha });
-      if (ok) nav("/dashboard-aluno");
-      else toast.error("E-mail ou senha inválidos");
+      const { token, role } = await loginStudent({ email, password: senha });
+      if (token) {
+        localStorage.setItem("token", token);
+        localStorage.setItem("role", role || "student");
+        nav("/dashboard-aluno", { replace: true });
+      } else {
+        toast.error("E-mail ou senha inválidos");
+      }
     } catch {
       toast.error("E-mail ou senha inválidos");
     }

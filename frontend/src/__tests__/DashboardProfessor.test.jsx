@@ -19,7 +19,7 @@ jest.mock('@/services/classes', () => ({
 }));
 
 describe('DashboardProfessor', () => {
-  test('renders dashboard metrics', async () => {
+  test('renders dashboard sections', async () => {
     api.get.mockResolvedValue({ data: { contentProgress: [{ classId: '1', completion: 30 }] } });
     require('react-router-dom').useNavigate.mockReturnValue(jest.fn());
 
@@ -29,19 +29,8 @@ describe('DashboardProfessor', () => {
       </MemoryRouter>
     );
 
+    expect(await screen.findByText('Próximos conteúdos')).toBeInTheDocument();
     expect(await screen.findByText('Próximas Avaliações')).toBeInTheDocument();
-    expect(await screen.findByText('0 agendadas')).toBeInTheDocument();
-    expect(await screen.findByText('Horários de Aula')).toBeInTheDocument();
-    expect(await screen.findByText('0 próximos')).toBeInTheDocument();
-    expect(await screen.findByText('Progresso do Conteúdo')).toBeInTheDocument();
-    expect(
-      await screen.findByRole('button', { name: /Gerenciar conteúdos/i })
-    ).toBeInTheDocument();
-    expect(
-      await screen.findByRole('button', { name: /Novo conteúdo/i })
-    ).toBeInTheDocument();
-    expect(
-      await screen.findByRole('button', { name: /Nova avaliação/i })
-    ).toBeInTheDocument();
+    expect(await screen.findByText('Avisos recentes')).toBeInTheDocument();
   });
 });

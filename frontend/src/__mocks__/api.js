@@ -7,7 +7,7 @@ const api = {
 const pickData = (r) => (r?.data?.data ?? r?.data ?? r);
 const toArray = (v) => (Array.isArray(v) ? v : v ? [v] : []);
 const loginTeacher = jest.fn(() => Promise.resolve({}));
-const loginStudent = jest.fn(() => Promise.resolve(true));
+const loginStudent = jest.fn(() => Promise.resolve({ token: '123', role: 'student' }));
 const loginStudentLegacy = jest.fn(() => Promise.resolve({}));
 api.loginTeacher = loginTeacher;
 api.loginStudent = loginStudent;
