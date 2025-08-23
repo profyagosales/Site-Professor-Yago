@@ -5,7 +5,7 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
   const [series, setSeries] = useState('');
   const [letter, setLetter] = useState('');
   const [discipline, setDiscipline] = useState('');
-  const [schedule, setSchedule] = useState({ day: '', slot: '' });
+  const [schedules, setSchedules] = useState([{ day: '', slot: '', time: '' }]);
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
@@ -13,19 +13,23 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
       setSeries(String(initialData.series));
       setLetter(initialData.letter);
       setDiscipline(initialData.discipline);
-      const sched =
-        Array.isArray(initialData.schedule) && initialData.schedule.length
-          ? initialData.schedule[0]
-          : initialData.schedule || { day: '', slot: '' };
-      setSchedule({
-        day: String(sched.day || ''),
-        slot: String(sched.slot || ''),
-      });
+      const schedArray = Array.isArray(initialData.schedule)
+        ? initialData.schedule
+        : initialData.schedule
+        ? [initialData.schedule]
+        : [{ day: '', slot: '', time: '' }];
+      setSchedules(
+        schedArray.map((s) => ({
+          day: String(s.day || ''),
+          slot: String(s.slot || ''),
+          time: s.time || ''
+        }))
+      );
     } else {
       setSeries('');
       setLetter('');
       setDiscipline('');
-      setSchedule({ day: '', slot: '' });
+      setSchedules([{ day: '', slot: '', time: '' }]);
     }
     setErrors({});
   }, [initialData, isOpen]);
@@ -36,15 +40,19 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
     if (!series) newErrors.series = 'Selecione a série';
     if (!letter.trim()) newErrors.letter = 'Informe a letra';
     if (!discipline.trim()) newErrors.discipline = 'Informe a disciplina';
-    if (!schedule.day || !schedule.slot) {
-      newErrors.schedule = 'Preencha o horário';
+    if (
+      !schedules.length ||
+      schedules.some((s) => !s.day || !s.slot)
+    ) {
+      newErrors.schedule = 'Preencha os horários';
     }
     setErrors(newErrors);
     if (Object.keys(newErrors).length) return;
-    const normalizedSchedule = {
-      day: schedule.day,
-      slot: Number(schedule.slot),
-    };
+    const normalizedSchedule = schedules.map((s) => ({
+      day: s.day,
+      slot: Number(s.slot),
+      time: s.time,
+    }));
     onSubmit({
       series: Number(series),
       letter,
@@ -100,7 +108,38 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
           </div>
           <div>
             <label className="block mb-1">Horários</label>
-            <SchedulePicker value={schedule} onChange={setSchedule} />
+            {schedules.map((sched, idx) => (
+              <div key={idx} className="flex items-center gap-sm mb-sm">
+                <SchedulePicker
+                  value={sched}
+                  onChange={(val) =>
+                    setSchedules((prev) =>
+                      prev.map((p, i) => (i === idx ? val : p))
+                    )
+                  }
+                />
+                {schedules.length > 1 && (
+                  <button
+                    type="button"
+                    className="text-red-600"
+                    onClick={() =>
+                      setSchedules((prev) => prev.filter((_, i) => i !== idx))
+                    }
+                  >
+                    Remover
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              className="px-2 py-1 border rounded"
+              onClick={() =>
+                setSchedules((prev) => [...prev, { day: '', slot: '', time: '' }])
+              }
+            >
+              Adicionar horário
+            </button>
             {errors.schedule && (
               <p className="text-red-600 text-sm mt-1">{errors.schedule}</p>
             )}

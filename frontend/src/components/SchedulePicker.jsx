@@ -1,6 +1,15 @@
-function SchedulePicker({ value = { day: '', slot: '' }, onChange }) {
+const slotTimes = {
+  1: '07:00',
+  2: '09:00',
+  3: '11:00'
+};
+
+function SchedulePicker({ value = { day: '', slot: '', time: '' }, onChange }) {
   const handleChange = (field, val) => {
     const updated = { ...value, [field]: val };
+    if (field === 'slot') {
+      updated.time = slotTimes[val] || '';
+    }
     if (onChange) onChange(updated);
   };
 
@@ -19,13 +28,17 @@ function SchedulePicker({ value = { day: '', slot: '' }, onChange }) {
         <option value="QUINTA">Quinta</option>
         <option value="SEXTA">Sexta</option>
       </select>
-      <input
-        type="number"
+      <select
         aria-label="Slot"
         className="border p-sm rounded w-24"
         value={value.slot}
         onChange={(e) => handleChange('slot', e.target.value)}
-      />
+      >
+        <option value="">Slot</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+      </select>
     </div>
   );
 }

@@ -18,14 +18,14 @@ describe('ClassModal', () => {
     await userEvent.type(letra, 'A');
     await userEvent.type(disciplina, 'Matemática');
     await userEvent.selectOptions(screen.getByLabelText('Dia'), 'SEGUNDA');
-    await userEvent.type(screen.getByLabelText('Slot'), '2');
+    await userEvent.selectOptions(screen.getByLabelText('Slot'), '2');
     await userEvent.click(screen.getByRole('button', { name: /Criar/i }));
 
     expect(onSubmit).toHaveBeenCalledWith({
       series: 1,
       letter: 'A',
       discipline: 'Matemática',
-      schedule: { day: 'SEGUNDA', slot: 2 },
+      schedule: [{ day: 'SEGUNDA', slot: 2, time: '09:00' }],
     });
   });
 });
