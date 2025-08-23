@@ -11,6 +11,7 @@ import api, { pickData, toArray } from '@api';
 jest.mock('@/components/AvisosCard', () => () => <div />);
 jest.mock('@/components/SendEmailModal', () => () => <div />);
 jest.mock('@/components/NewContentModal', () => () => <div />);
+jest.mock('@/components/NewEvaluationModal', () => () => <div />);
 jest.mock('@/services/classes', () => ({
   listClasses: jest.fn().mockResolvedValue([
     { classId: '1', series: '1', letter: 'A', discipline: 'Mat' },
@@ -38,6 +39,9 @@ describe('DashboardProfessor', () => {
     ).toBeInTheDocument();
     expect(
       await screen.findByRole('button', { name: /Novo conteúdo/i })
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: /Nova avaliação/i })
     ).toBeInTheDocument();
   });
 });

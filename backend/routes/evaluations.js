@@ -14,44 +14,44 @@ router.post('/', async (req, res, next) => {
       error.status = 403;
       throw error;
     }
-    const {
-      type,
-      bimester,
-      classes,
-      numQuestions,
-      questionValue,
-      answerKey
-    } = req.body;
+
+    const { name, value, bimester, classes } = req.body;
 
     if (
-      !type ||
+      !name ||
+      value === undefined ||
       bimester === undefined ||
       !Array.isArray(classes) ||
-      numQuestions === undefined ||
-      questionValue === undefined
+      classes.length === 0
     ) {
       const error = new Error('Dados inválidos');
       error.status = 400;
       throw error;
     }
 
-    if (answerKey && answerKey.length !== numQuestions) {
-      const error = new Error('Gabarito incompatível com o número de questões');
+    const numericValue = Number(value);
+    if (Number.isNaN(numericValue) || numericValue < 0 || numericValue > 10) {
+      const error = new Error('Valor deve estar entre 0 e 10');
       error.status = 400;
       throw error;
     }
 
-    const totalValue = numQuestions * questionValue;
+    const invalidClass = classes.find((c) => !c.classId || !c.date);
+
+    if (invalidClass) {
+      const error = new Error('Turma ou data inválida');
+      error.status = 400;
+      throw error;
+    }
 
     const evaluation = new Evaluation({
-      type,
-      totalValue,
-      bimester,
-      classes,
-      numQuestions,
-      questionValue,
-      answerKey,
-      applicationDate: new Date()
+      name,
+      value: numericValue,
+      bimester: Number(bimester),
+      classes: classes.map((c) => ({
+        classId: c.classId,
+        date: new Date(c.date)
+      }))
     });
 
     await evaluation.save();

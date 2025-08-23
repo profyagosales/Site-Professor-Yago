@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import SendEmailModal from '@/components/SendEmailModal';
 import AvisosCard from '@/components/AvisosCard';
 import NewContentModal from '@/components/NewContentModal';
+import NewEvaluationModal from '@/components/NewEvaluationModal';
 import CalendarIcon from '@/components/icons/CalendarIcon';
 import ListIcon from '@/components/icons/ListIcon';
 import BoardIcon from '@/components/icons/BoardIcon';
@@ -16,6 +17,7 @@ function DashboardProfessor() {
   const [contentProgress, setContentProgress] = useState([]);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showContentModal, setShowContentModal] = useState(false);
+  const [showEvaluationModal, setShowEvaluationModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -95,6 +97,12 @@ function DashboardProfessor() {
         >
           Redações
         </button>
+        <button
+          className="btn-primary"
+          onClick={() => setShowEvaluationModal(true)}
+        >
+          Nova avaliação
+        </button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
         <div className="card flex items-center">
@@ -166,6 +174,11 @@ function DashboardProfessor() {
       <NewContentModal
         isOpen={showContentModal}
         onClose={() => setShowContentModal(false)}
+        onSuccess={loadDashboard}
+      />
+      <NewEvaluationModal
+        isOpen={showEvaluationModal}
+        onClose={() => setShowEvaluationModal(false)}
         onSuccess={loadDashboard}
       />
     </div>
