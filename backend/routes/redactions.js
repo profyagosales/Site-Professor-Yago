@@ -23,6 +23,23 @@ router.get('/submissions/teacher', (req, res) => {
   res.json({ data: [] });
 });
 
+router.get('/submissions/:id', (req, res) => {
+  const { id } = req.params;
+  res.json({
+    data: {
+      id,
+      studentId: 'student',
+      classId: 'class',
+      model: 'ENEM',
+      themeText: 'Tema',
+      bimester: 1,
+      weightOnBimester: 1,
+      fileUrl: '',
+      evaluationId: 'evaluation'
+    }
+  });
+});
+
 const submissionSchema = z.object({
   studentId: z.string(),
   classId: z.string(),

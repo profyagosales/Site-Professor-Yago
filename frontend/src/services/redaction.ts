@@ -32,6 +32,13 @@ export async function createSubmission(formData: FormData) {
   return res.json();
 }
 
+export async function getSubmission(submissionId: string) {
+  if (!submissionId) throw new Error('submissionId required');
+  const res = await fetch(api(`/redactions/submissions/${submissionId}`));
+  if (!res.ok) throw new Error('failed to get submission');
+  return res.json();
+}
+
 export async function gradeEnem(submissionId: string, payload: { enemScore: number }) {
   if (!submissionId) throw new Error('submissionId required');
   const res = await fetch(api(`/redactions/submissions/${submissionId}/grade-enem`), {
@@ -72,6 +79,7 @@ export default {
   createTheme,
   listSubmissionsByTeacher,
   createSubmission,
+  getSubmission,
   gradeEnem,
   gradePas,
   sendCorrectedPdf,
