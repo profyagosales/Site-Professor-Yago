@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { listarPendentes, listarCorrigidas } from '@/services/redacoes';
 import { gradeEssay } from '@/services/essays';
 import { toast } from 'react-toastify';
-import { toArray } from '@/lib/http';
+import { toArray } from '@/lib/api';
 
 function DashboardRedacoes() {
   const [tab, setTab] = useState('pendentes');

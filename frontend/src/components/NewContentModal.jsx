@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { listClasses } from '@/services/classes';
 import { createContent } from '@/services/contents';
-import { toArray } from '@/lib/http';
+import { toArray } from '@/lib/api';
 import { toast } from 'react-toastify';
 
 function NewContentModal({ isOpen, onClose, onSuccess }) {

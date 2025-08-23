@@ -1,4 +1,4 @@
-jest.mock('@/lib/http');
+jest.mock('@/lib/api');
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: jest.fn(),

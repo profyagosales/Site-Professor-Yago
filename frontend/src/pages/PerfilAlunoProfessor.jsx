@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'react-toastify';
-import { toArray } from '@/lib/http';
+import { toArray } from '@/lib/api';
 
 function PerfilAlunoProfessor() {
   const student = {

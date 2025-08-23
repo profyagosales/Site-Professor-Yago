@@ -1,4 +1,4 @@
-import { api } from '@/lib/http';
+import { api } from '@/lib/api';
 
 export async function createGabarito(formData) {
   const res = await api.post('/gabaritos', formData, {

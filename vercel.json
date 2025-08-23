@@ -1,5 +1,13 @@
 {
-  "installCommand": "npm ci",
-  "buildCommand": "npm run build",
-  "framework": null
+  "framework": "vite",
+  "buildCommand": "npm ci && npm --workspace frontend ci --if-present && npm --workspace frontend run build",
+  "outputDirectory": "frontend/dist",
+  "functions": {
+    "api/**/*.ts": { "runtime": "nodejs18.x" }
+  },
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD . || echo 'build'",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/$1" }
+  ]
 }

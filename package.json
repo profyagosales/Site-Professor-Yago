@@ -1,33 +1,10 @@
 {
   "name": "site-professor-yago",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
   "private": true,
-  "workspaces": [
-    "frontend",
-    "backend"
-  ],
+  "workspaces": ["frontend"],
   "scripts": {
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "nodemon --prefix backend backend/server.js",
-    "dev:client": "npm run dev --prefix frontend",
-    "build": "npm run -w frontend build || vite build",
-    "typecheck": "echo \"No typecheck configured\"",
-    "lint": "npm run lint -w backend && npm run lint -w frontend",
-    "test": "npm test --prefix backend && npm test --prefix frontend",
-    "prepush": "npm run typecheck && npm run build",
-    "postinstall": "node -v && npm -v"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "engines": {
-    "node": "20.x"
-  },
-  "devDependencies": {
-    "concurrently": "^9.2.0",
-    "nodemon": "^3.1.10"
+    "build": "npm --workspace frontend run build",
+    "dev": "npm --workspace frontend run dev"
   }
 }

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { listClasses, createClass, updateClass, deleteClass } from '@/services/classes';
 import ClassModal from '@/components/ClassModal';
 import { toast } from 'react-toastify';
-import { toArray } from '@/lib/http';
+import { toArray } from '@/lib/api';
 
 function Turmas() {
   const [classes, setClasses] = useState([]);

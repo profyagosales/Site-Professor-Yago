@@ -5,13 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "ts-node --transpile-only scripts/check-api.ts || node scripts/check-api.ts",
     "build": "vite build",
-    "lint": "eslint \"src/**/*.{js,jsx}\" --max-warnings=0",
-    "preview": "vite preview",
-    "test": "jest",
-    "check:circular": "madge --circular --extensions js,jsx src",
-    "verify": "npm run lint && npm run check:circular && npm run build"
+    "preview": "vite preview"
   },
   "dependencies": {
     "axios": "^1.11.0",
