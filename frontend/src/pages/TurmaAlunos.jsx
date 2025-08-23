@@ -45,7 +45,7 @@ function TurmaAlunos() {
 
   useEffect(() => {
     reloadStudents();
-  }, [classId]);
+  }, [classId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (notFound) {
     return (
