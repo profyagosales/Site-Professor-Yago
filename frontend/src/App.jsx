@@ -92,7 +92,7 @@ function App() {
             }
           />
           <Route
-            path="/turmas/:id/alunos"
+            path="/turmas/:classId/alunos"
             element={
               <RequireAuth role="teacher">
                 <TurmaAlunos />
