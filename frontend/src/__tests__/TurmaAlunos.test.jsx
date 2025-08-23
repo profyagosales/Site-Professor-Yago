@@ -28,7 +28,7 @@ describe('TurmaAlunos page', () => {
     const { getClassById, listStudents } = require('@/services/classes');
     getClassById.mockResolvedValue({ series: 1, letter: 'A', discipline: 'Mat' });
     listStudents.mockResolvedValue([
-      { id: 1, rollNumber: 1, name: 'Ana', phone: '123', email: 'a@test.com' },
+      { id: 1, number: 1, name: 'Ana', phone: '123', email: 'a@test.com' },
     ]);
 
     render(

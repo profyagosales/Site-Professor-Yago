@@ -14,7 +14,7 @@ export const createStudent = (classId, student) => {
   const formData = new FormData();
   Object.entries(student ?? {}).forEach(([key, value]) => {
     if (value !== undefined && value !== null) {
-      formData.append(key, value);
+      formData.append(key === 'rollNumber' ? 'number' : key, value);
     }
   });
   return api.post(`/classes/${classId}/students`, formData, {
