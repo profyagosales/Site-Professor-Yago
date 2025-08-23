@@ -3,10 +3,12 @@ jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: jest.fn(),
 }));
-import { render, screen } from '@testing-library/react';
+jest.mock('react-toastify', () => ({ toast: { error: jest.fn() } }));
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import Turmas from '@/pages/Turmas';
+import { toast } from 'react-toastify';
 
 jest.mock('@/components/ClassModal', () => () => <div />);
 
@@ -33,5 +35,22 @@ describe('Turmas page', () => {
     const button = await screen.findByRole('button', { name: /Ver alunos/i });
     await userEvent.click(button);
     expect(navigate).toHaveBeenCalledWith('/turmas/1/alunos');
+  });
+
+  test('shows friendly error when service is unavailable', async () => {
+    const { listClasses } = require('@/services/classes');
+    listClasses.mockRejectedValueOnce({ response: { status: 404 } });
+
+    render(
+      <MemoryRouter>
+        <Turmas />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        'Serviço de turmas indisponível (404). Verifique a URL da API.'
+      );
+    });
   });
 });
