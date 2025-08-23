@@ -22,19 +22,24 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
-// --- CORS (múltiplas origens) ---
-const raw = (process.env.APP_DOMAIN || '').split(',').map(s => s.trim()).filter(Boolean);
+// ===== CORS =====
+const raw = (process.env.ALLOWED_ORIGINS || process.env.APP_DOMAIN || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
 const allowList = [
   ...new Set([
     ...raw,
     'http://localhost:5173',
     'https://localhost:5173',
+    'https://site-professor-yago-frontend.vercel.app', // novo domínio do Vercel
   ])
 ];
 
 const corsMiddleware = cors({
   origin(origin, cb) {
-    if (!origin) return cb(null, true); // curl, healthchecks
+    if (!origin) return cb(null, true); // curl/healthchecks
     if (allowList.includes(origin)) return cb(null, true);
     return cb(new Error(`CORS: origem não permitida: ${origin}`));
   },
@@ -42,10 +47,9 @@ const corsMiddleware = cors({
 });
 
 app.use(corsMiddleware);
-
 try {
   app.options('*', corsMiddleware);
-} catch (err) {
+} catch {
   app.use((req, res, next) => {
     if (req.method === 'OPTIONS') {
       return corsMiddleware(req, res, () => res.sendStatus(204));
@@ -55,36 +59,37 @@ try {
 }
 
 app.use(express.json());
-app.get('/health', (req, res) => res.sendStatus(200));
 
-/**
- * Rotas da API
- */
-app.use('/auth', authRoutes);
-app.use('/dashboard', dashboardRoutes);
-app.use('/email', emailRoutes);
-app.use('/classes', classesRoutes);
-app.use('/students', studentsRoutes);
-app.use('/evaluations', evaluationRoutes);
-app.use('/grades', gradesRoutes);
-app.use('/caderno', cadernoRoutes);
-app.use('/gabaritos', gabaritoRoutes);
-app.use('/omr', omrRoutes);
-app.use('/redacoes', redacoesRoutes);
-app.use('/redactions', redactionsRoutes);
-app.use('/essays', essaysRoutes);
-app.use('/notifications', notificationRoutes);
-app.use('/contents', contentsRoutes);
+// ===== Base da API =====
+const API_BASE = process.env.API_BASE || '/api';
 
-const isProd = process.env.NODE_ENV === 'production';
-if (isProd) {
+// Healthcheck útil para Render
+app.get(`${API_BASE}/healthz`, (req, res) => res.json({ ok: true, ts: Date.now() }));
+
+// Rotas da API sob /api
+app.use(`${API_BASE}/auth`, authRoutes);
+app.use(`${API_BASE}/dashboard`, dashboardRoutes);
+app.use(`${API_BASE}/email`, emailRoutes);
+app.use(`${API_BASE}/classes`, classesRoutes);
+app.use(`${API_BASE}/students`, studentsRoutes);
+app.use(`${API_BASE}/evaluations`, evaluationRoutes);
+app.use(`${API_BASE}/grades`, gradesRoutes);
+app.use(`${API_BASE}/caderno`, cadernoRoutes);
+app.use(`${API_BASE}/gabaritos`, gabaritoRoutes);
+app.use(`${API_BASE}/omr`, omrRoutes);
+app.use(`${API_BASE}/redacoes`, redacoesRoutes);
+app.use(`${API_BASE}/redactions`, redactionsRoutes);
+app.use(`${API_BASE}/essays`, essaysRoutes);
+app.use(`${API_BASE}/notifications`, notificationRoutes);
+app.use(`${API_BASE}/contents`, contentsRoutes);
+
+// Em produção NÃO sirva o frontend no Render (o Vercel cuida disso)
+if (process.env.SERVE_FRONTEND === 'true') {
   const distPath = path.join(__dirname, '../frontend/dist');
   app.use(express.static(distPath));
-  app.get(/.*/, (req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'));
-  });
+  app.get(/.*/, (req, res) => res.sendFile(path.join(distPath, 'index.html')));
 } else {
-  app.get('/', (req, res) => res.send('API running'));
+  app.get('/', (_req, res) => res.send('API running'));
 }
 
 app.use(errorHandler);
