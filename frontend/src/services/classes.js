@@ -1,35 +1,22 @@
-import api, { toArray } from '@api';
+import api from '@api';
 
-const arrify = (v) => {
-  const r = toArray ? toArray(v) : undefined;
-  return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
-};
+export const listClasses = () => api.get('/classes');
 
-export async function listClasses() {
-  const r = await api.get('/classes');
-  return arrify(r?.data?.data ?? r?.data);
-}
+export const getClassById = (id) => api.get(`/classes/${id}`);
 
-export async function createClass(payload) {
-  return (await api.post('/classes', payload))?.data;
-}
+export const createClass = (payload) => api.post('/classes', payload);
 
-export async function updateClass(id, payload) {
-  return (await api.put(`/classes/${id}`, payload))?.data;
-}
+export const updateClass = (id, payload) => api.put(`/classes/${id}`, payload);
 
-export async function getClass(id) {
-  return (await api.get(`/classes/${id}`))?.data?.data || {};
-}
+export const deleteClass = (id) => api.delete(`/classes/${id}`);
 
-export async function deleteClass(id) {
-  return (await api.delete(`/classes/${id}`))?.data;
-}
+export const listStudents = (classId) => api.get(`/classes/${classId}/students`);
 
 export default {
   listClasses,
+  getClassById,
   createClass,
   updateClass,
-  getClass,
   deleteClass,
+  listStudents,
 };
