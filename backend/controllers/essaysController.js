@@ -7,6 +7,7 @@ const Student = require('../models/Student');
 const Class = require('../models/Class');
 const { sendEmail } = require('../services/emailService');
 const { recordEssayScore } = require('../services/gradesIntegration');
+const { renderEssayCorrectionPdf } = require('../services/pdfService');
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -216,8 +217,8 @@ async function gradeEssay(req, res) {
       studentId: essay.studentId,
       classId: essay.classId,
       bimester: essay.bimester,
-      scaledScore,
-      weight,
+      points: scaledScore,
+      maxPoints: weight,
       rawScore,
       type: essay.type,
       themeName,
@@ -277,6 +278,45 @@ async function updateAnnotations(req, res) {
   }
 }
 
+// Render corrected PDF
+async function renderCorrection(req, res) {
+  try {
+    const { id } = req.params;
+    const essay = await Essay.findById(id);
+    if (!essay) return res.status(404).json({ message: 'Redação não encontrada' });
+
+    const student = await Student.findById(essay.studentId);
+    const classInfo = await Class.findById(essay.classId);
+    const themeName = essay.themeId
+      ? (await EssayTheme.findById(essay.themeId))?.name
+      : essay.customTheme;
+
+    const pdfBuffer = await renderEssayCorrectionPdf({ essay, student, classInfo, themeName });
+    const correctedUrl = await uploadBuffer(pdfBuffer, 'essays/corrected');
+
+    essay.correctedUrl = correctedUrl;
+    await essay.save();
+
+    if (req.body.sendEmail !== false) {
+      const html = `<!DOCTYPE html><p>Olá ${student.name},</p>` +
+        `<p>Sua redação foi corrigida.</p>` +
+        `<p>Turma: ${classInfo.series}${classInfo.letter} - ${classInfo.discipline}</p>` +
+        `<p>Bimestre: ${essay.bimester}</p>` +
+        `<p>Tipo: ${essay.type}</p>` +
+        `<p>Tema: ${themeName}</p>` +
+        `<p>Nota: ${essay.rawScore}</p>` +
+        `<p>Nota bimestral: ${essay.scaledScore}</p>` +
+        `<p><a href="${correctedUrl}">Baixar correção</a></p>`;
+      await sendEmail({ to: student.email, subject: 'Sua redação foi corrigida', html });
+    }
+
+    res.json({ correctedUrl });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erro ao gerar correção' });
+  }
+}
+
 module.exports = {
   upload,
   getThemes,
@@ -285,5 +325,6 @@ module.exports = {
   createEssay,
   listEssays,
   gradeEssay,
-  updateAnnotations
+  updateAnnotations,
+  renderCorrection
 };

@@ -9,8 +9,8 @@ async function recordEssayScore({
   studentId,
   classId,
   bimester,
-  scaledScore,
-  weight,
+  points,
+  maxPoints,
   rawScore,
   type,
   themeName,
@@ -28,7 +28,7 @@ async function recordEssayScore({
   if (!evaluation) {
     evaluation = new Evaluation({
       name,
-      value: weight,
+      value: maxPoints,
       bimester,
       kind: 'ESSAY',
       classes: [{ classId, date: new Date() }],
@@ -38,7 +38,7 @@ async function recordEssayScore({
     await evaluation.save();
   } else {
     evaluation.name = name;
-    evaluation.value = weight;
+    evaluation.value = maxPoints;
     evaluation.kind = 'ESSAY';
     evaluation.meta = { essayId, type, rawScore };
     evaluation.link = correctedUrl;
@@ -50,12 +50,12 @@ async function recordEssayScore({
     grade = new Grade({
       student: studentId,
       evaluation: evaluation._id,
-      score: scaledScore,
+      score: points,
       bimester,
       status: 'corrected'
     });
   } else {
-    grade.score = scaledScore;
+    grade.score = points;
     grade.bimester = bimester;
     grade.status = 'corrected';
   }
