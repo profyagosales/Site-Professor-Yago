@@ -1,18 +1,22 @@
 import { useEffect, useState } from 'react';
 
 function StudentModal({ isOpen, onClose, onSubmit, initialData = {} }) {
-  const [number, setNumber] = useState('');
+  const [rollNumber, setRollNumber] = useState('');
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [photo, setPhoto] = useState(null);
   const [preview, setPreview] = useState('');
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (isOpen) {
-      setNumber(initialData.number ?? '');
+      setRollNumber(initialData.rollNumber ?? '');
       setName(initialData.name ?? '');
+      setPhone(initialData.phone ?? '');
       setEmail(initialData.email ?? '');
+      setPassword('');
       setPhoto(null);
       setPreview(initialData.photo ?? '');
       setErrors({});
@@ -30,13 +34,22 @@ function StudentModal({ isOpen, onClose, onSubmit, initialData = {} }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = {};
-    if (!number) newErrors.number = 'Informe o número';
+    if (!rollNumber) newErrors.rollNumber = 'Informe o número';
     if (!name.trim()) newErrors.name = 'Informe o nome';
+    if (!phone.trim()) newErrors.phone = 'Informe o telefone';
     if (!email.trim()) newErrors.email = 'Informe o e-mail';
+    if (!password.trim()) newErrors.password = 'Informe a senha';
     setErrors(newErrors);
     if (Object.keys(newErrors).length) return;
     try {
-      await onSubmit({ number: Number(number), name, email, photo });
+      await onSubmit({
+        rollNumber: Number(rollNumber),
+        name,
+        phone,
+        email,
+        password,
+        photo,
+      });
       onClose();
     } catch (err) {
       // erro tratado no onSubmit
@@ -71,11 +84,11 @@ function StudentModal({ isOpen, onClose, onSubmit, initialData = {} }) {
             <input
               type="number"
               className="w-full border p-sm rounded"
-              value={number}
-              onChange={(e) => setNumber(e.target.value)}
+              value={rollNumber}
+              onChange={(e) => setRollNumber(e.target.value)}
             />
-            {errors.number && (
-              <p className="text-red-600 text-sm mt-1">{errors.number}</p>
+            {errors.rollNumber && (
+              <p className="text-red-600 text-sm mt-1">{errors.rollNumber}</p>
             )}
           </div>
           <div>
@@ -91,6 +104,18 @@ function StudentModal({ isOpen, onClose, onSubmit, initialData = {} }) {
             )}
           </div>
           <div>
+            <label className="block mb-1">Telefone</label>
+            <input
+              type="tel"
+              className="w-full border p-sm rounded"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
+            {errors.phone && (
+              <p className="text-red-600 text-sm mt-1">{errors.phone}</p>
+            )}
+          </div>
+          <div>
             <label className="block mb-1">E-mail</label>
             <input
               type="email"
@@ -100,6 +125,18 @@ function StudentModal({ isOpen, onClose, onSubmit, initialData = {} }) {
             />
             {errors.email && (
               <p className="text-red-600 text-sm mt-1">{errors.email}</p>
+            )}
+          </div>
+          <div>
+            <label className="block mb-1">Senha</label>
+            <input
+              type="password"
+              className="w-full border p-sm rounded"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            {errors.password && (
+              <p className="text-red-600 text-sm mt-1">{errors.password}</p>
             )}
           </div>
           <div className="flex justify-end space-x-sm">
