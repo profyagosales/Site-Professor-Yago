@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { listarPendentes, listarCorrigidas } from '@/services/redacoes';
+import { gradeEssay } from '@/services/essays';
 import { toast } from 'react-toastify';
 import { toArray } from '@api';
 
@@ -10,6 +11,7 @@ function DashboardRedacoes() {
   const [filters, setFilters] = useState({ bimestre: '', turma: '', aluno: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [modalEssay, setModalEssay] = useState(null);
 
   const arrify = (v) => {
     const r = toArray ? toArray(v) : undefined;
@@ -118,7 +120,7 @@ function DashboardRedacoes() {
                   </p>
                 </div>
               </div>
-              <button className="btn-primary">Corrigir</button>
+              <button className="btn-primary" onClick={() => setModalEssay(r)}>Corrigir</button>
             </div>
           ))}
         </div>
@@ -178,8 +180,37 @@ function DashboardRedacoes() {
                 </div>
               ))}
             </div>
+        </div>
+      )}
+
+      {modalEssay && (
+        <div role="dialog" className="fixed inset-0 bg-black/50 flex items-center justify-center">
+          <div className="bg-white p-md space-y-md">
+            <p>Corrigir redação</p>
+            <button
+              className="btn-primary"
+              onClick={async () => {
+                const fd = new FormData();
+                fd.append('bimestreWeight', '1');
+                if (modalEssay.type === 'ENEM') {
+                  ['c1','c2','c3','c4','c5'].forEach(k => fd.append(`enemCompetencies[${k}]`, '0'));
+                } else {
+                  fd.append('pasBreakdown[NC]', '0');
+                  fd.append('pasBreakdown[NE]', '0');
+                  fd.append('pasBreakdown[NL]', '1');
+                }
+                await gradeEssay(modalEssay._id, fd);
+                setModalEssay(null);
+              }}
+            >
+              Enviar
+            </button>
+            <button className="btn-secondary" onClick={() => setModalEssay(null)}>
+              Fechar
+            </button>
           </div>
-        )}
+        </div>
+      )}
     </div>
   );
 }
