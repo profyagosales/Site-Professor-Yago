@@ -6,34 +6,34 @@ const arrify = (v) => {
 };
 
 export async function listContents() {
-  const r = await api.get('/api/contents');
+  const r = await api.get('/contents');
   return arrify(r?.data?.data ?? r?.data);
 }
 
 export async function createContent(payload) {
-  return (await api.post('/api/contents', payload))?.data;
+  return (await api.post('/contents', payload))?.data;
 }
 
 export async function listUpcomingContents({ teacherId, daysAhead = 14, limit = 5 }) {
   if (!teacherId) return [];
   const { data } = await api.get(
-    `/api/teachers/${teacherId}/contents/upcoming`,
+    `/teachers/${teacherId}/contents/upcoming`,
     { params: { daysAhead, limit } }
   );
   return data;
 }
 
 export async function quickCreateContent(payload) {
-  const { data } = await api.post('/api/contents', payload);
+  const { data } = await api.post('/contents', payload);
   return data;
 }
 
 export async function updateContent(id, payload) {
-  return (await api.patch(`/api/contents/${id}`, payload))?.data;
+  return (await api.patch(`/contents/${id}`, payload))?.data;
 }
 
 export async function deleteContent(id) {
-  return (await api.delete(`/api/contents/${id}`))?.data;
+  return (await api.delete(`/contents/${id}`))?.data;
 }
 
 export default {
