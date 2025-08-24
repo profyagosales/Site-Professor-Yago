@@ -64,7 +64,9 @@ app.use(express.json());
 const API_BASE = process.env.API_BASE || '/api';
 
 // Healthcheck útil para Render
-app.get(`${API_BASE}/healthz`, (req, res) => res.json({ ok: true, ts: Date.now() }));
+const healthHandler = (req, res) => res.json({ ok: true, ts: Date.now() });
+app.get('/health', healthHandler);
+app.get(`${API_BASE}/healthz`, healthHandler);
 
 // Rotas da API sob /api
 app.use(`${API_BASE}/auth`, authRoutes);
