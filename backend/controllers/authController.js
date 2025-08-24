@@ -4,32 +4,60 @@ const Teacher = require('../models/Teacher');
 
 const generateToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
-exports.loginTeacher = async (req, res, next) => {
+exports.loginTeacher = async (req, res) => {
   try {
-    const { email, password } = req.body;
-    const teacher = await Teacher.findOne({ email });
+    const { email } = req.body || {};
+    const senha = (req.body && (req.body.senha ?? req.body.password)) || '';
+
+    if (!email || !senha) {
+      return res.status(400).json({
+        success: false,
+        message: 'Informe e-mail e senha.',
+      });
+    }
+
+    const teacher = await Teacher.findOne({ email }).lean(false);
     if (!teacher) {
-      const error = new Error('Credenciais inválidas');
-      error.status = 400;
-      throw error;
+      return res.status(401).json({
+        success: false,
+        message: 'Credenciais inválidas.',
+      });
     }
-    const isMatch = await bcrypt.compare(password, teacher.password);
-    if (!isMatch) {
-      const error = new Error('Credenciais inválidas');
-      error.status = 400;
-      throw error;
+
+    const hash =
+      teacher.passwordHash ||
+      teacher.senhaHash ||
+      teacher.hash ||
+      teacher.password ||
+      teacher.senha;
+
+    if (!hash || typeof hash !== 'string') {
+      console.error('[LOGIN] Professor sem hash de senha.', { email });
+      return res.status(500).json({
+        success: false,
+        message: 'Conta do professor está sem senha configurada.',
+      });
     }
+
+    const ok = await bcrypt.compare(String(senha), String(hash));
+    if (!ok) {
+      return res.status(401).json({
+        success: false,
+        message: 'Credenciais inválidas.',
+      });
+    }
+
     const token = generateToken(teacher._id);
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'Login do professor realizado com sucesso',
       data: { token, role: 'teacher' },
     });
   } catch (err) {
-    if (!err.status) {
-      err.status = 500;
-      err.message = 'Erro no login do professor';
-    }
-    next(err);
+    console.error('[LOGIN] Erro inesperado no loginTeacher:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Erro interno no login do professor.',
+    });
   }
 };
