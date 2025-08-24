@@ -101,7 +101,7 @@ function DashboardRedacoes() {
           {arrify(pendentes).map((r) => (
             <div
               key={r._id}
-              className="card flex items-center justify-between"
+              className="ys-card flex items-center justify-between"
             >
               <div className="flex items-center gap-md">
                 <img
@@ -120,7 +120,7 @@ function DashboardRedacoes() {
                   </p>
                 </div>
               </div>
-              <button className="btn-primary" onClick={() => setModalEssay(r)}>Corrigir</button>
+              <button className="ys-btn-primary" onClick={() => setModalEssay(r)}>Corrigir</button>
             </div>
           ))}
         </div>
@@ -157,7 +157,7 @@ function DashboardRedacoes() {
             {arrify(corrigidas).map((r) => (
               <div
                 key={r._id}
-                className="card flex items-center justify-between"
+                className="ys-card flex items-center justify-between"
               >
                 <div className="flex items-center gap-md">
                   <img
@@ -176,7 +176,7 @@ function DashboardRedacoes() {
                     </p>
                   </div>
                 </div>
-                  <button className="btn-secondary">Visualizar</button>
+                  <button className="ys-btn-ghost">Visualizar</button>
                 </div>
               ))}
             </div>
@@ -188,7 +188,7 @@ function DashboardRedacoes() {
           <div className="bg-white p-md space-y-md">
             <p>Corrigir redação</p>
             <button
-              className="btn-primary"
+              className="ys-btn-primary"
               onClick={async () => {
                 const fd = new FormData();
                 fd.append('bimestreWeight', '1');
@@ -205,7 +205,7 @@ function DashboardRedacoes() {
             >
               Enviar
             </button>
-            <button className="btn-secondary" onClick={() => setModalEssay(null)}>
+            <button className="ys-btn-ghost" onClick={() => setModalEssay(null)}>
               Fechar
             </button>
           </div>

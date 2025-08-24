@@ -110,7 +110,7 @@ function Conteudos() {
       <div className="flex justify-between items-center mb-md">
         <h1 className="text-2xl text-orange">Conteúdos</h1>
         <button
-          className="btn-primary"
+          className="ys-btn-primary"
           onClick={() => {
             setEditing(null);
             resetForm();
@@ -150,7 +150,7 @@ function Conteudos() {
 
       <div className="space-y-sm">
         {filtered.map((c) => (
-          <div key={c._id} className="card flex justify-between items-center">
+          <div key={c._id} className="ys-card flex justify-between items-center">
             <div>
               <h3 className="text-lg text-orange">{c.title}</h3>
               <p className="text-black/70">{c.description}</p>
@@ -180,7 +180,7 @@ function Conteudos() {
 
       {showForm && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/50">
-          <div className="card w-full max-w-md p-md">
+          <div className="ys-card w-full max-w-md p-md">
             <h2 className="text-xl text-orange">
               {editing ? 'Editar Conteúdo' : 'Novo Conteúdo'}
             </h2>
@@ -261,7 +261,7 @@ function Conteudos() {
                 >
                   Cancelar
                 </button>
-                <button type="submit" className="btn-primary">
+                <button type="submit" className="ys-btn-primary">
                   {editing ? 'Salvar' : 'Criar'}
                 </button>
               </div>

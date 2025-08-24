@@ -73,7 +73,7 @@ function PerfilAlunoProfessor() {
   return (
     <div className="pt-20 p-md">
       <div className="max-w-3xl mx-auto space-y-md">
-        <div className="card flex flex-col items-center">
+        <div className="ys-card flex flex-col items-center">
           <img
             src={student.photo}
             alt={student.name}
@@ -89,7 +89,7 @@ function PerfilAlunoProfessor() {
           {arrify(student.grades).map((g) => (
             <div
               key={g.term}
-              className="card"
+              className="ys-card"
             >
               <h2 className="font-semibold">{g.term}</h2>
               <div className="w-full bg-lightGray h-2 rounded-full mb-2">
@@ -104,10 +104,10 @@ function PerfilAlunoProfessor() {
         </div>
 
         <div className="flex gap-md justify-center">
-          <button onClick={exportPDF} className="btn-primary">
+          <button onClick={exportPDF} className="ys-btn-primary">
             Exportar PDF
           </button>
-          <button onClick={sendEmail} className="btn-primary">
+          <button onClick={sendEmail} className="ys-btn-primary">
             Enviar por E-mail
           </button>
         </div>

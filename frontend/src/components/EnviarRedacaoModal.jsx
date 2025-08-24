@@ -86,7 +86,7 @@ function EnviarRedacaoModal({ isOpen, onClose, onSuccess }) {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/50">
       <div
-        className="card w-full max-w-md p-md space-y-md"
+        className="ys-card w-full max-w-md p-md space-y-md"
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
       >
@@ -107,7 +107,7 @@ function EnviarRedacaoModal({ isOpen, onClose, onSuccess }) {
               <video ref={videoRef} autoPlay className="w-full" />
               <button
                 type="button"
-                className="btn-primary"
+                className="ys-btn-primary"
                 onClick={handleCapture}
               >
                 Capturar
@@ -146,7 +146,7 @@ function EnviarRedacaoModal({ isOpen, onClose, onSuccess }) {
           </button>
           <button
             type="button"
-            className="btn-primary"
+            className="ys-btn-primary"
             onClick={handleUpload}
             disabled={!file}
           >

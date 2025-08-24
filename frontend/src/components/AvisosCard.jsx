@@ -59,7 +59,7 @@ function AvisosCard() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="card p-md space-y-md">
+    <form onSubmit={handleSubmit} className="ys-card p-md space-y-md">
       <h2 className="text-orange font-semibold">Avisos</h2>
       <div>
         <label className="block mb-1" htmlFor="notice-message">Mensagem</label>
@@ -134,7 +134,7 @@ function AvisosCard() {
           />
         </div>
       )}
-      <button type="submit" className="btn-primary">
+      <button type="submit" className="ys-btn-primary">
         {mode === 'now' ? 'Enviar' : 'Agendar'}
       </button>
     </form>

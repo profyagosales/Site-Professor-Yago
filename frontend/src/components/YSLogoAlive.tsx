@@ -29,7 +29,7 @@ export function YSLogoAlive({ showLabel = false }: { showLabel?: boolean }) {
         transition={{ duration: 0.6 }}
       />
       <motion.div
-        className="glass glow relative mx-auto flex items-center justify-center py-10 md:py-14"
+        className="ys-glass ys-logo-alive relative mx-auto flex items-center justify-center py-10 md:py-14"
         initial={{ opacity: 0, scale: 0.97 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.35 }}

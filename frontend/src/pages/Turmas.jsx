@@ -79,7 +79,7 @@ function Turmas() {
       <div className="flex justify-between items-center mb-md">
         <h1 className="text-2xl text-orange">Turmas</h1>
         <button
-          className="btn-primary"
+          className="ys-btn-primary"
           onClick={() => {
             setEditing(null);
             setShowModal(true);
@@ -92,7 +92,7 @@ function Turmas() {
         {arrify(classes).map((cls) => (
           <div
             key={cls._id}
-            className="card"
+            className="ys-card"
           >
             <h3 className="text-orange text-lg font-semibold">
               {cls.series}ª{cls.letter}
@@ -100,7 +100,7 @@ function Turmas() {
             <p className="text-black/70">Disciplina: {cls.discipline}</p>
             <div className="mt-md flex justify-between items-center">
               <button
-                className="btn-primary px-3 py-1"
+                className="ys-btn-primary px-3 py-1"
                 onClick={() => navigate(`/turmas/${cls._id}/alunos`)}
               >
                 Ver alunos

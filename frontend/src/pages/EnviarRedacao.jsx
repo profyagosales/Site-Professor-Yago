@@ -103,7 +103,7 @@ function EnviarRedacao() {
   return (
     <div className="pt-20 p-md space-y-md">
       {student && (
-        <div className="card flex items-center gap-md p-md">
+        <div className="ys-card flex items-center gap-md p-md">
           <img
             src={student.photo}
             alt={student.name}
@@ -116,7 +116,7 @@ function EnviarRedacao() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="card p-md space-y-md">
+      <form onSubmit={handleSubmit} className="ys-card p-md space-y-md">
         <div className="space-y-sm">
           <label className="block font-medium">Tipo</label>
           <select
@@ -183,7 +183,7 @@ function EnviarRedacao() {
           />
         </div>
 
-        <button type="submit" className="btn-primary">
+        <button type="submit" className="ys-btn-primary">
           Enviar
         </button>
       </form>
@@ -192,7 +192,7 @@ function EnviarRedacao() {
         <h2 className="text-xl font-semibold">Minhas redações</h2>
         {essays.length === 0 && <p className="text-black/60">Nenhuma redação enviada</p>}
         {essays.map((e) => (
-          <div key={e._id || e.id} className="card p-md flex justify-between items-center">
+          <div key={e._id || e.id} className="ys-card p-md flex justify-between items-center">
             <div>
               <p className="font-medium">{e.customTheme || e.theme?.name || 'Tema'}</p>
               <p className="text-sm text-black/70">Bimestre: {e.bimester}</p>

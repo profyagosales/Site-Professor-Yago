@@ -31,7 +31,7 @@ function ShortcutCards() {
         <Link
           key={s.path}
           to={s.path}
-          className="card flex flex-col items-center justify-center p-md text-center hover:-translate-y-0.5 transition"
+          className="ys-card flex flex-col items-center justify-center p-md text-center hover:-translate-y-0.5 transition"
         >
           {s.icon}
           <span className="font-semibold mt-2">{s.title}</span>
@@ -44,7 +44,7 @@ function ShortcutCards() {
 
 function ExamsCard({ exams = [] }) {
   return (
-    <div className="card p-md">
+    <div className="ys-card p-md">
       <div className="flex justify-between items-center mb-sm">
         <h3 className="font-semibold">Próximas avaliações</h3>
         <Link to="/aluno/notas" className="text-orange text-sm">Ver todos</Link>
@@ -65,7 +65,7 @@ function ExamsCard({ exams = [] }) {
 
 function ContentsCard({ contents = [] }) {
   return (
-    <div className="card p-md">
+    <div className="ys-card p-md">
       <div className="flex justify-between items-center mb-sm">
         <h3 className="font-semibold">Próximos conteúdos</h3>
         <Link to="/conteudos" className="text-orange text-sm">Ver todos</Link>
@@ -86,7 +86,7 @@ function ContentsCard({ contents = [] }) {
 
 function AnnouncementsCard({ items = [] }) {
   return (
-    <div className="card p-md">
+    <div className="ys-card p-md">
       <div className="flex justify-between items-center mb-sm">
         <h3 className="font-semibold">Avisos</h3>
         <Link to="/aluno/avisos" className="text-orange text-sm">Ver todos</Link>
@@ -110,7 +110,7 @@ function GradesBox({ grades }) {
   const totalTerm = activitiesScore + notebookScore
   const badgeColor = totalTerm < 5 ? 'bg-red-500' : 'bg-green-500'
   return (
-    <div className="card p-md">
+    <div className="ys-card p-md">
       <div className="flex justify-between items-center mb-sm">
         <h3 className="font-semibold">Notas do bimestre</h3>
         <Link to="/aluno/notas" className="text-orange text-sm">Ver detalhes</Link>
@@ -152,7 +152,7 @@ function NotebookBox({ nb }) {
   const seen = nb?.seenCount || 0
   const totalItems = nb?.items?.length || 0
   return (
-    <div className="card p-md">
+    <div className="ys-card p-md">
       <div className="flex justify-between items-center mb-sm">
         <h3 className="font-semibold">Caderno — Bimestre atual</h3>
         <Link to="/aluno/caderno" className="text-orange text-sm">Ver detalhes</Link>
