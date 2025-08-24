@@ -3,7 +3,7 @@ import { Card, CardBody } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { useState } from "react";
-import { http } from "@/lib/api";
+import { http } from "@/lib/http";
 
 export default function LoginProfessor() {
   const [email, setEmail] = useState("");

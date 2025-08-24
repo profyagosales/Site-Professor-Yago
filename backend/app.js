@@ -2,9 +2,6 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const fs = require('fs');
-
-const API_PREFIX = process.env.API_PREFIX || '/api';
 
 const authRoutes = require('./routes/auth');
 const emailRoutes = require('./routes/email');
@@ -24,79 +21,54 @@ const contentsRoutes = require('./routes/contents');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
-app.set('trust proxy', 1);
 
-// ===== C O R S  =====
+// ---------- API PREFIX ----------
+const API_PREFIX = process.env.API_PREFIX || '/api';
+
+// ---------- CORS ----------
+/**
+ * APP_DOMAIN pode ter valores separados por vírgula, por ex.:
+ *   https://site-professor-yago-frontend.vercel.app,
+ *   https://www.professoryagosales.com.br
+ *
+ * Para aceitar *previews* do Vercel deste projeto, liberamos via RegEx:
+ *   ^https://site-professor-yago.*\.vercel\.app$
+ */
 const raw = (process.env.APP_DOMAIN || '')
   .split(',')
-  .map((s) => s.trim())
+  .map(s => s.trim())
   .filter(Boolean);
 
-const allowList = [
-  ...new Set([
-    ...raw,
-    'http://localhost:5173',
-    'https://localhost:5173',
-    'https://site-professor-yago-frontend.vercel.app',
-    // pre-views Vercel
-    /.vercel\.app$/i,
-  ]),
+const previewRegexes = [
+  /^https:\/\/site-professor-yago.*\.vercel\.app$/i,   // previews do projeto
 ];
+
+const extraAllow = new Set([
+  'http://localhost:5173',
+  'https://localhost:5173',
+  ...raw,
+]);
 
 const corsMiddleware = cors({
   origin(origin, cb) {
-    if (!origin) return cb(null, true); // healthchecks/curl
-    const allowed = allowList.some((allowedOrigin) => {
-      if (allowedOrigin instanceof RegExp) {
-        return allowedOrigin.test(origin);
-      }
-      return allowedOrigin === origin;
-    });
-    if (allowed) return cb(null, true);
+    if (!origin) return cb(null, true); // curl/healthchecks
+    if (extraAllow.has(origin) || previewRegexes.some(rx => rx.test(origin))) {
+      return cb(null, true);
+    }
     return cb(new Error(`CORS: origem não permitida: ${origin}`));
   },
-  credentials: false,
+  credentials: true,
 });
-
 app.use(corsMiddleware);
+app.options('*', corsMiddleware);
 
-// OPTIONS para preflight
-try {
-  app.options('*', corsMiddleware);
-} catch (err) {
-  app.use((req, res, next) => {
-    if (req.method === 'OPTIONS') {
-      return corsMiddleware(req, res, () => res.sendStatus(204));
-    }
-    return next();
-  });
-}
-
-// ===== Body =====
+// ---------- PARSE ----------
 app.use(express.json());
 
-// ===== Health =====
-app.get('/health', (_req, res) => res.sendStatus(200));
-app.get(`${API_PREFIX}/healthz`, (_req, res) => res.json({ ok: true }));
+// ---------- HEALTH ----------
+app.get(`${API_PREFIX}/healthz`, (req, res) => res.json({ ok: true }));
 
-// ===== Rotas (sem /api) — compatibilidade =====
-app.use('/auth', authRoutes);
-app.use('/dashboard', dashboardRoutes);
-app.use('/email', emailRoutes);
-app.use('/classes', classesRoutes);
-app.use('/students', studentsRoutes);
-app.use('/evaluations', evaluationRoutes);
-app.use('/grades', gradesRoutes);
-app.use('/caderno', cadernoRoutes);
-app.use('/gabaritos', gabaritoRoutes);
-app.use('/omr', omrRoutes);
-app.use('/redacoes', redacoesRoutes);
-app.use('/redactions', redactionsRoutes);
-app.use('/essays', essaysRoutes);
-app.use('/notifications', notificationRoutes);
-app.use('/contents', contentsRoutes);
-
-// ===== Rotas com /api — padrão novo =====
+// ---------- API ROUTES (agora TODAS sob /api) ----------
 app.use(`${API_PREFIX}/auth`, authRoutes);
 app.use(`${API_PREFIX}/dashboard`, dashboardRoutes);
 app.use(`${API_PREFIX}/email`, emailRoutes);
@@ -113,26 +85,14 @@ app.use(`${API_PREFIX}/essays`, essaysRoutes);
 app.use(`${API_PREFIX}/notifications`, notificationRoutes);
 app.use(`${API_PREFIX}/contents`, contentsRoutes);
 
-// Catch-all para rotas de API não encontradas
-app.use(`${API_PREFIX}`, (req, res, next) => {
-  return res.status(404).json({ success: false, message: 'API route not found' });
-});
-
-// ===== Static do frontend só em produção, se você quiser servir pelo backend =====
+// ---------- SPA (somente se você REALMENTE quiser servir o front pelo backend) ----------
 const isProd = process.env.NODE_ENV === 'production';
-if (isProd) {
+if (isProd && process.env.SERVE_FRONTEND === '1') {
   const distPath = path.join(__dirname, '../frontend/dist');
-  const serveFrontend = process.env.SERVE_FRONTEND === 'true' && fs.existsSync(distPath);
-
-  if (serveFrontend) {
-    app.use(express.static(distPath));
-    app.get(/.*/, (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
+  app.use(express.static(distPath));
+  app.get(/.*/, (req, res) => res.sendFile(path.join(distPath, 'index.html')));
 }
 
-// ===== Erros =====
 app.use(errorHandler);
 
 module.exports = { app };
