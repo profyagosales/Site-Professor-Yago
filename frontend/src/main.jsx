@@ -3,9 +3,9 @@ import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './styles.css'
 import 'react-toastify/dist/ReactToastify.css'
-import { ping } from './lib/api'
+import { warmBackend } from './lib/api'
 
-ping()
+warmBackend()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

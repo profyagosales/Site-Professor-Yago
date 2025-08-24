@@ -2,7 +2,7 @@ import { api } from '@/lib/api';
 
 export async function getTeacherWeeklySchedule(teacherId) {
   if (!teacherId) return [];
-  const { data } = await api.get(`/api/teachers/${teacherId}/schedule`);
+  const { data } = await api.get(`/teachers/${teacherId}/schedule`);
   return data;
 }
 

@@ -19,7 +19,7 @@ function CriarGabarito() {
   useEffect(() => {
     const loadClasses = async () => {
       try {
-        const res = await api.get('/api/classes');
+        const res = await api.get('/classes');
         const list = Array.isArray(res?.data?.data || res?.data)
           ? (res.data.data || res.data)
           : [];

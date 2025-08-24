@@ -1,25 +1,22 @@
-import axios from "axios";
+import axios from 'axios';
 
-const BASE = import.meta.env.VITE_API_URL;
-
+const base = import.meta.env.VITE_API_URL?.replace(/\/+$/, '') || '';
+// A API no backend expõe /auth, /classes, etc sob /api/...
 export const api = axios.create({
-  baseURL: BASE,
-  withCredentials:
-    String(import.meta.env.VITE_USE_COOKIE_AUTH).toLowerCase() === "true",
-  validateStatus: () => true, // não joga exceção, ajuda a debugar
+  baseURL: `${base}/api`,
+  withCredentials: true,
+  timeout: 30000, // 30s (Render pode demorar na 1ª chamada)
 });
 
-// helper de diagnóstico
-export async function ping() {
+// Função para "acordar" o Render antes de enviar credenciais
+export async function warmBackend() {
   try {
-    const r = await api.get("/api/health");
-    console.log("[PING] backend ok:", r.status, r.data, "base:", BASE);
-    return r.status < 500;
-  } catch (e) {
-    console.log("[PING] backend erro:", e, "base:", BASE);
-    return false;
+    await api.get('/health', { timeout: 10000 });
+  } catch {
+    // silencioso — se falhar, o login ainda tenta normalmente
   }
 }
 
 export const pickData = (r: any) => r?.data?.data ?? r?.data ?? r;
 export const toArray = (v: any) => (Array.isArray(v) ? v : v ? [v] : []);
+

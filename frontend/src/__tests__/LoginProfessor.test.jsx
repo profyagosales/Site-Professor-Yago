@@ -27,7 +27,7 @@ describe('LoginProfessor', () => {
     await userEvent.click(screen.getByRole('button', { name: /Entrar/i }));
 
     await waitFor(() => {
-      expect(api.post).toHaveBeenCalledWith('/api/auth/login-teacher', {
+      expect(api.post).toHaveBeenCalledWith('/auth/login-teacher', {
         email: 'prof@example.com',
         senha: 'secret',
       });
