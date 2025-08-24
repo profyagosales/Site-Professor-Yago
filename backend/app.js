@@ -19,52 +19,45 @@ const notificationRoutes = require('./routes/notifications');
 const dashboardRoutes = require('./routes/dashboard');
 const contentsRoutes = require('./routes/contents');
 const errorHandler = require('./middleware/errorHandler');
-const devSeedRoutes = require('./routes/devSeed');
 
 const app = express();
+app.set('trust proxy', 1);
 
-// --- CORS (múltiplas origens) ---
+// ===== C O R S  =====
 const raw = (process.env.APP_DOMAIN || '')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
 
-/**
- * Produção + prévias do Vercel do mesmo projeto.
- * Ajuste o prefixo do seu projeto se for diferente.
- */
-const vercelProject = 'site-professor-yago-frontend';
-const isAllowedVercel = (origin = '') => {
-  try {
-    const url = new URL(origin);
-    // Ex.: https://site-professor-yago-frontend.vercel.app
-    // e também os previews: https://site-professor-yago-frontend-<hash>.vercel.app
-    return url.hostname === `${vercelProject}.vercel.app`
-        || url.hostname.endsWith(`${vercelProject}.vercel.app`);
-  } catch { return false; }
-};
+const STATIC_ALLOW = [
+  ...raw,
+  'http://localhost:5173',
+  'https://localhost:5173',
+];
 
-const allowList = [
-  ...new Set([
-    ...raw,
-    'http://localhost:5173',
-    'https://localhost:5173',
-  ])
+// RegEx para PRODUCTION + PREVIEWS do Vercel:
+//   - site-professor-yago-frontend.vercel.app
+//   - site-professor-yago-frontend-<qualquer-hash>.vercel.app
+const ORIGIN_PATTERNS = [
+  /^https:\/\/site-professor-yago-frontend(?:-[a-z0-9-]+)?\.vercel\.app$/i,
+  /^https?:\/\/localhost(?::\d+)?$/i,
 ];
 
 const corsMiddleware = cors({
   origin(origin, cb) {
-    if (!origin) return cb(null, true); // curl/healthchecks
-    if (allowList.includes(origin) || isAllowedVercel(origin)) {
-      return cb(null, true);
-    }
+    if (!origin) return cb(null, true); // healthchecks/curl
+    const allowed =
+      STATIC_ALLOW.includes(origin) ||
+      ORIGIN_PATTERNS.some((re) => re.test(origin));
+    if (allowed) return cb(null, true);
     return cb(new Error(`CORS: origem não permitida: ${origin}`));
   },
-  credentials: true,
+  credentials: false,
 });
 
 app.use(corsMiddleware);
 
+// OPTIONS para preflight
 try {
   app.options('*', corsMiddleware);
 } catch (err) {
@@ -76,49 +69,61 @@ try {
   });
 }
 
+// ===== Body =====
 app.use(express.json());
 
-// ===== Base da API =====
-const API_BASE = process.env.API_BASE || '/api';
+// ===== Health =====
+app.get('/health', (_req, res) => res.send({ ok: true }));
+app.get('/api/healthz', (_req, res) => res.send({ ok: true }));
 
-// Healthchecks
-app.get('/health', (req, res) => {
-  res.json({ ok: true, ts: Date.now() });
-});
+// ===== Rotas (sem /api) — compatibilidade =====
+app.use('/auth', authRoutes);
+app.use('/dashboard', dashboardRoutes);
+app.use('/email', emailRoutes);
+app.use('/classes', classesRoutes);
+app.use('/students', studentsRoutes);
+app.use('/evaluations', evaluationRoutes);
+app.use('/grades', gradesRoutes);
+app.use('/caderno', cadernoRoutes);
+app.use('/gabaritos', gabaritoRoutes);
+app.use('/omr', omrRoutes);
+app.use('/redacoes', redacoesRoutes);
+app.use('/redactions', redactionsRoutes);
+app.use('/essays', essaysRoutes);
+app.use('/notifications', notificationRoutes);
+app.use('/contents', contentsRoutes);
 
-app.get('/api/healthz', (req, res) => {
-  res.json({ ok: true, ts: Date.now(), uptime: process.uptime() });
-});
+// ===== Rotas com /api — padrão novo =====
+const api = express.Router();
+api.use('/auth', authRoutes);
+api.use('/dashboard', dashboardRoutes);
+api.use('/email', emailRoutes);
+api.use('/classes', classesRoutes);
+api.use('/students', studentsRoutes);
+api.use('/evaluations', evaluationRoutes);
+api.use('/grades', gradesRoutes);
+api.use('/caderno', cadernoRoutes);
+api.use('/gabaritos', gabaritoRoutes);
+api.use('/omr', omrRoutes);
+api.use('/redacoes', redacoesRoutes);
+api.use('/redactions', redactionsRoutes);
+api.use('/essays', essaysRoutes);
+api.use('/notifications', notificationRoutes);
+api.use('/contents', contentsRoutes);
+app.use('/api', api);
 
-// Rotas da API sob /api
-app.use('/api/auth', authRoutes);
-app.use(`${API_BASE}/dashboard`, dashboardRoutes);
-app.use(`${API_BASE}/email`, emailRoutes);
-app.use(`${API_BASE}/classes`, classesRoutes);
-app.use(`${API_BASE}/students`, studentsRoutes);
-app.use(`${API_BASE}/evaluations`, evaluationRoutes);
-app.use(`${API_BASE}/grades`, gradesRoutes);
-app.use(`${API_BASE}/caderno`, cadernoRoutes);
-app.use(`${API_BASE}/gabaritos`, gabaritoRoutes);
-app.use(`${API_BASE}/omr`, omrRoutes);
-app.use(`${API_BASE}/redacoes`, redacoesRoutes);
-app.use(`${API_BASE}/redactions`, redactionsRoutes);
-app.use(`${API_BASE}/essays`, essaysRoutes);
-app.use(`${API_BASE}/notifications`, notificationRoutes);
-app.use(`${API_BASE}/contents`, contentsRoutes);
-if (process.env.NODE_ENV !== 'production' || process.env.ALLOW_SEED === '1') {
-  app.use('/api/dev', devSeedRoutes);
-}
-
-// Em produção NÃO sirva o frontend no Render (o Vercel cuida disso)
-if (process.env.SERVE_FRONTEND === 'true') {
+// ===== Static do frontend só em produção, se você quiser servir pelo backend =====
+const isProd = process.env.NODE_ENV === 'production';
+if (isProd) {
   const distPath = path.join(__dirname, '../frontend/dist');
   app.use(express.static(distPath));
-  app.get(/.*/, (req, res) => res.sendFile(path.join(distPath, 'index.html')));
-} else {
-  app.get('/', (_req, res) => res.send('API running'));
+  app.get(/.*/, (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
 }
 
+// ===== Erros =====
 app.use(errorHandler);
 
 module.exports = { app };
+
