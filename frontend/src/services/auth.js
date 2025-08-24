@@ -8,15 +8,15 @@ export const isAuthed = () => ({
 });
 
 export async function getCurrentUser() {
-  const { data } = await api.get('/auth/me');
+  const { data } = await api.get('/api/auth/me');
   return data;
 }
 
 export const loginTeacher = (data) =>
-  api.post('/auth/login-teacher', data).then((r) => r.data);
+  api.post('/api/auth/login-teacher', data).then((r) => r.data);
 
 export async function loginStudent({ email, password }) {
-  const { data } = await api.post('/auth/login-student', { email, password });
+  const { data } = await api.post('/api/auth/login-student', { email, password });
   return data;
 }
 
