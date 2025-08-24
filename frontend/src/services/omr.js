@@ -4,7 +4,7 @@ export const uploadPdf = (pdfFile, onUploadProgress) => {
   const formData = new FormData();
   formData.append('pdf', pdfFile);
   return api
-    .post('/omr/grade', formData, {
+    .post('/api/omr/grade', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress,
     })

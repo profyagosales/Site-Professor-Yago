@@ -1,18 +1,18 @@
 import axios from "axios";
 
-const BASE = import.meta.env.VITE_API_URL?.trim() ||
-  "https://site-professor-yago.onrender.com"; // fallback seguro
+const BASE = import.meta.env.VITE_API_URL;
 
 export const api = axios.create({
   baseURL: BASE,
-  withCredentials: true,
+  withCredentials:
+    String(import.meta.env.VITE_USE_COOKIE_AUTH).toLowerCase() === "true",
   validateStatus: () => true, // não joga exceção, ajuda a debugar
 });
 
 // helper de diagnóstico
 export async function ping() {
   try {
-    const r = await api.get("/health"); // ou /api/healthz se você tiver esse alias
+    const r = await api.get("/api/health");
     console.log("[PING] backend ok:", r.status, r.data, "base:", BASE);
     return r.status < 500;
   } catch (e) {

@@ -1,8 +1,8 @@
 import { api, pickData } from '@/lib/api';
 
-export const listClasses = () => api.get('/classes').then(pickData);
+export const listClasses = () => api.get('/api/classes').then(pickData);
 
-export const getClassById = (id) => api.get(`/classes/${id}`).then(pickData);
+export const getClassById = (id) => api.get(`/api/classes/${id}`).then(pickData);
 
 const normalizeSchedulePayload = (payload) => ({
   ...payload,
@@ -14,15 +14,15 @@ const normalizeSchedulePayload = (payload) => ({
 });
 
 export const createClass = (payload) =>
-  api.post('/classes', normalizeSchedulePayload(payload)).then(pickData);
+  api.post('/api/classes', normalizeSchedulePayload(payload)).then(pickData);
 
 export const updateClass = (id, payload) =>
-  api.put(`/classes/${id}`, normalizeSchedulePayload(payload)).then(pickData);
+  api.put(`/api/classes/${id}`, normalizeSchedulePayload(payload)).then(pickData);
 
-export const deleteClass = (id) => api.delete(`/classes/${id}`).then(pickData);
+export const deleteClass = (id) => api.delete(`/api/classes/${id}`).then(pickData);
 
 export const listStudents = (classId) =>
-  api.get(`/classes/${classId}/students`).then(pickData);
+  api.get(`/api/classes/${classId}/students`).then(pickData);
 
 export default {
   listClasses,
