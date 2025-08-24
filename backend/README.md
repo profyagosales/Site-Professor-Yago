@@ -4,7 +4,7 @@ Este módulo expõe endpoints para envio e consulta de redações.
 
 ## Autenticação
 
-Todas as rotas requerem um token JWT obtido nos endpoints de login (`/auth/login-student` ou `/auth/login-teacher`).
+Todas as rotas requerem um token JWT obtido nos endpoints de login (`/api/auth/login-student` ou `/api/auth/login-teacher`).
 Envie o token no cabeçalho `Authorization`:
 
 ```
