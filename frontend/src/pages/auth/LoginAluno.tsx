@@ -3,7 +3,7 @@ import { Card, CardBody } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { useState } from "react";
-import { http } from "@/lib/api";
+import { api } from "@/lib/api";
 
 export default function LoginAluno() {
   const [email, setEmail] = useState("");
@@ -15,7 +15,7 @@ export default function LoginAluno() {
     e.preventDefault();
     setErro(""); setLoading(true);
     try {
-      const { data } = await http.post("/auth/login-student", {
+      const { data } = await api.post("/auth/login-student", {
         email,
         password,
       });

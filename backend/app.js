@@ -22,53 +22,57 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
-// ---------- API PREFIX ----------
-const API_PREFIX = process.env.API_PREFIX || '/api';
+// ---------- CONFIG BÁSICA ----------
+const API_PREFIX = '/api'; // fixo, não depende de env
+app.use(express.json());
 
-// ---------- CORS ----------
-/**
- * APP_DOMAIN pode ter valores separados por vírgula, por ex.:
- *   https://site-professor-yago-frontend.vercel.app,
- *   https://www.professoryagosales.com.br
- *
- * Para aceitar *previews* do Vercel deste projeto, liberamos via RegEx:
- *   ^https://site-professor-yago.*\.vercel\.app$
- */
+// ---------- CORS (produção + previews do Vercel) ----------
 const raw = (process.env.APP_DOMAIN || '')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
 
-const previewRegexes = [
-  /^https:\/\/site-professor-yago.*\.vercel\.app$/i,   // previews do projeto
-];
-
-const extraAllow = new Set([
-  'http://localhost:5173',
-  'https://localhost:5173',
+const allowList = new Set([
   ...raw,
+  'http://localhost:5173',
+  'https://localhost:5173'
 ]);
 
-const corsMiddleware = cors({
-  origin(origin, cb) {
-    if (!origin) return cb(null, true); // curl/healthchecks
-    if (extraAllow.has(origin) || previewRegexes.some(rx => rx.test(origin))) {
-      return cb(null, true);
+function isAllowedOrigin(origin) {
+  if (!origin) return true; // curl/healthchecks
+  try {
+    const { hostname, protocol } = new URL(origin);
+    // Produção explícita (se estiver no APP_DOMAIN entra pelo allowList)
+    if (allowList.has(origin)) return true;
+
+    // Qualquer preview do projeto "site-professor-yago-frontend" no Vercel:
+    // ex.: site-professor-yago-frontend-xxxxx.vercel.app
+    if (
+      protocol === 'https:' &&
+      hostname.endsWith('.vercel.app') &&
+      hostname.startsWith('site-professor-yago-frontend')
+    ) {
+      return true;
     }
-    return cb(new Error(`CORS: origem não permitida: ${origin}`));
-  },
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+const corsMiddleware = cors({
+  origin: (origin, cb) => (isAllowedOrigin(origin) ? cb(null, true) : cb(new Error(`CORS: origem não permitida: ${origin}`))),
   credentials: true,
 });
+
 app.use(corsMiddleware);
 app.options('*', corsMiddleware);
 
-// ---------- PARSE ----------
-app.use(express.json());
-
 // ---------- HEALTH ----------
-app.get(`${API_PREFIX}/healthz`, (req, res) => res.json({ ok: true }));
+app.get('/health', (_req, res) => res.json({ ok: true }));
+app.get(`${API_PREFIX}/healthz`, (_req, res) => res.json({ ok: true }));
 
-// ---------- API ROUTES (agora TODAS sob /api) ----------
+// ---------- ROTAS DA API (todas sob /api) ----------
 app.use(`${API_PREFIX}/auth`, authRoutes);
 app.use(`${API_PREFIX}/dashboard`, dashboardRoutes);
 app.use(`${API_PREFIX}/email`, emailRoutes);
@@ -85,12 +89,21 @@ app.use(`${API_PREFIX}/essays`, essaysRoutes);
 app.use(`${API_PREFIX}/notifications`, notificationRoutes);
 app.use(`${API_PREFIX}/contents`, contentsRoutes);
 
-// ---------- SPA (somente se você REALMENTE quiser servir o front pelo backend) ----------
+// ---------- SPA (somente se você QUISER servir o front pelo backend) ----------
 const isProd = process.env.NODE_ENV === 'production';
-if (isProd && process.env.SERVE_FRONTEND === '1') {
+const serveFront = process.env.SERVE_FRONT === 'true';
+
+if (isProd && serveFront) {
   const distPath = path.join(__dirname, '../frontend/dist');
   app.use(express.static(distPath));
-  app.get(/.*/, (req, res) => res.sendFile(path.join(distPath, 'index.html')));
+
+  // só faz fallback para rotas NÃO-API
+  app.get(/^((?!\/api\/).)*$/, (_req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+} else {
+  // No Render (ou dev) este backend só responde API
+  app.get('/', (_req, res) => res.send('API running'));
 }
 
 app.use(errorHandler);
