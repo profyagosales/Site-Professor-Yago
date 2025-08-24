@@ -1,240 +1,26 @@
-/* === Fonte bonita e segura === */
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ===== Base tokens ===== */
-@layer base {
-  :root{
-    --ys-orange-1:#FFB082;
-    --ys-orange-2:#FF7E6D;
-    --ys-glow: rgba(255,255,255,.35);
-  }
-  html,body,#root{ height:100%; }
+/* Aumenta contraste de texto cinza (evita sumir no fundo) */
+:root {
+  color-scheme: light;
 }
 
-/* ===== Components (apply seguro) ===== */
-@layer components {
-  .ys-card{
-    @apply rounded-2xl border border-white/20 shadow-lg;
-    background: rgba(255,255,255,.66);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-  }
-  .ys-btn{
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5
-           font-semibold transition shadow-lg focus:outline-none
-           focus:ring-2 focus:ring-offset-2;
-  }
-  .ys-btn-primary{
-    @apply ys-btn text-white bg-orange-500 hover:bg-orange-600 focus:ring-orange-500;
-  }
-  .ys-btn-ghost{
-    @apply ys-btn bg-white/70 hover:bg-white/90 text-body;
-  }
-  .ys-input{
-    @apply w-full rounded-xl border border-black/10 bg-white/80 px-4 py-2 outline-none
-           focus:ring-2 focus:ring-orange-400;
-  }
-  .ys-title{ @apply font-bold tracking-tight text-body; }
-}
+* { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 
-/* ===== Utilities (sem @apply com valores arbitrários) ===== */
-@layer utilities {
-  .bg-ys-hero{
-    background-image:
-      radial-gradient(1200px 420px at 50% -120px, var(--ys-glow), transparent),
-      linear-gradient(180deg, var(--ys-orange-1), var(--ys-orange-2));
-  }
-  .ys-glass{
-    background: rgba(255,255,255,.6);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255,255,255,.35);
-  }
-  @keyframes ysPulse {
-    0%,100%{ transform: scale(1); filter: drop-shadow(0 8px 24px rgba(0,0,0,.15)); }
-    50%{ transform: scale(1.03); filter: drop-shadow(0 12px 28px rgba(0,0,0,.18)); }
-  }
-.ys-logo-alive{ animation: ysPulse 2.8s ease-in-out infinite; }
-}
+html, body, #root { height: 100%; background: #F2F4F7; }
 
-/* === Fonte bonita e segura === */
-@layer base {
-  :root{
-    --bg-0:#eef1f4;
-    --bg-1:#e7eaee;
-    --bg-2:#dfe4ea;
-    --brand:255 106 0;
-    --glass:rgba(255,255,255,.6);
-    --ring:rgba(15,23,42,.06);
-    --fg:15 23 42;
-    --muted-fg:30 41 59;
-  }
-
-  html,body,#root{height:100%}
-  html, body {
-    color: rgb(var(--fg));
-  }
-}
-
-/* Base da página */
-body{
-  font-family: 'Outfit', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-  background: var(--bg-0);
-  overflow-x: hidden;
-}
-
-/* Fundo animado bem leve (sem blur pesado) */
-.app-bg{
-  position:fixed; inset:0; pointer-events:none; z-index:-1;
+/* animação de grão/partículas super leve */
+.ys-noise {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
   background:
-    radial-gradient(1200px 600px at 50% -200px, rgba(255,166,0,.10), transparent 70%),
-    radial-gradient(900px 400px at 20% 110%, rgba(15,23,42,.06), transparent 60%),
-    linear-gradient(180deg, var(--bg-0), var(--bg-1));
-  animation: bg-drift 22s ease-in-out infinite alternate;
-  will-change: background-position;
-}
-@keyframes bg-drift{
-  0%{background-position: 0 0, 0 0, 0 0;}
-  100%{background-position: 0 0, 30px -20px, 0 0;}
+    radial-gradient(1200px 500px at 50% -200px, rgba(255,122,0,.07), transparent 60%),
+    radial-gradient(900px 300px at 70% -120px, rgba(255,122,0,.06), transparent 70%),
+    radial-gradient(1200px 900px at 50% 120%, rgba(2,6,23,.06), transparent 60%),
+    linear-gradient(180deg, #F7F8FA 0%, #F1F4F7 100%);
 }
 
-/* respeitar usuários que preferem menos movimento */
-@media (prefers-reduced-motion: reduce){
-  .app-bg{animation: none;}
+@media (prefers-reduced-motion: reduce) {
+  .ys-noise { background: linear-gradient(180deg, #F7F8FA 0%, #F1F4F7 100%); }
 }
-
-/* Vidro elegante para cards */
-.glass {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.14);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-radius: 24px;
-}
-
-/* Botão com foco acessível e toque premium */
-.btn-brand{
-  background: rgb(var(--brand));
-  color:#0a0a0a;
-  border-radius: 14px;
-  padding: 14px 18px;
-  font-weight: 700;
-  letter-spacing: .2px;
-  box-shadow: 0 10px 20px rgb(var(--brand) / 0.25);
-  transition: transform .15s ease, box-shadow .2s ease, filter .2s ease;
-}
-.btn-brand:hover{ transform: translateY(-1px); filter: saturate(1.15); }
-.btn-brand:focus-visible{ outline: 3px solid rgb(var(--brand) / 0.45); outline-offset: 3px; }
-
-.btn-ghost{
-  background: rgba(255,255,255,0.06);
-  color:#f8fafc;
-  border: 1px solid rgba(255,255,255,0.14);
-  border-radius: 14px;
-  padding: 14px 18px;
-  font-weight: 700;
-  letter-spacing: .2px;
-  transition: transform .15s ease, background .2s ease, border-color .2s ease;
-}
-.btn-ghost:hover{ transform: translateY(-1px); background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.22); }
-.btn-ghost:focus-visible{ outline: 3px solid rgba(255,255,255,.35); outline-offset: 3px; }
-/* ===== Glow dinâmico na marca ===== */
-.brand-glow{
-  /* leve pulsar + mudança sutil de matiz */
-  animation:
-    glowPulse 6s ease-in-out infinite,
-    glowHue 14s ease-in-out infinite alternate;
-  filter:
-    drop-shadow(0 14px 36px rgba(255,106,0,.38))
-    drop-shadow(0 4px 16px rgba(255,106,0,.22));
-}
-@keyframes glowPulse{
-  0%,100%{ transform: translateY(0) scale(1) }
-  50%{ transform: translateY(-6px) scale(1.02) }
-}
-@keyframes glowHue{
-  0%{ filter: drop-shadow(0 14px 36px rgba(255,106,0,.38)) hue-rotate(0deg); }
-  100%{ filter: drop-shadow(0 14px 36px rgba(255,106,0,.38)) hue-rotate(20deg); }
-}
-
-/* ===== Inputs / Cards (site inteiro) ===== */
-.field{
-  width: 100%;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(255,255,255,0.06);
-  color: #e5e7eb;
-  padding: 12px 14px;
-  outline: none;
-  transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
-}
-.field::placeholder{ color: #94a3b8; }
-.field:focus{
-  border-color: rgba(255,255,255,0.28);
-  box-shadow: 0 0 0 3px rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.08);
-}
-.card{
-  border-radius: 22px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.14);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 12px 36px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08);
-}
-
-/* ===== Barra superior mínima ===== */
-.topbar{
-  position: sticky; top:0; z-index:30;
-  display:flex; align-items:center; gap:12px;
-  padding: 10px 14px;
-  background: var(--glass);
-  border-bottom: 1px solid var(--ring);
-  backdrop-filter: blur(8px);
-}
-
-/* ===== Tipografia global – contraste forte ===== */
-@layer utilities {
-  .text-body   { color: rgb(var(--fg)); }
-  .text-muted  { color: rgb(var(--muted-fg)); }
-  .text-muted\/90 { color: rgb(var(--muted-fg) / 0.90); }
-  .text-muted\/80 { color: rgb(var(--muted-fg) / 0.80); }
-  .text-muted\/70 { color: rgb(var(--muted-fg) / 0.70); }
-}
-
-@layer components {
-  .ys-input {
-    @apply w-full h-11 rounded-xl border border-slate-300/80
-           bg-white/90 px-3 text-slate-900 placeholder-slate-500
-           shadow-[0_1px_0_0_rgba(255,255,255,.6)_inset,0_1px_2px_rgba(0,0,0,.06)]
-           focus:outline-none focus:ring-4 focus:ring-amber-500/25 focus:border-amber-500
-           transition;
-  }
-  .ys-btn {
-    @apply inline-flex items-center justify-center h-11 px-4 rounded-xl font-semibold
-           shadow-[0_6px_0_0_rgba(0,0,0,.2)] active:shadow-[0_2px_0_0_rgba(0,0,0,.25)]
-           active:translate-y-[2px] transition;
-  }
-  .ys-btn--primary {
-    @apply ys-btn bg-amber-500 text-white hover:bg-amber-600 focus:ring-4 focus:ring-amber-500/30;
-  }
-  .ys-card {
-    @apply w-full max-w-xl rounded-2xl border border-slate-200/80 bg-white/85
-           backdrop-blur p-8 shadow-[0_15px_40px_-20px_rgba(0,0,0,.25)];
-  }
-  .ys-label {
-    @apply block text-sm font-medium text-slate-800 mb-1;
-  }
-  .ys-helper {
-    @apply text-sm text-slate-700;
-  }
-  .ys-error {
-    @apply mt-3 rounded-lg border border-red-200 bg-red-50 text-red-700 px-3 py-2 text-sm;
-  }
-}
-
