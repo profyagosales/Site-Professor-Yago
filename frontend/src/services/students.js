@@ -2,7 +2,7 @@ import { api } from '@/lib/api';
 
 export async function listStudents(classId) {
   if (!classId) return [];
-  const { data } = await api.get(`/classes/${classId}/students`);
+  const { data } = await api.get(`/api/classes/${classId}/students`);
   return data;
 }
 
@@ -24,7 +24,7 @@ export async function create(classId, payload) {
   } else {
     data = { number, name, phone, email, password, classId };
   }
-  const res = await api.post(`/classes/${classId}/students`, data, config);
+  const res = await api.post(`/api/classes/${classId}/students`, data, config);
   return res.data;
 }
 
