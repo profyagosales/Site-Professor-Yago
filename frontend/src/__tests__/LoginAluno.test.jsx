@@ -1,60 +1,55 @@
-jest.mock('@/services/auth');
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import axios from 'axios';
+import LoginAluno from '@/pages/auth/LoginAluno';
+
+jest.mock('axios');
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: jest.fn(),
 }));
-jest.mock('react-toastify', () => ({ toast: { error: jest.fn() } }));
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
-import LoginAluno from '@/pages/LoginAluno';
-import { loginStudent } from '@/services/auth';
-import { toast } from 'react-toastify';
 
 describe('LoginAluno', () => {
-  test('submits form and navigates on success', async () => {
+  beforeEach(() => {
     localStorage.clear();
-    loginStudent.mockResolvedValue({ token: 'abc', role: 'student' });
+  });
+
+  test('submits form and redirects on success', async () => {
+    axios.post.mockResolvedValue({ status: 200, data: { token: 'abc' } });
     const navigate = jest.fn();
     require('react-router-dom').useNavigate.mockReturnValue(navigate);
 
-    render(
-      <MemoryRouter>
-        <LoginAluno />
-      </MemoryRouter>
-    );
+    render(<LoginAluno />);
 
     await userEvent.type(screen.getByLabelText(/E-mail/i), 'a@b.com');
     await userEvent.type(screen.getByLabelText(/Senha/i), 'senha');
     await userEvent.click(screen.getByRole('button', { name: /Entrar/i }));
 
     await waitFor(() => {
-      expect(loginStudent).toHaveBeenCalledWith({ email: 'a@b.com', password: 'senha' });
-      expect(navigate).toHaveBeenCalledWith('/dashboard-aluno', { replace: true });
-      expect(localStorage.getItem('token')).toBe('abc');
-      expect(localStorage.getItem('role')).toBe('student');
+      expect(axios.post).toHaveBeenCalledWith('/auth/login-student', {
+        email: 'a@b.com',
+        password: 'senha',
+      });
+      expect(localStorage.getItem('student_token')).toBe('abc');
+      expect(navigate).toHaveBeenCalledWith('/dashboard-aluno');
     });
   });
 
-  test('shows error toast on failure', async () => {
-    loginStudent.mockResolvedValue({});
+  test('shows error message on failure', async () => {
+    axios.post.mockRejectedValue({ response: { data: { message: 'Erro' } } });
     const navigate = jest.fn();
     require('react-router-dom').useNavigate.mockReturnValue(navigate);
 
-    render(
-      <MemoryRouter>
-        <LoginAluno />
-      </MemoryRouter>
-    );
+    render(<LoginAluno />);
 
     await userEvent.type(screen.getByLabelText(/E-mail/i), 'a@b.com');
     await userEvent.type(screen.getByLabelText(/Senha/i), 'senha');
     await userEvent.click(screen.getByRole('button', { name: /Entrar/i }));
 
     await waitFor(() => {
-      expect(loginStudent).toHaveBeenCalledWith({ email: 'a@b.com', password: 'senha' });
-      expect(toast.error).toHaveBeenCalledWith('E-mail ou senha inválidos');
+      expect(screen.getByText('Erro')).toBeInTheDocument();
       expect(navigate).not.toHaveBeenCalled();
     });
   });
 });
+
