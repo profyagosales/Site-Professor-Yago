@@ -192,3 +192,51 @@ body{
   border-bottom: 1px solid var(--ring);
   backdrop-filter: blur(8px);
 }
+
+/* ========= CONTRASTE GLOBAL — CINZAS MUITO MAIS ESCUROS ========= */
+
+/* Tokens mais escuros */
+:root{
+  --ink-0:#0b1220;  /* texto principal (quase slate-950) */
+  --ink-1:#1f2937;  /* cinza escuro p/ subtítulos (slate-800) */
+  --ink-2:#334155;  /* cinza médio p/ descrições (slate-700) */
+  --ink-3:#475569;  /* cinza leve p/ microtexto, só se precisar */
+}
+
+/* Cor base do documento: escura */
+html, body { color: var(--ink-0); }
+
+/* Placeholders MUITO mais escuros */
+::placeholder{
+  color: var(--ink-2) !important;
+  opacity: .95 !important;
+}
+
+/* Inputs/textarea/seletores – texto e borda mais escuros para leitura */
+input, textarea, select{
+  color: var(--ink-0);
+  border-color: rgba(15,23,42,.25); /* em torno de slate-900/25 */
+}
+input:focus, textarea:focus, select:focus{
+  border-color: rgba(15,23,42,.35);
+}
+
+/* Utilitários rápidos: use quando quiser sem mudar Tailwind */
+.text-ink        { color: var(--ink-0) !important; }
+.text-ink-sub    { color: var(--ink-1) !important; } /* subtítulo */
+.text-ink-muted  { color: var(--ink-2) !important; } /* descrição */
+
+/* OVERRIDES AMIGOS DE TAILWIND (deixa cinzas padrão bem mais escuros)
+   Obs: a especificidade leve + !important garante que ganhe da classe. */
+:root .text-slate-400,
+:root .text-slate-500 { color: var(--ink-2) !important; } /* sobe p/ ~700 */
+:root .text-slate-600 { color: var(--ink-1) !important; } /* sobe p/ ~800 */
+:root .text-slate-700 { color: var(--ink-0) !important; } /* vira ~950     */
+
+/* Textos semitransparentes que ficam “lavados” no tema claro */
+:root .opacity-60 { opacity: .9 !important; }
+:root .opacity-70 { opacity: .95 !important; }
+
+/* “muted” do hero (ex: “Notas • Redação • …”) */
+.hero-muted { color: var(--ink-1) !important; opacity: .95 !important; }
+
