@@ -3,11 +3,11 @@ import { Card, CardBody } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { useState } from "react";
-import { api } from "@/lib/http";
+import { http } from "@/lib/api";
 
 export default function LoginAluno() {
   const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
 
@@ -15,8 +15,9 @@ export default function LoginAluno() {
     e.preventDefault();
     setErro(""); setLoading(true);
     try {
-      const { data } = await api.post("/auth/login-student", {
-        email, password: senha
+      const { data } = await http.post("/auth/login-student", {
+        email,
+        password,
       });
       if (data?.token) {
         localStorage.setItem("student_token", data.token);
@@ -26,7 +27,12 @@ export default function LoginAluno() {
       }
     } catch (err: any) {
       console.error(err);
-      setErro(err?.response?.data?.message || "Erro no login do aluno");
+      const status = err?.response?.status;
+      if (status === 400 || status === 401 || status === 403) {
+        setErro(err?.response?.data?.message || "Credenciais inválidas");
+      } else {
+        setErro(err?.response?.data?.message || "Erro no login do aluno");
+      }
     } finally {
       setLoading(false);
     }
@@ -39,7 +45,7 @@ export default function LoginAluno() {
           <CardBody>
             <form onSubmit={handleSubmit} className="space-y-4">
               <Field label="E-mail" type="email" required value={email} onChange={e=>setEmail(e.target.value)} />
-              <Field label="Senha" type="password" required value={senha} onChange={e=>setSenha(e.target.value)} />
+              <Field label="Senha" type="password" required value={password} onChange={e=>setPassword(e.target.value)} />
               {erro && <p className="text-sm text-red-600">{erro}</p>}
               <Button type="submit" disabled={loading}>{loading ? "Entrando..." : "Entrar"}</Button>
             </form>

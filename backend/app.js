@@ -2,6 +2,9 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
+
+const API_PREFIX = process.env.API_PREFIX || '/api';
 
 const authRoutes = require('./routes/auth');
 const emailRoutes = require('./routes/email');
@@ -26,29 +29,29 @@ app.set('trust proxy', 1);
 // ===== C O R S  =====
 const raw = (process.env.APP_DOMAIN || '')
   .split(',')
-  .map(s => s.trim())
+  .map((s) => s.trim())
   .filter(Boolean);
 
-const STATIC_ALLOW = [
-  ...raw,
-  'http://localhost:5173',
-  'https://localhost:5173',
-];
-
-// RegEx para PRODUCTION + PREVIEWS do Vercel:
-//   - site-professor-yago-frontend.vercel.app
-//   - site-professor-yago-frontend-<qualquer-hash>.vercel.app
-const ORIGIN_PATTERNS = [
-  /^https:\/\/site-professor-yago-frontend(?:-[a-z0-9-]+)?\.vercel\.app$/i,
-  /^https?:\/\/localhost(?::\d+)?$/i,
+const allowList = [
+  ...new Set([
+    ...raw,
+    'http://localhost:5173',
+    'https://localhost:5173',
+    'https://site-professor-yago-frontend.vercel.app',
+    // pre-views Vercel
+    /.vercel\.app$/i,
+  ]),
 ];
 
 const corsMiddleware = cors({
   origin(origin, cb) {
     if (!origin) return cb(null, true); // healthchecks/curl
-    const allowed =
-      STATIC_ALLOW.includes(origin) ||
-      ORIGIN_PATTERNS.some((re) => re.test(origin));
+    const allowed = allowList.some((allowedOrigin) => {
+      if (allowedOrigin instanceof RegExp) {
+        return allowedOrigin.test(origin);
+      }
+      return allowedOrigin === origin;
+    });
     if (allowed) return cb(null, true);
     return cb(new Error(`CORS: origem não permitida: ${origin}`));
   },
@@ -73,8 +76,8 @@ try {
 app.use(express.json());
 
 // ===== Health =====
-app.get('/health', (_req, res) => res.send({ ok: true }));
-app.get('/api/healthz', (_req, res) => res.send({ ok: true }));
+app.get('/health', (_req, res) => res.sendStatus(200));
+app.get(`${API_PREFIX}/healthz`, (_req, res) => res.json({ ok: true }));
 
 // ===== Rotas (sem /api) — compatibilidade =====
 app.use('/auth', authRoutes);
@@ -94,32 +97,39 @@ app.use('/notifications', notificationRoutes);
 app.use('/contents', contentsRoutes);
 
 // ===== Rotas com /api — padrão novo =====
-const api = express.Router();
-api.use('/auth', authRoutes);
-api.use('/dashboard', dashboardRoutes);
-api.use('/email', emailRoutes);
-api.use('/classes', classesRoutes);
-api.use('/students', studentsRoutes);
-api.use('/evaluations', evaluationRoutes);
-api.use('/grades', gradesRoutes);
-api.use('/caderno', cadernoRoutes);
-api.use('/gabaritos', gabaritoRoutes);
-api.use('/omr', omrRoutes);
-api.use('/redacoes', redacoesRoutes);
-api.use('/redactions', redactionsRoutes);
-api.use('/essays', essaysRoutes);
-api.use('/notifications', notificationRoutes);
-api.use('/contents', contentsRoutes);
-app.use('/api', api);
+app.use(`${API_PREFIX}/auth`, authRoutes);
+app.use(`${API_PREFIX}/dashboard`, dashboardRoutes);
+app.use(`${API_PREFIX}/email`, emailRoutes);
+app.use(`${API_PREFIX}/classes`, classesRoutes);
+app.use(`${API_PREFIX}/students`, studentsRoutes);
+app.use(`${API_PREFIX}/evaluations`, evaluationRoutes);
+app.use(`${API_PREFIX}/grades`, gradesRoutes);
+app.use(`${API_PREFIX}/caderno`, cadernoRoutes);
+app.use(`${API_PREFIX}/gabaritos`, gabaritoRoutes);
+app.use(`${API_PREFIX}/omr`, omrRoutes);
+app.use(`${API_PREFIX}/redacoes`, redacoesRoutes);
+app.use(`${API_PREFIX}/redactions`, redactionsRoutes);
+app.use(`${API_PREFIX}/essays`, essaysRoutes);
+app.use(`${API_PREFIX}/notifications`, notificationRoutes);
+app.use(`${API_PREFIX}/contents`, contentsRoutes);
+
+// Catch-all para rotas de API não encontradas
+app.use(`${API_PREFIX}`, (req, res, next) => {
+  return res.status(404).json({ success: false, message: 'API route not found' });
+});
 
 // ===== Static do frontend só em produção, se você quiser servir pelo backend =====
 const isProd = process.env.NODE_ENV === 'production';
 if (isProd) {
   const distPath = path.join(__dirname, '../frontend/dist');
-  app.use(express.static(distPath));
-  app.get(/.*/, (req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'));
-  });
+  const serveFrontend = process.env.SERVE_FRONTEND === 'true' && fs.existsSync(distPath);
+
+  if (serveFrontend) {
+    app.use(express.static(distPath));
+    app.get(/.*/, (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  }
 }
 
 // ===== Erros =====
