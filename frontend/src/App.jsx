@@ -68,6 +68,14 @@ function App() {
               )
             }
           />
+          <Route
+            path="/dashboard-redacoes"
+            element={
+              <RequireAuth role="teacher">
+                <DashboardRedacoes />
+              </RequireAuth>
+            }
+          />
           {flags.redaction && (
             <>
               <Route
@@ -75,14 +83,6 @@ function App() {
                 element={
                   <RequireAuth role="student">
                     <EnviarRedacao />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/dashboard-redacoes"
-                element={
-                  <RequireAuth role="teacher">
-                    <DashboardRedacoes />
                   </RequireAuth>
                 }
               />
