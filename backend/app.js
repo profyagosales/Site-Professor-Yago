@@ -23,34 +23,51 @@ const devSeedRoutes = require('./routes/devSeed');
 
 const app = express();
 
-// ===== CORS =====
-const raw = (process.env.ALLOWED_ORIGINS || process.env.APP_DOMAIN || '')
+// --- CORS (múltiplas origens) ---
+const raw = (process.env.APP_DOMAIN || '')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
+
+/**
+ * Produção + prévias do Vercel do mesmo projeto.
+ * Ajuste o prefixo do seu projeto se for diferente.
+ */
+const vercelProject = 'site-professor-yago-frontend';
+const isAllowedVercel = (origin = '') => {
+  try {
+    const url = new URL(origin);
+    // Ex.: https://site-professor-yago-frontend.vercel.app
+    // e também os previews: https://site-professor-yago-frontend-<hash>.vercel.app
+    return url.hostname === `${vercelProject}.vercel.app`
+        || url.hostname.endsWith(`${vercelProject}.vercel.app`);
+  } catch { return false; }
+};
 
 const allowList = [
   ...new Set([
     ...raw,
     'http://localhost:5173',
     'https://localhost:5173',
-    'https://site-professor-yago-frontend.vercel.app', // novo domínio do Vercel
   ])
 ];
 
 const corsMiddleware = cors({
   origin(origin, cb) {
     if (!origin) return cb(null, true); // curl/healthchecks
-    if (allowList.includes(origin)) return cb(null, true);
+    if (allowList.includes(origin) || isAllowedVercel(origin)) {
+      return cb(null, true);
+    }
     return cb(new Error(`CORS: origem não permitida: ${origin}`));
   },
   credentials: true,
 });
 
 app.use(corsMiddleware);
+
 try {
   app.options('*', corsMiddleware);
-} catch {
+} catch (err) {
   app.use((req, res, next) => {
     if (req.method === 'OPTIONS') {
       return corsMiddleware(req, res, () => res.sendStatus(204));
