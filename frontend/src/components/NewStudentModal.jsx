@@ -68,7 +68,7 @@ export default function NewStudentModal({ classId, isOpen, onClose, onCreated })
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true">
       <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
-        <h2 className="mb-4 text-xl font-semibold text-gray-800">Novo Aluno</h2>
+        <h2 className="mb-4 text-xl font-semibold text-body">Novo Aluno</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

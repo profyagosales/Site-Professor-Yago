@@ -94,7 +94,7 @@ function TurmaAlunos() {
                 <tr>
                   <td
                     colSpan="6"
-                    className="p-sm border text-center text-gray-500"
+                    className="p-sm border text-center text-muted"
                   >
                     Nenhum aluno cadastrado
                   </td>
