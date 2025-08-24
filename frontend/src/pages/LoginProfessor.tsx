@@ -1,50 +1,74 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { api, warmBackend } from '@/lib/api';
 
-export default function LoginProfessor(){
-  const nav = useNavigate();
-  const [email,setEmail] = useState('');
-  const [pass,setPass] = useState('');
+export default function LoginProfessor() {
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
-  const submit = (e:React.FormEvent) => {
+  useEffect(() => {
+    // Aquecer o backend assim que a tela abre
+    warmBackend();
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // sua lógica de login…
-  };
+    setErro(null);
+    setLoading(true);
+    try {
+      const { data } = await api.post('/auth/login-teacher', {
+        email,
+        password: senha,
+      });
+      // Se chegou aqui, logou: redirecione
+      // ajuste a rota de destino conforme seu app
+      window.location.href = '/turmas';
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        (err?.response?.status === 401
+          ? 'E-mail ou senha inválidos.'
+          : 'Falha ao entrar. Tente novamente.');
+      setErro(msg);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <main className="min-h-[calc(100vh-64px)] flex items-center justify-center px-6 py-14">
-      <div className="w-full max-w-md rounded-2xl bg-white/70 ring-1 ring-[var(--ring)] backdrop-blur-sm p-6 md:p-7 shadow-[0_1px_0_rgba(255,255,255,.5),0_12px_24px_rgba(15,23,42,.06)]">
-        <h1 className="text-xl font-bold text-slate-800">Login Professor</h1>
-        <p className="text-[13px] text-slate-600 mt-1">
-          Use seu e-mail e senha cadastrados.
-        </p>
-
-        <form className="mt-6 space-y-4" onSubmit={submit}>
-          <label className="block">
-            <span className="text-[13px] text-slate-700">E-mail</span>
-            <input
-              className="mt-1 w-full rounded-lg border border-slate-300/70 bg-white px-3 py-2 text-[15px] outline-none focus:ring-2 focus:ring-[var(--brand)]"
-              value={email} onChange={e=>setEmail(e.target.value)} type="email" required
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-[13px] text-slate-700">Senha</span>
-            <input
-              className="mt-1 w-full rounded-lg border border-slate-300/70 bg-white px-3 py-2 text-[15px] outline-none focus:ring-2 focus:ring-[var(--brand)]"
-              value={pass} onChange={e=>setPass(e.target.value)} type="password" required
-            />
-          </label>
-
-          <button
-            type="submit"
-            className="w-full mt-2 inline-flex items-center justify-center rounded-xl px-4 py-2.5 font-semibold text-white"
-            style={{background:'var(--brand)'}}
-          >
-            Entrar
-          </button>
-        </form>
-      </div>
-    </main>
+    <form onSubmit={handleSubmit} className="mx-auto w-full max-w-xl">
+      {/* ... seu layout ... */}
+      {erro && (
+        <div className="mb-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {erro}
+        </div>
+      )}
+      <input
+        type="email"
+        value={email}
+        onChange={e => setEmail(e.target.value)}
+        required
+        placeholder="E-mail"
+        className="input"
+      />
+      <input
+        type="password"
+        value={senha}
+        onChange={e => setSenha(e.target.value)}
+        required
+        placeholder="Senha"
+        className="input mt-3"
+      />
+      <button
+        type="submit"
+        disabled={loading}
+        className="btn btn-primary mt-4 w-full"
+      >
+        {loading ? 'Entrando…' : 'Entrar'}
+      </button>
+    </form>
   );
 }
+
