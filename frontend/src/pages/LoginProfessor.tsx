@@ -1,74 +1,90 @@
-import { useState, useEffect } from 'react';
-import { api, warmBackend } from '@/lib/api';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { API_URL } from "@/lib/env";
 
 export default function LoginProfessor() {
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
+  const nav = useNavigate();
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Aquecer o backend assim que a tela abre
-    warmBackend();
-  }, []);
-
-  async function handleSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setErro(null);
+    setErr("");
     setLoading(true);
     try {
-      const { data } = await api.post('/auth/login-teacher', {
-        email,
-        password: senha,
+      const res = await fetch(`${API_URL}/api/auth/login-teacher`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password: senha }),
       });
-      // Se chegou aqui, logou: redirecione
-      // ajuste a rota de destino conforme seu app
-      window.location.href = '/turmas';
-    } catch (err: any) {
-      const msg =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        (err?.response?.status === 401
-          ? 'E-mail ou senha inválidos.'
-          : 'Falha ao entrar. Tente novamente.');
-      setErro(msg);
+      const data = await res.json();
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || "Falha ao fazer login.");
+      }
+      // ajuste as chaves conforme o backend
+      localStorage.setItem("teacher_token", data.token);
+      localStorage.setItem("teacher", JSON.stringify(data.teacher || {}));
+      nav("/turmas"); // ou "/dashboard-professor"
+    } catch (e: any) {
+      setErr(e?.message || "Erro no login");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mx-auto w-full max-w-xl">
-      {/* ... seu layout ... */}
-      {erro && (
-        <div className="mb-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
-          {erro}
-        </div>
-      )}
-      <input
-        type="email"
-        value={email}
-        onChange={e => setEmail(e.target.value)}
-        required
-        placeholder="E-mail"
-        className="input"
-      />
-      <input
-        type="password"
-        value={senha}
-        onChange={e => setSenha(e.target.value)}
-        required
-        placeholder="Senha"
-        className="input mt-3"
-      />
-      <button
-        type="submit"
-        disabled={loading}
-        className="btn btn-primary mt-4 w-full"
-      >
-        {loading ? 'Entrando…' : 'Entrar'}
-      </button>
-    </form>
+    <main className="min-h-[calc(100dvh-72px)] grid place-items-center px-4">
+      <section className="ys-card">
+        <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
+          Login Professor
+        </h1>
+        <p className="ys-helper mt-1">
+          Use seu e-mail e senha cadastrados.
+        </p>
+
+        {err && <div className="ys-error">{err}</div>}
+
+        <form onSubmit={onSubmit} className="mt-6 space-y-4">
+          <div>
+            <label className="ys-label" htmlFor="email">E-mail</label>
+            <input
+              id="email"
+              type="email"
+              required
+              className="ys-input"
+              placeholder="prof@exemplo.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="username"
+            />
+          </div>
+
+          <div>
+            <label className="ys-label" htmlFor="senha">Senha</label>
+            <input
+              id="senha"
+              type="password"
+              required
+              className="ys-input"
+              placeholder="••••••••"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+              autoComplete="current-password"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="ys-btn--primary w-full"
+          >
+            {loading ? "Entrando..." : "Entrar"}
+          </button>
+        </form>
+      </section>
+    </main>
   );
 }
 

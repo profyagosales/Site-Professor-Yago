@@ -207,3 +207,34 @@ body{
   .text-muted\/70 { color: rgb(var(--muted-fg) / 0.70); }
 }
 
+@layer components {
+  .ys-input {
+    @apply w-full h-11 rounded-xl border border-slate-300/80
+           bg-white/90 px-3 text-slate-900 placeholder-slate-500
+           shadow-[0_1px_0_0_rgba(255,255,255,.6)_inset,0_1px_2px_rgba(0,0,0,.06)]
+           focus:outline-none focus:ring-4 focus:ring-amber-500/25 focus:border-amber-500
+           transition;
+  }
+  .ys-btn {
+    @apply inline-flex items-center justify-center h-11 px-4 rounded-xl font-semibold
+           shadow-[0_6px_0_0_rgba(0,0,0,.2)] active:shadow-[0_2px_0_0_rgba(0,0,0,.25)]
+           active:translate-y-[2px] transition;
+  }
+  .ys-btn--primary {
+    @apply ys-btn bg-amber-500 text-white hover:bg-amber-600 focus:ring-4 focus:ring-amber-500/30;
+  }
+  .ys-card {
+    @apply w-full max-w-xl rounded-2xl border border-slate-200/80 bg-white/85
+           backdrop-blur p-8 shadow-[0_15px_40px_-20px_rgba(0,0,0,.25)];
+  }
+  .ys-label {
+    @apply block text-sm font-medium text-slate-800 mb-1;
+  }
+  .ys-helper {
+    @apply text-sm text-slate-700;
+  }
+  .ys-error {
+    @apply mt-3 rounded-lg border border-red-200 bg-red-50 text-red-700 px-3 py-2 text-sm;
+  }
+}
+
