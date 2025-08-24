@@ -1,20 +1,25 @@
 import axios from "axios";
-import { API_URL } from "./env";
 
-export const api = axios.create({ baseURL: API_URL, withCredentials: true });
+const BASE = import.meta.env.VITE_API_URL?.trim() ||
+  "https://site-professor-yago.onrender.com"; // fallback seguro
 
-if (!import.meta.env.VITE_API_URL) {
-  console.warn("VITE_API_URL ausente; usando /api");
-}
+export const api = axios.create({
+  baseURL: BASE,
+  withCredentials: true,
+  validateStatus: () => true, // não joga exceção, ajuda a debugar
+});
 
-// Interceptor to avoid breaking UI on API errors
-api.interceptors.response.use(
-  (r) => r,
-  (err) => {
-    console.error("API error:", err?.response?.status, err?.config?.url);
-    return Promise.reject(err);
+// helper de diagnóstico
+export async function ping() {
+  try {
+    const r = await api.get("/health"); // ou /api/healthz se você tiver esse alias
+    console.log("[PING] backend ok:", r.status, r.data, "base:", BASE);
+    return r.status < 500;
+  } catch (e) {
+    console.log("[PING] backend erro:", e, "base:", BASE);
+    return false;
   }
-);
+}
 
 export const pickData = (r: any) => r?.data?.data ?? r?.data ?? r;
 export const toArray = (v: any) => (Array.isArray(v) ? v : v ? [v] : []);
