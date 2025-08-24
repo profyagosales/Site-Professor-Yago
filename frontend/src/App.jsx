@@ -17,7 +17,7 @@ import CriarGabarito from '@/pages/CriarGabarito';
 import CorrigirGabaritos from '@/pages/CorrigirGabaritos';
 import CorrigirRedacao from '@/pages/CorrigirRedacao';
 import Conteudos from '@/pages/Conteudos';
-import AppShell from '@/layout/AppShell';
+import AppShell from '@/components/AppShell';
 import { ToastContainer } from 'react-toastify';
 import RequireAuth from '@/components/RequireAuth';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -43,8 +43,8 @@ function AutoRedirectFromLanding() {
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route element={<AppShell />}>
+      <AppShell>
+        <Routes>
           <Route path="/" element={<AutoRedirectFromLanding />} />
           <Route path="/login-professor" element={<LoginProfessor />} />
           <Route path="/login-aluno" element={<LoginAluno />} />
@@ -186,8 +186,8 @@ function App() {
           )}
           <Route path="/conteudos" element={<Conteudos />} />
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
+        </Routes>
+      </AppShell>
       <ToastContainer position="top-right" autoClose={3000} />
     </BrowserRouter>
   );
