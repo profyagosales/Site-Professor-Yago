@@ -3,12 +3,9 @@ import { Card, CardBody } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { useState } from "react";
-import axios from "axios";
-import { API_URL } from "@/lib/env";
-import { useNavigate } from "react-router-dom";
+import { api } from "@/lib/http";
 
 export default function LoginAluno() {
-  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [loading, setLoading] = useState(false);
@@ -18,11 +15,12 @@ export default function LoginAluno() {
     e.preventDefault();
     setErro(""); setLoading(true);
     try {
-      const { data, status } = await axios.post(`${API_URL}/auth/login-student`, { email, password: senha });
-      console.log("[LOGIN] status:", status, data);
+      const { data } = await api.post("/auth/login-student", {
+        email, password: senha
+      });
       if (data?.token) {
         localStorage.setItem("student_token", data.token);
-        navigate("/dashboard-aluno");
+        location.assign("/dashboard-aluno");
       } else {
         setErro("Falha ao fazer login. Tente novamente.");
       }
