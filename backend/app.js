@@ -19,6 +19,7 @@ const notificationRoutes = require('./routes/notifications');
 const dashboardRoutes = require('./routes/dashboard');
 const contentsRoutes = require('./routes/contents');
 const errorHandler = require('./middleware/errorHandler');
+const devSeedRoutes = require('./routes/devSeed');
 
 const app = express();
 
@@ -84,6 +85,9 @@ app.use(`${API_BASE}/redactions`, redactionsRoutes);
 app.use(`${API_BASE}/essays`, essaysRoutes);
 app.use(`${API_BASE}/notifications`, notificationRoutes);
 app.use(`${API_BASE}/contents`, contentsRoutes);
+if (process.env.NODE_ENV !== 'production' || process.env.ALLOW_SEED === '1') {
+  app.use('/api/dev', devSeedRoutes);
+}
 
 // Em produção NÃO sirva o frontend no Render (o Vercel cuida disso)
 if (process.env.SERVE_FRONTEND === 'true') {
