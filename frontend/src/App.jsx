@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import Landing from '@/pages/Landing';
 import LoginProfessor from '@/pages/LoginProfessor';
@@ -17,26 +17,13 @@ import CriarGabarito from '@/pages/CriarGabarito';
 import CorrigirGabaritos from '@/pages/CorrigirGabaritos';
 import CorrigirRedacao from '@/pages/CorrigirRedacao';
 import Conteudos from '@/pages/Conteudos';
-import Header from '@/components/Header';
+import AppShell from '@/layout/AppShell';
 import { ToastContainer } from 'react-toastify';
 import RequireAuth from '@/components/RequireAuth';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import flags from "@/config/features";
 const Redacao = lazy(() => import("@/pages/professor/redacao"));
 const RedacaoWorkspace = lazy(() => import("@/pages/professor/redacao/Workspace"));
-
-const HIDE_HEADER_ON = ['/', '/login-professor', '/login-aluno'];
-
-function Layout({ children }) {
-  const location = useLocation();
-  const hideHeader = HIDE_HEADER_ON.includes(location.pathname);
-  return (
-    <>
-      {!hideHeader && <Header />}
-      {children}
-    </>
-  );
-}
 
 function getRole() {
   return localStorage.getItem('role');
@@ -56,8 +43,8 @@ function AutoRedirectFromLanding() {
 function App() {
   return (
     <BrowserRouter>
-      <Layout>
-        <Routes>
+      <Routes>
+        <Route element={<AppShell />}>
           <Route path="/" element={<AutoRedirectFromLanding />} />
           <Route path="/login-professor" element={<LoginProfessor />} />
           <Route path="/login-aluno" element={<LoginAluno />} />
@@ -120,7 +107,6 @@ function App() {
                 }
               />
             </>
-          
           )}
           <Route
             path="/turmas"
@@ -200,8 +186,8 @@ function App() {
           )}
           <Route path="/conteudos" element={<Conteudos />} />
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Layout>
+        </Route>
+      </Routes>
       <ToastContainer position="top-right" autoClose={3000} />
     </BrowserRouter>
   );
