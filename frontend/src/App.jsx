@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { lazy, Suspense } from "react";
-import LoginLanding from '@/pages/LoginLanding';
+import Landing from '@/pages/Landing';
 import LoginProfessor from '@/pages/LoginProfessor';
 import LoginAluno from '@/pages/LoginAluno';
 import DashboardProfessor from '@/pages/DashboardProfessor';
@@ -50,7 +50,7 @@ function AutoRedirectFromLanding() {
   const role = getRole();
   if (isAuthed() && role === 'teacher') return <Navigate to="/dashboard-professor" replace />;
   if (isAuthed() && role === 'student') return <Navigate to="/dashboard-aluno" replace />;
-  return <LoginLanding />;
+  return <Landing />;
 }
 
 function App() {
