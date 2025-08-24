@@ -145,3 +145,63 @@ body{
 }
 .btn-ghost:hover{ transform: translateY(-1px); background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.22); }
 .btn-ghost:focus-visible{ outline: 3px solid rgba(255,255,255,.35); outline-offset: 3px; }
+/* ===== Glow dinâmico na marca ===== */
+.brand-glow{
+  /* leve pulsar + mudança sutil de matiz */
+  animation:
+    glowPulse 6s ease-in-out infinite,
+    glowHue 14s ease-in-out infinite alternate;
+  filter:
+    drop-shadow(0 14px 36px rgba(255,106,0,.38))
+    drop-shadow(0 4px 16px rgba(255,106,0,.22));
+}
+@keyframes glowPulse{
+  0%,100%{ transform: translateY(0) scale(1) }
+  50%{ transform: translateY(-6px) scale(1.02) }
+}
+@keyframes glowHue{
+  0%{ filter: drop-shadow(0 14px 36px rgba(255,106,0,.38)) hue-rotate(0deg); }
+  100%{ filter: drop-shadow(0 14px 36px rgba(255,106,0,.38)) hue-rotate(20deg); }
+}
+
+/* ===== Inputs / Cards (site inteiro) ===== */
+.field{
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  color: #e5e7eb;
+  padding: 12px 14px;
+  outline: none;
+  transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
+}
+.field::placeholder{ color: #94a3b8; }
+.field:focus{
+  border-color: rgba(255,255,255,0.28);
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.08);
+}
+.card{
+  border-radius: 22px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.14);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 12px 36px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+/* ===== Barra superior mínima ===== */
+.topbar{
+  position: sticky; top:0; z-index:30;
+  display:flex; align-items:center; gap:12px;
+  padding: 10px 14px;
+  background: linear-gradient(to bottom, rgba(10,10,10,.55), rgba(10,10,10,0));
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  backdrop-filter: blur(8px);
+}
+
+/* ===== Partículas: camada ===== */
+.particles-layer{
+  position: fixed; inset: 0; pointer-events: none;
+  mix-blend-mode: screen; opacity: .33;
+}
