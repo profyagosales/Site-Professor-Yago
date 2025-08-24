@@ -28,13 +28,15 @@ export default function LoginProfessor() {
         localStorage.setItem("role", res.data?.role || "teacher");
         nav("/turmas", { replace: true });
       } else if (res.status === 401) {
-        setErro("Credenciais inválidas.");
+        setErro(res.data?.message || "Credenciais inválidas.");
+      } else if (res.status === 400) {
+        setErro(res.data?.message || "Preencha os campos corretamente.");
       } else {
-        setErro("Falha ao fazer login. Tente novamente.");
+        setErro(res.data?.message || "Falha ao fazer login. Tente novamente.");
       }
     } catch (err) {
       setLoading(false);
-      setErro("Falha ao fazer login. Tente novamente.");
+      setErro(err.response?.data?.message || "Falha ao fazer login. Tente novamente.");
     }
   }
 

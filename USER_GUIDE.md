@@ -8,7 +8,7 @@ Este guia descreve os principais fluxos do sistema: login de professor e aluno, 
 3. Em caso de sucesso, o sistema redireciona para `/dashboard-professor`.
 4. Exemplo de requisição:
    ```
-   POST /auth/login-teacher
+   POST /api/auth/login-teacher
    {
      "email": "prof@example.com",
      "password": "senha"
@@ -21,7 +21,7 @@ Este guia descreve os principais fluxos do sistema: login de professor e aluno, 
 3. Após o login, você é direcionado para `/dashboard-aluno`.
 4. Exemplo de requisição:
    ```
-   POST /auth/login-student
+   POST /api/auth/login-student
    {
      "rollNumber": 1,
      "phone": "999999999",
