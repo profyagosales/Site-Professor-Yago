@@ -1,4 +1,4 @@
-const api = {
+const http = {
   get: jest.fn(() => Promise.resolve({ data: {} })),
   post: jest.fn(() => Promise.resolve({ data: {} })),
   put: jest.fn(() => Promise.resolve({ data: {} })),
@@ -10,8 +10,9 @@ export const warmBackend = jest.fn(() => Promise.resolve());
 export const loginTeacher = jest.fn(() => Promise.resolve({}));
 export const loginStudent = jest.fn(() => Promise.resolve({ token: '123', role: 'student' }));
 export const loginStudentLegacy = jest.fn(() => Promise.resolve({}));
-api.loginTeacher = loginTeacher;
-api.loginStudent = loginStudent;
-api.loginStudentLegacy = loginStudentLegacy;
-export default api;
-export { api };
+http.loginTeacher = loginTeacher;
+http.loginStudent = loginStudent;
+http.loginStudentLegacy = loginStudentLegacy;
+export default http;
+export { http };
+export const api = http;
