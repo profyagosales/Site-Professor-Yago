@@ -4,7 +4,6 @@ import YSLogo from '@/components/brand/YSLogo';
 
 export default function Landing(){
   const nav = useNavigate();
-  const year = new Date().getFullYear();
 
   return (
     <main className="relative min-h-[calc(100vh-64px)] flex flex-col items-center">
@@ -30,27 +29,32 @@ export default function Landing(){
           </div>
         </div>
 
-        {/* === CARD ÚNICO CENTRAL === */}
-        <div className="mt-14 md:mt-20 flex justify-center">
-          <div className="card w-full max-w-3xl text-center p-6 md:p-10">
-            <h3 className="text-xl md:text-2xl font-semibold text-white/95">
-              Centro de Ensino Médio 01 do Paranoá — <span style={{color:'#ff6a00'}}>CEM 01 do Paranoá</span>
-            </h3>
+        {/* end hero section */}
+      </section>
 
-            <p className="mt-3 text-slate-300/90 text-base md:text-lg">
-              Controle de notas, redação, gabaritos e avisos
-            </p>
+      {/* CARD INSTITUCIONAL — compacto */}
+      <section className="w-full px-6 md:px-10 mt-10 mb-16">
+        <div className="mx-auto max-w-xl rounded-2xl bg-white/60 ring-1 ring-[var(--ring)] backdrop-blur-sm px-6 py-6 md:px-8 md:py-7 shadow-[0_1px_0_rgba(255,255,255,.5),0_12px_24px_rgba(15,23,42,.06)]">
+          <h3 className="text-center font-semibold text-slate-800 text-lg">
+            Centro de Ensino Médio 01 do Paranoá
+          </h3>
+          <p className="text-center text-[15px] text-slate-700 mt-0.5">
+            <span className="font-semibold text-slate-800">CEM 01 do Paranoá</span>
+          </p>
 
-            <p className="mt-4 text-slate-300/90">
-              Desenvolvido por <span className="font-semibold" style={{color:'#ff6a00'}}>Professor Yago Sales</span>
-            </p>
+          <p className="text-center text-[15px] text-slate-700 mt-3">
+            Controle de notas, redação, gabaritos e avisos
+          </p>
 
-            <hr className="my-6 border-white/10" />
+          <p className="text-center text-[14px] text-slate-600 mt-3">
+            Desenvolvido por <span className="font-semibold" style={{color:'var(--brand)'}}>Professor Yago Sales</span>
+          </p>
 
-            <p className="text-xs text-slate-400/80">
-              © {year} Yago Sales. Todos os direitos reservados.
-            </p>
-          </div>
+          <hr className="my-5 border-white/70" />
+
+          <p className="text-center text-[12px] text-slate-600">
+            © {new Date().getFullYear()} Yago Sales. Todos os direitos reservados.
+          </p>
         </div>
       </section>
     </main>
