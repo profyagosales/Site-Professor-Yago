@@ -3,12 +3,9 @@ import { Card, CardBody } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { useState } from "react";
-import axios from "axios";
-import { API_URL } from "@/lib/env";
-import { useNavigate } from "react-router-dom";
+import { api } from "@/lib/http";
 
 export default function LoginProfessor() {
-  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [senha, setSenha]   = useState("");
   const [loading, setLoading] = useState(false);
@@ -18,11 +15,12 @@ export default function LoginProfessor() {
     e.preventDefault();
     setErro(""); setLoading(true);
     try {
-      const { data, status } = await axios.post(`${API_URL}/auth/login-teacher`, { email, password: senha });
-      console.log("[LOGIN] status:", status, data);
+      const { data } = await api.post("/auth/login-teacher", {
+        email, password: senha
+      });
       if (data?.token) {
         localStorage.setItem("teacher_token", data.token);
-        navigate("/turmas");
+        location.assign("/turmas");
       } else {
         setErro("Falha ao fazer login. Tente novamente.");
       }
