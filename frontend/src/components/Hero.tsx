@@ -22,8 +22,8 @@ export function Hero(){
 
         {/* 3) Ações */}
         <div className="flex items-center justify-center gap-4 pt-1">
-          <Link to="/login-professor" className="btn btn-primary glass">Sou Professor</Link>
-          <Link to="/login-aluno" className="btn btn-ghost">Sou Aluno</Link>
+          <Link to="/login-professor" className="ys-btn-primary ys-glass">Sou Professor</Link>
+          <Link to="/login-aluno" className="ys-btn-ghost">Sou Aluno</Link>
         </div>
       </div>
     </section>

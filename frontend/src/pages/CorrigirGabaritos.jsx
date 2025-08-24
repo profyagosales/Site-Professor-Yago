@@ -44,7 +44,7 @@ function CorrigirGabaritos() {
   return (
     <div className="pt-20 p-md">
       <h1 className="text-2xl font-bold">Corrigir Gabaritos</h1>
-      <div className="card space-y-md">
+      <div className="ys-card space-y-md">
         <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-md items-end">
           <input
             type="file"
@@ -52,7 +52,7 @@ function CorrigirGabaritos() {
             onChange={(e) => setFile(e.target.files[0])}
             className="mb-2 md:mb-0"
           />
-          <button type="submit" className="btn-primary">
+          <button type="submit" className="ys-btn-primary">
             Enviar
           </button>
         </form>
@@ -69,7 +69,7 @@ function CorrigirGabaritos() {
         {success && <p className="text-green-500">{success}</p>}
       </div>
       {arrify(results).length > 0 && (
-        <div className="mt-md card">
+        <div className="mt-md ys-card">
           <div className="overflow-x-auto">
             <table className="min-w-full border">
               <thead>

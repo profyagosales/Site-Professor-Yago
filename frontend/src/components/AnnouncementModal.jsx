@@ -50,7 +50,7 @@ export default function AnnouncementModal({ open, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/50">
-      <div className="card w-full max-w-lg p-md">
+      <div className="ys-card w-full max-w-lg p-md">
         <h2 className="text-xl mb-md">Adicionar aviso</h2>
         <form onSubmit={handleSubmit} className="space-y-md">
           <div>
@@ -87,7 +87,7 @@ export default function AnnouncementModal({ open, onClose, onSaved }) {
           )}
           <div className="flex justify-end gap-sm pt-sm">
             <button type="button" onClick={onClose} className="px-4 py-2 border rounded">Cancelar</button>
-            <button type="submit" className="btn-primary">Salvar</button>
+            <button type="submit" className="ys-btn-primary">Salvar</button>
           </div>
         </form>
       </div>

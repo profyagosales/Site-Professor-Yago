@@ -80,13 +80,13 @@ function DashboardProfessor(){
       <ProfileHeader name={user.name} subtitle="Professor" avatarUrl={user.avatarUrl} onLogout={handleLogout} />
 
       <div className="flex flex-wrap gap-md">
-        <button className="btn-primary" onClick={() => setShowEmail(true)}>Enviar e-mail</button>
-        <button className="btn-primary" onClick={() => setAnnouncementOpen(true)}>Adicionar aviso</button>
-        <button className="btn-primary" onClick={() => setContentOpen(true)}>Adicionar conteúdo</button>
+        <button className="ys-btn-primary" onClick={() => setShowEmail(true)}>Enviar e-mail</button>
+        <button className="ys-btn-primary" onClick={() => setAnnouncementOpen(true)}>Adicionar aviso</button>
+        <button className="ys-btn-primary" onClick={() => setContentOpen(true)}>Adicionar conteúdo</button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
-        <div className="card">
+        <div className="ys-card">
           <div className="flex items-center justify-between mb-sm">
             <h3 className="text-orange font-semibold">Próximos conteúdos</h3>
             <button className="link-primary" onClick={() => navigate('/conteudos')}>Ver todos</button>
@@ -100,7 +100,7 @@ function DashboardProfessor(){
           ) : <p className="text-sm text-black/60">Nenhum conteúdo próximo</p>}
         </div>
 
-        <div className="card">
+        <div className="ys-card">
           <div className="flex items-center justify-between mb-sm">
             <h3 className="text-orange font-semibold">Próximas Avaliações</h3>
             <button className="link-primary" onClick={() => navigate('/notas-classe')}>Ver todos</button>
@@ -114,7 +114,7 @@ function DashboardProfessor(){
           ) : <p className="text-sm text-black/60">Sem avaliações</p>}
         </div>
 
-        <div className="card">
+        <div className="ys-card">
           <div className="flex items-center justify-between mb-sm">
             <h3 className="text-orange font-semibold">Avisos recentes</h3>
             <button className="link-primary" onClick={() => navigate('/avisos')}>Ver todos</button>

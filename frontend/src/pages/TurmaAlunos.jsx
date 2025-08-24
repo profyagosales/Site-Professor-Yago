@@ -69,7 +69,7 @@ function TurmaAlunos() {
           onClick={() => {
             setIsNewOpen(true);
           }}
-          className="btn-primary"
+          className="ys-btn-primary"
         >
           Novo Aluno
         </button>

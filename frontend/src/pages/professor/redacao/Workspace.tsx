@@ -170,7 +170,7 @@ function Workspace() {
           <div className="flex gap-sm">
             <button
               type="button"
-              className="btn-secondary"
+              className="ys-btn-ghost"
               disabled={saving}
               onClick={() => handleSave(false)}
             >
@@ -178,7 +178,7 @@ function Workspace() {
             </button>
             <button
               type="button"
-              className="btn-primary"
+              className="ys-btn-primary"
               disabled={saving}
               onClick={() => handleSave(true)}
             >

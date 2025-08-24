@@ -48,7 +48,7 @@ function NewContentModal({ isOpen, onClose, onSuccess }) {
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/50">
-      <div className="card w-full max-w-lg p-md">
+      <div className="ys-card w-full max-w-lg p-md">
         <h2 className="text-xl mb-md">Novo Conteúdo</h2>
         <form onSubmit={handleSubmit} className="space-y-md">
           <div>
@@ -105,7 +105,7 @@ function NewContentModal({ isOpen, onClose, onSuccess }) {
             >
               Cancelar
             </button>
-            <button type="submit" className="btn-primary">
+            <button type="submit" className="ys-btn-primary">
               Salvar
             </button>
           </div>

@@ -2,21 +2,58 @@
 @tailwind components;
 @tailwind utilities;
 
-body{
-  background:
-    radial-gradient(1200px 800px at 20% -10%, #FFB86C22, transparent 60%),
-    radial-gradient(1200px 800px at 80% 110%, #FF7A1A22, transparent 60%),
-    radial-gradient(circle at 1px 1px, rgba(255,255,255,.06) 1px, transparent 0);
-  background-size: cover, cover, 24px 24px;
-  color: #E2E8F0;
+/* ===== Base tokens ===== */
+@layer base {
+  :root{
+    --ys-orange-1:#FFB082;
+    --ys-orange-2:#FF7E6D;
+    --ys-glow: rgba(255,255,255,.35);
+  }
+  html,body,#root{ height:100%; }
 }
 
-.glass{
-  @apply rounded-2xl bg-white/8 backdrop-blur-xl border border-white/10 shadow-glass;
+/* ===== Components (apply seguro) ===== */
+@layer components {
+  .ys-card{
+    @apply rounded-2xl border border-white/20 shadow-lg;
+    background: rgba(255,255,255,.66);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .ys-btn{
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5
+           font-semibold transition shadow-lg focus:outline-none
+           focus:ring-2 focus:ring-offset-2;
+  }
+  .ys-btn-primary{
+    @apply ys-btn text-white bg-orange-500 hover:bg-orange-600 focus:ring-orange-500;
+  }
+  .ys-btn-ghost{
+    @apply ys-btn bg-white/70 hover:bg-white/90 text-gray-800;
+  }
+  .ys-input{
+    @apply w-full rounded-xl border border-black/10 bg-white/80 px-4 py-2 outline-none
+           focus:ring-2 focus:ring-orange-400;
+  }
+  .ys-title{ @apply font-bold tracking-tight text-gray-900; }
 }
-.glow{ box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset, 0 10px 30px rgba(0,0,0,.35); }
 
-.btn{ @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-medium transition; }
-.btn-primary{ @apply bg-white text-slate-900 hover:bg-slate-100; }
-.btn-ghost{ @apply bg-white/10 text-white hover:bg-white/15 border border-white/10; }
-
+/* ===== Utilities (sem @apply com valores arbitrários) ===== */
+@layer utilities {
+  .bg-ys-hero{
+    background-image:
+      radial-gradient(1200px 420px at 50% -120px, var(--ys-glow), transparent),
+      linear-gradient(180deg, var(--ys-orange-1), var(--ys-orange-2));
+  }
+  .ys-glass{
+    background: rgba(255,255,255,.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,.35);
+  }
+  @keyframes ysPulse {
+    0%,100%{ transform: scale(1); filter: drop-shadow(0 8px 24px rgba(0,0,0,.15)); }
+    50%{ transform: scale(1.03); filter: drop-shadow(0 12px 28px rgba(0,0,0,.18)); }
+  }
+  .ys-logo-alive{ animation: ysPulse 2.8s ease-in-out infinite; }
+}

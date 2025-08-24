@@ -224,7 +224,7 @@ function CorrigirRedacao() {
           suppressContentEditableWarning={true}
           className="border p-sm min-h-[200px] rounded"
         ></div>
-        <button type="button" className="btn-primary" onClick={handleAddComment}>
+        <button type="button" className="ys-btn-primary" onClick={handleAddComment}>
           Adicionar comentário
         </button>
         {comments.length > 0 && (
@@ -240,7 +240,7 @@ function CorrigirRedacao() {
 
       <button
         type="submit"
-        className="btn-primary"
+        className="ys-btn-primary"
         disabled={
           tipo === 'ENEM'
             ? !(totalEnem > 0 || anulacao)

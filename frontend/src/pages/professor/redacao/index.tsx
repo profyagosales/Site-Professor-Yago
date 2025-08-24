@@ -190,14 +190,14 @@ function RedacaoPage() {
   return (
     <div className="pt-20 p-md space-y-md">
       <div className="grid md:grid-cols-2 gap-md">
-        <div className="card space-y-md">
+        <div className="ys-card space-y-md">
           <h2>Cadastrar tema</h2>
-          <button className="btn-primary" onClick={() => setShowThemeModal(true)}>
+          <button className="ys-btn-primary" onClick={() => setShowThemeModal(true)}>
             Novo tema
           </button>
         </div>
 
-        <form className="card space-y-md" onSubmit={handleSubmit}>
+        <form className="ys-card space-y-md" onSubmit={handleSubmit}>
           <h2>Enviar redação</h2>
           <div className="space-y-sm">
             <label className="block font-medium">Aluno</label>
@@ -286,7 +286,7 @@ function RedacaoPage() {
             />
           </div>
 
-          <button type="submit" className="btn-primary">
+          <button type="submit" className="ys-btn-primary">
             Enviar
           </button>
         </form>
@@ -304,7 +304,7 @@ function RedacaoPage() {
             return (
               <div
                 key={s._id || s.id}
-                className="card flex items-center justify-between p-sm"
+                className="ys-card flex items-center justify-between p-sm"
               >
                 <div>
                   <p className="font-semibold">{student?.name || s.studentId}</p>
@@ -337,12 +337,12 @@ function RedacaoPage() {
             />
             <div className="flex justify-end gap-sm">
               <button
-                className="btn-secondary"
+                className="ys-btn-ghost"
                 onClick={() => setShowThemeModal(false)}
               >
                 Cancelar
               </button>
-              <button className="btn-primary" onClick={handleCreateTheme}>
+              <button className="ys-btn-primary" onClick={handleCreateTheme}>
                 Salvar
               </button>
             </div>

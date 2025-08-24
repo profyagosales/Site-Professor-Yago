@@ -155,7 +155,7 @@ function CriarGabarito() {
           value={form.teacher}
           onChange={handleChange}
         />
-        <button type="submit" className="btn-primary" disabled={loading}>
+        <button type="submit" className="ys-btn-primary" disabled={loading}>
           {loading ? 'Gerando...' : 'Gerar PDF'}
         </button>
       </form>

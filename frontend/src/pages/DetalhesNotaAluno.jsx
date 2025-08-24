@@ -87,7 +87,7 @@ function DetalhesNotaAluno() {
               return (
                 <div
                   key={b}
-                  className="card"
+                  className="ys-card"
                 >
                   <h2 className="font-semibold">{b}º Bimestre</h2>
                   <ul className="space-y-xs">
@@ -108,10 +108,10 @@ function DetalhesNotaAluno() {
             })}
           </div>
           <div className="flex gap-md justify-center">
-            <button className="btn-primary" onClick={handleExport}>
+            <button className="ys-btn-primary" onClick={handleExport}>
               Exportar PDF
             </button>
-            <button className="btn-primary" onClick={handleSend}>
+            <button className="ys-btn-primary" onClick={handleSend}>
               Enviar para o Aluno
             </button>
           </div>

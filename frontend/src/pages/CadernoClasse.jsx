@@ -171,7 +171,7 @@ function CadernoClasse() {
     if (!showModal) return null;
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-black/50">
-        <div className="card w-full max-w-md p-md">
+        <div className="ys-card w-full max-w-md p-md">
           <h2 className="text-xl">Novo Visto</h2>
           <div className="space-y-md">
             <div>
@@ -229,7 +229,7 @@ function CadernoClasse() {
               >
                 Cancelar
               </button>
-              <button type="button" className="btn-primary" onClick={handleCreate}>
+              <button type="button" className="ys-btn-primary" onClick={handleCreate}>
                 Salvar
               </button>
             </div>
@@ -243,7 +243,7 @@ function CadernoClasse() {
     if (!showConfigModal) return null;
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-black/50">
-        <div className="card w-full max-w-md p-md">
+        <div className="ys-card w-full max-w-md p-md">
           <h2 className="text-xl">Configurar Totais</h2>
           <div className="space-y-md">
             {[1, 2, 3, 4].map((b) => (
@@ -265,7 +265,7 @@ function CadernoClasse() {
               >
                 Cancelar
               </button>
-              <button type="button" className="btn-primary" onClick={handleSaveConfig}>
+              <button type="button" className="ys-btn-primary" onClick={handleSaveConfig}>
                 Salvar
               </button>
             </div>
@@ -298,7 +298,7 @@ function CadernoClasse() {
             {arrify(classes).map((cls) => (
               <div
                 key={cls._id}
-                className="card flex items-center border border-orange-500 cursor-pointer"
+                className="ys-card flex items-center border border-orange-500 cursor-pointer"
                 onClick={() => handleClassClick(cls)}
               >
                 <FiBook className="w-6 h-6 text-orange mr-3" />
@@ -340,10 +340,10 @@ function CadernoClasse() {
           <option value="4">4º Bimestre</option>
         </select>
         <div className="space-x-sm">
-          <button className="btn-primary" onClick={() => setShowConfigModal(true)}>
+          <button className="ys-btn-primary" onClick={() => setShowConfigModal(true)}>
             Config Totais
           </button>
-          <button className="btn-primary" onClick={() => setShowModal(true)}>
+          <button className="ys-btn-primary" onClick={() => setShowModal(true)}>
             Novo Visto
           </button>
         </div>

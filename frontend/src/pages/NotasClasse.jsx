@@ -117,7 +117,7 @@ function NotasClasse() {
               {arrify(classes).map((cls) => (
                 <div
                   key={cls._id}
-                  className="card cursor-pointer"
+                  className="ys-card cursor-pointer"
                   onClick={() => loadGrades(cls)}
                 >
                   <h3 className="text-orange text-lg font-semibold">
@@ -151,7 +151,7 @@ function NotasClasse() {
               <option value="3">3º Bimestre</option>
               <option value="4">4º Bimestre</option>
             </select>
-            <button className="btn-primary" onClick={handleExport}>
+            <button className="ys-btn-primary" onClick={handleExport}>
               Exportar PDF
             </button>
           </div>
