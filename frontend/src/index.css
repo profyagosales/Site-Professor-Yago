@@ -1,0 +1,65 @@
+/* ===== Fundo cinza animado (mais claro) ===== */
+.bg-animated-gray{
+  position: fixed; inset: 0; z-index: -2;
+  background:
+    radial-gradient(900px 420px at 20% 15%, rgba(255,255,255,0.14), transparent 55%),
+    radial-gradient(700px 380px at 80% 28%, rgba(255,255,255,0.12), transparent 55%),
+    linear-gradient(180deg, #43484f 0%, #343a41 60%, #2b3137 100%);
+  animation: bgShift 28s ease-in-out infinite alternate;
+}
+@keyframes bgShift{
+  0%{ background-position: 0 0, 0 0, 0 0; }
+  100%{ background-position: 2% -1%, -1% 2%, 0 0; }
+}
+
+/* ===== Ajustes de UI (mais leves) ===== */
+.btn-brand{
+  display:inline-flex; align-items:center; gap:.5rem;
+  background:#ff6a00; color:#111; font-weight:700;
+  border-radius:14px; padding:.9rem 1.15rem;
+  box-shadow: 0 10px 24px rgba(255,106,0,.28);
+  transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+}
+.btn-brand:hover{ transform: translateY(-1px); box-shadow:0 14px 28px rgba(255,106,0,.34); }
+.btn-ghost{
+  display:inline-flex; align-items:center; gap:.5rem;
+  color:#e5e7eb; border:1px solid rgba(255,255,255,.16);
+  background: rgba(255,255,255,.06); padding:.9rem 1.15rem; border-radius:14px;
+  transition: background .12s ease, border-color .12s ease;
+}
+.btn-ghost:hover{ background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.22); }
+
+.field{
+  width:100%; border-radius:14px; border:1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06); color:#e5e7eb; padding:12px 14px;
+  transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+.field::placeholder{ color:#aab4c3; }
+.field:focus{ border-color: rgba(255,255,255,.27); background: rgba(255,255,255,.08); box-shadow: 0 0 0 3px rgba(255,255,255,.10); }
+
+.card{
+  border-radius:22px; background: rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.14);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 10px 28px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.07);
+}
+
+/* ===== Marca: glow mais leve (menos filtros) ===== */
+.brand-glow{
+  animation: glowPulse 6s ease-in-out infinite;
+  filter: drop-shadow(0 12px 30px rgba(255,106,0,.30));
+}
+@keyframes glowPulse{
+  0%,100%{ transform: translateY(0) scale(1) }
+  50%{ transform: translateY(-4px) scale(1.01) }
+}
+
+/* ===== Partículas: camada ===== */
+.particles-layer{ position: fixed; inset:0; pointer-events:none; mix-blend-mode: screen; opacity:.26; z-index:-1; }
+
+/* ===== Acessibilidade/performance ===== */
+@media (prefers-reduced-motion: reduce){
+  .brand-glow, .bg-animated-gray{ animation: none !important; }
+  .particles-layer{ display:none !important; }
+}
+
