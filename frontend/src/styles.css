@@ -32,13 +32,13 @@
     @apply ys-btn text-white bg-orange-500 hover:bg-orange-600 focus:ring-orange-500;
   }
   .ys-btn-ghost{
-    @apply ys-btn bg-white/70 hover:bg-white/90 text-gray-800;
+    @apply ys-btn bg-white/70 hover:bg-white/90 text-body;
   }
   .ys-input{
     @apply w-full rounded-xl border border-black/10 bg-white/80 px-4 py-2 outline-none
            focus:ring-2 focus:ring-orange-400;
   }
-  .ys-title{ @apply font-bold tracking-tight text-gray-900; }
+  .ys-title{ @apply font-bold tracking-tight text-body; }
 }
 
 /* ===== Utilities (sem @apply com valores arbitrários) ===== */
@@ -62,22 +62,27 @@
 }
 
 /* === Fonte bonita e segura === */
-:root{
-  --bg-0:#eef1f4;
-  --bg-1:#e7eaee;
-  --bg-2:#dfe4ea;
-  --ink-0:#0f172a;
-  --ink-1:#334155;
-  --brand:#ff6a00;
-  --glass:rgba(255,255,255,.6);
-  --ring:rgba(15,23,42,.06);
+@layer base {
+  :root{
+    --bg-0:#eef1f4;
+    --bg-1:#e7eaee;
+    --bg-2:#dfe4ea;
+    --brand:255 106 0;
+    --glass:rgba(255,255,255,.6);
+    --ring:rgba(15,23,42,.06);
+    --fg:15 23 42;
+    --muted-fg:30 41 59;
+  }
+
+  html,body,#root{height:100%}
+  html, body {
+    color: rgb(var(--fg));
+  }
 }
 
 /* Base da página */
-html,body,#root{height:100%}
 body{
   font-family: 'Outfit', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-  color: var(--ink-0);
   background: var(--bg-0);
   overflow-x: hidden;
 }
@@ -114,17 +119,17 @@ body{
 
 /* Botão com foco acessível e toque premium */
 .btn-brand{
-  background: var(--brand);
+  background: rgb(var(--brand));
   color:#0a0a0a;
   border-radius: 14px;
   padding: 14px 18px;
   font-weight: 700;
   letter-spacing: .2px;
-  box-shadow: 0 10px 20px rgba(255,106,0,.25);
+  box-shadow: 0 10px 20px rgb(var(--brand) / 0.25);
   transition: transform .15s ease, box-shadow .2s ease, filter .2s ease;
 }
 .btn-brand:hover{ transform: translateY(-1px); filter: saturate(1.15); }
-.btn-brand:focus-visible{ outline: 3px solid rgba(255,106,0,.45); outline-offset: 3px; }
+.btn-brand:focus-visible{ outline: 3px solid rgb(var(--brand) / 0.45); outline-offset: 3px; }
 
 .btn-ghost{
   background: rgba(255,255,255,0.06);
@@ -193,50 +198,12 @@ body{
   backdrop-filter: blur(8px);
 }
 
-/* ========= CONTRASTE GLOBAL — CINZAS MUITO MAIS ESCUROS ========= */
-
-/* Tokens mais escuros */
-:root{
-  --ink-0:#0b1220;  /* texto principal (quase slate-950) */
-  --ink-1:#1f2937;  /* cinza escuro p/ subtítulos (slate-800) */
-  --ink-2:#334155;  /* cinza médio p/ descrições (slate-700) */
-  --ink-3:#475569;  /* cinza leve p/ microtexto, só se precisar */
+/* ===== Tipografia global – contraste forte ===== */
+@layer utilities {
+  .text-body   { color: rgb(var(--fg)); }
+  .text-muted  { color: rgb(var(--muted-fg)); }
+  .text-muted\/90 { color: rgb(var(--muted-fg) / 0.90); }
+  .text-muted\/80 { color: rgb(var(--muted-fg) / 0.80); }
+  .text-muted\/70 { color: rgb(var(--muted-fg) / 0.70); }
 }
-
-/* Cor base do documento: escura */
-html, body { color: var(--ink-0); }
-
-/* Placeholders MUITO mais escuros */
-::placeholder{
-  color: var(--ink-2) !important;
-  opacity: .95 !important;
-}
-
-/* Inputs/textarea/seletores – texto e borda mais escuros para leitura */
-input, textarea, select{
-  color: var(--ink-0);
-  border-color: rgba(15,23,42,.25); /* em torno de slate-900/25 */
-}
-input:focus, textarea:focus, select:focus{
-  border-color: rgba(15,23,42,.35);
-}
-
-/* Utilitários rápidos: use quando quiser sem mudar Tailwind */
-.text-ink        { color: var(--ink-0) !important; }
-.text-ink-sub    { color: var(--ink-1) !important; } /* subtítulo */
-.text-ink-muted  { color: var(--ink-2) !important; } /* descrição */
-
-/* OVERRIDES AMIGOS DE TAILWIND (deixa cinzas padrão bem mais escuros)
-   Obs: a especificidade leve + !important garante que ganhe da classe. */
-:root .text-slate-400,
-:root .text-slate-500 { color: var(--ink-2) !important; } /* sobe p/ ~700 */
-:root .text-slate-600 { color: var(--ink-1) !important; } /* sobe p/ ~800 */
-:root .text-slate-700 { color: var(--ink-0) !important; } /* vira ~950     */
-
-/* Textos semitransparentes que ficam “lavados” no tema claro */
-:root .opacity-60 { opacity: .9 !important; }
-:root .opacity-70 { opacity: .95 !important; }
-
-/* “muted” do hero (ex: “Notas • Redação • …”) */
-.hero-muted { color: var(--ink-1) !important; opacity: .95 !important; }
 

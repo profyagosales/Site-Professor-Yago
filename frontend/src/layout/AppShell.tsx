@@ -5,7 +5,7 @@ import YSLogo from '@/components/brand/YSLogo';
 
 export default function AppShell(){
   return (
-    <div className="min-h-screen text-slate-800">
+    <div className="min-h-screen text-body">
       {/* Camada de fundo super leve */}
       <div className="app-bg" />
 
@@ -18,9 +18,9 @@ export default function AppShell(){
             <YSLogo size={28} />
             <span className="font-semibold tracking-wide">YS</span>
           </Link>
-          <nav className="ml-auto flex items-center gap-10 text-sm text-slate-600">
-            <Link to="/login-professor" className="hover:text-slate-900">Professor</Link>
-            <Link to="/login-aluno" className="hover:text-slate-900">Aluno</Link>
+          <nav className="ml-auto flex items-center gap-10 text-sm text-muted">
+            <Link to="/login-professor" className="hover:text-body">Professor</Link>
+            <Link to="/login-aluno" className="hover:text-body">Aluno</Link>
           </nav>
         </header>
 
