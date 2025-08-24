@@ -1,16 +1,12 @@
 import React from 'react';
 
-type Props = { size?: number; tone?: string; className?: string; shadow?: boolean };
+type Props = { size?: number; tone?: string; className?: string };
 
-export default function YSLogo({ size = 128, tone = '#ff6a00', className='', shadow = true }: Props) {
+export default function YSLogo({ size = 128, tone = '#ff6a00', className = '' }: Props) {
   const s = size;
   return (
-    <div
-      aria-label="YS Logo"
-      className={`brand-glow ${className}`}
-      style={{ width: s, height: s, filter: shadow ? undefined : 'none' }}
-    >
-      <svg viewBox="0 0 100 100" width={s} height={s} role="img">
+    <div className={`brand-glow ${className}`} style={{ width: s, height: s }}>
+      <svg viewBox="0 0 100 100" width={s} height={s} role="img" aria-label="YS">
         <rect x="8" y="8" width="84" height="84" rx="22" ry="22"
               fill="none" stroke={tone} strokeWidth="7" />
         <path d="M28 30 L42 48 L42 70" stroke={tone} strokeWidth="10" strokeLinecap="round" fill="none"/>
