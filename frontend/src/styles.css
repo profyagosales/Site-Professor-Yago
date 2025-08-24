@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body{
+  background:
+    radial-gradient(1200px 800px at 20% -10%, #FFB86C22, transparent 60%),
+    radial-gradient(1200px 800px at 80% 110%, #FF7A1A22, transparent 60%),
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,.06) 1px, transparent 0);
+  background-size: cover, cover, 24px 24px;
+  color: #E2E8F0;
+}
+
+.glass{
+  @apply rounded-2xl bg-white/8 backdrop-blur-xl border border-white/10 shadow-glass;
+}
+.glow{ box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset, 0 10px 30px rgba(0,0,0,.35); }
+
+.btn{ @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-medium transition; }
+.btn-primary{ @apply bg-white text-slate-900 hover:bg-slate-100; }
+.btn-ghost{ @apply bg-white/10 text-white hover:bg-white/15 border border-white/10; }
+

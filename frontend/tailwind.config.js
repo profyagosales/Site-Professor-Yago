@@ -39,12 +39,21 @@ export default {
         lightGray: '#F5F5F5',
         white: '#FFFFFF',
         black: '#212121',
+        brand: { 500: '#FF7A1A' },
+        state: {
+          notas: '#84CC16',
+          redacao: '#EC4899',
+          recados: '#2563EB',
+          gabaritos: '#7C3AED',
+        },
       },
       fontFamily: {
-        sans: ["Inter", "sans-serif"],
+        display: ['Poppins', 'ui-sans-serif', 'system-ui'],
+        sans: ['Inter', 'ui-sans-serif', 'system-ui'],
       },
       boxShadow: {
-        subtle: "0 1px 2px rgba(0,0,0,0.05)",
+        subtle: '0 1px 2px rgba(0,0,0,0.05)',
+        glass: '0 8px 30px rgba(0,0,0,.2)',
       },
       spacing: {
         sm: "8px",
