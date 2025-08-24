@@ -1,61 +1,63 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import YSLogo from '@/components/brand/YSLogo';
-import { Button } from '@/components/ui/Button';
+import { Button } from "@/components/ui/Button";
+import { Card, CardBody } from "@/components/ui/Card";
+import { Link } from "react-router-dom";
 
-export default function Landing(){
-  const nav = useNavigate();
-
+export default function Landing() {
   return (
-    <main className="relative min-h-[calc(100vh-64px)] flex flex-col items-center">
-      <section className="w-full max-w-5xl mx-auto px-6 md:px-10 pt-12 md:pt-16 pb-20">
-        {/* Logo */}
-        <div className="flex justify-center">
-          <YSLogo size={156} tone="#ff6a00" />
-        </div>
+    <section className="relative overflow-hidden">
+      <div className="max-w-6xl mx-auto px-4 pt-16 pb-24">
+        <div className="flex flex-col items-center text-center">
+          <div className="mb-6 inline-flex h-24 w-24 items-center justify-center rounded-2xl shadow-ys-glow bg-white border border-ys-line">
+            {/* seu ícone YS em laranja */}
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+              <rect x="2" y="2" width="20" height="20" rx="6" stroke="#FF7A00" strokeWidth="2" />
+              <path d="M7 9l3 3-3 3" stroke="#FF7A00" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M14 9h3m-3 6h3" stroke="#FF7A00" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </div>
 
-        {/* Títulos e CTAs */}
-        <div className="mt-8 text-center">
-          <p className="tracking-[0.5em] text-xs md:text-sm text-muted/80">PROFESSOR</p>
-          <h1 className="mt-3 text-4xl md:text-[56px] leading-tight font-extrabold text-body">
-            Yago Sales
+          <p className="tracking-[0.3em] text-xs text-ys-ink-3 mb-2">PROFESSOR</p>
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-ys-ink mb-3">
+            <span className="text-ys-amber drop-shadow">Yago Sales</span>
           </h1>
-          <p className="mt-3 max-w-2xl mx-auto text-base md:text-lg text-muted/90">
-            Notas • Redação • Recados • Gabaritos
-          </p>
+          <p className="text-ys-ink-2 mb-6">Notas • Redação • Recados • Gabaritos</p>
 
-          <div className="mt-10 flex items-center justify-center gap-4 flex-wrap">
-            <Button onClick={() => nav('/login-professor')}>Sou Professor</Button>
-            <Button onClick={() => nav('/login-aluno')} className="ml-3">Sou Aluno</Button>
+          <div className="flex flex-wrap items-center gap-3 mb-12">
+            <Link to="/login-professor">
+              <Button>Sou Professor</Button>
+            </Link>
+            <Link to="/login-aluno">
+              <Button>Sou Aluno</Button>
+            </Link>
           </div>
-        </div>
 
-        {/* end hero section */}
-      </section>
+          {/* Card de assinatura menorzinho */}
+          <Card className="max-w-2xl w-full">
+            <CardBody>
+              <div className="text-base font-semibold text-ys-ink text-center">
+                Centro de Ensino Médio 01 do Paranoá
+              </div>
+              <div className="text-sm text-ys-ink-2 text-center mt-1">
+                CEM 01 do Paranoá
+              </div>
 
-      {/* CARD INSTITUCIONAL — compacto */}
-      <section className="w-full px-6 md:px-10 mt-10 mb-16">
-        <div className="mx-auto max-w-xl rounded-2xl bg-white/60 ring-1 ring-[var(--ring)] backdrop-blur-sm px-6 py-6 md:px-8 md:py-7 shadow-[0_1px_0_rgba(255,255,255,.5),0_12px_24px_rgba(15,23,42,.06)]">
-          <div className="text-center">
-            <h3 className="text-lg font-semibold text-body">
-              Centro de Ensino Médio 01 do Paranoá
-            </h3>
-            <p className="text-sm text-muted/90 mt-1">
-              CEM 01 do Paranoá
-            </p>
-            <p className="text-sm text-muted mt-3">
-              Controle de notas, redação, gabaritos e avisos
-            </p>
-            <p className="text-xs text-muted/80 mt-4">
-              Desenvolvido por <span className="font-medium text-body">Professor Yago Sales</span>
-            </p>
-            <p className="text-[11px] text-muted/70 mt-2">
-              © {new Date().getFullYear()} Yago Sales. Todos os direitos reservados.
-            </p>
-          </div>
+              <p className="text-ys-ink-2 text-center mt-3">
+                Controle de notas, redação, gabaritos e avisos
+              </p>
+
+              <p className="text-ys-ink-2 text-center mt-3">
+                Desenvolvido por <span className="font-semibold text-ys-amber">Professor Yago Sales</span>
+              </p>
+
+              <hr className="my-4 border-ys-line" />
+              <p className="text-xs text-ys-ink-3 text-center">
+                © {new Date().getFullYear()} Yago Sales. Todos os direitos reservados.
+              </p>
+            </CardBody>
+          </Card>
         </div>
-      </section>
-    </main>
+      </div>
+    </section>
   );
 }
 
