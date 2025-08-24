@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import YSLogo from '@/components/brand/YSLogo';
-import { CtaButton } from '@/components/ui/Button';
+import { Button } from '@/components/ui/Button';
 
 export default function Landing(){
   const nav = useNavigate();
@@ -25,8 +25,8 @@ export default function Landing(){
           </p>
 
           <div className="mt-10 flex items-center justify-center gap-4 flex-wrap">
-            <CtaButton onClick={()=>nav('/login-professor')}>Sou Professor</CtaButton>
-            <CtaButton onClick={()=>nav('/login-aluno')} className="ml-3">Sou Aluno</CtaButton>
+            <Button onClick={() => nav('/login-professor')}>Sou Professor</Button>
+            <Button onClick={() => nav('/login-aluno')} className="ml-3">Sou Aluno</Button>
           </div>
         </div>
 
