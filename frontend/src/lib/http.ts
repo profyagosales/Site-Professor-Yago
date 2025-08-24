@@ -1,10 +1,12 @@
 import axios from 'axios';
 
-const API = (import.meta.env.VITE_API_URL || '').replace(/\/$/, ''); // sem barra final
-export const http = axios.create({
-  baseURL: `${API}/api`,
-  headers: { 'Content-Type': 'application/json' },
-  // withCredentials: true, // habilite só se usar cookies
+const baseURL =
+  import.meta.env.VITE_API_URL?.replace(/\/+$/, '') || ''; // pode vir 'https://.../api'
+
+export const api = axios.create({
+  baseURL, // ex.: https://site-professor-yago.onrender.com/api
+  withCredentials: true,
+  timeout: 20000,
 });
 
-export default http;
+export default api;
