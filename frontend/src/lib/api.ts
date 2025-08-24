@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const base = import.meta.env.VITE_API_URL?.replace(/\/+$/, '') || '';
+const base =
+  (typeof window !== 'undefined' && (window as any).__API_URL__?.replace(/\/+$/, '')) ||
+  '';
 // A API no backend expõe /auth, /classes, etc sob /api/...
 export const api = axios.create({
   baseURL: `${base}/api`,

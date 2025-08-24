@@ -1,14 +1,14 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import Landing from '@/pages/Landing';
-import LoginProfessor from '@/pages/LoginProfessor';
-import LoginAluno from '@/pages/LoginAluno';
+import LoginProfessor from '@/pages/auth/LoginProfessor';
+import LoginAluno from '@/pages/auth/LoginAluno';
 import DashboardProfessor from '@/pages/DashboardProfessor';
 import DashboardAluno from '@/pages/DashboardAluno';
 import EnviarRedacao from '@/pages/EnviarRedacao';
 import DashboardRedacoes from '@/pages/DashboardRedacoes';
-import Turmas from '@/pages/Turmas';
-import TurmaAlunos from '@/pages/TurmaAlunos';
+import Turmas from '@/pages/professor/Turmas';
+import TurmaAlunos from '@/pages/professor/TurmaAlunos';
 import PerfilAlunoProfessor from '@/pages/PerfilAlunoProfessor';
 import NotasClasse from '@/pages/NotasClasse';
 import DetalhesNotaAluno from '@/pages/DetalhesNotaAluno';

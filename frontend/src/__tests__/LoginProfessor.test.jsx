@@ -1,39 +1,55 @@
-jest.mock('@/lib/api');
-jest.mock('react-router-dom', () => ({
-  ...jest.requireActual('react-router-dom'),
-  useNavigate: jest.fn()
-}));
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
-import LoginProfessor from '@/pages/LoginProfessor';
-import { api } from '@/lib/api';
+import axios from 'axios';
+import LoginProfessor from '@/pages/auth/LoginProfessor';
+
+jest.mock('axios');
+jest.mock('react-router-dom', () => ({
+  ...jest.requireActual('react-router-dom'),
+  useNavigate: jest.fn(),
+}));
 
 describe('LoginProfessor', () => {
-  test('submits form and navigates', async () => {
+  beforeEach(() => {
     localStorage.clear();
-    api.post.mockResolvedValue({ status: 200, data: { token: '123', role: 'teacher' } });
+  });
+
+  test('submits form and redirects on success', async () => {
+    axios.post.mockResolvedValue({ status: 200, data: { token: '123' } });
     const navigate = jest.fn();
     require('react-router-dom').useNavigate.mockReturnValue(navigate);
 
-    render(
-      <MemoryRouter>
-        <LoginProfessor />
-      </MemoryRouter>
-    );
+    render(<LoginProfessor />);
 
-    await userEvent.type(screen.getByPlaceholderText(/Email/i), 'prof@example.com');
-    await userEvent.type(screen.getByPlaceholderText(/Senha/i), 'secret');
+    await userEvent.type(screen.getByLabelText(/E-mail/i), 'prof@example.com');
+    await userEvent.type(screen.getByLabelText(/Senha/i), 'secret');
     await userEvent.click(screen.getByRole('button', { name: /Entrar/i }));
 
     await waitFor(() => {
-      expect(api.post).toHaveBeenCalledWith('/auth/login-teacher', {
+      expect(axios.post).toHaveBeenCalledWith('/auth/login-teacher', {
         email: 'prof@example.com',
-        senha: 'secret',
+        password: 'secret',
       });
-      expect(navigate).toHaveBeenCalledWith('/turmas', { replace: true });
-      expect(localStorage.getItem('token')).toBe('123');
-      expect(localStorage.getItem('role')).toBe('teacher');
+      expect(localStorage.getItem('teacher_token')).toBe('123');
+      expect(navigate).toHaveBeenCalledWith('/turmas');
+    });
+  });
+
+  test('shows error message on failure', async () => {
+    axios.post.mockRejectedValue({ response: { data: { message: 'Falha' } } });
+    const navigate = jest.fn();
+    require('react-router-dom').useNavigate.mockReturnValue(navigate);
+
+    render(<LoginProfessor />);
+
+    await userEvent.type(screen.getByLabelText(/E-mail/i), 'prof@example.com');
+    await userEvent.type(screen.getByLabelText(/Senha/i), 'secret');
+    await userEvent.click(screen.getByRole('button', { name: /Entrar/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Falha')).toBeInTheDocument();
+      expect(navigate).not.toHaveBeenCalled();
     });
   });
 });
+

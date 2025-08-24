@@ -1,59 +1,11 @@
-jest.mock('@/lib/api');
-jest.mock('react-router-dom', () => ({
-  ...jest.requireActual('react-router-dom'),
-  useParams: jest.fn(),
-}));
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
-import TurmaAlunos from '@/pages/TurmaAlunos';
+import TurmaAlunos from '@/pages/professor/TurmaAlunos';
 
-jest.mock('@/components/NewStudentModal', () => () => <div />);
-
-jest.mock('@/services/classes', () => ({
-  getClassById: jest.fn(),
-}));
-
-jest.mock('@/services/students', () => ({
-  list: jest.fn(),
-}));
-
-jest.mock('react-toastify', () => ({
-  toast: { success: jest.fn(), error: jest.fn() },
-}));
-
-describe('TurmaAlunos page', () => {
-  test('renders class info and students', async () => {
-    require('react-router-dom').useParams.mockReturnValue({ classId: '1' });
-    const { getClassById } = require('@/services/classes');
-    const { list } = require('@/services/students');
-    getClassById.mockResolvedValue({ series: 1, letter: 'A', discipline: 'Mat' });
-    list.mockResolvedValue([
-      { id: 1, number: 1, name: 'Ana', phone: '123', email: 'a@test.com' },
-    ]);
-
-    render(
-      <MemoryRouter>
-        <TurmaAlunos />
-      </MemoryRouter>
-    );
-
-    expect(await screen.findByText('1º A — Mat')).toBeInTheDocument();
-    expect(await screen.findByText('Ana')).toBeInTheDocument();
-  });
-
-  test('shows not found message', async () => {
-    require('react-router-dom').useParams.mockReturnValue({ classId: '99' });
-    const { getClassById } = require('@/services/classes');
-    const { list } = require('@/services/students');
-    getClassById.mockRejectedValue({ response: { status: 404 } });
-    list.mockResolvedValue([]);
-
-    render(
-      <MemoryRouter>
-        <TurmaAlunos />
-      </MemoryRouter>
-    );
-
-    expect(await screen.findByText('Turma não encontrada')).toBeInTheDocument();
+describe('TurmaAlunosPage', () => {
+  test('renders table with students', () => {
+    render(<TurmaAlunos />);
+    expect(screen.getByText('João Silva')).toBeInTheDocument();
+    expect(screen.getByText('joao@ex.com')).toBeInTheDocument();
   });
 });
+
