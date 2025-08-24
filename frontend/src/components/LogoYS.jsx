@@ -1,10 +1,6 @@
 import React from 'react';
-import './login.css';
-
-const words = ['Yago', 'School', 'Online'];
-
-const LogoYS = ({ size = 120, showWords = true }) => (
-  <div className="logo-ys">
+const LogoYS = ({ size = 120 }) => (
+  <div className="flex flex-col items-center">
     <svg
       width={size}
       height={size / 2}
@@ -13,22 +9,8 @@ const LogoYS = ({ size = 120, showWords = true }) => (
     >
       <defs>
         <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#ff7e5f">
-            <animate
-              attributeName="stop-color"
-              values="#ff7e5f;#feb47b;#ff7e5f"
-              dur="6s"
-              repeatCount="indefinite"
-            />
-          </stop>
-          <stop offset="100%" stopColor="#feb47b">
-            <animate
-              attributeName="stop-color"
-              values="#feb47b;#ff7e5f;#feb47b"
-              dur="6s"
-              repeatCount="indefinite"
-            />
-          </stop>
+          <stop offset="0%" stopColor="#ff7e5f" />
+          <stop offset="100%" stopColor="#feb47b" />
         </linearGradient>
       </defs>
       <text
@@ -41,13 +23,6 @@ const LogoYS = ({ size = 120, showWords = true }) => (
         YS
       </text>
     </svg>
-    {showWords && (
-      <div className="rotating-words">
-        {words.map((word, index) => (
-          <span key={word} style={{ '--i': index }}>{word}</span>
-        ))}
-      </div>
-    )}
   </div>
 );
 

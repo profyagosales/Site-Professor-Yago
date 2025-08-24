@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import DashboardRedacoes from '@/pages/DashboardRedacoes';
+import DashboardRedacoes from '@/pages/redacao/DashboardRedacoes';
 import { MemoryRouter } from 'react-router-dom';
 import { listarPendentes, listarCorrigidas } from '@/services/redacoes';
 import { gradeEssay } from '@/services/essays';
