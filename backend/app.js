@@ -23,6 +23,9 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
+// *** NOVO: confiar no proxy (Render/Cloudflare) para cookies secure
+app.set('trust proxy', 1);
+
 // ---------- CONFIG BÁSICA ----------
 const API_PREFIX = process.env.API_PREFIX || '/api';
 const serveFrontend = process.env.SERVE_FRONTEND === 'true';
@@ -50,8 +53,8 @@ const corsMiddleware = cors({
   },
   credentials: true,
   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  optionsSuccessStatus: 204,
+  allowedHeaders: ['Content-Type','Authorization','X-Requested-With'],
+  maxAge: 86400,
 });
 app.use(corsMiddleware);
 app.options(/.*/, corsMiddleware);
@@ -60,7 +63,7 @@ app.use(cookieParser());
 app.use(express.json());
 
 // ---------- SAÚDE ----------
-app.get(`${API_PREFIX}/healthz`, (req, res) => res.json({ ok: true }));
+app.get('/healthz', (req, res) => res.json({ ok: true }));
 
 // ---------- API ----------
 const api = express.Router();
