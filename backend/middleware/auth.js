@@ -1,42 +1,19 @@
 const jwt = require('jsonwebtoken');
-const Teacher = require('../models/Teacher');
-const Student = require('../models/Student');
 
-const auth = (role) => async (req, res, next) => {
-  const authHeader = req.header('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'Token não fornecido' });
-  }
-
-  const token = authHeader.split(' ')[1];
-
+function handler(req, res, next) {
+  const token = req.cookies?.token || (req.get('Authorization') || '').replace(/^Bearer\s+/, '');
+  if (!token) return res.status(401).json({ message: 'Unauthenticated' });
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    let user = await Teacher.findById(decoded.id).select('-password');
-    let profile = 'teacher';
-
-    if (!user) {
-      user = await Student.findById(decoded.id).select('-passwordHash');
-      profile = 'student';
-    }
-
-    if (!user) {
-      return res.status(401).json({ message: 'Usuário não encontrado' });
-    }
-
-    req.user = user;
-    req.profile = profile;
-
-    if (role && profile !== role) {
-      return res.status(403).json({ message: 'Acesso negado' });
-    }
-
+    req.user = jwt.verify(token, process.env.JWT_SECRET);
     next();
-  } catch (err) {
-    console.error(err);
-    res.status(401).json({ message: 'Token inválido' });
+  } catch {
+    res.status(401).json({ message: 'Invalid token' });
   }
+}
+
+module.exports = function (...args) {
+  if (args.length === 0 || typeof args[0] === 'string') return handler; // auth() or auth('role')
+  return handler(...args);
 };
 
-module.exports = auth;
+

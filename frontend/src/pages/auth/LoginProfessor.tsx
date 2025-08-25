@@ -3,38 +3,24 @@ import { Card, CardBody } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { useState } from "react";
-import { api } from "@/lib/http";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/store/AuthContext";
 
 export default function LoginProfessor() {
+  const { loginTeacher } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setErro(""); setLoading(true);
+    setErro("");
     try {
-      const { data } = await api.post("/auth/login-teacher", {
-        email,
-        password,
-      });
-      if (data?.token) {
-        localStorage.setItem("teacher_token", data.token);
-        location.assign("/turmas");
-      } else {
-        setErro("Falha ao fazer login. Tente novamente.");
-      }
-    } catch (err: any) {
-      console.error(err);
-      const status = err?.response?.status;
-      if (status === 400 || status === 401 || status === 403) {
-        setErro(err?.response?.data?.message || "Credenciais inválidas");
-      } else {
-        setErro(err?.response?.data?.message || "Erro no login do professor");
-      }
-    } finally {
-      setLoading(false);
+      await loginTeacher(email, senha);
+      navigate("/professor/dashboard", { replace: true });
+    } catch (e: any) {
+      setErro(e?.response?.data?.message || "Erro no login do professor");
     }
   }
 
@@ -43,11 +29,11 @@ export default function LoginProfessor() {
       <div className="max-w-xl">
         <Card>
           <CardBody>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={onSubmit} className="space-y-4">
               <Field label="E-mail" type="email" required value={email} onChange={e=>setEmail(e.target.value)} />
-              <Field label="Senha" type="password" required value={password} onChange={e=>setPassword(e.target.value)} />
+              <Field label="Senha" type="password" required value={senha} onChange={e=>setSenha(e.target.value)} />
               {erro && <p className="text-sm text-red-600">{erro}</p>}
-              <Button type="submit" disabled={loading}>{loading ? "Entrando..." : "Entrar"}</Button>
+              <Button type="submit">Entrar</Button>
             </form>
           </CardBody>
         </Card>
