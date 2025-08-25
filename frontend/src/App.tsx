@@ -1,7 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import AppShell from "@/components/AppShell";
 import { Suspense, lazy } from "react";
-import { AuthProvider } from "./store/AuthContext";
 import ProtectedRoute from "./routes/ProtectedRoute";
 
 const Landing = lazy(() => import("@/pages/Landing"));
@@ -14,7 +13,6 @@ const LoginAluno = lazy(() => import("@/pages/auth/LoginAluno"));
 
 export default function App() {
   return (
-    <AuthProvider>
       <AppShell>
         <Suspense fallback={<div className="max-w-6xl mx-auto px-4 py-8 text-ys-ink-2">Carregando…</div>}>
           <Routes>
@@ -57,6 +55,5 @@ export default function App() {
           </Routes>
         </Suspense>
       </AppShell>
-    </AuthProvider>
   );
 }
