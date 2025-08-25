@@ -15,7 +15,7 @@ describe('LoginProfessor', () => {
   });
 
   test('submits form and redirects on success', async () => {
-    axios.post.mockResolvedValue({ status: 200, data: { token: '123' } });
+    axios.post.mockResolvedValue({ data: { success: true } });
     const navigate = jest.fn();
     require('react-router-dom').useNavigate.mockReturnValue(navigate);
 
@@ -30,8 +30,8 @@ describe('LoginProfessor', () => {
         email: 'prof@example.com',
         password: 'secret',
       });
-      expect(localStorage.getItem('teacher_token')).toBe('123');
-      expect(navigate).toHaveBeenCalledWith('/turmas');
+      expect(localStorage.getItem('role')).toBe('teacher');
+      expect(navigate).toHaveBeenCalledWith('/professor/dashboard', { replace: true });
     });
   });
 
