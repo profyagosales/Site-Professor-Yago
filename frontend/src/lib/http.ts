@@ -12,7 +12,11 @@ function joinBasePrefix(base: string, prefix: string) {
   return `${b}/${p}`;
 }
 
-const BASE_URL = joinBasePrefix(RAW_BASE, RAW_PREFIX);
+// Preferir caminho relativo em produção (Vercel) para usar rewrites e evitar CORS e bases duplicadas
+const isBrowser = typeof window !== 'undefined' && typeof location !== 'undefined';
+const onVercel = isBrowser && /vercel\.app$/i.test(location.hostname);
+
+const BASE_URL = onVercel ? '/api' : joinBasePrefix(RAW_BASE, RAW_PREFIX);
 
 export const api = axios.create({
   baseURL: BASE_URL,
