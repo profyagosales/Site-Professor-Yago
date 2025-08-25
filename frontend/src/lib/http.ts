@@ -1,10 +1,21 @@
 import axios from 'axios';
 
-const BASE = (import.meta as any).env?.VITE_API_BASE_URL || (import.meta as any).env?.VITE_API_URL || '';
-const PREFIX = (import.meta as any).env?.VITE_API_PREFIX ?? '/api';
+const RAW_BASE = (import.meta as any).env?.VITE_API_BASE_URL || (import.meta as any).env?.VITE_API_URL || '';
+const RAW_PREFIX = (import.meta as any).env?.VITE_API_PREFIX ?? '/api';
+
+function joinBasePrefix(base: string, prefix: string) {
+  const b = String(base || '').replace(/\/+$/, '');
+  const p = String(prefix || '').replace(/^\/+/, '');
+  if (!p) return b;
+  // Evita /api duplicado (quando BASE já termina com /api e PREFIX = /api)
+  if (b.match(/\/(api)(?:\/)?$/) && p === 'api') return b;
+  return `${b}/${p}`;
+}
+
+const BASE_URL = joinBasePrefix(RAW_BASE, RAW_PREFIX);
 
 export const api = axios.create({
-  baseURL: `${String(BASE)}${String(PREFIX || '')}`,
+  baseURL: BASE_URL,
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });
@@ -14,7 +25,7 @@ api.interceptors.request.use((cfg) => {
   try {
     const token = localStorage.getItem('auth_token');
     if (token) {
-      cfg.headers = cfg.headers || {};
+      cfg.headers = (cfg.headers || {}) as any;
       (cfg.headers as any).Authorization = `Bearer ${token}`;
     }
   } catch {}
