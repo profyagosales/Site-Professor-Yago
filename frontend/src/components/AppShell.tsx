@@ -5,11 +5,11 @@ function getRole(): "teacher" | "student" | "guest" {
 }
 
 const NAV_TEACHER = [
-  { label: "Turmas", to: "/turmas" },
-  { label: "Notas da Classe", to: "/notas-da-classe" },
-  { label: "Caderno", to: "/caderno" },
-  { label: "Gabarito", to: "/gabarito" },
-  { label: "Redação", to: "/dashboard-redacoes" },
+  { label: "Turmas", to: "/professor/turmas" },
+  { label: "Notas da Classe", to: "/professor/notas-da-classe" },
+  { label: "Caderno", to: "/professor/caderno" },
+  { label: "Gabarito", to: "/professor/gabarito" },
+  { label: "Redação", to: "/professor/redacao" },
 ];
 
 const NAV_STUDENT = [
@@ -60,4 +60,3 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-

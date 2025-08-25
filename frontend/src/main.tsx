@@ -1,14 +1,12 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
-import "./styles.css";
-import App from "./App";
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import './styles.css';
+import { RouterProvider } from 'react-router-dom';
+import { router } from './router';
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <div className="ys-noise" />
-      <App />
-    </BrowserRouter>
+    <div className="ys-noise" />
+    <RouterProvider router={router} />
   </React.StrictMode>
 );

@@ -15,14 +15,16 @@ export default function LoginProfessor() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErro("");
-
     try {
-      await api.post("/auth/login-teacher", { email, password: senha });
-      localStorage.setItem("role", "teacher");
-      await api.get("/auth/me");
-      navigate("/professor/dashboard");
+      const { data } = await api.post("/auth/login-teacher", { email, password: senha });
+      if (data?.success) {
+        localStorage.setItem("role", "teacher");
+        navigate("/professor/dashboard", { replace: true });
+      } else {
+        setErro(data?.message ?? "Erro no login do professor");
+      }
     } catch (err: any) {
-      setErro(err?.response?.data?.message || "Erro no login do professor");
+      setErro(err?.response?.data?.message ?? "Erro no login do professor");
     }
   }
 
@@ -43,4 +45,3 @@ export default function LoginProfessor() {
     </Page>
   );
 }
-
