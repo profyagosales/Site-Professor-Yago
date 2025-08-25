@@ -15,16 +15,9 @@ export default function LoginAluno() {
     e.preventDefault();
     setErro(""); setLoading(true);
     try {
-      const { data } = await api.post("/auth/login-student", {
-        email,
-        password,
-      });
-      if (data?.token) {
-        localStorage.setItem("student_token", data.token);
-        location.assign("/dashboard-aluno");
-      } else {
-        setErro("Falha ao fazer login. Tente novamente.");
-      }
+      await api.post("/auth/login-student", { email, password });
+      localStorage.setItem("role", "student");
+      location.assign("/aluno/dashboard");
     } catch (err: any) {
       console.error(err);
       const status = err?.response?.status;

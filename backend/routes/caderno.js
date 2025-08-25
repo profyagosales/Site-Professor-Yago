@@ -3,11 +3,11 @@ const CadernoCheck = require('../models/CadernoCheck');
 const CadernoConfig = require('../models/CadernoConfig');
 const Student = require('../models/Student');
 const Grade = require('../models/Grade');
-const auth = require('../middleware/auth');
+const { authRequired } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.use(auth);
+router.use(authRequired);
 
 async function recalculateGrades(classId, term) {
   const checks = await CadernoCheck.find({ class: classId, term }).sort({ date: 1 });

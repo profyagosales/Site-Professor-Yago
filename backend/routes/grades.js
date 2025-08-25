@@ -5,11 +5,11 @@ const CadernoCheck = require('../models/CadernoCheck');
 const Student = require('../models/Student');
 const Class = require('../models/Class');
 const pdfReport = require('../utils/pdfReport');
-const auth = require('../middleware/auth');
+const { authRequired } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.use(auth);
+router.use(authRequired);
 
 // Get grade matrix for a class grouped by bimester
 router.get('/class/:classId', async (req, res, next) => {

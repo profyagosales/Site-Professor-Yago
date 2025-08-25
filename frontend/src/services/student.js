@@ -1,6 +1,6 @@
 import { api } from '@/lib/api';
 
-export const getStudentProfile = async () => (await api.get('/me')).data;
+export const getStudentProfile = async () => (await api.get('/auth/me')).data;
 
 export const getStudentWeeklySchedule = async (studentId) =>
   (await api.get(`/students/${studentId}/schedule`)).data;

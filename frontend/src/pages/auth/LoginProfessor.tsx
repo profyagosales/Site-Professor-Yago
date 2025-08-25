@@ -17,14 +17,8 @@ export default function LoginProfessor() {
     setErro("");
 
     try {
-      // IMPORTANTE: backend espera "password"
-      const { data } = await api.post("/auth/login-teacher", { email, password: senha });
-
-      if (data?.token) {
-        localStorage.setItem("auth_token", data.token);
-        api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
-      }
-
+      await api.post("/auth/login-teacher", { email, password: senha });
+      localStorage.setItem("role", "teacher");
       await api.get("/auth/me");
       navigate("/professor/dashboard");
     } catch (err: any) {

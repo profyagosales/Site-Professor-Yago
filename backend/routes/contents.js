@@ -1,11 +1,11 @@
 const express = require('express');
 const Content = require('../models/Content');
-const auth = require('../middleware/auth');
+const { authRequired } = require('../middleware/auth');
 
 const router = express.Router();
 
 // Get all contents
-router.get('/', auth, async (req, res, next) => {
+router.get('/', authRequired, async (req, res, next) => {
   try {
     const contents = await Content.find();
     res.status(200).json({
@@ -21,7 +21,7 @@ router.get('/', auth, async (req, res, next) => {
 });
 
 // Create content
-router.post('/', auth, async (req, res, next) => {
+router.post('/', authRequired, async (req, res, next) => {
   try {
     const { classId, bimester, title, description, date, done } = req.body;
     const content = await Content.create({
@@ -48,7 +48,7 @@ router.post('/', auth, async (req, res, next) => {
 });
 
 // Update content
-router.patch('/:id', auth, async (req, res, next) => {
+router.patch('/:id', authRequired, async (req, res, next) => {
   try {
     const content = await Content.findByIdAndUpdate(req.params.id, req.body, {
       new: true
@@ -73,7 +73,7 @@ router.patch('/:id', auth, async (req, res, next) => {
 });
 
 // Delete content
-router.delete('/:id', auth, async (req, res, next) => {
+router.delete('/:id', authRequired, async (req, res, next) => {
   try {
     const content = await Content.findByIdAndDelete(req.params.id);
     if (!content) {
