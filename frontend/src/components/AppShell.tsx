@@ -26,7 +26,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const hideNav = ["/login-professor", "/login-aluno"].includes(loc.pathname);
 
   return (
-    <div className="min-h-screen text-ys-ink">
+  <div className="relative min-h-screen text-ys-ink z-10">
       {!hideNav && (
         <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-ys-line">
           <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
@@ -58,7 +58,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </header>
       )}
 
-      <main className="relative z-10">
+  <main className="relative z-10">
         {children}
       </main>
     </div>

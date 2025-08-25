@@ -13,7 +13,7 @@ type Props = {
 
 export default function AuthShell({ roleLabel, heading, subheading, bullets = [], children, showBack = true }: Props) {
   return (
-    <section className="max-w-5xl mx-auto px-4 py-10">
+  <section className="relative z-10 max-w-5xl mx-auto px-4 py-10">
       {showBack && (
         <div className="mb-6">
           <Link to="/" className="inline-flex items-center text-ys-ink-2 hover:text-ys-ink transition-colors text-sm">
