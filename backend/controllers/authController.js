@@ -6,10 +6,18 @@ const { z } = require('zod');
 const Teacher = require('../models/Teacher'); // se o nome for diferente, adapte
 const Student = require('../models/Student'); // idem
 
-const LoginSchema = z.object({
-  email: z.string().email('E-mail inválido'),
-  senha: z.string().min(1, 'Senha obrigatória'),
-});
+// aceita "password" ou "senha" para maior tolerância com clientes
+const LoginSchema = z
+  .object({
+    email: z.string().email('E-mail inválido'),
+    password: z.string().min(1, 'Senha obrigatória').optional(),
+    senha: z.string().min(1, 'Senha obrigatória').optional(),
+  })
+  .refine((d) => d.password || d.senha, {
+    message: 'Senha obrigatória',
+    path: ['password'],
+  })
+  .transform((d) => ({ email: d.email, password: d.password ?? d.senha }));
 
 function pickHash(user) {
   // tenta achar o campo de hash independentemente do nome
@@ -26,9 +34,11 @@ function signToken(payload) {
 async function doLogin({ Model, role, req, res }) {
   const parsed = LoginSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ success: false, message: 'Informe e-mail e senha.' });
+    return res
+      .status(400)
+      .json({ success: false, message: 'Informe e-mail e senha.' });
   }
-  const { email, senha } = parsed.data;
+  const { email, password } = parsed.data;
 
   try {
     const doc = await Model.findOne({ email: { $regex: `^${email}$`, $options: 'i' } }).lean();
@@ -45,7 +55,7 @@ async function doLogin({ Model, role, req, res }) {
       return res.status(500).json({ success: false, message: 'Conta sem hash de senha.' });
     }
 
-    const ok = await bcrypt.compare(senha, hash);
+    const ok = await bcrypt.compare(password, hash);
     if (!ok) {
       console.log(`[LOGIN] senha incorreta para ${role}`, { id: String(doc._id), email: doc.email });
       return res.status(401).json({ success: false, message: 'E-mail ou senha inválidos.' });
