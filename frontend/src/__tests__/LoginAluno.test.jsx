@@ -15,7 +15,7 @@ describe('LoginAluno', () => {
   });
 
   test('submits form and redirects on success', async () => {
-    axios.post.mockResolvedValue({ status: 200, data: { token: 'abc' } });
+    axios.post.mockResolvedValue({ data: { success: true } });
     const navigate = jest.fn();
     require('react-router-dom').useNavigate.mockReturnValue(navigate);
 
@@ -30,8 +30,8 @@ describe('LoginAluno', () => {
         email: 'a@b.com',
         password: 'senha',
       });
-      expect(localStorage.getItem('student_token')).toBe('abc');
-      expect(navigate).toHaveBeenCalledWith('/dashboard-aluno');
+      expect(localStorage.getItem('role')).toBe('student');
+      expect(navigate).toHaveBeenCalledWith('/aluno/dashboard', { replace: true });
     });
   });
 
