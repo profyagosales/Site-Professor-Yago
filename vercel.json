@@ -1,7 +1,7 @@
 {
   "framework": "vite",
   "buildCommand": "npm ci && npm --workspace frontend ci --if-present && npm --workspace frontend run build",
-  "outputDirectory": "dist",
+  "outputDirectory": "frontend/dist",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "https://site-professor-yago.onrender.com/api/$1" },
     { "source": "/(.*)", "destination": "/" }
