@@ -3,7 +3,8 @@
   "buildCommand": "npm ci && npm --workspace frontend ci --if-present && npm --workspace frontend run build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://site-professor-yago.onrender.com/api/$1" }
+    { "source": "/api/(.*)", "destination": "https://site-professor-yago.onrender.com/api/$1" },
+    { "source": "/(.*)", "destination": "/" }
   ],
   "env": {
     "VITE_API_URL": "https://site-professor-yago.onrender.com",

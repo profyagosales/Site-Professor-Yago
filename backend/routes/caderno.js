@@ -3,7 +3,7 @@ const CadernoCheck = require('../models/CadernoCheck');
 const CadernoConfig = require('../models/CadernoConfig');
 const Student = require('../models/Student');
 const Grade = require('../models/Grade');
-const { authRequired } = require('../middleware/auth');
+const authRequired = require('../middleware/auth');
 
 const router = express.Router();
 

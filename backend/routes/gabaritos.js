@@ -1,6 +1,6 @@
 const express = require('express');
 const multer = require('multer');
-const { authRequired } = require('../middleware/auth');
+const authRequired = require('../middleware/auth');
 const { buildGabaritoPDF } = require('../utils/gabaritoPdf');
 
 const router = express.Router();

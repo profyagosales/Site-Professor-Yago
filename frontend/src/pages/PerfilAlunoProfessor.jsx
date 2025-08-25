@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { toast } from 'react-toastify';
 import { toArray } from '@/lib/api';
+import { formatPhoneBR } from '@/utils/format';
 
 function PerfilAlunoProfessor() {
   const student = {
@@ -81,7 +82,7 @@ function PerfilAlunoProfessor() {
           />
           <h1 className="text-xl font-semibold">{student.name}</h1>
           <p>{student.email}</p>
-          <p>{student.phone}</p>
+          <p>{formatPhoneBR(student.phone)}</p>
           <p>Nº chamada: {student.callNumber}</p>
         </div>
 

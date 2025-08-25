@@ -11,7 +11,9 @@ Consulte o [Guia do Usuário](./USER_GUIDE.md) para entender os fluxos de login,
 | `SMTP_HOST` | Hostname of the SMTP server used to send emails. |
 | `SMTP_USER` | Username for the SMTP server. |
 | `SMTP_PASS` | Password for the SMTP server. |
-| `VITE_API_URL` | Base URL for the backend API used by the frontend. |
+| `VITE_API_URL` | (Deprecated) Base URL for the backend API used by the frontend. |
+| `VITE_API_BASE_URL` | Base URL for the backend API used by the frontend. |
+| `VITE_API_PREFIX` | API prefix path (e.g., `/api`). |
 | `APP_DOMAIN` | Public domain where the application is served (used for CORS). |
 | `SMTP_PORT` | (Optional) Port for the SMTP server. |
 | `SMTP_FROM` | (Optional) Email address used in the "from" field. |

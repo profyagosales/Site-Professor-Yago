@@ -18,8 +18,10 @@ export default function LoginAluno() {
     try {
       const { data } = await api.post("/auth/login-student", { email, password });
       if (data?.success) {
+        const t = data?.data?.token;
+        if (t) localStorage.setItem('auth_token', t);
         localStorage.setItem("role", "student");
-        navigate("/aluno/dashboard", { replace: true });
+        navigate("/aluno/caderno", { replace: true });
       } else {
         setErro(data?.message ?? "Erro no login do aluno");
       }

@@ -5,7 +5,7 @@ const CadernoCheck = require('../models/CadernoCheck');
 const Student = require('../models/Student');
 const Class = require('../models/Class');
 const pdfReport = require('../utils/pdfReport');
-const { authRequired } = require('../middleware/auth');
+const authRequired = require('../middleware/auth');
 
 const router = express.Router();
 

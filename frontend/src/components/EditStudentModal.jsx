@@ -1,25 +1,33 @@
-import { useMemo, useState } from 'react'
-import { create } from '@/services/students'
+import { useMemo, useState, useEffect } from 'react'
+import { update as updateStudent } from '@/services/students'
 import { formatPhoneBR, isValidPhoneBR } from '@/utils/format'
 import { toast } from 'react-toastify'
 
-const initialForm = {
-  photoFile: null,
-  number: '',
-  name: '',
-  phone: '',
-  email: '',
-  password: '',
-}
-
-export default function NewStudentModal({ classId, isOpen, onClose, onCreated }) {
-  const [form, setForm] = useState(initialForm)
+export default function EditStudentModal({ classId, student, isOpen, onClose, onUpdated }) {
+  const [form, setForm] = useState({
+    photoFile: null,
+    number: '',
+    name: '',
+    phone: '',
+    email: '',
+    password: '', // opcional no update
+  })
   const [submitting, setSubmitting] = useState(false)
 
-  // usando utils/format
+  useEffect(() => {
+    if (!isOpen) return
+    if (!student) return
+    setForm({
+      photoFile: null,
+      number: String(student.rollNumber ?? ''),
+      name: student.name ?? '',
+      phone: student.phone ?? '',
+      email: student.email ?? '',
+      password: '',
+    })
+  }, [isOpen, student])
 
   function handleClose() {
-    setForm(initialForm)
     onClose?.()
   }
 
@@ -28,23 +36,21 @@ export default function NewStudentModal({ classId, isOpen, onClose, onCreated })
       submitting ||
       !form.name.trim() ||
       !form.email.trim() ||
-      !form.password.trim() ||
-      !form.number.trim()
+      !String(form.number).trim()
     )
   }, [submitting, form])
 
-  function set(key, val) {
-    setForm((prev) => ({ ...prev, [key]: val }))
-  }
+  function set(key, val) { setForm((prev) => ({ ...prev, [key]: val })) }
+  // usando utils/format
 
   async function handleSubmit(e) {
     e.preventDefault()
     if (disabled) return
-    if (!/^[0-9]+$/.test(form.number)) {
+    if (!/^[0-9]+$/.test(String(form.number))) {
       toast.error('Número inválido')
       return
     }
-    if (form.password.length < 6) {
+    if (form.password && form.password.length < 6) {
       toast.error('Senha muito curta')
       return
     }
@@ -58,13 +64,21 @@ export default function NewStudentModal({ classId, isOpen, onClose, onCreated })
     }
     setSubmitting(true)
     try {
-      const created = await create(classId, { ...form, phone: phoneValue })
-      toast.success('Aluno criado')
-      onCreated?.(created)
+      await updateStudent(classId, student._id || student.id, {
+        photoFile: form.photoFile,
+        number: form.number,
+        name: form.name,
+        phone: phoneValue,
+        email: form.email,
+        password: form.password || undefined,
+      })
+      toast.success('Aluno atualizado')
+      onUpdated?.()
       handleClose()
     } catch (err) {
       console.error(err)
-      toast.error('Erro ao criar aluno')
+      const msg = err?.response?.data?.message || 'Erro ao atualizar aluno'
+      toast.error(msg)
     } finally {
       setSubmitting(false)
     }
@@ -75,7 +89,7 @@ export default function NewStudentModal({ classId, isOpen, onClose, onCreated })
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true">
       <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
-        <h2 className="mb-4 text-xl font-semibold text-body">Novo Aluno</h2>
+        <h2 className="mb-4 text-xl font-semibold text-body">Editar Aluno</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -97,6 +111,7 @@ export default function NewStudentModal({ classId, isOpen, onClose, onCreated })
               onChange={(e) => set('number', (e.target.value || '').replace(/\D+/g, ''))}
               className="block w-full rounded-lg border border-gray-300 p-2"
               placeholder="Ex.: 12"
+              required
             />
           </div>
 
@@ -134,14 +149,13 @@ export default function NewStudentModal({ classId, isOpen, onClose, onCreated })
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium">Senha</label>
+            <label className="mb-1 block text-sm font-medium">Senha (opcional)</label>
             <input
               type="password"
               value={form.password}
               onChange={(e) => set('password', e.target.value)}
               className="block w-full rounded-lg border border-gray-300 p-2"
-              placeholder="Crie uma senha"
-              required
+              placeholder="Nova senha (deixe em branco para não alterar)"
               autoComplete="new-password"
             />
           </div>
@@ -163,4 +177,3 @@ export default function NewStudentModal({ classId, isOpen, onClose, onCreated })
     </div>
   )
 }
-

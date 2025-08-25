@@ -1,5 +1,5 @@
 const express = require('express');
-const { authRequired } = require('../middleware/auth');
+const authRequired = require('../middleware/auth');
 const { upload, processOMR } = require('../controllers/omrController');
 
 const router = express.Router();

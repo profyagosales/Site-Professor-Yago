@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const bcrypt = require('bcrypt');
 const { body, validationResult } = require('express-validator');
-const { authRequired } = require('../middleware/auth');
+const authRequired = require('../middleware/auth');
 const Class = require('../models/Class');
 const Student = require('../models/Student');
 
@@ -305,6 +305,30 @@ router.put(
       if (!err.status) {
         err.status = 400;
         err.message = 'Erro ao atualizar aluno';
+      }
+      next(err);
+    }
+  }
+);
+
+// Delete student from a class
+router.delete(
+  '/:classId/students/:studentId',
+  authRequired,
+  async (req, res, next) => {
+    try {
+      const { classId, studentId } = req.params;
+      const result = await Student.deleteOne({ _id: studentId, class: classId });
+      if (result.deletedCount === 0) {
+        const error = new Error('Aluno não encontrado');
+        error.status = 404;
+        throw error;
+      }
+      res.status(200).json({ success: true, message: 'Aluno removido com sucesso', data: { id: studentId } });
+    } catch (err) {
+      if (!err.status) {
+        err.status = 400;
+        err.message = 'Erro ao remover aluno';
       }
       next(err);
     }

@@ -18,8 +18,11 @@ export default function LoginProfessor() {
     try {
       const { data } = await api.post("/auth/login-teacher", { email, password: senha });
       if (data?.success) {
+        // save token for Bearer flows (cookie also set by backend)
+        const t = data?.data?.token;
+        if (t) localStorage.setItem('auth_token', t);
         localStorage.setItem("role", "teacher");
-        navigate("/professor/dashboard", { replace: true });
+        navigate("/professor/turmas", { replace: true });
       } else {
         setErro(data?.message ?? "Erro no login do professor");
       }

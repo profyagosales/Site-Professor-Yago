@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const Teacher = require('../models/Teacher');
 const Student = require('../models/Student');
-const { authRequired } = require('../middleware/auth');
+const authRequired = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -73,6 +73,30 @@ router.post('/login-student', async (req, res, next) => {
       message: 'Login ok (student)',
       data: { token, student: { email: student.email } },
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/auth/register-student (usado em testes e seeds)
+router.post('/register-student', async (req, res, next) => {
+  try {
+    const { class: classId, name, email, rollNumber, password, phone } = req.body || {};
+    if (!classId || !name || !email || !password) {
+      return res.status(400).json({ success: false, message: 'Dados obrigatórios ausentes' });
+    }
+    const existing = await Student.findOne({ email: email.toLowerCase() });
+    if (existing) return res.status(400).json({ success: false, message: 'Email já cadastrado' });
+    const student = await Student.create({
+      class: classId,
+      name,
+      email: email.toLowerCase(),
+      rollNumber,
+      phone,
+      passwordHash: await require('bcrypt').hash(password, 10),
+    });
+    const token = jwt.sign({ role: 'student', email: student.email, id: String(student._id) }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    res.status(200).json({ success: true, data: { token, student: { email: student.email } } });
   } catch (err) {
     next(err);
   }
