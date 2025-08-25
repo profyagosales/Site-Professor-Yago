@@ -1,12 +1,18 @@
-import axios from 'axios';
-
-const baseURL =
-  import.meta.env.VITE_API_URL?.replace(/\/+$/, '') || ''; // pode vir 'https://.../api'
+import axios from "axios";
 
 export const api = axios.create({
-  baseURL, // ex.: https://site-professor-yago.onrender.com/api
-  withCredentials: true,
-  timeout: 20000,
+  baseURL: import.meta.env.VITE_API_URL || "https://site-professor-yago.onrender.com/api",
+  withCredentials: true, // necessário para cookie HttpOnly
+  headers: { "Content-Type": "application/json" },
 });
 
-export default api;
+export function installAuthInterceptors(onUnauthorized: () => void) {
+  api.interceptors.response.use(
+    (res) => res,
+    (err) => {
+      if (err?.response?.status === 401) onUnauthorized?.();
+      return Promise.reject(err);
+    }
+  );
+}
+

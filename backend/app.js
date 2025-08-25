@@ -2,6 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const cookieParser = require('cookie-parser');
 
 const authRoutes = require('./routes/auth');
 const emailRoutes = require('./routes/email');
@@ -52,6 +53,7 @@ const corsMiddleware = cors({
 app.use(corsMiddleware);
 app.options(/.*/, corsMiddleware);
 
+app.use(cookieParser());
 app.use(express.json());
 
 // ---------- SAÚDE ----------

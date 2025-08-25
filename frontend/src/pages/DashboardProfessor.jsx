@@ -6,7 +6,8 @@ import ScheduleTable from '@/components/ScheduleTable'
 import SendEmailModal from '@/components/SendEmailModal'
 import QuickContentModal from '@/components/QuickContentModal'
 import AnnouncementModal from '@/components/AnnouncementModal'
-import { getCurrentUser, logout } from '@/services/auth'
+import { getCurrentUser } from '@/services/auth'
+import { useAuth } from '@/store/AuthContext'
 import { listUpcomingContents } from '@/services/contents'
 import { listUpcomingExams } from '@/services/exams'
 import { listAnnouncements } from '@/services/announcements'
@@ -23,6 +24,7 @@ function DashboardProfessor(){
   const [contentOpen, setContentOpen] = useState(false)
   const [announcementOpen, setAnnouncementOpen] = useState(false)
   const navigate = useNavigate()
+  const { logout } = useAuth()
 
   useEffect(() => {
     let abort = false
@@ -52,9 +54,9 @@ function DashboardProfessor(){
     return () => { abort = true }
   }, [])
 
-  const handleLogout = () => {
-    logout()
-    navigate('/')
+  const handleLogout = async () => {
+    await logout()
+    navigate('/login-professor')
   }
 
   const reloadContents = async () => {
