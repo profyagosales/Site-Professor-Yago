@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const bcrypt = require('bcrypt');
 const { body, validationResult } = require('express-validator');
-const auth = require('../middleware/auth');
+const { authRequired } = require('../middleware/auth');
 const Class = require('../models/Class');
 const Student = require('../models/Student');
 
@@ -179,7 +179,7 @@ router.delete('/:id', async (req, res, next) => {
 });
 
 // List students of a class
-router.get('/:id/students', auth, async (req, res, next) => {
+router.get('/:id/students', authRequired, async (req, res, next) => {
   try {
     const students = await Student.find({ class: req.params.id });
     res.status(200).json({
@@ -197,7 +197,7 @@ router.get('/:id/students', auth, async (req, res, next) => {
 // Create student for a class
 router.post(
   '/:id/students',
-  auth,
+  authRequired,
   upload.single('photo'),
   [body('email').isEmail(), body('password').isLength({ min: 6 })],
   async (req, res, next) => {
@@ -252,7 +252,7 @@ router.post(
 // Update student for a class
 router.put(
   '/:classId/students/:studentId',
-  auth,
+  authRequired,
   upload.single('photo'),
   [body('email').optional().isEmail(), body('password').optional().isLength({ min: 6 })],
   async (req, res, next) => {

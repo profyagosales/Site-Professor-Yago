@@ -3,79 +3,91 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const Teacher = require('../models/Teacher');
 const Student = require('../models/Student');
-const { loginStudent } = require('../controllers/authController');
-const authRequired = require('../middleware/auth');
+const { authRequired } = require('../middleware/auth');
 
 const router = express.Router();
 
+function setSessionCookie(res, payload) {
+  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
+  res.cookie('session', token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none',
+    path: '/',
+  });
+  return token;
+}
+
+// POST /api/auth/register-teacher
 router.post('/register-teacher', async (req, res, next) => {
   try {
-    const { name, email, password, phone, subjects = [] } = req.body;
-    const passwordHash = await bcrypt.hash(password, 10);
-    const teacher = await Teacher.create({ name, email, password: passwordHash, phone, subjects });
-    const payload = { sub: teacher._id, role: 'teacher' };
-    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
-    const sevenDays = 7 * 24 * 60 * 60 * 1000;
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'none',
-      path: '/',
-      maxAge: sevenDays,
-    });
-    return res.status(200).json({ success: true, data: { token } });
+    const { name, email, password, phone, subjects = [] } = req.body || {};
+    const teacher = await Teacher.create({ name, email, password, phone, subjects });
+    const token = setSessionCookie(res, { role: 'teacher', email, id: String(teacher._id) });
+    res.status(200).json({ success: true, data: { token } });
   } catch (err) {
     next(err);
   }
 });
 
+// POST /api/auth/login-teacher
 router.post('/login-teacher', async (req, res, next) => {
-    try {
-      const { email, password, senha } = req.body;
-      const pass = password ?? senha; // aceita os dois
-
-      if (!email || !pass) {
-        return res.status(400).json({ success: false, message: 'Informe e-mail e senha.' });
-      }
-
-      const user = await Teacher.findOne({ email: { $regex: `^${email}$`, $options: 'i' } }).lean();
-      if (!user) return res.status(401).json({ message: 'E-mail ou senha inválidos.' });
-      const ok = await bcrypt.compare(pass, user.password);
-      if (!ok) return res.status(401).json({ message: 'E-mail ou senha inválidos.' });
-
-      const payload = { sub: user._id, role: 'teacher' };
-      const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
-
-      const sevenDays = 7 * 24 * 60 * 60 * 1000;
-      res.cookie('token', token, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'none',
-        path: '/',
-        maxAge: sevenDays,
-      });
-      return res.status(200).json({ success: true, message: 'Login ok' });
-    } catch (err) {
-      next(err);
+  try {
+    const { email, password } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: 'Informe e-mail e senha.' });
     }
-  });
 
-router.get('/me', authRequired, async (req, res) => {
-  const Model = req.user.role === 'teacher' ? Teacher : Student;
-  const user = await Model.findById(req.user.sub || req.user.id).lean();
-  return res.json({ success: true, user: user ? { id: user._id, name: user.name, role: req.user.role } : null });
+    const user = await Teacher.findOne({ email: { $regex: `^${email}$`, $options: 'i' } }).lean();
+    if (!user) return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
+
+    const ok = await bcrypt.compare(password, user.password);
+    if (!ok) return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
+
+    const token = setSessionCookie(res, { role: 'teacher', email: user.email, id: String(user._id) });
+    res.json({ success: true, message: 'Login ok (teacher)', data: { token } });
+  } catch (err) {
+    next(err);
+  }
 });
 
-  router.post('/logout', (req, res) => {
-    res.clearCookie('token', {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'none',
-      path: '/',
-    });
-    return res.json({ success: true });
-  });
+// POST /api/auth/login-student
+router.post('/login-student', async (req, res, next) => {
+  try {
+    const { email, password } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: 'Informe e-mail e senha.' });
+    }
 
-router.post('/login-student', loginStudent);
+    const student = await Student.findOne({ email: { $regex: `^${email}$`, $options: 'i' } })
+      .select('+passwordHash')
+      .lean();
+    if (!student) return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
+
+    const ok = await bcrypt.compare(password, student.passwordHash || '');
+    if (!ok) return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
+
+    const token = setSessionCookie(res, { role: 'student', email: student.email, id: String(student._id) });
+    res.json({
+      success: true,
+      message: 'Login ok (student)',
+      data: { token, student: { email: student.email } },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/auth/me
+router.get('/me', authRequired, (req, res) => {
+  res.json({ success: true, user: req.user });
+});
+
+// POST /api/auth/logout
+router.post('/logout', (req, res) => {
+  res.clearCookie('session', { path: '/' });
+  res.json({ success: true });
+});
 
 module.exports = router;
+

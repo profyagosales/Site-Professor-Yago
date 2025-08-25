@@ -1,9 +1,7 @@
 import { NavLink, Link } from "react-router-dom";
 
 function getRole(): "teacher" | "student" | "guest" {
-  if (localStorage.getItem("teacher_token")) return "teacher";
-  if (localStorage.getItem("student_token")) return "student";
-  return "guest";
+  return (localStorage.getItem("role") as any) || "guest";
 }
 
 const NAV_TEACHER = [

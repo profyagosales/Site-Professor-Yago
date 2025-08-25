@@ -13,8 +13,7 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
         if (alive) setOk(true);
       } catch (err: any) {
         if (err?.response?.status === 401) {
-          localStorage.removeItem("auth_token");
-          delete api.defaults.headers.common["Authorization"];
+          localStorage.removeItem("role");
         }
         if (alive) setOk(false);
       }

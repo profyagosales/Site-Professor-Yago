@@ -1,10 +1,10 @@
 const express = require('express');
-const auth = require('../middleware/auth');
+const { authRequired } = require('../middleware/auth');
 
 const router = express.Router();
 
 router.use(
-  auth,
+  authRequired,
   (req, res) => {
     res.status(410).json({
       success: false,

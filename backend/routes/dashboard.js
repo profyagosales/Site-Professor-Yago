@@ -1,6 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const auth = require('../middleware/auth');
+const { authRequired } = require('../middleware/auth');
 const Class = require('../models/Class');
 const Content = require('../models/Content');
 
@@ -61,7 +61,7 @@ async function getContentProgress(req) {
   }));
 }
 
-router.get('/', auth, async (req, res, next) => {
+router.get('/', authRequired, async (req, res, next) => {
   try {
     const contentProgress = await getContentProgress(req);
 
@@ -75,7 +75,7 @@ router.get('/', auth, async (req, res, next) => {
   }
 });
 
-router.get('/teacher', auth, async (req, res, next) => {
+router.get('/teacher', authRequired, async (req, res, next) => {
   try {
     const contentProgress = await getContentProgress(req);
 

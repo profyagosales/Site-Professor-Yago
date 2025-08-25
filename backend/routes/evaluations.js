@@ -1,10 +1,10 @@
 const express = require('express');
 const Evaluation = require('../models/Evaluation');
-const auth = require('../middleware/auth');
+const { authRequired } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.use(auth);
+router.use(authRequired);
 
 // Create evaluation
 router.post('/', async (req, res, next) => {

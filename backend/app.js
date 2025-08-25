@@ -19,7 +19,6 @@ const essaysRoutes = require('./routes/essays');
 const notificationRoutes = require('./routes/notifications');
 const dashboardRoutes = require('./routes/dashboard');
 const contentsRoutes = require('./routes/contents');
-const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
@@ -63,7 +62,7 @@ app.use(cookieParser());
 app.use(express.json());
 
 // ---------- SAÚDE ----------
-app.get('/healthz', (req, res) => res.json({ ok: true }));
+app.get(`${API_PREFIX}/healthz`, (req, res) => res.json({ ok: true }));
 
 // ---------- API ----------
 const api = express.Router();
@@ -85,6 +84,14 @@ api.use('/contents', contentsRoutes);
 
 app.use(API_PREFIX, api);
 
+// 404 JSON para API
+app.use((req, res, next) => {
+  if (req.path.startsWith(API_PREFIX)) {
+    return res.status(404).json({ success: false, message: 'API route not found' });
+  }
+  next();
+});
+
 // ---------- FRONTEND (opcional, só se quiser que o backend sirva o React) ----------
 if (isProd && serveFrontend) {
   const distPath = path.join(__dirname, '../frontend/dist');
@@ -98,7 +105,11 @@ if (isProd && serveFrontend) {
 }
 
 // ---------- ERROS ----------
-app.use(errorHandler);
+app.use((err, req, res, next) => {
+  console.error(err);
+  const code = err.status || 500;
+  res.status(code).json({ success: false, message: err.message || 'Server error' });
+});
 
 module.exports = { app };
 
