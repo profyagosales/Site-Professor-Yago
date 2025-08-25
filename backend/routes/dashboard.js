@@ -61,7 +61,7 @@ async function getContentProgress(req) {
   }));
 }
 
-router.get('/', auth('teacher'), async (req, res, next) => {
+router.get('/', auth, async (req, res, next) => {
   try {
     const contentProgress = await getContentProgress(req);
 
@@ -75,7 +75,7 @@ router.get('/', auth('teacher'), async (req, res, next) => {
   }
 });
 
-router.get('/teacher', auth('teacher'), async (req, res, next) => {
+router.get('/teacher', auth, async (req, res, next) => {
   try {
     const contentProgress = await getContentProgress(req);
 

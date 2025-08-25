@@ -9,7 +9,7 @@ const auth = require('../middleware/auth');
 
 const router = express.Router();
 
-router.use(auth());
+router.use(auth);
 
 // Get grade matrix for a class grouped by bimester
 router.get('/class/:classId', async (req, res, next) => {

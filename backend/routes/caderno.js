@@ -7,7 +7,7 @@ const auth = require('../middleware/auth');
 
 const router = express.Router();
 
-router.use(auth());
+router.use(auth);
 
 async function recalculateGrades(classId, term) {
   const checks = await CadernoCheck.find({ class: classId, term }).sort({ date: 1 });

@@ -4,7 +4,7 @@ const { upload, enviarRedacao, listarRedacoes, corrigirRedacao } = require('../c
 
 const router = express.Router();
 
-router.use(auth());
+router.use(auth);
 router.post('/enviar', upload.single('file'), enviarRedacao);
 router.get('/professor', listarRedacoes);
 router.post('/:id/corrigir', corrigirRedacao);

@@ -4,7 +4,7 @@ const auth = require('../middleware/auth');
 const router = express.Router();
 
 router.use(
-  auth(),
+  auth,
   (req, res) => {
     res.status(410).json({
       success: false,
