@@ -10,15 +10,19 @@ const router = express.Router();
 
 router.post('/login-teacher', async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, senha } = req.body;
+    const pass = password ?? senha; // aceita os dois
+
+    if (!email || !pass) {
+      return res.status(400).json({ success: false, message: 'Informe e-mail e senha.' });
+    }
+
     const user = await Teacher.findOne({ email: { $regex: `^${email}$`, $options: 'i' } }).lean();
     if (!user) return res.status(401).json({ message: 'E-mail ou senha inválidos.' });
-    const ok = await bcrypt.compare(password, user.password);
+    const ok = await bcrypt.compare(pass, user.password);
     if (!ok) return res.status(401).json({ message: 'E-mail ou senha inválidos.' });
 
-    const token = jwt.sign({ id: user._id, role: 'teacher' }, process.env.JWT_SECRET, {
-      expiresIn: '12h',
-    });
+    const token = jwt.sign({ id: user._id, role: 'teacher' }, process.env.JWT_SECRET, { expiresIn: '12h' });
 
     res.cookie('token', token, {
       httpOnly: true,
@@ -28,7 +32,7 @@ router.post('/login-teacher', async (req, res, next) => {
       maxAge: 1000 * 60 * 60 * 12,
     });
 
-    res.json({ success: true, user: { id: user._id, name: user.name, role: 'teacher' } });
+    return res.json({ success: true, user: { id: user._id, name: user.name, role: 'teacher' } });
   } catch (err) {
     next(err);
   }
@@ -48,4 +52,3 @@ router.post('/logout', (req, res) => {
 router.post('/login-student', loginStudent);
 
 module.exports = router;
-

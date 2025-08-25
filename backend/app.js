@@ -44,11 +44,14 @@ const allowList = [
 
 const corsMiddleware = cors({
   origin(origin, cb) {
-    if (!origin) return cb(null, true); // curl/healthchecks
-    if (allowList.includes(origin)) return cb(null, true);
-    return cb(new Error(`CORS: origem não permitida: ${origin}`));
+    if (!origin) return cb(null, true);
+    const ok = allowList.includes(origin);
+    return cb(ok ? null : new Error(`CORS: origem não permitida: ${origin}`), ok);
   },
   credentials: true,
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204,
 });
 app.use(corsMiddleware);
 app.options(/.*/, corsMiddleware);
