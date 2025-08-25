@@ -18,14 +18,15 @@ export default function LoginProfessor() {
 
     try {
       // IMPORTANTE: backend espera "password"
-      await api.post("/auth/login-teacher", { email, password: senha });
+      const { data } = await api.post("/auth/login-teacher", { email, password: senha });
 
-      const me = await api.get("/auth/me");
-      if (me.data?.success) {
-        navigate("/professor/dashboard", { replace: true });
-      } else {
-        setErro("Unauthenticated");
+      if (data?.token) {
+        localStorage.setItem("auth_token", data.token);
+        api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
       }
+
+      await api.get("/auth/me");
+      navigate("/professor/dashboard");
     } catch (err: any) {
       setErro(err?.response?.data?.message || "Erro no login do professor");
     }

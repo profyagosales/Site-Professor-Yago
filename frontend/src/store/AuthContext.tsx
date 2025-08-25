@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { api, installAuthInterceptors } from "../lib/http";
+import { useNavigate } from "react-router-dom";
+import { api } from "../lib/http";
 
 type User = { id: string; name: string; role: "teacher" | "student" };
 type AuthCtx = {
@@ -14,10 +15,9 @@ const Ctx = createContext<AuthCtx>(null as any);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    installAuthInterceptors(() => setUser(null));
-
     (async () => {
       try {
         const { data } = await api.get("/auth/me");
@@ -31,14 +31,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function loginTeacher(email: string, password: string) {
-    await api.post("/auth/login-teacher", { email, password });
-    const { data } = await api.get("/auth/me");
-    setUser(data?.user ?? null);
+    const { data } = await api.post("/auth/login-teacher", { email, password });
+    if (data?.token) {
+      localStorage.setItem("auth_token", data.token);
+      api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
+    }
+    const me = await api.get("/auth/me");
+    setUser(me.data?.user ?? null);
   }
 
   async function logout() {
     try { await api.post("/auth/logout"); } catch {}
+    localStorage.removeItem("auth_token");
+    delete api.defaults.headers.common["Authorization"];
     setUser(null);
+    navigate("/login-professor");
   }
 
   return <Ctx.Provider value={{ user, loading, loginTeacher, logout }}>{children}</Ctx.Provider>;

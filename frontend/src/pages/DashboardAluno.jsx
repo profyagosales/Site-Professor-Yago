@@ -217,16 +217,21 @@ export default function DashboardAluno() {
   }, [term])
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('auth_token')
     const role = localStorage.getItem('role')
     if (!token || role !== 'student') {
       navigate('/login-aluno')
     }
   }, [navigate])
 
+  const handleLogout = async () => {
+    await logout()
+    navigate('/login-aluno')
+  }
+
   return (
     <div className="p-md space-y-md">
-      <ProfileHeader profile={student} onLogout={logout} />
+      <ProfileHeader profile={student} onLogout={handleLogout} />
       <ShortcutCards />
       <div className="grid lg:grid-cols-2 gap-md">
         <div className="space-y-md">

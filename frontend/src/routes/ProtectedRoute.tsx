@@ -11,7 +11,11 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
       try {
         await api.get("/auth/me");
         if (alive) setOk(true);
-      } catch {
+      } catch (err: any) {
+        if (err?.response?.status === 401) {
+          localStorage.removeItem("auth_token");
+          delete api.defaults.headers.common["Authorization"];
+        }
         if (alive) setOk(false);
       }
     })();
