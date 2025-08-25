@@ -15,15 +15,15 @@ const {
 const router = express.Router();
 
 // Themes
-router.get('/themes', auth(), getThemes);
-router.post('/themes', auth('teacher'), createTheme);
-router.patch('/themes/:id', auth('teacher'), updateTheme);
+router.get('/themes', auth, getThemes);
+router.post('/themes', auth, createTheme);
+router.patch('/themes/:id', auth, updateTheme);
 
 // Essays
-router.post('/', auth(), upload.single('file'), createEssay);
-router.get('/', auth(), listEssays);
-router.patch('/:id/grade', auth('teacher'), upload.single('correctedFile'), gradeEssay);
-router.patch('/:id/annotations', auth('teacher'), updateAnnotations);
-router.post('/:id/render-correction', auth('teacher'), renderCorrection);
+router.post('/', auth, upload.single('file'), createEssay);
+router.get('/', auth, listEssays);
+router.patch('/:id/grade', auth, upload.single('correctedFile'), gradeEssay);
+router.patch('/:id/annotations', auth, updateAnnotations);
+router.post('/:id/render-correction', auth, renderCorrection);
 
 module.exports = router;

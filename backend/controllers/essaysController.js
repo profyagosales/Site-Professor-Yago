@@ -76,18 +76,22 @@ async function createEssay(req, res) {
       return res.status(400).json({ message: 'Dados inválidos' });
     }
 
-    let studentId;
-    let classId;
-    if (req.profile === 'student') {
-      studentId = req.user._id;
-      classId = req.user.class;
-    } else {
-      studentId = req.body.studentId;
-      classId = req.body.classId;
-    }
-    if (!studentId || !classId) {
-      return res.status(400).json({ message: 'Aluno e turma obrigatórios' });
-    }
+      let studentId;
+      let classId;
+      if (req.profile === 'student') {
+        studentId = req.user._id || req.user.id;
+        classId = req.user.class;
+        if (!classId && studentId) {
+          const st = await Student.findById(studentId).select('class');
+          classId = st ? st.class : undefined;
+        }
+      } else {
+        studentId = req.body.studentId;
+        classId = req.body.classId;
+      }
+      if (!studentId || !classId) {
+        return res.status(400).json({ message: 'Aluno e turma obrigatórios' });
+      }
 
     const originalUrl = await uploadBuffer(req.file.buffer, 'essays/original');
 

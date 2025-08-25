@@ -27,7 +27,7 @@ const app = express();
 app.set('trust proxy', 1);
 
 // ---------- CONFIG BÁSICA ----------
-const API_PREFIX = process.env.API_PREFIX || '/api';
+const API_PREFIX = process.env.API_PREFIX || '';
 const serveFrontend = process.env.SERVE_FRONTEND === 'true';
 const isProd = process.env.NODE_ENV === 'production';
 
