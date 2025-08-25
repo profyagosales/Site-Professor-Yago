@@ -4,10 +4,9 @@ import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/store/AuthContext";
+import api from "@/lib/api";
 
 export default function LoginProfessor() {
-  const { loginTeacher } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -16,11 +15,16 @@ export default function LoginProfessor() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErro("");
+
     try {
-      await loginTeacher(email, senha);
+      // IMPORTANTE: backend espera "password"
+      await api.post("/auth/login-teacher", { email, password: senha });
+
+      // checa sessão e vai pra dashboard
+      await api.get("/auth/me");
       navigate("/professor/dashboard", { replace: true });
-    } catch (e: any) {
-      setErro(e?.response?.data?.message || "Erro no login do professor");
+    } catch (err: any) {
+      setErro(err?.response?.data?.message || "Erro no login do professor");
     }
   }
 
