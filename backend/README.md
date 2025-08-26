@@ -21,6 +21,25 @@ Para o fluxo novo de envio pelo professor, use o endpoint abaixo. O upload usa C
 - `CLOUDINARY_API_SECRET`
 - `ALLOW_DIRECT_FILE_URL` (opcional: `true` habilita aceitar `fileUrl`. Se o Cloudinary não estiver configurado, o fallback por URL já é aceito.)
 
+Exemplo local (arquivo `.env` — veja `.env.example`):
+
+```
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+ALLOW_DIRECT_FILE_URL=false
+```
+
+Configuração no Render (produção):
+
+1. Acesse seu serviço backend no Render → Settings → Environment → Add Environment Variable
+2. Adicione as variáveis exatamente com estes nomes e valores:
+  - `CLOUDINARY_CLOUD_NAME` → (seu cloud name)
+  - `CLOUDINARY_API_KEY` → (sua API key)
+  - `CLOUDINARY_API_SECRET` → (seu API secret)
+  - (opcional) `ALLOW_DIRECT_FILE_URL` → `true` se quiser aceitar `fileUrl` mesmo com Cloudinary ativo
+3. Redeploy (Manual Deploy → Clear build cache e Deploy) para aplicar.
+
 ### POST `/api/uploads/essay`
 
 Headers
