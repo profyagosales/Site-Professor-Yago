@@ -9,11 +9,13 @@ import { listClasses } from '@/services/classes';
 import ThemesManager from '@/components/redacao/ThemesManager';
 
 export default function RedacaoProfessorPage() {
-  const { status, setStatus, q, setQ, classId, setClassId, page, setPage, pageSize, setPageSize, data, loading, error, reload } = useEssays('pending');
+  const { status, setStatus, q, setQ, classId, setClassId, page, setPage, pageSize, setPageSize, data, loading, error, reload, extra, setExtra } = useEssays('pending');
   // const [modal, setModal] = useState<{ id: string; fileUrl?: string; type?: 'ENEM'|'PAS' } | null>(null);
   const [classes, setClasses] = useState<any[]>([]);
   const [newOpen, setNewOpen] = useState(false);
   const [themesOpen, setThemesOpen] = useState(false);
+  const [bimester, setBimester] = useState<string>('');
+  const [type, setType] = useState<string>('');
 
   useEffect(() => {
     (async () => {
@@ -47,7 +49,7 @@ export default function RedacaoProfessorPage() {
       </div>
 
       {/* Filtros */}
-      <div className="mb-4 grid gap-3 md:grid-cols-3">
+      <div className="mb-4 grid gap-3 md:grid-cols-5">
         <input
           value={q}
           onChange={(e) => { setQ(e.target.value); setPage(1); }}
@@ -66,7 +68,26 @@ export default function RedacaoProfessorPage() {
             </option>
           ))}
         </select>
-        <div />
+        <select
+          value={bimester}
+          onChange={(e)=> { const v = e.target.value; setBimester(v); setExtra({ ...extra, bimester: v || undefined }); setPage(1); }}
+          className="rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+        >
+          <option value="">Todos os bimestres</option>
+          <option value="1">1º</option>
+          <option value="2">2º</option>
+          <option value="3">3º</option>
+          <option value="4">4º</option>
+        </select>
+        <select
+          value={type}
+          onChange={(e)=> { const v = e.target.value; setType(v); setExtra({ ...extra, type: v || undefined }); setPage(1); }}
+          className="rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+        >
+          <option value="">Todos os tipos</option>
+          <option value="PAS">PAS</option>
+          <option value="ENEM">ENEM</option>
+        </select>
       </div>
 
       {/* Tabela */}
@@ -77,6 +98,8 @@ export default function RedacaoProfessorPage() {
               <th className="px-4 py-3 font-semibold">Aluno</th>
               <th className="px-4 py-3 font-semibold">Turma</th>
               <th className="px-4 py-3 font-semibold">Tema</th>
+              <th className="px-4 py-3 font-semibold">Tipo</th>
+              <th className="px-4 py-3 font-semibold">Bimestre</th>
               <th className="px-4 py-3 font-semibold">Enviado em</th>
               {status === 'pending' ? (
                 <th className="px-4 py-3 font-semibold">Arquivo</th>
@@ -102,6 +125,8 @@ export default function RedacaoProfessorPage() {
                 <td className="px-4 py-3">{e.studentName}</td>
                 <td className="px-4 py-3">{e.className}</td>
                 <td className="px-4 py-3">{e.topic}</td>
+                <td className="px-4 py-3">{(e as any).type || '-'}</td>
+                <td className="px-4 py-3">{(e as any).bimester ?? '-'}</td>
                 <td className="px-4 py-3">{new Date(e.submittedAt).toLocaleDateString()}</td>
         {status === 'pending' ? (
                   <td className="px-4 py-3"><a className="text-orange-600 underline" href={e.fileUrl} target="_blank" rel="noreferrer">Abrir</a></td>

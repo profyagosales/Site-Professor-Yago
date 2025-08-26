@@ -9,6 +9,8 @@ export interface Essay {
   fileUrl: string;     // link para download/visualização
   score?: number;      // só em corrigidas
   comments?: string;   // só em corrigidas
+  type?: 'ENEM' | 'PAS';
+  bimester?: number;
 }
 
 export interface EssaysPage {

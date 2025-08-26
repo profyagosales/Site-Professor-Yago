@@ -8,6 +8,7 @@ export function useEssays(initialStatus: EssayStatus) {
   const [pageSize, setPageSize] = useState(10);
   const [q, setQ] = useState('');
   const [classId, setClassId] = useState<string | undefined>(undefined);
+  const [extra, setExtra] = useState<{ bimester?: string; type?: string }>({});
 
   const [data, setData] = useState<EssaysPage | null>(null);
   const [loading, setLoading] = useState(false);
@@ -23,7 +24,13 @@ export function useEssays(initialStatus: EssayStatus) {
         return;
       }
       const res = await fetchEssays({ status, page, pageSize, q, classId });
-      setData(res);
+      // filtro leve no cliente enquanto o servidor não pagina por bimestre/tipo
+      const f = (arr: any[]) => arr.filter((it: any) => {
+        if (extra.bimester && String(it.bimester) !== extra.bimester) return false;
+        if (extra.type && String(it.type) !== extra.type) return false;
+        return true;
+      });
+      setData({ ...res, items: f(res.items as any) } as any);
     } catch (e: any) {
       setError(e?.response?.data?.message ?? 'Erro ao carregar redações');
     } finally {
@@ -39,7 +46,8 @@ export function useEssays(initialStatus: EssayStatus) {
     pageSize, setPageSize,
     q, setQ,
     classId, setClassId,
-    data, loading, error,
+  data, loading, error,
+  extra, setExtra,
     reload: load,
   };
 }

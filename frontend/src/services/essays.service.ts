@@ -17,6 +17,14 @@ export async function updateThemeApi(id: string, data: Partial<{ name: string; t
   return res.data;
 }
 
+export async function fetchEssayById(id: string) {
+  // Use compat endpoint which already adapts and populates
+  const res = await api.get(`/redacoes/${id}`);
+  // Normalize shape a bit
+  const d = res.data?.data || res.data;
+  return d;
+}
+
 export async function fetchEssays(params: {
   status: EssayStatus;
   page?: number;
@@ -50,6 +58,7 @@ export async function fetchEssays(params: {
         score: e.rawScore ?? e.score,
         comments: e.comments,
         type: e.type,
+        bimester: e.bimester,
       };
     });
     const total = r.data?.total ?? items.length;
