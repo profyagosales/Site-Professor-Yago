@@ -11,6 +11,32 @@ const router = express.Router();
 
 router.use(authRequired);
 
+// Get grades for a single student grouped by bimester
+router.get('/student/:studentId', async (req, res, next) => {
+  try {
+    const { studentId } = req.params;
+    const grades = await Grade.find({ student: studentId });
+    const grouped = grades.reduce((acc, g) => {
+      acc[g.bimester] = (acc[g.bimester] || 0) + (Number(g.score) || 0);
+      return acc;
+    }, {});
+    const bimesters = [1, 2, 3, 4].map((b) => (grouped[b] !== undefined ? grouped[b] : 0));
+    const defined = bimesters.filter((v) => typeof v === 'number');
+    const average = defined.length ? defined.reduce((a, b) => a + b, 0) / defined.length : 0;
+    res.status(200).json({
+      success: true,
+      message: 'Notas do aluno obtidas com sucesso',
+      data: { bimesters, average }
+    });
+  } catch (err) {
+    if (!err.status) {
+      err.status = 500;
+      err.message = 'Erro ao buscar notas do aluno';
+    }
+    next(err);
+  }
+});
+
 // Get grade matrix for a class grouped by bimester
 router.get('/class/:classId', async (req, res, next) => {
   try {
