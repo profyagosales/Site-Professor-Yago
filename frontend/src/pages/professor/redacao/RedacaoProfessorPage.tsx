@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useEssays } from '@/hooks/useEssays';
 import GradeModal from '@/components/redacao/GradeModal';
+import NewEssayModal from '@/components/redacao/NewEssayModal';
 import { Page } from '@/components/Page';
 import { listClasses } from '@/services/classes';
 
@@ -8,6 +9,7 @@ export default function RedacaoProfessorPage() {
   const { status, setStatus, q, setQ, classId, setClassId, page, setPage, pageSize, setPageSize, data, loading, error, reload } = useEssays('pending');
   const [modal, setModal] = useState<{ id: string; fileUrl?: string } | null>(null);
   const [classes, setClasses] = useState<any[]>([]);
+  const [newOpen, setNewOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -23,6 +25,10 @@ export default function RedacaoProfessorPage() {
 
   return (
     <Page title="Redação" subtitle="Gerencie as redações dos alunos">
+      {/* Ações topo direito */}
+      <div className="mb-2 flex items-center justify-end">
+        <button className="rounded-lg bg-orange-500 px-4 py-2 font-semibold text-white hover:brightness-110" onClick={() => setNewOpen(true)}>Nova Redação</button>
+      </div>
       {/* Abas */}
       <div className="mb-4 flex gap-2">
         <button
@@ -149,6 +155,11 @@ export default function RedacaoProfessorPage() {
         essay={modal}
         onClose={() => setModal(null)}
         onGraded={() => { setModal(null); reload(); setStatus('corrected'); }}
+      />
+      <NewEssayModal
+        open={newOpen}
+        onClose={() => setNewOpen(false)}
+        onSuccess={() => { setStatus('pending'); setPage(1); reload(); }}
       />
     </Page>
   );

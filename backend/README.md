@@ -11,45 +11,53 @@ Envie o token no cabeçalho `Authorization`:
 Authorization: Bearer <token>
 ```
 
-## POST `/redacoes/enviar`
+## Upload de Redações (Professor)
 
-Envia a imagem de uma redação de aluno. O arquivo é convertido em PDF e armazenado no servidor.
+Para o fluxo novo de envio pelo professor, use o endpoint abaixo. O upload usa Cloudinary quando configurado; se não, há fallback opcional por URL direta.
 
-**Headers**
+### Variáveis de ambiente (Cloudinary)
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
+- `ALLOW_DIRECT_FILE_URL` (opcional: `true` habilita aceitar `fileUrl`. Se o Cloudinary não estiver configurado, o fallback por URL já é aceito.)
+
+### POST `/api/uploads/essay`
+
+Headers
 - `Authorization: Bearer <token>`
-- `Content-Type: multipart/form-data`
+- Para arquivo: `Content-Type: multipart/form-data`
 
-**Body (multipart/form-data)**
-- `student`: ID do aluno
-- `class`: ID da turma
-- `bimester`: número do bimestre
-- `file`: imagem (`.png` ou `.jpg`) da redação
+Body (multipart/form-data)
+- `file`: PDF/Imagem da redação (quando usando upload)
+- `studentId`: ID do aluno (obrigatório)
+- `classId`: ID da turma (opcional; inferido do aluno se ausente)
+- `topic`: tema da redação (obrigatório)
 
-**Exemplo de requisição**
+Body (JSON ou multipart) com URL
+- `fileUrl`: URL http(s) do arquivo (fallback)
+- `studentId`, `classId`, `topic` como acima
 
+Exemplo (arquivo):
 ```bash
-curl -X POST http://localhost:5000/redacoes/enviar \
+curl -X POST http://localhost:5000/api/uploads/essay \
   -H "Authorization: Bearer <token>" \
-  -F "student=64fa..." \
-  -F "class=64fb..." \
-  -F "bimester=1" \
-  -F "file=@/caminho/para/redacao.jpg"
+  -F "studentId=64fa..." \
+  -F "classId=64fb..." \
+  -F "topic=Tema livre" \
+  -F "file=@/caminho/para/redacao.pdf"
 ```
 
-**Resposta (201)**
-
-```json
-{
-  "redacao": {
-    "_id": "64fc...",
-    "student": "64fa...",
-    "class": "64fb...",
-    "bimester": 1,
-    "file": "redacao-1690000000000.pdf",
-    "submittedAt": "2024-01-01T12:00:00.000Z",
-    "status": "pendente"
-  }
-}
+Exemplo (URL):
+```bash
+curl -X POST http://localhost:5000/api/uploads/essay \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "studentId": "64fa...",
+    "classId": "64fb...",
+    "topic": "Tema livre",
+    "fileUrl": "https://exemplo.com/redacao.pdf"
+  }'
 ```
 
 ## GET `/redacoes/professor`

@@ -14,6 +14,8 @@ import NotasDaClasse from '@/pages/professor/NotasDaClasse';
 import CadernoProf from '@/pages/professor/Caderno';
 import GabaritoProf from '@/pages/professor/Gabarito';
 import TurmaAlunosPage from '@/pages/professor/TurmaAlunos';
+import ListaAlunos from '@/pages/professor/alunos/ListaAlunos';
+import PerfilAluno from '@/pages/professor/alunos/PerfilAluno';
 import AlunoCaderno from '@/pages/aluno/Caderno';
 import AlunoGabarito from '@/pages/aluno/Gabarito';
 import AlunoRedacoes from '@/pages/aluno/Redacoes';
@@ -51,6 +53,8 @@ export const router = createBrowserRouter([
           { path: '/professor/caderno', element: <CadernoProf /> },
           { path: '/professor/gabarito', element: <GabaritoProf /> },
           { path: '/professor/redacao', element: <RedacaoProfessorPage /> },
+          { path: '/professor/alunos', element: <ListaAlunos /> },
+          { path: '/professor/alunos/:id', element: <PerfilAluno /> },
         ],
       },
       {

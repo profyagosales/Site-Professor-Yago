@@ -31,6 +31,9 @@ const essaySchema = new mongoose.Schema({
   bimester: { type: Number, enum: [1, 2, 3, 4], required: true },
   originalUrl: { type: String, required: true },
   correctedUrl: { type: String, default: null },
+  // Data de submissão para consultas específicas; por padrão, usamos timestamps.createdAt,
+  // mas expomos submittedAt para novos fluxos e índices compostos.
+  submittedAt: { type: Date, default: Date.now },
   annulmentReason: {
     type: String,
     enum: [
@@ -68,5 +71,6 @@ essaySchema.index({ classId: 1 });
 essaySchema.index({ status: 1 });
 essaySchema.index({ bimester: 1 });
 essaySchema.index({ type: 1 });
+essaySchema.index({ studentId: 1, submittedAt: -1 });
 
 module.exports = mongoose.model('Essay', essaySchema, 'essays');
