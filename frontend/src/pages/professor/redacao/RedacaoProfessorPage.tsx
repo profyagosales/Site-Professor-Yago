@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useEssays } from '@/hooks/useEssays';
-import GradeModal from '@/components/redacao/GradeModal';
+// import GradeModal from '@/components/redacao/GradeModal';
 import { reenviarPdf } from '@/services/redacoes';
 import { toast } from 'react-toastify';
 import NewEssayModal from '@/components/redacao/NewEssayModal';
@@ -10,7 +10,7 @@ import ThemesManager from '@/components/redacao/ThemesManager';
 
 export default function RedacaoProfessorPage() {
   const { status, setStatus, q, setQ, classId, setClassId, page, setPage, pageSize, setPageSize, data, loading, error, reload } = useEssays('pending');
-  const [modal, setModal] = useState<{ id: string; fileUrl?: string; type?: 'ENEM'|'PAS' } | null>(null);
+  // const [modal, setModal] = useState<{ id: string; fileUrl?: string; type?: 'ENEM'|'PAS' } | null>(null);
   const [classes, setClasses] = useState<any[]>([]);
   const [newOpen, setNewOpen] = useState(false);
   const [themesOpen, setThemesOpen] = useState(false);
@@ -114,10 +114,10 @@ export default function RedacaoProfessorPage() {
                 )}
                 <td className="px-4 py-3">
                   {status === 'pending' ? (
-                    <button
+                    <a
                       className="rounded-lg bg-orange-500 px-3 py-1.5 text-white hover:brightness-110"
-                      onClick={() => setModal({ id: e.id, fileUrl: e.fileUrl, type: (e as any).type })}
-                    >Corrigir</button>
+                      href={`/professor/redacao/${e.id}`}
+                    >Corrigir</a>
                   ) : (
                     <div className="flex items-center gap-2">
                       <a className="rounded-lg border border-[#E5E7EB] px-3 py-1.5 hover:bg-[#F3F4F6]" href={e.fileUrl} target="_blank" rel="noreferrer">Ver PDF</a>
@@ -163,12 +163,7 @@ export default function RedacaoProfessorPage() {
         </div>
       </div>
 
-      <GradeModal
-        open={!!modal}
-        essay={modal}
-        onClose={() => setModal(null)}
-        onGraded={() => { setModal(null); reload(); setStatus('corrected'); }}
-      />
+  {/* GradeModal substituído por workspace de correção em página dedicada */}
       <NewEssayModal
         open={newOpen}
         onClose={() => setNewOpen(false)}
