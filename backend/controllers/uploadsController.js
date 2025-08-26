@@ -82,3 +82,16 @@ async function uploadEssay(req, res) {
 }
 
 module.exports = { upload, uploadEssay };
+// Debug/status endpoint (no secrets exposed)
+module.exports.cloudStatus = (req, res) => {
+  const status = {
+    cloudConfigured: !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET),
+    env: {
+      CLOUDINARY_CLOUD_NAME: !!process.env.CLOUDINARY_CLOUD_NAME,
+      CLOUDINARY_API_KEY: !!process.env.CLOUDINARY_API_KEY,
+      CLOUDINARY_API_SECRET: !!process.env.CLOUDINARY_API_SECRET,
+      ALLOW_DIRECT_FILE_URL: process.env.ALLOW_DIRECT_FILE_URL === 'true',
+    },
+  };
+  res.json({ success: true, data: status });
+};
