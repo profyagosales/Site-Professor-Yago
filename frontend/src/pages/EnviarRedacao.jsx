@@ -104,11 +104,17 @@ function EnviarRedacao() {
     <div className="pt-20 p-md space-y-md">
       {student && (
         <div className="ys-card flex items-center gap-md p-md">
-          <img
-            src={student.photo}
-            alt={student.name}
-            className="w-16 h-16 rounded-full object-cover"
-          />
+          {student.photo ? (
+            <img
+              src={student.photo}
+              alt={student.name}
+              className="w-16 h-16 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-16 h-16 rounded-full bg-[#E5E7EB] flex items-center justify-center text-[#6B7280]">
+              {(student.name || 'A').slice(0,1)}
+            </div>
+          )}
           <div>
             <p className="font-semibold">{student.name}</p>
             <p className="text-sm text-black/70">{student.className || ''}</p>

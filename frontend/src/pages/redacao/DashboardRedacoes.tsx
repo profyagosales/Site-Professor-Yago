@@ -104,11 +104,17 @@ function DashboardRedacoes() {
               className="ys-card flex items-center justify-between"
             >
               <div className="flex items-center gap-md">
-                <img
-                  src={r.student?.photo}
-                  alt={r.student?.name}
-                  className="w-12 h-12 rounded-full object-cover"
-                />
+                {r.student?.photo ? (
+                  <img
+                    src={r.student.photo}
+                    alt={r.student?.name || 'Aluno'}
+                    className="w-12 h-12 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-[#E5E7EB] flex items-center justify-center text-[#6B7280]">
+                    {(r.student?.name || 'A').slice(0,1)}
+                  </div>
+                )}
                 <div>
                   <p className="font-semibold">
                     {r.student?.rollNumber ? `Nº ${r.student.rollNumber}` : r.student?.name}
@@ -160,11 +166,17 @@ function DashboardRedacoes() {
                 className="ys-card flex items-center justify-between"
               >
                 <div className="flex items-center gap-md">
-                  <img
-                    src={r.student?.photo}
-                    alt={r.student?.name}
-                    className="w-12 h-12 rounded-full object-cover"
-                  />
+                  {r.student?.photo ? (
+                    <img
+                      src={r.student.photo}
+                      alt={r.student?.name || 'Aluno'}
+                      className="w-12 h-12 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-[#E5E7EB] flex items-center justify-center text-[#6B7280]">
+                      {(r.student?.name || 'A').slice(0,1)}
+                    </div>
+                  )}
                   <div>
                     <p className="font-semibold">
                       {r.student?.rollNumber ? `Nº ${r.student.rollNumber}` : r.student?.name}
@@ -190,16 +202,24 @@ function DashboardRedacoes() {
             <button
               className="ys-btn-primary"
               onClick={async () => {
-                const fd = new FormData();
-                fd.append('bimestreWeight', '1');
-                if (modalEssay.type === 'ENEM') {
-                  ['c1','c2','c3','c4','c5'].forEach(k => fd.append(`enemCompetencies[${k}]`, '0'));
+                const essayType = modalEssay.type === 'ENEM' ? 'ENEM' : 'PAS';
+                if (essayType === 'ENEM') {
+                  await gradeEssay(modalEssay._id, {
+                    essayType: 'ENEM',
+                    weight: 1,
+                    annul: false,
+                    enemCompetencies: { c1: 0, c2: 0, c3: 0, c4: 0, c5: 0 },
+                    comments: '',
+                  });
                 } else {
-                  fd.append('pasBreakdown[NC]', '0');
-                  fd.append('pasBreakdown[NE]', '0');
-                  fd.append('pasBreakdown[NL]', '1');
+                  await gradeEssay(modalEssay._id, {
+                    essayType: 'PAS',
+                    weight: 1,
+                    annul: false,
+                    pas: { NC: 0, NL: 1 },
+                    comments: '',
+                  });
                 }
-                await gradeEssay(modalEssay._id, fd);
                 setModalEssay(null);
               }}
             >

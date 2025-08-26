@@ -23,6 +23,8 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
   const [error, setError] = useState<string | null>(null);
   const [useUrl, setUseUrl] = useState(false);
   const [fileUrl, setFileUrl] = useState('');
+  const [bimester, setBimester] = useState('');
+  const [type, setType] = useState<'ENEM'|'PAS'>('PAS');
 
   useEffect(() => {
     if (open) {
@@ -49,9 +51,10 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
   }
 
   async function submit() {
-    if (!file && !fileUrl) { setError('Selecione um arquivo ou informe uma URL'); return; }
+  if (!file && !fileUrl) { setError('Selecione um arquivo ou informe uma URL'); return; }
     if (!studentId) { setError('Selecione um aluno'); return; }
     if (!topic.trim()) { setError('Informe um tema'); return; }
+  if (!bimester) { setError('Selecione o bimestre'); return; }
     setError(null);
     try {
       setLoading(true);
@@ -64,6 +67,8 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
       fd.append('studentId', studentId);
       fd.append('topic', topic);
       if (classId) fd.append('classId', classId);
+  fd.append('bimester', bimester);
+  fd.append('type', type);
   await uploadEssay(fd);
   toast.success('Redação enviada com sucesso');
       onSuccess();
@@ -119,6 +124,25 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
           <div>
             <label className="block text-sm font-medium text-[#111827]">Tema</label>
             <input value={topic} onChange={e => setTopic(e.target.value)} className="w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-[#111827]">Bimestre</label>
+              <select value={bimester} onChange={e=> setBimester(e.target.value)} className="w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                <option value="">Selecione…</option>
+                <option value="1">1º</option>
+                <option value="2">2º</option>
+                <option value="3">3º</option>
+                <option value="4">4º</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[#111827]">Tipo</label>
+              <select value={type} onChange={e=> setType(e.target.value as any)} className="w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                <option value="PAS">PAS</option>
+                <option value="ENEM">ENEM</option>
+              </select>
+            </div>
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="mt-2 flex justify-end gap-2">

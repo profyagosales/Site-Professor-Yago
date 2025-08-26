@@ -1,15 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useEssays } from '@/hooks/useEssays';
 import GradeModal from '@/components/redacao/GradeModal';
+import { reenviarPdf } from '@/services/redacoes';
+import { toast } from 'react-toastify';
 import NewEssayModal from '@/components/redacao/NewEssayModal';
 import { Page } from '@/components/Page';
 import { listClasses } from '@/services/classes';
+import ThemesManager from '@/components/redacao/ThemesManager';
 
 export default function RedacaoProfessorPage() {
   const { status, setStatus, q, setQ, classId, setClassId, page, setPage, pageSize, setPageSize, data, loading, error, reload } = useEssays('pending');
-  const [modal, setModal] = useState<{ id: string; fileUrl?: string } | null>(null);
+  const [modal, setModal] = useState<{ id: string; fileUrl?: string; type?: 'ENEM'|'PAS' } | null>(null);
   const [classes, setClasses] = useState<any[]>([]);
   const [newOpen, setNewOpen] = useState(false);
+  const [themesOpen, setThemesOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -26,7 +30,8 @@ export default function RedacaoProfessorPage() {
   return (
     <Page title="Redação" subtitle="Gerencie as redações dos alunos">
       {/* Ações topo direito */}
-      <div className="mb-2 flex items-center justify-end">
+      <div className="mb-2 flex items-center justify-end gap-2">
+        <button className="rounded-lg border border-[#E5E7EB] px-4 py-2 font-semibold hover:bg-[#F3F4F6]" onClick={() => setThemesOpen(true)}>Temas</button>
         <button className="rounded-lg bg-orange-500 px-4 py-2 font-semibold text-white hover:brightness-110" onClick={() => setNewOpen(true)}>Nova Redação</button>
       </div>
       {/* Abas */}
@@ -98,23 +103,31 @@ export default function RedacaoProfessorPage() {
                 <td className="px-4 py-3">{e.className}</td>
                 <td className="px-4 py-3">{e.topic}</td>
                 <td className="px-4 py-3">{new Date(e.submittedAt).toLocaleDateString()}</td>
-                {status === 'pending' ? (
+        {status === 'pending' ? (
                   <td className="px-4 py-3"><a className="text-orange-600 underline" href={e.fileUrl} target="_blank" rel="noreferrer">Abrir</a></td>
                 ) : (
                   <>
                     <td className="px-4 py-3">{e.score ?? '-'}</td>
                     <td className="px-4 py-3">{e.comments ?? '-'}</td>
-                    <td className="px-4 py-3"><a className="text-orange-600 underline" href={e.fileUrl} target="_blank" rel="noreferrer">Abrir</a></td>
+          <td className="px-4 py-3"><a className="text-orange-600 underline" href={e.fileUrl} target="_blank" rel="noreferrer">Abrir</a></td>
                   </>
                 )}
                 <td className="px-4 py-3">
                   {status === 'pending' ? (
                     <button
                       className="rounded-lg bg-orange-500 px-3 py-1.5 text-white hover:brightness-110"
-                      onClick={() => setModal({ id: e.id, fileUrl: e.fileUrl })}
+                      onClick={() => setModal({ id: e.id, fileUrl: e.fileUrl, type: (e as any).type })}
                     >Corrigir</button>
                   ) : (
-                    <span className="text-ys-ink-2">—</span>
+                    <div className="flex items-center gap-2">
+                      <a className="rounded-lg border border-[#E5E7EB] px-3 py-1.5 hover:bg-[#F3F4F6]" href={e.fileUrl} target="_blank" rel="noreferrer">Ver PDF</a>
+                      <button
+                        className="rounded-lg bg-orange-500 px-3 py-1.5 text-white hover:brightness-110"
+                        onClick={async ()=>{
+                          try { await reenviarPdf(e.id); toast.success('PDF reenviado'); } catch (err:any) { toast.error(err?.response?.data?.message || 'Falha ao reenviar'); }
+                        }}
+                      >Reenviar PDF</button>
+                    </div>
                   )}
                 </td>
               </tr>
@@ -161,6 +174,7 @@ export default function RedacaoProfessorPage() {
         onClose={() => setNewOpen(false)}
         onSuccess={() => { setStatus('pending'); setPage(1); reload(); }}
       />
+  <ThemesManager open={themesOpen} onClose={() => setThemesOpen(false)} />
     </Page>
   );
 }

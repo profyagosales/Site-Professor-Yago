@@ -1,5 +1,21 @@
 import { api } from './api';
-import { EssaysPage, EssayStatus } from '@/types/redacao';
+import { EssaysPage, EssayStatus, Annotation } from '@/types/redacao';
+
+// Themes
+export async function fetchThemes(params?: { type?: 'ENEM'|'PAS'; active?: boolean }) {
+  const res = await api.get('/essays/themes', { params });
+  return res.data;
+}
+
+export async function createThemeApi(data: { name: string; type: 'ENEM'|'PAS' }) {
+  const res = await api.post('/essays/themes', data);
+  return res.data;
+}
+
+export async function updateThemeApi(id: string, data: Partial<{ name: string; type: 'ENEM'|'PAS'; active: boolean }>) {
+  const res = await api.patch(`/essays/themes/${id}`, data);
+  return res.data;
+}
 
 export async function fetchEssays(params: {
   status: EssayStatus;
@@ -26,9 +42,10 @@ export async function fetchEssays(params: {
       className: e.class?.name || e.className || `${e.class?.series || ''}${e.class?.letter || ''}`.trim(),
       topic: e.customTheme || e.theme?.name || e.themeName || e.topic || '-',
       submittedAt: e.createdAt || e.submittedAt || new Date().toISOString(),
-      fileUrl: e.originalUrl || e.fileUrl || e.file,
+      fileUrl: e.correctedUrl || e.originalUrl || e.fileUrl || e.file,
       score: e.rawScore ?? e.score,
       comments: e.comments,
+      type: e.type,
     }));
     const total = r.data?.total ?? items.length;
     return { items, page, pageSize, total } as EssaysPage;
@@ -49,38 +66,69 @@ export async function fetchEssays(params: {
       className: e.class ? `${e.class.series}${e.class.letter}` : '-',
       topic: e.correction?.tema || e.theme || '-',
       submittedAt: e.submittedAt,
-      fileUrl: e.correctionPdf || e.file,
+      fileUrl: e.correctionPdf || e.correctedUrl || e.file,
       score: e.correction?.finalScore,
       comments: e.correction?.generalComment,
+      type: e.type,
     }));
     const total = legacy.data?.total ?? items.length;
     return { items, page, pageSize, total } as EssaysPage;
   }
 }
 
-export async function gradeEssay(id: string, payload: { score: number; comments?: string }) {
+export async function gradeEssay(id: string, payload: {
+  essayType: 'ENEM' | 'PAS';
+  weight?: number;
+  annul?: boolean;
+  enemCompetencies?: { c1: number; c2: number; c3: number; c4: number; c5: number };
+  pas?: { NC: number; NL: number };
+  comments?: string;
+}) {
+  const weight = payload.weight ?? 1;
+  const body: any = { bimestreWeight: weight, comments: payload.comments };
+  if (payload.annul) body.annulmentReason = 'IDENTIFICACAO';
+  if (payload.essayType === 'ENEM' && payload.enemCompetencies) body.enemCompetencies = payload.enemCompetencies;
+  if (payload.essayType === 'PAS' && payload.pas) body.pasBreakdown = { NC: payload.pas.NC, NL: payload.pas.NL };
   try {
-    const res = await api.patch(`/essays/${id}/grade`, {
-      bimestreWeight: 1,
-      comments: payload.comments,
-      pasBreakdown: { NC: payload.score, NL: 1 },
-    });
+    const res = await api.patch(`/essays/${id}/grade`, body);
     return res.data;
   } catch {
+    // Fallback compat
+    if (payload.essayType === 'PAS' && payload.pas) {
+      const res = await api.post(`/redacoes/${id}/corrigir`, {
+        tipo: 'PAS',
+        nc: payload.pas.NC,
+        nl: payload.pas.NL,
+        checklist: payload.annul ? { anulada: true } : {},
+        comentario: payload.comments,
+      });
+      return res.data;
+    }
+    const comps = payload.enemCompetencies || { c1: 0, c2: 0, c3: 0, c4: 0, c5: 0 };
     const res = await api.post(`/redacoes/${id}/corrigir`, {
       tipo: 'ENEM',
       competencias: [
-        { pontuacao: payload.score },
-        { pontuacao: 0 },
-        { pontuacao: 0 },
-        { pontuacao: 0 },
-        { pontuacao: 0 },
+        { pontuacao: comps.c1 },
+        { pontuacao: comps.c2 },
+        { pontuacao: comps.c3 },
+        { pontuacao: comps.c4 },
+        { pontuacao: comps.c5 },
       ],
-      checklist: {},
+      checklist: payload.annul ? { anulada: true } : {},
       comentario: payload.comments,
     });
     return res.data;
   }
 }
 
-export default { fetchEssays, gradeEssay };
+export async function saveAnnotations(id: string, annotations: Annotation[]) {
+  const res = await api.patch(`/essays/${id}/annotations`, { annotations });
+  return res.data;
+}
+
+export async function renderCorrection(id: string, opts?: { sendEmail?: boolean }) {
+  const res = await api.post(`/essays/${id}/render-correction`, opts || {});
+  return res.data;
+}
+
+export default { fetchEssays, gradeEssay, saveAnnotations, renderCorrection };

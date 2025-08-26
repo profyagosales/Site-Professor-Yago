@@ -32,7 +32,7 @@ async function uploadBuffer(buffer, folder) {
 
 async function uploadEssay(req, res) {
   try {
-    const { studentId, topic, classId, fileUrl } = req.body;
+  const { studentId, topic, classId, fileUrl, type: bodyType, bimester: bodyBimester } = req.body;
     const cloudConfigured = !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
     const allowDirectUrl = process.env.ALLOW_DIRECT_FILE_URL === 'true' || !cloudConfigured;
 
@@ -61,8 +61,8 @@ async function uploadEssay(req, res) {
       studentId,
       classId: cls,
       customTheme: topic,
-      type: 'PAS',
-      bimester: 1,
+      type: bodyType === 'ENEM' ? 'ENEM' : 'PAS',
+      bimester: Number(bodyBimester) || 1,
   originalUrl,
       submittedAt: new Date(),
       status: 'PENDING',

@@ -14,7 +14,7 @@ const gradesRoutes = require('./routes/grades');
 const cadernoRoutes = require('./routes/caderno');
 const gabaritoRoutes = require('./routes/gabaritos');
 const omrRoutes = require('./routes/omr');
-const redacoesRoutes = require('./routes/redacoes');
+// Compatível com a especificação de Redações: usar o router compat
 const redactionsRoutes = require('./routes/redactions');
 const essaysRoutes = require('./routes/essays');
 const uploadsRoutes = require('./routes/uploads');
@@ -79,7 +79,8 @@ api.use('/grades', gradesRoutes);
 api.use('/caderno', cadernoRoutes);
 api.use('/gabaritos', gabaritoRoutes);
 api.use('/omr', omrRoutes);
-api.use('/redacoes', redacoesRoutes);
+// Monta o router compat sob ambos os caminhos (pt-BR e en)
+api.use('/redacoes', redactionsRoutes);
 api.use('/redactions', redactionsRoutes);
 api.use('/essays', essaysRoutes);
 api.use('/uploads', uploadsRoutes);

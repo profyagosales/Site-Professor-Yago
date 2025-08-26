@@ -17,3 +17,12 @@ export interface EssaysPage {
   pageSize: number;
   total: number;
 }
+
+// Simple annotation type used in correction UI
+export interface Annotation {
+  color: string;         // e.g., 'green' (Erro), 'blue' (Observação)
+  label: string;         // short label like 'Erro' or 'Obs'
+  comment?: string;      // optional textual note
+  selection?: any;       // reserved for future selection ranges
+  bbox?: any;            // reserved for future bounding boxes
+}
