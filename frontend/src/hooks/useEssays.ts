@@ -23,14 +23,8 @@ export function useEssays(initialStatus: EssayStatus) {
         setData(getMockPage({ status, page, pageSize, q, classId }));
         return;
       }
-      const res = await fetchEssays({ status, page, pageSize, q, classId });
-      // filtro leve no cliente enquanto o servidor não pagina por bimestre/tipo
-      const f = (arr: any[]) => arr.filter((it: any) => {
-        if (extra.bimester && String(it.bimester) !== extra.bimester) return false;
-        if (extra.type && String(it.type) !== extra.type) return false;
-        return true;
-      });
-      setData({ ...res, items: f(res.items as any) } as any);
+  const res = await fetchEssays({ status, page, pageSize, q, classId, bimester: extra.bimester, type: extra.type });
+  setData(res as any);
     } catch (e: any) {
       setError(e?.response?.data?.message ?? 'Erro ao carregar redações');
     } finally {

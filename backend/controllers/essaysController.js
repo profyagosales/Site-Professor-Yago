@@ -116,7 +116,7 @@ async function createEssay(req, res) {
 // List essays
 async function listEssays(req, res) {
   const filter = {};
-  const { status, classId, studentId, bimester, type } = req.query;
+  const { status, classId, studentId, bimester, type, q } = req.query;
   if (status) filter.status = status;
   if (bimester) filter.bimester = Number(bimester);
   if (type) filter.type = type;
@@ -126,11 +126,37 @@ async function listEssays(req, res) {
     if (studentId) filter.studentId = studentId;
     if (classId) filter.classId = classId;
   }
-  const essays = await Essay.find(filter)
-    .populate('studentId', 'name rollNumber photo')
-    .populate('classId', 'series letter discipline')
-    .sort({ submittedAt: -1 });
-  res.json(essays);
+
+  // Build pagination
+  const page = Math.max(1, Number(req.query.page || 1));
+  const limit = Math.max(1, Math.min(50, Number(req.query.limit || 10)));
+  const skip = (page - 1) * limit;
+
+  // Optional search by student name (q)
+  let studentIdsFilter = null;
+  if (q && typeof q === 'string') {
+    const students = await Student.find({ name: { $regex: q, $options: 'i' } }).select('_id');
+    studentIdsFilter = students.map((s) => s._id);
+    if (studentIdsFilter.length === 0) {
+      return res.json({ items: [], total: 0, page, limit });
+    }
+    filter.studentId = filter.studentId ? filter.studentId : { $in: studentIdsFilter };
+    if (filter.studentId && filter.studentId.$in) {
+      // no-op, already set via $in
+    }
+  }
+
+  const [items, total] = await Promise.all([
+    Essay.find(filter)
+      .populate('studentId', 'name rollNumber photo')
+      .populate('classId', 'series letter discipline')
+      .sort({ submittedAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    Essay.countDocuments(filter)
+  ]);
+
+  res.json({ items, total, page, limit });
 }
 
 function roundToOneDecimal(num) {
@@ -302,7 +328,9 @@ async function renderCorrection(req, res) {
       ? (await EssayTheme.findById(essay.themeId))?.name
       : essay.customTheme;
 
-    const pdfBuffer = await renderEssayCorrectionPdf({ essay, student, classInfo, themeName });
+  // thumbnailsCount opcional, padrão 2, limitado a 1..2 para caber na primeira folha
+  const thumbnailsCount = Math.max(1, Math.min(2, Number(req.body.thumbnailsCount || 2)));
+  const pdfBuffer = await renderEssayCorrectionPdf({ essay, student, classInfo, themeName, thumbnailsCount });
     const correctedUrl = await uploadBuffer(pdfBuffer, 'essays/corrected');
 
     essay.correctedUrl = correctedUrl;

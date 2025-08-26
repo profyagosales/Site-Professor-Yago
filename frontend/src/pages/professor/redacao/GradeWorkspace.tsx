@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
+import { pasPreviewFrom } from '@/utils/pas';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchEssayById, gradeEssay, saveAnnotations, renderCorrection } from '@/services/essays.service';
 import AnnotationEditor from '@/components/redacao/AnnotationEditor';
+import PdfHighlighter from '@/components/redacao/PdfHighlighter';
 import type { Annotation } from '@/types/redacao';
 import { toast } from 'react-toastify';
 
@@ -24,6 +26,24 @@ export default function GradeWorkspace() {
   // PAS
   const [NC, setNC] = useState('0');
   const [NL, setNL] = useState('1');
+  const [lastAddedIndex, setLastAddedIndex] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [autosaving, setAutosaving] = useState(false);
+  const [undoStack, setUndoStack] = useState<Array<{ idx: number; ann: Annotation }>>([]);
+  const [redoStack, setRedoStack] = useState<Array<{ idx: number; ann: Annotation }>>([]);
+  const [thumbs, setThumbs] = useState<'1'|'2'>('2');
+  const [dirty, setDirty] = useState(false);
+  const [suppressDirty, setSuppressDirty] = useState(true);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [snapshot, setSnapshot] = useState<null | {
+    annotations: Annotation[];
+    comments: string;
+    weight: string;
+    annul: boolean;
+    c1: string; c2: string; c3: string; c4: string; c5: string;
+    NC: string; NL: string;
+  }>(null);
 
   useEffect(() => {
     let alive = true;
@@ -34,9 +54,9 @@ export default function GradeWorkspace() {
         const data = await fetchEssayById(id);
         if (!alive) return;
         setEssay(data);
-        if (data?.annotations) setAnnotations(data.annotations);
-        if (data?.comments) setComments(data.comments);
-        if (data?.bimestreWeight) setWeight(String(data.bimestreWeight));
+  if (data?.annotations) setAnnotations(data.annotations);
+  if (data?.comments) setComments(data.comments);
+  if (data?.bimestreWeight) setWeight(String(data.bimestreWeight));
         if (data?.type === 'ENEM' && data?.enemCompetencies) {
           setC1(String(data.enemCompetencies.c1 || 0));
           setC2(String(data.enemCompetencies.c2 || 0));
@@ -49,6 +69,23 @@ export default function GradeWorkspace() {
           setNL(String(data.pasBreakdown.NL || 1));
         }
         setAnnul(Boolean(data?.annulmentReason));
+        // initialize snapshot and clear dirty tracking
+        const snap = {
+          annotations: data?.annotations || [],
+          comments: data?.comments || '',
+          weight: String(data?.bimestreWeight || '1'),
+          annul: Boolean(data?.annulmentReason),
+          c1: String(data?.enemCompetencies?.c1 || '0'),
+          c2: String(data?.enemCompetencies?.c2 || '0'),
+          c3: String(data?.enemCompetencies?.c3 || '0'),
+          c4: String(data?.enemCompetencies?.c4 || '0'),
+          c5: String(data?.enemCompetencies?.c5 || '0'),
+          NC: String(data?.pasBreakdown?.NC || '0'),
+          NL: String(data?.pasBreakdown?.NL || '1'),
+        };
+        setSnapshot(snap);
+        setDirty(false);
+        setSuppressDirty(false);
       } catch (e:any) {
         setErr(e?.response?.data?.message || 'Erro ao carregar redação');
       } finally { setLoading(false); }
@@ -58,14 +95,94 @@ export default function GradeWorkspace() {
 
   const enemTotal = useMemo(() => [c1,c2,c3,c4,c5].map(Number).reduce((a,b)=>a+(isNaN(b)?0:b),0), [c1,c2,c3,c4,c5]);
   const pasPreview = useMemo(() => {
-    const nc = Number(NC); const nl = Math.max(1, Number(NL));
-    if ([nc,nl].some(Number.isNaN)) return { raw: 0, scaled: 0 };
-    const ne = annotations.filter(a => a.color === 'green' && (a.label||'').toLowerCase().includes('erro')).length;
-    const clamp = (n:number,min:number,max:number)=>Math.min(Math.max(n,min),max);
-    const raw = Math.round((clamp(nc - (2*ne)/nl, 0, 10)) * 100) / 100;
-    const w = Number(weight)||1; const scaled = Math.round((Math.min(w, w * (raw/10))) * 10) / 10;
-    return { raw, scaled };
+    const w = Number(weight) || 1;
+    const nc = Number(NC);
+    const nl = Number(NL);
+    if ([nc, nl, w].some(Number.isNaN)) return { raw: 0, scaled: 0 } as any;
+    const { raw, scaled } = pasPreviewFrom({ NC: nc, NL: Math.max(1, nl), annotations, weight: w });
+    return { raw, scaled } as any;
   }, [NC, NL, annotations, weight]);
+  const neCount = useMemo(() => annotations.filter(a => a.color === 'green' && (a.label||'').toLowerCase().includes('erro')).length, [annotations]);
+
+  // Mark form dirty on relevant changes
+  useEffect(() => { if (!loading && !suppressDirty) setDirty(true); }, [annotations, comments, c1, c2, c3, c4, c5, NC, NL, weight, annul, loading, suppressDirty]);
+  // beforeunload guard
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!dirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [dirty]);
+  // navigation guard in-app
+  useEffect(() => {
+    const unblock = (navigate as any).block?.((tx: any) => {
+      if (!dirty) return;
+      if (window.confirm('Há alterações não salvas. Deseja sair mesmo assim?')) {
+        unblock();
+        tx.retry();
+      }
+    });
+    return () => { if (typeof unblock === 'function') unblock(); };
+  }, [dirty]);
+
+  // Undo/Redo keyboard: Ctrl+Z / Ctrl+Y (ou Ctrl+Shift+Z)
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const isUndo = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey;
+      const isRedo = (e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey));
+      if (isUndo) {
+        e.preventDefault();
+        if (undoStack.length > 0) {
+          const last = undoStack[0];
+          setUndoStack((s)=> s.slice(1));
+          setRedoStack((s)=> [{ idx: last.idx, ann: last.ann }, ...s].slice(0, 20));
+          setAnnotations((prev)=> {
+            const next = prev.slice();
+            const insertAt = Math.min(last.idx, next.length);
+            next.splice(insertAt, 0, last.ann);
+            return next;
+          });
+          setSelectedIndex(Math.min(last.idx, annotations.length));
+        }
+      } else if (isRedo) {
+        e.preventDefault();
+        if (redoStack.length > 0) {
+          const last = redoStack[0];
+          setRedoStack((s)=> s.slice(1));
+          setUndoStack((s)=> [{ idx: last.idx, ann: last.ann }, ...s].slice(0, 20));
+          setAnnotations((prev)=> prev.filter((_, i) => i !== Math.min(last.idx, prev.length - 1)));
+          setSelectedIndex(null);
+        }
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undoStack, redoStack, annotations.length]);
+
+  // Autosave: debounce rápido e timer de segurança
+  useEffect(() => {
+    if (!dirty || !essay) return;
+    const debounce = setTimeout(async () => {
+      try {
+        setAutosaving(true);
+        await saveAnnotations(essay._id || essay.id, annotations);
+        setLastSavedAt(new Date());
+      } catch {}
+      finally { setAutosaving(false); }
+    }, 1200);
+    const safety = setTimeout(async () => {
+      try {
+        setAutosaving(true);
+        await saveAnnotations(essay._id || essay.id, annotations);
+        setLastSavedAt(new Date());
+      } catch {}
+      finally { setAutosaving(false); }
+    }, 15000);
+    return () => { clearTimeout(debounce); clearTimeout(safety); };
+  }, [dirty, essay, annotations]);
 
   async function submit(finalizePdf=false, sendEmail=false) {
     if (!essay) return;
@@ -90,9 +207,12 @@ export default function GradeWorkspace() {
         });
       }
       if (finalizePdf) {
-        await renderCorrection(essay._id || essay.id, { sendEmail });
+        await renderCorrection(essay._id || essay.id, { sendEmail, thumbnailsCount: Number(thumbs) });
       }
-      toast.success('Correção salva');
+  toast.success('Correção salva');
+  setDirty(false);
+  setLastSavedAt(new Date());
+  setSnapshot({ annotations, comments, weight, annul, c1, c2, c3, c4, c5, NC, NL });
       navigate('/professor/redacao');
     } catch (e:any) {
       toast.error(e?.response?.data?.message || 'Falha ao salvar');
@@ -108,23 +228,129 @@ export default function GradeWorkspace() {
   return (
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Correção — {essay.type}</h2>
-          <p className="text-sm text-ys-ink-2">Aluno: {essay.student?.name || essay.studentId?.name || '-'}</p>
-          <p className="text-sm text-ys-ink-2">Tema: {essay.customTheme || essay.theme?.name || '-'}</p>
+        <div className="flex items-center gap-4">
+          {essay.studentId?.photo ? (
+            <img src={essay.studentId.photo} alt={essay.studentId.name} className="h-16 w-16 rounded-full object-cover" />
+          ) : (
+            <div className="h-16 w-16 rounded-full bg-[#E5E7EB] flex items-center justify-center text-[#6B7280]">
+              {(essay.studentId?.name || 'A').slice(0,1)}
+            </div>
+          )}
+          <div>
+            <h2 className="text-lg font-semibold">{essay.studentId?.name || '-'}</h2>
+            <p className="text-sm text-ys-ink-2">
+              {essay.classId ? `${essay.classId.series || ''}${essay.classId.letter || ''}` : '-'}
+              {essay.studentId?.rollNumber != null ? ` • Nº ${essay.studentId.rollNumber}` : ''}
+            </p>
+            <p className="text-sm text-ys-ink-2">Tema: {essay.customTheme || essay.theme?.name || '-'}</p>
+            <p className="text-sm text-ys-ink-2">Modelo: {essay.type}</p>
+          </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          {dirty && (
+            <span className="mr-2 inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800">
+              <span className="inline-block h-2 w-2 rounded-full bg-yellow-500" />
+              Não salvo
+            </span>
+          )}
+          {!dirty && autosaving && (
+            <span className="mr-2 inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-[#374151]">
+              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-[#9CA3AF] border-t-transparent" />
+              Salvando…
+            </span>
+          )}
+          {!dirty && lastSavedAt && (
+            <span className="mr-2 text-xs text-ys-ink-2">Salvo às {lastSavedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+          )}
           <button className="rounded-lg border border-[#E5E7EB] px-3 py-1.5" onClick={()=>navigate('/professor/redacao')}>Voltar</button>
-          <button className="rounded-lg border border-[#E5E7EB] px-3 py-1.5" disabled={loading} onClick={()=>submit(false,false)}>Salvar</button>
-          <button className="rounded-lg bg-orange-500 px-3 py-1.5 text-white" disabled={loading} onClick={()=>submit(true,false)}>Salvar + PDF</button>
-          <button className="rounded-lg bg-orange-600 px-3 py-1.5 text-white" disabled={loading} onClick={()=>submit(true,true)}>Salvar + PDF + E-mail</button>
+          {snapshot && (
+            <button
+              className="rounded-lg border border-[#E5E7EB] px-3 py-1.5 disabled:opacity-60"
+              disabled={loading || !dirty}
+              onClick={() => {
+                if (!snapshot) return;
+                setSuppressDirty(true);
+                setAnnotations(snapshot.annotations);
+                setComments(snapshot.comments);
+                setWeight(snapshot.weight);
+                setAnnul(snapshot.annul);
+                setC1(snapshot.c1); setC2(snapshot.c2); setC3(snapshot.c3); setC4(snapshot.c4); setC5(snapshot.c5);
+                setNC(snapshot.NC); setNL(snapshot.NL);
+                setDirty(false);
+                setTimeout(() => setSuppressDirty(false), 0);
+              }}
+            >Descartar alterações</button>
+          )}
+          <button className="inline-flex items-center gap-2 rounded-lg border border-[#E5E7EB] px-3 py-1.5 disabled:opacity-60" disabled={loading} onClick={()=>submit(false,false)}>
+            {loading && <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-[#9CA3AF] border-t-transparent" />}
+            <span>Salvar</span>
+          </button>
+          <button className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-3 py-1.5 text-white disabled:opacity-60" disabled={loading} onClick={()=>submit(true,false)}>
+            {loading && <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/80 border-t-transparent" />}
+            <span>Salvar + PDF</span>
+          </button>
+          <button className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-3 py-1.5 text-white disabled:opacity-60" disabled={loading} onClick={()=>submit(true,true)}>
+            {loading && <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/80 border-t-transparent" />}
+            <span>Salvar + PDF + E-mail</span>
+          </button>
+          <div className="ml-2 flex items-center gap-1 text-xs text-ys-ink-2">
+            <span>Miniaturas:</span>
+            <select value={thumbs} onChange={(e)=>setThumbs(e.target.value as '1'|'2')} className="rounded border p-1">
+              <option value="1">1</option>
+              <option value="2">2</option>
+            </select>
+          </div>
+          <div className="ml-2 flex items-center gap-1 text-xs text-ys-ink-2">
+            <button title="Ir para anotação anterior" className="rounded border px-2 py-1" disabled={annotations.length === 0} onClick={()=>{
+              if (annotations.length===0) return;
+              const next = selectedIndex==null ? 0 : (selectedIndex - 1 + annotations.length) % annotations.length;
+              setSelectedIndex(next);
+              const p = (annotations[next] as any)?.bbox?.page; if (typeof p === 'number') setCurrentPage(p+1);
+            }}>Anterior</button>
+            <button title="Ir para próxima anotação" className="rounded border px-2 py-1" disabled={annotations.length === 0} onClick={()=>{
+              if (annotations.length===0) return;
+              const next = selectedIndex==null ? 0 : (selectedIndex + 1) % annotations.length;
+              setSelectedIndex(next);
+              const p = (annotations[next] as any)?.bbox?.page; if (typeof p === 'number') setCurrentPage(p+1);
+            }}>Próxima</button>
+            <span className="ml-1 text-[11px] text-ys-ink-2">
+              {annotations.length > 0 ? `${(selectedIndex ?? 0) + 1} de ${annotations.length}` : '0 de 0'}
+            </span>
+          </div>
         </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
         <div className="min-h-[420px] overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#F9FAFB]">
           {isPdf ? (
-            <embed src={essay.originalUrl || essay.fileUrl} type="application/pdf" className="h-[420px] w-full" />
+            <PdfHighlighter
+              src={essay.originalUrl || essay.fileUrl}
+              annotations={annotations}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+              selectedIndex={selectedIndex}
+              onSelect={setSelectedIndex}
+              storageKey={`gw:${essay._id || essay.id}`}
+              onAdd={(a) => {
+                setAnnotations((prev) => {
+                  const next = [...prev, a];
+                  setLastAddedIndex(next.length - 1);
+                  setSelectedIndex(next.length - 1);
+                  return next;
+                });
+              }}
+              onRemove={(idx) => {
+                setAnnotations((prev) => {
+                  const ann = prev[idx];
+                  setUndoStack((s)=> [{ idx, ann }, ...s].slice(0, 20));
+                  return prev.filter((_, i) => i !== idx);
+                });
+                if (selectedIndex === idx) setSelectedIndex(null);
+              }}
+              onUpdate={(idx, patch) => {
+                setAnnotations((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+              }}
+            />
           ) : (
             <a className="block p-4 text-orange-600 underline" href={essay.originalUrl || essay.fileUrl} target="_blank" rel="noreferrer">Abrir arquivo</a>
           )}
@@ -162,14 +388,44 @@ export default function GradeWorkspace() {
                   <input type="number" min={1} value={NL} onChange={e=> setNL(e.target.value)} className="w-full rounded border p-2" />
                 </div>
               </div>
-              <p className="text-sm text-ys-ink-2">Prévia PAS: nota <span className="font-medium text-[#111827]">{pasPreview.raw}</span>/10 • bimestral <span className="font-medium text-[#111827]">{pasPreview.scaled}</span> / {weight}</p>
+              <p className="text-sm text-ys-ink-2">Prévia PAS: nota <span className="font-medium text-[#111827]">{pasPreview.raw}</span>/10 • bimestral <span className="font-medium text-[#111827]">{pasPreview.scaled}</span> / {weight} • NE: <span className="font-medium text-[#111827]">{neCount}</span></p>
             </div>
           )}
 
           <label className="block text-sm font-medium text-[#111827]">Comentários</label>
           <textarea value={comments} onChange={(e)=>setComments(e.target.value)} className="h-28 w-full rounded border p-2" placeholder="Feedback opcional" />
 
-          <AnnotationEditor value={annotations} onChange={setAnnotations} />
+          <AnnotationEditor
+            value={annotations}
+            onChange={setAnnotations}
+            focusIndex={lastAddedIndex}
+            selectedIndex={selectedIndex}
+            currentPage={currentPage}
+            onSelect={(i)=>{ setSelectedIndex(i); const p = (annotations[i] as any)?.bbox?.page; if (typeof p === 'number') setCurrentPage(p+1); }}
+            onRemove={(idx)=>{
+              setAnnotations((prev) => {
+                const ann = prev[idx];
+                setUndoStack((s)=> [{ idx, ann }, ...s].slice(0, 20));
+                return prev.filter((_, i) => i !== idx);
+              });
+              if (selectedIndex === idx) setSelectedIndex(null);
+            }}
+          />
+          {undoStack.length > 0 && (
+            <div className="text-xs text-ys-ink-2">
+              Anotação removida. <button className="underline" onClick={()=>{
+                const last = undoStack[0];
+                setUndoStack((s)=> s.slice(1));
+                setAnnotations((prev)=> {
+                  const next = prev.slice();
+                  const insertAt = Math.min(last.idx, next.length);
+                  next.splice(insertAt, 0, last.ann);
+                  return next;
+                });
+                setSelectedIndex((prevSel)=> Math.min(last.idx, (annotations.length)));
+              }}>Desfazer</button>
+            </div>
+          )}
         </div>
       </div>
     </div>

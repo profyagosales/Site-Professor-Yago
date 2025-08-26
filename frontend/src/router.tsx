@@ -7,8 +7,9 @@ import LoginProfessor from '@/pages/auth/LoginProfessor';
 import LoginAluno from '@/pages/auth/LoginAluno';
 import DashboardProfessor from '@/pages/DashboardProfessor';
 import DashboardAluno from '@/pages/DashboardAluno';
-import RedacaoProfessorPage from '@/pages/professor/redacao/RedacaoProfessorPage';
-import GradeWorkspace from '@/pages/professor/redacao/GradeWorkspace';
+import { lazy, Suspense } from 'react';
+const RedacaoProfessorPage = lazy(() => import('@/pages/professor/redacao/RedacaoProfessorPage'));
+const GradeWorkspace = lazy(() => import('@/pages/professor/redacao/GradeWorkspace'));
 import NotFound from '@/pages/NotFound';
 import TurmasPage from '@/pages/professor/Turmas';
 import NotasDaClasse from '@/pages/professor/NotasDaClasse';
@@ -53,8 +54,8 @@ export const router = createBrowserRouter([
           { path: '/professor/notas-da-classe', element: <NotasDaClasse /> },
           { path: '/professor/caderno', element: <CadernoProf /> },
           { path: '/professor/gabarito', element: <GabaritoProf /> },
-          { path: '/professor/redacao', element: <RedacaoProfessorPage /> },
-          { path: '/professor/redacao/:id', element: <GradeWorkspace /> },
+          { path: '/professor/redacao', element: <Suspense fallback={<div className="p-6">Carregando…</div>}><RedacaoProfessorPage /></Suspense> },
+          { path: '/professor/redacao/:id', element: <Suspense fallback={<div className="p-6">Carregando…</div>}><GradeWorkspace /></Suspense> },
           { path: '/professor/alunos', element: <ListaAlunos /> },
           { path: '/professor/alunos/:id', element: <PerfilAluno /> },
         ],

@@ -71,7 +71,7 @@ function generateCorrectionPdf({
 
 const { PDFDocument: PDFLibDocument, rgb, StandardFonts } = require('pdf-lib');
 
-async function renderEssayCorrectionPdf({ essay, student, classInfo, themeName }) {
+async function renderEssayCorrectionPdf({ essay, student, classInfo, themeName, thumbnailsCount = 2 }) {
   const existingBytes = await fetch(essay.originalUrl).then((r) => r.arrayBuffer());
   const origPdf = await PDFLibDocument.load(existingBytes);
   const pdfDoc = await PDFLibDocument.create();
@@ -80,17 +80,31 @@ async function renderEssayCorrectionPdf({ essay, student, classInfo, themeName }
   const pageWidth = 595.28;
   const pageHeight = 841.89;
 
-  const [origPage] = await pdfDoc.copyPages(origPdf, [0]);
+  const pageCount = origPdf.getPageCount();
+  const count = Math.max(1, Math.min(2, thumbnailsCount || 2));
+  const showIndexes = Array.from({ length: count }, (_, i) => i).filter((i) => i < pageCount);
+  const copied = await pdfDoc.copyPages(origPdf, showIndexes);
   const firstPage = pdfDoc.addPage([pageWidth, pageHeight]);
-  const targetWidth = 350;
-  const scale = targetWidth / origPage.getWidth();
-  const targetHeight = origPage.getHeight() * scale;
-  firstPage.drawPage(origPage, {
-    x: 30,
-    y: pageHeight - 30 - targetHeight,
-    width: targetWidth,
-    height: targetHeight
-  });
+  // Escolha um width menor para permitir até 2 miniaturas empilhadas
+  const targetWidth = 260;
+  const thumbLeftX = 30;
+  const thumbsMeta = [];
+  let cursorY = pageHeight - 30; // topo utilizável
+  for (let i = 0; i < copied.length; i++) {
+    const p = copied[i];
+    const origIndex = showIndexes[i];
+    const scale = targetWidth / p.getWidth();
+    const targetHeight = p.getHeight() * scale;
+    const thumbY = cursorY - targetHeight;
+    firstPage.drawPage(p, {
+      x: thumbLeftX,
+      y: thumbY,
+      width: targetWidth,
+      height: targetHeight
+    });
+    thumbsMeta.push({ pageIndex: origIndex, x: thumbLeftX, y: thumbY, width: targetWidth, height: targetHeight, scale });
+    cursorY = thumbY - 10; // espaço entre miniaturas
+  }
 
   const colors = {
     green: rgb(0, 0.8, 0),
@@ -102,11 +116,13 @@ async function renderEssayCorrectionPdf({ essay, student, classInfo, themeName }
 
   (essay.annotations || []).forEach((ann, index) => {
     const { bbox } = ann;
-    if (!bbox || bbox.page !== 0) return;
-    const rectX = 30 + bbox.x * scale;
-    const rectY = pageHeight - 30 - (bbox.y + bbox.h) * scale;
-    const rectW = bbox.w * scale;
-    const rectH = bbox.h * scale;
+    if (!bbox) return;
+    const meta = thumbsMeta.find((t) => t.pageIndex === bbox.page);
+    if (!meta) return; // não exibimos miniatura desta página na folha 1
+    const rectX = meta.x + bbox.x * meta.scale;
+    const rectW = bbox.w * meta.scale;
+    const rectH = bbox.h * meta.scale;
+    const rectY = meta.y + (meta.height - (bbox.y + bbox.h) * meta.scale);
     const color = colors[ann.color] || rgb(1, 0, 0);
     firstPage.drawRectangle({
       x: rectX,
@@ -124,10 +140,31 @@ async function renderEssayCorrectionPdf({ essay, student, classInfo, themeName }
     });
   });
 
+  // Nota sobre páginas
   let commentY = pageHeight - 50;
-  const commentX = 30 + targetWidth + 15;
+  const commentX = thumbLeftX + targetWidth + 15;
+  firstPage.drawText('Obs.: anotações em outras páginas indicadas como [pN].', {
+    x: commentX,
+    y: commentY,
+    size: 10,
+    font
+  });
+  commentY -= 16;
+  if (pageCount > showIndexes.length) {
+    const remaining = pageCount - showIndexes.length;
+    firstPage.drawText(`Outras páginas (${remaining}) disponíveis no resumo da p.2.`, {
+      x: commentX,
+      y: commentY,
+      size: 10,
+      font
+    });
+    commentY -= 16;
+  }
   (essay.annotations || []).forEach((ann, index) => {
-    const text = `${index + 1}. [${ann.label}] ${ann.comment}`;
+    const p = (ann.bbox && Number.isInteger(ann.bbox.page)) ? `[p${ann.bbox.page + 1}] ` : '';
+    const lbl = ann.label ? `[${ann.label}] ` : '';
+    const cm = ann.comment || '';
+    const text = `${index + 1}. ${p}${lbl}${cm}`;
     firstPage.drawText(text, {
       x: commentX,
       y: commentY,
@@ -219,6 +256,30 @@ async function renderEssayCorrectionPdf({ essay, student, classInfo, themeName }
     essay.comments.split('\n').forEach((line) => {
       secondPage.drawText(line, { x: 50, y, size: 12, font });
       y -= 14;
+    });
+  }
+
+  // Resumo de anotações por página
+  const anns = essay.annotations || [];
+  if (anns.length) {
+    y -= 20;
+    secondPage.drawText('Anotações (por página):', { x: 50, y, size: 12, font });
+    y -= 14;
+    const byPage = {};
+    anns.forEach((a, idx) => {
+      const p = (a.bbox && Number.isInteger(a.bbox.page)) ? a.bbox.page + 1 : 1;
+      if (!byPage[p]) byPage[p] = [];
+      byPage[p].push({ idx: idx + 1, label: a.label, comment: a.comment });
+    });
+    Object.keys(byPage).sort((a,b)=>Number(a)-Number(b)).forEach((pStr) => {
+      const p = Number(pStr);
+      secondPage.drawText(`Página ${p}:`, { x: 50, y, size: 12, font });
+      y -= 14;
+      byPage[p].forEach((it) => {
+        const line = `${it.idx}. ${it.label ? `[${it.label}] ` : ''}${it.comment || ''}`;
+        secondPage.drawText(line, { x: 60, y, size: 12, font });
+        y -= 14;
+      });
     });
   }
 
