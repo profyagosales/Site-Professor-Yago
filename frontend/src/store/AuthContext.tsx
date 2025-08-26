@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../lib/http";
+import { api } from "@/services/api";
 
 type User = { id: string; name: string; role: "teacher" | "student" };
 type AuthCtx = {

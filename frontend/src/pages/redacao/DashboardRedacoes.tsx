@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { listarPendentes, listarCorrigidas } from '@/services/redacoes';
-import { gradeEssay } from '@/services/essays';
+import { gradeEssay } from '@/services/essays.service';
 import { toast } from 'react-toastify';
 import { toArray } from '@/lib/api';
 
@@ -44,7 +44,7 @@ function DashboardRedacoes() {
       setLoading(true);
       setError(null);
       try {
-        const params = {};
+  const params: any = {};
         if (filters.bimestre) params.bimestre = filters.bimestre;
         if (filters.turma) params.turma = filters.turma;
         if (filters.aluno) params.aluno = filters.aluno;

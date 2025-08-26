@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { api } from "@/lib/http";
+import { api } from "@/services/api";
 
-export default function ProtectedRoute({ children }: { children: JSX.Element }) {
+export default function ProtectedRoute({ children }: { children: React.ReactElement }) {
   const [ok, setOk] = useState<null | boolean>(null);
 
   useEffect(() => {

@@ -7,7 +7,7 @@ import LoginProfessor from '@/pages/auth/LoginProfessor';
 import LoginAluno from '@/pages/auth/LoginAluno';
 import DashboardProfessor from '@/pages/DashboardProfessor';
 import DashboardAluno from '@/pages/DashboardAluno';
-import RedacaoProfessor from '@/pages/redacao/DashboardRedacoes';
+import RedacaoProfessorPage from '@/pages/professor/redacao/RedacaoProfessorPage';
 import NotFound from '@/pages/NotFound';
 import TurmasPage from '@/pages/professor/Turmas';
 import NotasDaClasse from '@/pages/professor/NotasDaClasse';
@@ -34,13 +34,23 @@ export const router = createBrowserRouter([
       {
         element: <AppShellLayout />,
         children: [
-          { path: '/professor', element: <Navigate to="/professor/turmas" replace /> },
+          // Página principal do professor: Resumo
+          { path: '/professor', element: <Navigate to="/professor/resumo" replace /> },
+          { path: '/professor/resumo', element: <DashboardProfessor /> },
+          // Compat: rotas antigas/curtas
+          { path: '/dashboard', element: <Navigate to="/professor/resumo" replace /> },
+          { path: '/professor/dashboard', element: <Navigate to="/professor/resumo" replace /> },
+          { path: '/turmas', element: <Navigate to="/professor/turmas" replace /> },
+          { path: '/caderno', element: <Navigate to="/professor/caderno" replace /> },
+          { path: '/gabarito', element: <Navigate to="/professor/gabarito" replace /> },
+          { path: '/notas-da-classe', element: <Navigate to="/professor/notas-da-classe" replace /> },
+          { path: '/redacao', element: <Navigate to="/professor/redacao" replace /> },
           { path: '/professor/turmas', element: <TurmasPage /> },
           { path: '/professor/turmas/:id/alunos', element: <TurmaAlunosPage /> },
           { path: '/professor/notas-da-classe', element: <NotasDaClasse /> },
           { path: '/professor/caderno', element: <CadernoProf /> },
           { path: '/professor/gabarito', element: <GabaritoProf /> },
-          { path: '/professor/redacao', element: <RedacaoProfessor /> },
+          { path: '/professor/redacao', element: <RedacaoProfessorPage /> },
         ],
       },
       {

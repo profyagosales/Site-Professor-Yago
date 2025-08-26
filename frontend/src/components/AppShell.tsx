@@ -1,10 +1,13 @@
 import { NavLink, Link, useLocation } from "react-router-dom";
 
+type NavItem = { label: string; to: string; primary?: boolean };
+
 function getRole(): "teacher" | "student" | "guest" {
   return (localStorage.getItem("role") as any) || "guest";
 }
 
-const NAV_TEACHER = [
+const NAV_TEACHER: NavItem[] = [
+  { label: "Resumo", to: "/professor/resumo", primary: true },
   { label: "Turmas", to: "/professor/turmas" },
   { label: "Notas da Classe", to: "/professor/notas-da-classe" },
   { label: "Caderno", to: "/professor/caderno" },
@@ -12,7 +15,7 @@ const NAV_TEACHER = [
   { label: "Redação", to: "/professor/redacao" },
 ];
 
-const NAV_STUDENT = [
+const NAV_STUDENT: NavItem[] = [
   { label: "Minhas Notas", to: "/aluno/notas" },
   { label: "Caderno", to: "/aluno/caderno" },
   { label: "Gabarito", to: "/aluno/gabaritos" },
@@ -45,8 +48,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   className={({ isActive }) =>
                     [
                       "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
-                      "text-ys-ink-2 hover:text-ys-ink hover:bg-ys-bg",
-                      isActive && "bg-ys-ink text-white hover:bg-ys-ink",
+                      i.primary ? "bg-ys-amber text-white hover:brightness-110" : "text-ys-ink-2 hover:text-ys-ink hover:bg-ys-bg",
+                      isActive && (i.primary ? "ring-2 ring-white/40" : "bg-ys-ink text-white hover:bg-ys-ink"),
                     ].join(" ")
                   }
                 >

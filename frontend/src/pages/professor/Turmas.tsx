@@ -3,13 +3,15 @@ import { Card, CardBody, CardTitle, CardSub } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { listClasses } from "@/services/classes";
+import { listClasses, createClass } from "@/services/classes";
+import ClassModal from '@/components/ClassModal';
 
 export default function TurmasPage() {
   const nav = useNavigate();
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [turmas, setTurmas] = useState<any[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -32,7 +34,7 @@ export default function TurmasPage() {
   return (
     <Page title="Turmas" subtitle="Gerencie turmas, alunos e avaliações.">
       <div className="mb-4">
-        <Button onClick={() => {}}>Nova Turma</Button>
+        <Button onClick={() => setIsModalOpen(true)}>Nova Turma</Button>
       </div>
 
       {err && <p className="text-red-600 mb-4">{err}</p>}
@@ -55,6 +57,25 @@ export default function TurmasPage() {
         {turmas.length === 0 && <p className="text-ys-ink-2">Nenhuma turma encontrada.</p>}
       </div>
       )}
+  <ClassModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={async (payload: any) => {
+          try {
+            await createClass(payload);
+            setIsModalOpen(false);
+            // reload
+            setLoading(true);
+            const data = await listClasses();
+            setTurmas(Array.isArray(data) ? data : data?.items || data?.data || []);
+          } catch (e: any) {
+            alert(e?.response?.data?.message || 'Erro ao criar turma');
+          } finally {
+            setLoading(false);
+          }
+  }}
+  initialData={null as any}
+      />
     </Page>
   );
 }

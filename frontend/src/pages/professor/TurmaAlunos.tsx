@@ -53,12 +53,23 @@ export default function TurmaAlunosPage() {
       {loading ? <p>Carregando alunos…</p> : (
       <Table>
         <thead>
-          <tr><Th>Nome</Th><Th>E-mail</Th><Th>Ações</Th></tr>
+          <tr><Th>Aluno</Th><Th>E-mail</Th><Th>Ações</Th></tr>
         </thead>
         <tbody>
           {alunos.map((a:any) => (
             <tr key={a._id || a.id}>
-              <Td>{a.name || a.nome}</Td>
+              <Td>
+                <div className="flex items-center gap-3">
+                  {a.photo && (
+                    <img
+                      src={/^data:/.test(a.photo) ? a.photo : `data:image/jpeg;base64,${a.photo}`}
+                      alt={a.name || a.nome}
+                      className="h-10 w-10 rounded-full object-cover"
+                    />
+                  )}
+                  <span>{a.name || a.nome}</span>
+                </div>
+              </Td>
               <Td>{a.email || '-'}</Td>
               <Td>
                 <div className="flex gap-2">

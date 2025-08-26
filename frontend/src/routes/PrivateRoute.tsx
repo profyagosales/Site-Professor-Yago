@@ -1,6 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { api } from '@/lib/http';
+import { api } from '@/services/api';
 
 export default function PrivateRoute() {
   const [state, setState] = useState<'loading' | 'ok' | 'fail'>('loading');
