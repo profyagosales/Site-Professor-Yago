@@ -1,5 +1,6 @@
 import { api } from './api';
 import { EssaysPage, EssayStatus, Annotation } from '@/types/redacao';
+import type { Anno } from '@/types/annotations';
 
 // Themes
 export async function fetchThemes(params?: { type?: 'ENEM'|'PAS'; active?: boolean }) {
@@ -139,8 +140,11 @@ export async function gradeEssay(id: string, payload: {
   }
 }
 
-export async function saveAnnotations(id: string, annotations: Annotation[]) {
-  const res = await api.patch(`/essays/${id}/annotations`, { annotations });
+export async function saveAnnotations(id: string, annotations: Annotation[], rich?: { annos?: Anno[] }) {
+  const body: any = { annotations };
+  // behind flag: enviar anotações ricas sem quebrar o contrato existente
+  if (rich?.annos && (window as any).YS_USE_RICH_ANNOS) body.richAnnotations = rich.annos;
+  const res = await api.patch(`/essays/${id}/annotations`, body);
   return res.data;
 }
 

@@ -3,7 +3,10 @@ import { pasPreviewFrom } from '@/utils/pas';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchEssayById, gradeEssay, saveAnnotations, renderCorrection } from '@/services/essays.service';
 import AnnotationEditor from '@/components/redacao/AnnotationEditor';
+import AnnotationEditorRich from '@/components/redacao/AnnotationEditorRich';
 import PdfHighlighter from '@/components/redacao/PdfHighlighter';
+import PdfAnnotator from '@/components/redacao/PdfAnnotator';
+import type { Anno } from '@/types/annotations';
 import type { Annotation } from '@/types/redacao';
 import { toast } from 'react-toastify';
 
@@ -14,6 +17,7 @@ export default function GradeWorkspace() {
   const [err, setErr] = useState<string|null>(null);
   const [essay, setEssay] = useState<any | null>(null);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [richAnnos, setRichAnnos] = useState<Anno[]>([]);
   const [comments, setComments] = useState('');
   const [weight, setWeight] = useState('1');
   const [annul, setAnnul] = useState(false);
@@ -94,6 +98,7 @@ export default function GradeWorkspace() {
   }, [id]);
 
   const enemTotal = useMemo(() => [c1,c2,c3,c4,c5].map(Number).reduce((a,b)=>a+(isNaN(b)?0:b),0), [c1,c2,c3,c4,c5]);
+  const useNewAnnotator = Boolean((window as any).YS_USE_RICH_ANNOS);
   const pasPreview = useMemo(() => {
     const w = Number(weight) || 1;
     const nc = Number(NC);
@@ -168,7 +173,7 @@ export default function GradeWorkspace() {
     const debounce = setTimeout(async () => {
       try {
         setAutosaving(true);
-        await saveAnnotations(essay._id || essay.id, annotations);
+    await saveAnnotations(essay._id || essay.id, annotations, { annos: useNewAnnotator ? richAnnos : undefined });
         setLastSavedAt(new Date());
       } catch {}
       finally { setAutosaving(false); }
@@ -176,19 +181,19 @@ export default function GradeWorkspace() {
     const safety = setTimeout(async () => {
       try {
         setAutosaving(true);
-        await saveAnnotations(essay._id || essay.id, annotations);
+    await saveAnnotations(essay._id || essay.id, annotations, { annos: useNewAnnotator ? richAnnos : undefined });
         setLastSavedAt(new Date());
       } catch {}
       finally { setAutosaving(false); }
     }, 15000);
     return () => { clearTimeout(debounce); clearTimeout(safety); };
-  }, [dirty, essay, annotations]);
+  }, [dirty, essay, annotations, richAnnos, useNewAnnotator]);
 
   async function submit(finalizePdf=false, sendEmail=false) {
     if (!essay) return;
     try {
       setLoading(true);
-      await saveAnnotations(essay._id || essay.id, annotations);
+  await saveAnnotations(essay._id || essay.id, annotations, { annos: useNewAnnotator ? richAnnos : undefined });
       if (essay.type === 'ENEM') {
         await gradeEssay(essay._id || essay.id, {
           essayType: 'ENEM',
@@ -323,34 +328,51 @@ export default function GradeWorkspace() {
       <div className="grid md:grid-cols-2 gap-4">
         <div className="min-h-[420px] overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#F9FAFB]">
           {isPdf ? (
-            <PdfHighlighter
-              src={essay.originalUrl || essay.fileUrl}
-              annotations={annotations}
-              currentPage={currentPage}
-              onPageChange={setCurrentPage}
-              selectedIndex={selectedIndex}
-              onSelect={setSelectedIndex}
-              storageKey={`gw:${essay._id || essay.id}`}
-              onAdd={(a) => {
-                setAnnotations((prev) => {
-                  const next = [...prev, a];
-                  setLastAddedIndex(next.length - 1);
-                  setSelectedIndex(next.length - 1);
-                  return next;
-                });
-              }}
-              onRemove={(idx) => {
-                setAnnotations((prev) => {
-                  const ann = prev[idx];
-                  setUndoStack((s)=> [{ idx, ann }, ...s].slice(0, 20));
-                  return prev.filter((_, i) => i !== idx);
-                });
-                if (selectedIndex === idx) setSelectedIndex(null);
-              }}
-              onUpdate={(idx, patch) => {
-                setAnnotations((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
-              }}
-            />
+            useNewAnnotator ? (
+              <PdfAnnotator
+                src={essay.originalUrl || essay.fileUrl}
+                storageKey={`rich:${essay._id || essay.id}`}
+                annos={richAnnos}
+                onChange={setRichAnnos}
+                page={currentPage}
+                onPageChange={setCurrentPage}
+                selectedId={selectedIndex!=null ? richAnnos[selectedIndex]?.id : null}
+                onSelectId={(id)=>{
+                  if (!id) { setSelectedIndex(null); return; }
+                  const idx = richAnnos.findIndex(a=> a.id===id);
+                  if (idx>=0) setSelectedIndex(idx);
+                }}
+              />
+            ) : (
+              <PdfHighlighter
+                src={essay.originalUrl || essay.fileUrl}
+                annotations={annotations}
+                currentPage={currentPage}
+                onPageChange={setCurrentPage}
+                selectedIndex={selectedIndex}
+                onSelect={setSelectedIndex}
+                storageKey={`gw:${essay._id || essay.id}`}
+                onAdd={(a) => {
+                  setAnnotations((prev) => {
+                    const next = [...prev, a];
+                    setLastAddedIndex(next.length - 1);
+                    setSelectedIndex(next.length - 1);
+                    return next;
+                  });
+                }}
+                onRemove={(idx) => {
+                  setAnnotations((prev) => {
+                    const ann = prev[idx];
+                    setUndoStack((s)=> [{ idx, ann }, ...s].slice(0, 20));
+                    return prev.filter((_, i) => i !== idx);
+                  });
+                  if (selectedIndex === idx) setSelectedIndex(null);
+                }}
+                onUpdate={(idx, patch) => {
+                  setAnnotations((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+                }}
+              />
+            )
           ) : (
             <a className="block p-4 text-orange-600 underline" href={essay.originalUrl || essay.fileUrl} target="_blank" rel="noreferrer">Abrir arquivo</a>
           )}
@@ -395,22 +417,40 @@ export default function GradeWorkspace() {
           <label className="block text-sm font-medium text-[#111827]">Comentários</label>
           <textarea value={comments} onChange={(e)=>setComments(e.target.value)} className="h-28 w-full rounded border p-2" placeholder="Feedback opcional" />
 
-          <AnnotationEditor
-            value={annotations}
-            onChange={setAnnotations}
-            focusIndex={lastAddedIndex}
-            selectedIndex={selectedIndex}
-            currentPage={currentPage}
-            onSelect={(i)=>{ setSelectedIndex(i); const p = (annotations[i] as any)?.bbox?.page; if (typeof p === 'number') setCurrentPage(p+1); }}
-            onRemove={(idx)=>{
-              setAnnotations((prev) => {
-                const ann = prev[idx];
-                setUndoStack((s)=> [{ idx, ann }, ...s].slice(0, 20));
-                return prev.filter((_, i) => i !== idx);
-              });
-              if (selectedIndex === idx) setSelectedIndex(null);
-            }}
-          />
+          {useNewAnnotator ? (
+            <AnnotationEditorRich
+              value={richAnnos}
+              onChange={setRichAnnos}
+              currentPage={currentPage}
+              onSelect={(id)=>{
+                if (!id) { setSelectedIndex(null); return; }
+                const idx = richAnnos.findIndex(a=> a.id===id);
+                if (idx>=0) {
+                  setSelectedIndex(idx);
+                  const p = richAnnos[idx]?.page; if (typeof p === 'number') setCurrentPage(p);
+                }
+              }}
+              selectedId={selectedIndex!=null ? richAnnos[selectedIndex]?.id || null : null}
+              onJump={(p)=> setCurrentPage(p)}
+            />
+          ) : (
+            <AnnotationEditor
+              value={annotations}
+              onChange={setAnnotations}
+              focusIndex={lastAddedIndex}
+              selectedIndex={selectedIndex}
+              currentPage={currentPage}
+              onSelect={(i)=>{ setSelectedIndex(i); const p = (annotations[i] as any)?.bbox?.page; if (typeof p === 'number') setCurrentPage(p+1); }}
+              onRemove={(idx)=>{
+                setAnnotations((prev) => {
+                  const ann = prev[idx];
+                  setUndoStack((s)=> [{ idx, ann }, ...s].slice(0, 20));
+                  return prev.filter((_, i) => i !== idx);
+                });
+                if (selectedIndex === idx) setSelectedIndex(null);
+              }}
+            />
+          )}
           {undoStack.length > 0 && (
             <div className="text-xs text-ys-ink-2">
               Anotação removida. <button className="underline" onClick={()=>{
