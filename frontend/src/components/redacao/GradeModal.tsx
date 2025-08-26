@@ -31,8 +31,6 @@ export default function GradeModal({ open, onClose, essay, onGraded }: Props) {
   const [alsoRenderPdf, setAlsoRenderPdf] = useState(true);
   const [alsoSendEmail, setAlsoSendEmail] = useState(false);
 
-  if (!open || !essay) return null;
-
   // Prefill essay type when opening
   useEffect(() => {
     if (open && essay?.type) setEssayType(essay.type);
@@ -60,6 +58,9 @@ export default function GradeModal({ open, onClose, essay, onGraded }: Props) {
     const w = Number(weight); const scaled = r1(Math.min(w, w * (raw / 10)));
     return { raw, scaled };
   }, [NC, NL, NE, weight]);
+
+  // Early return AFTER all hooks are registered to respect hooks rules
+  if (!open || !essay) return null;
 
   async function submit() {
     const w = Number(weight);

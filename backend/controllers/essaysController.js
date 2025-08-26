@@ -126,7 +126,10 @@ async function listEssays(req, res) {
     if (studentId) filter.studentId = studentId;
     if (classId) filter.classId = classId;
   }
-  const essays = await Essay.find(filter);
+  const essays = await Essay.find(filter)
+    .populate('studentId', 'name rollNumber photo')
+    .populate('classId', 'series letter discipline')
+    .sort({ submittedAt: -1 });
   res.json(essays);
 }
 

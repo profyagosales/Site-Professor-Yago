@@ -36,17 +36,22 @@ export async function fetchEssays(params: {
       },
     });
     const list: any[] = Array.isArray(r.data) ? r.data : r.data?.items || r.data?.data || [];
-    const items = list.map((e: any) => ({
-      id: e._id || e.id,
-      studentName: e.student?.name || e.studentName || e.studentId || '-',
-      className: e.class?.name || e.className || `${e.class?.series || ''}${e.class?.letter || ''}`.trim(),
-      topic: e.customTheme || e.theme?.name || e.themeName || e.topic || '-',
-      submittedAt: e.createdAt || e.submittedAt || new Date().toISOString(),
-      fileUrl: e.correctedUrl || e.originalUrl || e.fileUrl || e.file,
-      score: e.rawScore ?? e.score,
-      comments: e.comments,
-      type: e.type,
-    }));
+    const items = list.map((e: any) => {
+      const studentName = e.student?.name || e.studentName || e.studentId?.name || e.studentId || '-';
+      const classObj = e.class || e.classId;
+      const className = e.className || (classObj ? `${classObj.series || ''}${classObj.letter || ''}`.trim() : '-');
+      return {
+        id: e._id || e.id,
+        studentName,
+        className,
+        topic: e.customTheme || e.theme?.name || e.themeName || e.topic || '-',
+        submittedAt: e.createdAt || e.submittedAt || new Date().toISOString(),
+        fileUrl: e.correctedUrl || e.originalUrl || e.fileUrl || e.file,
+        score: e.rawScore ?? e.score,
+        comments: e.comments,
+        type: e.type,
+      };
+    });
     const total = r.data?.total ?? items.length;
     return { items, page, pageSize, total } as EssaysPage;
   } catch (err) {
