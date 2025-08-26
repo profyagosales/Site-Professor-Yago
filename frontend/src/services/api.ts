@@ -1,7 +1,12 @@
 import axios from 'axios';
 import { getToken } from '@/utils/auth';
 
-const baseURL = (import.meta as any).env?.VITE_API_BASE_URL || '';
+// BaseURL resolution:
+// - If VITE_API_BASE_URL is set, use it as-is.
+// - Otherwise, default to '/api' so Vercel rewrite (vercel.json) proxies to the backend.
+const ENV_BASE = (import.meta as any).env?.VITE_API_BASE_URL || '';
+const DEFAULT_BASE = '/api';
+const baseURL = ENV_BASE || DEFAULT_BASE;
 
 export const api = axios.create({
   baseURL,
@@ -12,8 +17,9 @@ export const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = getToken();
   if (token) {
-    config.headers = config.headers || {};
-    (config.headers as any).Authorization = `Bearer ${token}`;
+    const hdrs = (config.headers ?? {}) as Record<string, any>;
+    hdrs.Authorization = `Bearer ${token}`;
+    config.headers = hdrs as any;
   }
   return config;
 });
