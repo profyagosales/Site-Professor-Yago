@@ -8,7 +8,9 @@ const { renderCorrection } = require('./essaysController');
 async function getEssayById(req, res, next) {
   try {
     const { id } = req.params;
-    const essay = await Essay.findById(id);
+    const essay = await Essay.findById(id)
+      .populate('studentId', 'name photo rollNumber email')
+      .populate('classId', 'series letter discipline');
     if (!essay) return res.status(404).json({ success: false, message: 'Redação não encontrada' });
     res.json({ success: true, data: essay });
   } catch (e) { next(e); }

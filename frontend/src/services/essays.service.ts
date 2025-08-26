@@ -31,8 +31,10 @@ export async function fetchEssays(params: {
   pageSize?: number;
   q?: string;
   classId?: string;
+  bimester?: string;
+  type?: string;
 }) {
-  const { status, page = 1, pageSize = 10, q, classId } = params;
+  const { status, page = 1, pageSize = 10, q, classId, bimester, type } = params;
   try {
     const r = await api.get('/essays', {
       params: {
@@ -41,6 +43,8 @@ export async function fetchEssays(params: {
         limit: pageSize,
         q,
         classId,
+        bimester,
+        type,
       },
     });
     const list: any[] = Array.isArray(r.data) ? r.data : r.data?.items || r.data?.data || [];
@@ -140,7 +144,7 @@ export async function saveAnnotations(id: string, annotations: Annotation[]) {
   return res.data;
 }
 
-export async function renderCorrection(id: string, opts?: { sendEmail?: boolean }) {
+export async function renderCorrection(id: string, opts?: { sendEmail?: boolean; thumbnailsCount?: number }) {
   const res = await api.post(`/essays/${id}/render-correction`, opts || {});
   return res.data;
 }

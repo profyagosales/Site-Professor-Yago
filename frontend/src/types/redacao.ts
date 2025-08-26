@@ -26,5 +26,5 @@ export interface Annotation {
   label: string;         // short label like 'Erro' or 'Obs'
   comment?: string;      // optional textual note
   selection?: any;       // reserved for future selection ranges
-  bbox?: any;            // reserved for future bounding boxes
+  bbox?: { page: number; x: number; y: number; w: number; h: number } | null; // bounding box on PDF page
 }
