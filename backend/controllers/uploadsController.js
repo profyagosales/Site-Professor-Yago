@@ -47,6 +47,9 @@ async function uploadEssay(req, res) {
 
     let originalUrl;
     if (req.file) {
+      if (!cloudConfigured) {
+        return res.status(400).json({ success: false, message: 'Upload de arquivo indisponível. Configure o Cloudinary ou envie uma URL (fileUrl).' });
+      }
       originalUrl = await uploadBuffer(req.file.buffer, 'essays/original');
     } else if (allowDirectUrl && typeof fileUrl === 'string' && /^https?:\/\//.test(fileUrl)) {
       originalUrl = fileUrl;
@@ -67,8 +70,14 @@ async function uploadEssay(req, res) {
 
     res.status(201).json({ success: true, data: essay });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: 'Falha no upload da redação' });
+    console.error('uploadEssay error:', err && (err.message || err));
+    const message =
+      err?.code === 'LIMIT_FILE_SIZE'
+        ? 'Arquivo muito grande (máx 20MB)'
+        : err?.message?.includes('Invalid image file')
+        ? 'Arquivo inválido ou corrompido'
+        : 'Falha no upload da redação';
+    res.status(500).json({ success: false, message });
   }
 }
 

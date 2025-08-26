@@ -5,6 +5,7 @@ import { getStudent, getStudentEssays } from '@/services/students2';
 import gradesService from '@/services/grades';
 import cadernoService from '@/services/caderno';
 import NewEssayModal from '@/components/redacao/NewEssayModal';
+import { toast } from 'react-toastify';
 
 export default function PerfilAluno() {
   const { id } = useParams();
@@ -62,6 +63,7 @@ function NotasAluno({ id, classId }: { id: string; classId?: string }) {
         setData(res);
       } catch (e: any) {
         setErr(e?.response?.data?.message || 'Erro ao carregar notas');
+  toast.error(e?.response?.data?.message || 'Erro ao carregar notas');
       }
     })();
   }, [id]);
@@ -96,6 +98,7 @@ function CadernoAluno({ classId }: { classId?: string }) {
         setData(items);
       } catch (e: any) {
         setErr(e?.response?.data?.message || 'Erro ao carregar caderno');
+  toast.error(e?.response?.data?.message || 'Erro ao carregar caderno');
       }
     })();
   }, [classId, term]);

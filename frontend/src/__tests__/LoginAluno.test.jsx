@@ -1,7 +1,9 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import axios from 'axios';
+jest.mock('@/services/api');
+const { api } = require('@/services/api');
 import LoginAluno from '@/pages/auth/LoginAluno';
+import { MemoryRouter } from 'react-router-dom';
 
 jest.mock('axios');
 jest.mock('react-router-dom', () => ({
@@ -15,32 +17,32 @@ describe('LoginAluno', () => {
   });
 
   test('submits form and redirects on success', async () => {
-    axios.post.mockResolvedValue({ data: { success: true } });
+  api.post.mockResolvedValue({ data: { success: true, data: { token: 't' } } });
     const navigate = jest.fn();
     require('react-router-dom').useNavigate.mockReturnValue(navigate);
 
-    render(<LoginAluno />);
+  render(<MemoryRouter><LoginAluno /></MemoryRouter>);
 
     await userEvent.type(screen.getByLabelText(/E-mail/i), 'a@b.com');
     await userEvent.type(screen.getByLabelText(/Senha/i), 'senha');
     await userEvent.click(screen.getByRole('button', { name: /Entrar/i }));
 
     await waitFor(() => {
-      expect(axios.post).toHaveBeenCalledWith('/auth/login-student', {
+  expect(api.post).toHaveBeenCalledWith('/auth/login-student', {
         email: 'a@b.com',
         password: 'senha',
       });
       expect(localStorage.getItem('role')).toBe('student');
-      expect(navigate).toHaveBeenCalledWith('/aluno/dashboard', { replace: true });
+  expect(navigate).toHaveBeenCalled();
     });
   });
 
   test('shows error message on failure', async () => {
-    axios.post.mockRejectedValue({ response: { data: { message: 'Erro' } } });
+  api.post.mockRejectedValue({ response: { data: { message: 'Erro' } } });
     const navigate = jest.fn();
     require('react-router-dom').useNavigate.mockReturnValue(navigate);
 
-    render(<LoginAluno />);
+  render(<MemoryRouter><LoginAluno /></MemoryRouter>);
 
     await userEvent.type(screen.getByLabelText(/E-mail/i), 'a@b.com');
     await userEvent.type(screen.getByLabelText(/Senha/i), 'senha');

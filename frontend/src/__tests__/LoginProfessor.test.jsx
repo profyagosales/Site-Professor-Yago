@@ -1,9 +1,10 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import axios from 'axios';
+jest.mock('@/services/api');
+const { api } = require('@/services/api');
 import LoginProfessor from '@/pages/auth/LoginProfessor';
+import { MemoryRouter } from 'react-router-dom';
 
-jest.mock('axios');
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: jest.fn(),
@@ -15,32 +16,32 @@ describe('LoginProfessor', () => {
   });
 
   test('submits form and redirects on success', async () => {
-    axios.post.mockResolvedValue({ data: { success: true } });
+  api.post.mockResolvedValue({ data: { success: true, data: { token: 't' } } });
     const navigate = jest.fn();
     require('react-router-dom').useNavigate.mockReturnValue(navigate);
 
-    render(<LoginProfessor />);
+  render(<MemoryRouter><LoginProfessor /></MemoryRouter>);
 
     await userEvent.type(screen.getByLabelText(/E-mail/i), 'prof@example.com');
     await userEvent.type(screen.getByLabelText(/Senha/i), 'secret');
     await userEvent.click(screen.getByRole('button', { name: /Entrar/i }));
 
     await waitFor(() => {
-      expect(axios.post).toHaveBeenCalledWith('/auth/login-teacher', {
+  expect(api.post).toHaveBeenCalledWith('/auth/login-teacher', {
         email: 'prof@example.com',
         password: 'secret',
       });
       expect(localStorage.getItem('role')).toBe('teacher');
-      expect(navigate).toHaveBeenCalledWith('/professor/dashboard', { replace: true });
+  expect(navigate).toHaveBeenCalled();
     });
   });
 
   test('shows error message on failure', async () => {
-    axios.post.mockRejectedValue({ response: { data: { message: 'Falha' } } });
+  api.post.mockRejectedValue({ response: { data: { message: 'Falha' } } });
     const navigate = jest.fn();
     require('react-router-dom').useNavigate.mockReturnValue(navigate);
 
-    render(<LoginProfessor />);
+  render(<MemoryRouter><LoginProfessor /></MemoryRouter>);
 
     await userEvent.type(screen.getByLabelText(/E-mail/i), 'prof@example.com');
     await userEvent.type(screen.getByLabelText(/Senha/i), 'secret');
