@@ -27,5 +27,6 @@ router.patch('/:id/grade', authRequired, upload.single('correctedFile'), gradeEs
 router.patch('/:id/annotations', authRequired, updateAnnotations);
 router.post('/:id/render-correction', authRequired, renderCorrection);
 router.get('/:id/file', authRequired, streamOriginal);
+router.head('/:id/file', authRequired, streamOriginal);
 
 module.exports = router;
