@@ -289,11 +289,47 @@ async function gradeEssay(req, res) {
 async function updateAnnotations(req, res) {
   try {
     const { id } = req.params;
-    const { annotations } = req.body;
+    const { annotations, richAnnotations } = req.body;
     const essay = await Essay.findById(id);
     if (!essay) return res.status(404).json({ message: 'Redação não encontrada' });
 
     essay.annotations = Array.isArray(annotations) ? annotations : [];
+    if (Array.isArray(richAnnotations)) {
+      const clamp01 = (v) => Math.max(0, Math.min(1, Number(v) || 0));
+      const norm = richAnnotations
+        .slice(0, 500)
+        .map((a) => {
+          if (!a || typeof a.page !== 'number') return null;
+          const t = a.type;
+          const base = {
+            id: String(a.id || ''),
+            page: Math.max(1, Math.floor(a.page)),
+            type: t,
+            createdAt: a.createdAt || new Date().toISOString(),
+            updatedAt: a.updatedAt || undefined,
+            color: a.color || undefined
+          };
+          if (t === 'highlight' && Array.isArray(a.rects)) {
+            return { ...base, rects: a.rects.slice(0, 8).map((r) => ({ x: clamp01(r.x), y: clamp01(r.y), w: clamp01(r.w), h: clamp01(r.h) })), opacity: Number(a.opacity) || 0.3 };
+          }
+          if (t === 'box' && a.rect) {
+            const r = a.rect; return { ...base, rect: { x: clamp01(r.x), y: clamp01(r.y), w: clamp01(r.w), h: clamp01(r.h) }, strokeWidth: Math.max(1, Math.min(10, Number(a.strokeWidth) || 2)) };
+          }
+          if (t === 'strike' && a.from && a.to) {
+            return { ...base, from: { x: clamp01(a.from.x), y: clamp01(a.from.y) }, to: { x: clamp01(a.to.x), y: clamp01(a.to.y) }, strokeWidth: Math.max(1, Math.min(10, Number(a.strokeWidth) || 2)) };
+          }
+          if (t === 'pen' && Array.isArray(a.points)) {
+            return { ...base, points: a.points.slice(0, 200).map((p) => ({ x: clamp01(p.x), y: clamp01(p.y) })), width: Math.max(1, Math.min(12, Number(a.width) || 2)) };
+          }
+          if (t === 'comment' && a.at) {
+            const text = (a.text || '').toString();
+            return { ...base, at: { x: clamp01(a.at.x), y: clamp01(a.at.y) }, text: text.length > 500 ? text.slice(0, 500) : text };
+          }
+          return null;
+        })
+        .filter(Boolean);
+      essay.richAnnotations = norm;
+    }
     if (essay.type === 'PAS') {
       const NE = essay.annotations.filter((a) => a.color === 'green').length;
       essay.pasBreakdown = essay.pasBreakdown || {};
@@ -307,8 +343,8 @@ async function updateAnnotations(req, res) {
       }
     }
 
-    await essay.save();
-    res.json(essay);
+  await essay.save();
+  res.json(essay);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erro ao atualizar anotações' });

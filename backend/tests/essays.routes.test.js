@@ -118,4 +118,35 @@ describe('Essays flow', () => {
     expect(annulGrade.body.rawScore).toBe(0);
     expect(annulGrade.body.scaledScore).toBe(0);
   });
+
+  it('updates and returns richAnnotations', async () => {
+    // cria redação rápida
+    const resCreate = await request(app)
+      .post('/essays')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .field('type', 'PAS')
+      .field('bimester', '1')
+      .field('customTheme', 'Tema Rich')
+      .attach('file', Buffer.from('pdf'), 'file.pdf');
+    expect(resCreate.statusCode).toBe(201);
+    const id = resCreate.body._id;
+
+    const rich = [
+      { id: '1', page: 1, type: 'highlight', rects: [{ x: 0.1, y: 0.1, w: 0.2, h: 0.05 }], opacity: 0.3, color: '#ffff00', createdAt: new Date().toISOString() },
+      { id: '2', page: 2, type: 'comment', at: { x: 0.5, y: 0.5 }, text: 'ok', createdAt: new Date().toISOString() }
+    ];
+    const resPatch = await request(app)
+      .patch(`/essays/${id}/annotations`)
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ annotations: [], richAnnotations: rich });
+    expect(resPatch.statusCode).toBe(200);
+    expect(Array.isArray(resPatch.body.richAnnotations)).toBe(true);
+    expect(resPatch.body.richAnnotations.length).toBe(2);
+
+    const resGet = await request(app)
+      .get(`/redacoes/${id}`)
+      .set('Authorization', `Bearer ${teacherToken}`);
+  expect(resGet.statusCode).toBe(200);
+  expect(Array.isArray(resGet.body?.data?.richAnnotations)).toBe(true);
+  });
 });

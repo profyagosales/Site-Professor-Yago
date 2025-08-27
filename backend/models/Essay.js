@@ -62,6 +62,33 @@ const essaySchema = new mongoose.Schema({
     NL: Number
   },
   annotations: { type: [annotationSchema], default: [] },
+  // Anotações ricas (novo annotator): normalizadas por página com coordenadas 0..1
+  richAnnotations: {
+    type: [new mongoose.Schema({
+      id: { type: String },
+      page: { type: Number }, // 1-based
+      type: { type: String, enum: ['highlight', 'pen', 'box', 'strike', 'comment'] },
+      createdAt: { type: String },
+      updatedAt: { type: String },
+      // highlight
+      rects: [{ x: Number, y: Number, w: Number, h: Number }],
+      opacity: { type: Number },
+      color: { type: String },
+      // pen
+      points: [{ x: Number, y: Number }],
+      width: { type: Number },
+      // box
+      rect: { x: Number, y: Number, w: Number, h: Number },
+      strokeWidth: { type: Number },
+      // strike
+      from: { x: Number, y: Number },
+      to: { x: Number, y: Number },
+      // comment
+      at: { x: Number, y: Number },
+      text: { type: String }
+    }, { _id: false })],
+    default: []
+  },
   status: { type: String, enum: ['PENDING', 'GRADED'], default: 'PENDING' },
   comments: { type: String, default: null }
 }, { timestamps: true });

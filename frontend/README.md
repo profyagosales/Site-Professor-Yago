@@ -67,3 +67,25 @@ curl "http://localhost:5000/redacoes/professor?status=pendente" \
 ```json
 { "redacoes": [] }
 ```
+
+## Anotador de PDF (Rich Annotations)
+
+Feature flags (definidas via `.env` do Vite):
+
+- `VITE_USE_RICH_ANNOS`: habilita o novo anotador no workspace de correção (default true em dev).
+- `VITE_VIRT_PDF`: liga a visualização virtualizada de páginas do PDF.
+- `VITE_VIRT_BUFFER`: número de alturas de viewport como buffer (ex.: 2).
+
+Ferramentas disponíveis: Seleção, Marca-texto, Caixa, Riscado, Caneta, Comentário e Borracha.
+
+Atalhos rápidos:
+
+- Ctrl/Cmd+Z: desfazer
+- Ctrl/Cmd+Shift+Z ou Ctrl/Cmd+Y: refazer
+- Delete/Backspace: apagar seleção
+- Shift ao redimensionar: restringe proporções
+- PageUp/PageDown ou botões ◀/▶: navegar páginas
+
+Autosave: alterações são salvas automaticamente (com debounce) e também após intervalos de segurança.
+
+Observação: quando virtualização estiver ativa (`VITE_VIRT_PDF=true`), apenas as páginas visíveis são renderizadas, melhorando a performance em PDFs longos.

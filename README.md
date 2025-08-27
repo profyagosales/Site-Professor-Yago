@@ -17,6 +17,9 @@ Consulte o [Guia do Usuário](./USER_GUIDE.md) para entender os fluxos de login,
 | `APP_DOMAIN` | Public domain where the application is served (used for CORS). |
 | `SMTP_PORT` | (Optional) Port for the SMTP server. |
 | `SMTP_FROM` | (Optional) Email address used in the "from" field. |
+| `VITE_USE_RICH_ANNOS` | (Frontend) Enable the new rich PDF annotator (default true in dev). |
+| `VITE_VIRT_PDF` | (Frontend) Enable virtualized PDF viewer for performance. |
+| `VITE_VIRT_BUFFER` | (Frontend) Virtualization buffer in viewport heights (e.g., 1-3). |
 
 ## Exemplo de .env (Produção)
 
@@ -32,6 +35,11 @@ SMTP_PASS=senha
 SMTP_FROM=no-reply@exemplo.com
 APP_DOMAIN=https://app.exemplo.com
 VITE_API_URL=https://api.exemplo.com
+VITE_API_BASE_URL=https://api.exemplo.com
+VITE_API_PREFIX=/api
+VITE_USE_RICH_ANNOS=true
+VITE_VIRT_PDF=true
+VITE_VIRT_BUFFER=2
 ```
 
 ## Local Setup
@@ -47,6 +55,14 @@ VITE_API_URL=https://api.exemplo.com
    ```
    The backend will be available on http://localhost:5050 and the frontend on http://localhost:5173.
    Ensure your `.env` sets `VITE_API_URL=http://localhost:5050` and `APP_DOMAIN=http://localhost:5173` for local development.
+
+   Optionally enable the new annotator and virtualization in local dev:
+
+   ```env
+   VITE_USE_RICH_ANNOS=true
+   VITE_VIRT_PDF=true
+   VITE_VIRT_BUFFER=2
+   ```
 
 ## Lint, Testes e Build
 
@@ -87,6 +103,12 @@ npm run build
    NODE_ENV=production node backend/server.js
    ```
    O backend servirá os arquivos estáticos da pasta `frontend/dist` na porta definida por `PORT` (padrão `5050`).
+
+   ### Anotador de PDF (rich annotations)
+
+   - Controlado pelo flag `VITE_USE_RICH_ANNOS` no frontend. Quando habilitado, o workspace de correção usa o novo anotador com ferramentas de highlight, caneta, caixa, riscado e comentário, além de desfazer/refazer e autosave.
+   - O backend persiste no campo `richAnnotations` do modelo `Essay` e o PDF de correção inclui um resumo por página.
+   - Carga é virtualizada quando `VITE_VIRT_PDF=true` para melhor performance em PDFs longos. Ajuste o buffer com `VITE_VIRT_BUFFER`.
 
 ## Hosting Tips
 

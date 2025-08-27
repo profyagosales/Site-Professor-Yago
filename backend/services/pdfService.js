@@ -140,6 +140,56 @@ async function renderEssayCorrectionPdf({ essay, student, classInfo, themeName, 
     });
   });
 
+  // Desenhar richAnnotations (highlight/box/strike/pen/comment) nas miniaturas
+  const rich = essay.richAnnotations || [];
+  rich.forEach((a, idx) => {
+    const pageIdx = (a.page || 1) - 1;
+    const meta = thumbsMeta.find((t) => t.pageIndex === pageIdx);
+    if (!meta) return;
+    const col = (a.color && /^#/.test(a.color)) ? a.color : undefined;
+    const edge = 1;
+    if (a.type === 'highlight' && Array.isArray(a.rects)) {
+      a.rects.forEach((r) => {
+        const x = meta.x + r.x * meta.scale;
+        const w = r.w * meta.scale;
+        const h = r.h * meta.scale;
+        const y = meta.y + (meta.height - (r.y + r.h) * meta.scale);
+        firstPage.drawRectangle({ x, y, width: w, height: h, borderColor: rgb(1, 0.9, 0.3), borderWidth: edge });
+      });
+    }
+    if (a.type === 'box' && a.rect) {
+      const r = a.rect;
+      const x = meta.x + r.x * meta.scale;
+      const w = r.w * meta.scale;
+      const h = r.h * meta.scale;
+      const y = meta.y + (meta.height - (r.y + r.h) * meta.scale);
+      firstPage.drawRectangle({ x, y, width: w, height: h, borderColor: rgb(0.2, 0.5, 1), borderWidth: edge });
+    }
+    if (a.type === 'strike' && a.from && a.to) {
+      const x1 = meta.x + a.from.x * meta.scale;
+      const y1 = meta.y + (meta.height - a.from.y * meta.scale);
+      const x2 = meta.x + a.to.x * meta.scale;
+      const y2 = meta.y + (meta.height - a.to.y * meta.scale);
+      firstPage.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, thickness: 1, color: rgb(1, 0, 0) });
+    }
+    if (a.type === 'pen' && Array.isArray(a.points) && a.points.length > 1) {
+      for (let i = 1; i < a.points.length; i++) {
+        const p1 = a.points[i - 1];
+        const p2 = a.points[i];
+        const x1 = meta.x + p1.x * meta.scale;
+        const y1 = meta.y + (meta.height - p1.y * meta.scale);
+        const x2 = meta.x + p2.x * meta.scale;
+        const y2 = meta.y + (meta.height - p2.y * meta.scale);
+        firstPage.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, thickness: (a.width || 2) * 0.5, color: rgb(1, 0, 0) });
+      }
+    }
+    if (a.type === 'comment' && a.at) {
+      const x = meta.x + a.at.x * meta.scale;
+      const y = meta.y + (meta.height - a.at.y * meta.scale);
+      firstPage.drawText('✦', { x, y, size: 10, font, color: rgb(0.95, 0.8, 0.2) });
+    }
+  });
+
   // Nota sobre páginas
   let commentY = pageHeight - 50;
   const commentX = thumbLeftX + targetWidth + 15;
@@ -277,6 +327,32 @@ async function renderEssayCorrectionPdf({ essay, student, classInfo, themeName, 
       y -= 14;
       byPage[p].forEach((it) => {
         const line = `${it.idx}. ${it.label ? `[${it.label}] ` : ''}${it.comment || ''}`;
+        secondPage.drawText(line, { x: 60, y, size: 12, font });
+        y -= 14;
+      });
+    });
+  }
+
+  // Resumo de richAnnotations por página
+  const rAnns = essay.richAnnotations || [];
+  if (rAnns.length) {
+    y -= 20;
+    secondPage.drawText('Anotações ricas (por página):', { x: 50, y, size: 12, font });
+    y -= 14;
+    const byPage = {};
+    rAnns.forEach((a, idx) => {
+      const p = Number(a.page || 1);
+      if (!byPage[p]) byPage[p] = [];
+      const label = a.type;
+      const comment = a.type === 'comment' ? (a.text || '') : '';
+      byPage[p].push({ idx: idx + 1, label, comment });
+    });
+    Object.keys(byPage).sort((a,b)=>Number(a)-Number(b)).forEach((pStr) => {
+      const p = Number(pStr);
+      secondPage.drawText(`Página ${p}:`, { x: 50, y, size: 12, font });
+      y -= 14;
+      byPage[p].forEach((it) => {
+        const line = `${it.idx}. [${it.label}] ${it.comment || ''}`;
         secondPage.drawText(line, { x: 60, y, size: 12, font });
         y -= 14;
       });
