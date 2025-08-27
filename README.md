@@ -20,6 +20,7 @@ Consulte o [Guia do Usuário](./USER_GUIDE.md) para entender os fluxos de login,
 | `VITE_USE_RICH_ANNOS` | (Frontend) Enable the new rich PDF annotator (default true in dev). |
 | `VITE_VIRT_PDF` | (Frontend) Enable virtualized PDF viewer for performance. |
 | `VITE_VIRT_BUFFER` | (Frontend) Virtualization buffer in viewport heights (e.g., 1-3). |
+| `ALLOW_DIRECT_FILE_URL` | (Backend) Allows creating essays with a direct `fileUrl` when Cloudinary isn't configured. |
 
 ## Exemplo de .env (Produção)
 
@@ -75,14 +76,15 @@ npm run lint --prefix frontend
 Execute todos os testes do projeto:
 
 ```bash
-npm test
-```
-
-Ou execute separadamente para backend e frontend:
-
-```bash
 npm test --prefix backend
 npm test --prefix frontend
+```
+
+Ou use os scripts de cada pacote dentro de suas pastas:
+
+```bash
+cd backend && npm test
+cd ../frontend && npm test
 ```
 
 Gere os artefatos de produção:
@@ -109,6 +111,7 @@ npm run build
    - Controlado pelo flag `VITE_USE_RICH_ANNOS` no frontend. Quando habilitado, o workspace de correção usa o novo anotador com ferramentas de highlight, caneta, caixa, riscado e comentário, além de desfazer/refazer e autosave.
    - O backend persiste no campo `richAnnotations` do modelo `Essay` e o PDF de correção inclui um resumo por página.
    - Carga é virtualizada quando `VITE_VIRT_PDF=true` para melhor performance em PDFs longos. Ajuste o buffer com `VITE_VIRT_BUFFER`.
+   - Detecção de PDF mais robusta: além de verificar `.pdf` no link, o frontend usa `originalMimeType` vindo do backend (salvo no momento do upload ou via HEAD best-effort) para decidir o viewer inline. Assim, URLs sem extensão também abrem no editor.
 
 ## Hosting Tips
 

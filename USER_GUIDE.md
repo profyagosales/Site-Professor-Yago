@@ -40,7 +40,7 @@ Este guia descreve os principais fluxos do sistema: login de professor e aluno, 
 
 ## Correção de Redação
 1. O professor abre `/dashboard-redacoes` e escolhe uma redação pendente.
-2. Ao abrir a redação, o workspace pode utilizar o novo anotador de PDF (quando habilitado via `VITE_USE_RICH_ANNOS=true`). As ferramentas permitem marca-texto, caixa, riscado, caneta e comentários com movimentação e redimensionamento. As alterações têm desfazer/refazer e salvamento automático.
+2. Ao abrir a redação, o workspace pode utilizar o novo anotador de PDF (quando habilitado via `VITE_USE_RICH_ANNOS=true`). As ferramentas permitem marca-texto, caixa, riscado, caneta e comentários com movimentação e redimensionamento. As alterações têm desfazer/refazer e salvamento automático. Mesmo que o link do arquivo não tenha a extensão `.pdf`, o editor inline será utilizado se o backend informar `originalMimeType: application/pdf` (o sistema detecta isso no upload ou via uma consulta HEAD best-effort).
 3. Após revisar o conteúdo, envie a correção:
    ```
    POST /redacoes/:id/corrigir
