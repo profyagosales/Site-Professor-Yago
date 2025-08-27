@@ -260,10 +260,8 @@ export default function GradeWorkspace() {
   const direct = essay.originalUrl || essay.fileUrl || essay.correctedUrl;
   const srcUrl = proxied || direct;
   const canRenderInline = isPdf || pdfCheck === 'ok';
-  const authHeader = useMemo(() => {
-    const t = getToken();
-    return t ? { Authorization: `Bearer ${t}` } : undefined;
-  }, []);
+  const _t = getToken();
+  const authHeader = _t ? { Authorization: `Bearer ${_t}` } : undefined;
 
   return (
     <div className="p-4 md:p-6 space-y-4">
