@@ -50,6 +50,11 @@ export default function GradeWorkspace() {
     c1: string; c2: string; c3: string; c4: string; c5: string;
     NC: string; NL: string;
   }>(null);
+  // PDF sniffer status (declarado cedo para manter ordem de hooks estável entre renders)
+  const [pdfCheck, setPdfCheck] = useState<'unknown'|'ok'|'fail'>('unknown');
+  useEffect(() => {
+    setPdfCheck('unknown');
+  }, [essay?.originalUrl, essay?.fileUrl]);
 
   // Configura worker do PDF também aqui para o sniff (evita depender do componente filho)
   try {
@@ -249,10 +254,6 @@ export default function GradeWorkspace() {
   const isPdfByExt = (essay.originalUrl || essay.fileUrl || essay.correctedUrl || '').toLowerCase().includes('.pdf');
   const isPdfByMime = typeof essay.originalMimeType === 'string' && essay.originalMimeType.toLowerCase().includes('pdf');
   const isPdf = isPdfByExt || isPdfByMime;
-  const [pdfCheck, setPdfCheck] = useState<'unknown'|'ok'|'fail'>('unknown');
-  useEffect(() => {
-    setPdfCheck('unknown');
-  }, [essay?.originalUrl, essay?.fileUrl]);
   // Preferimos o proxy do backend para evitar CORS/Range issues
   const idStr = essay._id || essay.id;
   const proxied = idStr ? `/api/essays/${idStr}/file` : null;

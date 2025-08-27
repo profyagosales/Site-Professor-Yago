@@ -77,7 +77,9 @@ export default function PdfHighlighter({ src, annotations, onAdd, onRemove, onUp
     let alive = true;
     (async () => {
       try {
-        const ab = await fetch(src).then((r) => r.arrayBuffer());
+        const headers: Record<string, string> = {};
+        try { const t = getToken(); if (t) headers.Authorization = `Bearer ${t}`; } catch {}
+        const ab = await fetch(src, { headers }).then((r) => r.arrayBuffer());
         const pdf = await PDFLibDocument.load(ab);
     const cp = Math.max(1, (controlledPage ?? uncontrolledPage));
     const page = pdf.getPage(Math.max(0, cp - 1));
