@@ -8,10 +8,33 @@ const { renderCorrection } = require('./essaysController');
 async function getEssayById(req, res, next) {
   try {
     const { id } = req.params;
-    const essay = await Essay.findById(id)
+  const essay = await Essay.findById(id)
       .populate('studentId', 'name photo rollNumber email')
       .populate('classId', 'series letter discipline');
     if (!essay) return res.status(404).json({ success: false, message: 'Redação não encontrada' });
+    // Backfill originalMimeType if absent (best-effort)
+    if (!essay.originalMimeType && typeof essay.originalUrl === 'string' && /^https?:\/\//.test(essay.originalUrl)) {
+      try {
+        const https = require('https');
+        const http = require('http');
+        await new Promise((resolve) => {
+          let done = false;
+          const h = essay.originalUrl.startsWith('https') ? https : http;
+          const reqHead = h.request(essay.originalUrl, { method: 'HEAD' }, async (resp) => {
+            if (done) return; done = true;
+            const ct = resp.headers['content-type'];
+            if (typeof ct === 'string' && ct) {
+              essay.originalMimeType = ct.split(';')[0];
+              try { await essay.save(); } catch {}
+            }
+            resolve();
+          });
+          reqHead.on('error', () => { if (!done) { done = true; resolve(); } });
+          reqHead.setTimeout(1500, () => { try { reqHead.destroy(); } catch {} if (!done) { done = true; resolve(); } });
+          reqHead.end();
+        });
+      } catch {}
+    }
     res.json({ success: true, data: essay });
   } catch (e) { next(e); }
 }

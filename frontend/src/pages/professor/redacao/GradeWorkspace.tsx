@@ -57,8 +57,9 @@ export default function GradeWorkspace() {
         setLoading(true);
         const data = await fetchEssayById(id);
         if (!alive) return;
-        setEssay(data);
+    setEssay(data);
   if (data?.annotations) setAnnotations(data.annotations);
+  if (data?.richAnnotations) setRichAnnos(data.richAnnotations);
   if (data?.comments) setComments(data.comments);
   if (data?.bimestreWeight) setWeight(String(data.bimestreWeight));
         if (data?.type === 'ENEM' && data?.enemCompetencies) {
@@ -98,7 +99,8 @@ export default function GradeWorkspace() {
   }, [id]);
 
   const enemTotal = useMemo(() => [c1,c2,c3,c4,c5].map(Number).reduce((a,b)=>a+(isNaN(b)?0:b),0), [c1,c2,c3,c4,c5]);
-  const useNewAnnotator = Boolean((window as any).YS_USE_RICH_ANNOS);
+  const [forceAnnotator, setForceAnnotator] = useState<null | 'rich' | 'legacy'>(null);
+  const useNewAnnotator = forceAnnotator ? forceAnnotator === 'rich' : Boolean((window as any).YS_USE_RICH_ANNOS);
   const pasPreview = useMemo(() => {
     const w = Number(weight) || 1;
     const nc = Number(NC);
@@ -228,11 +230,16 @@ export default function GradeWorkspace() {
   if (err) return <div className="p-6 text-red-600">{err}</div>;
   if (!essay) return null;
 
-  const isPdf = (essay.originalUrl || essay.fileUrl || '').toLowerCase().includes('.pdf');
+  const isPdfByExt = (essay.originalUrl || essay.fileUrl || '').toLowerCase().includes('.pdf');
+  const isPdfByMime = typeof essay.originalMimeType === 'string' && essay.originalMimeType.toLowerCase().includes('pdf');
+  const isPdf = isPdfByExt || isPdfByMime;
 
   return (
     <div className="p-4 md:p-6 space-y-4">
-      <div className="flex items-center justify-between">
+      {import.meta.env.DEV && (
+        <div className="text-xs text-ys-ink-2">Flag rich: {String((window as any).YS_USE_RICH_ANNOS)} • isPdf: {String(isPdf)} • mime: {essay.originalMimeType || '-'}</div>
+      )}
+  <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           {essay.studentId?.photo ? (
             <img src={essay.studentId.photo} alt={essay.studentId.name} className="h-16 w-16 rounded-full object-cover" />
@@ -268,6 +275,20 @@ export default function GradeWorkspace() {
             <span className="mr-2 text-xs text-ys-ink-2">Salvo às {lastSavedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
           )}
           <button className="rounded-lg border border-[#E5E7EB] px-3 py-1.5" onClick={()=>navigate('/professor/redacao')}>Voltar</button>
+          {import.meta.env.DEV && (
+            <div className="ml-2 flex items-center gap-1 text-xs text-ys-ink-2">
+              <span>Annotator:</span>
+              <select
+                className="rounded border p-1"
+                value={forceAnnotator || 'auto'}
+                onChange={(e)=> setForceAnnotator(e.target.value as any)}
+              >
+                <option value="auto">auto</option>
+                <option value="rich">rich</option>
+                <option value="legacy">legacy</option>
+              </select>
+            </div>
+          )}
           {snapshot && (
             <button
               className="rounded-lg border border-[#E5E7EB] px-3 py-1.5 disabled:opacity-60"

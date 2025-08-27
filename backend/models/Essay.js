@@ -30,6 +30,8 @@ const essaySchema = new mongoose.Schema({
   customTheme: { type: String, default: null },
   bimester: { type: Number, enum: [1, 2, 3, 4], required: true },
   originalUrl: { type: String, required: true },
+  // MimeType original do arquivo (ajuda a decidir viewer inline)
+  originalMimeType: { type: String, default: null },
   correctedUrl: { type: String, default: null },
   // Data de submissão para consultas específicas; por padrão, usamos timestamps.createdAt,
   // mas expomos submittedAt para novos fluxos e índices compostos.

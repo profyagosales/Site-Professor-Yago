@@ -50,13 +50,33 @@ async function uploadEssay(req, res) {
     if (!cls) return res.status(400).json({ success: false, message: 'Turma obrigatória' });
 
     let originalUrl;
+    let originalMimeType = null;
     if (req.file) {
       if (!cloudConfigured) {
         return res.status(400).json({ success: false, message: 'Upload de arquivo indisponível. Configure o Cloudinary ou envie uma URL (fileUrl).' });
       }
       originalUrl = await uploadBuffer(req.file.buffer, 'essays/original');
+      originalMimeType = req.file.mimetype || null;
     } else if (allowDirectUrl && typeof fileUrl === 'string' && /^https?:\/\//.test(fileUrl)) {
       originalUrl = fileUrl;
+      // tenta detectar content-type por HEAD (best-effort, sem bloquear sucesso)
+      try {
+        const https = require('https');
+        const http = require('http');
+        await new Promise((resolve) => {
+          let done = false;
+          const h = fileUrl.startsWith('https') ? https : http;
+          const reqHead = h.request(fileUrl, { method: 'HEAD' }, (resp) => {
+            if (done) return; done = true;
+            const ct = resp.headers['content-type'];
+            if (typeof ct === 'string') originalMimeType = ct.split(';')[0];
+            resolve();
+          });
+          reqHead.on('error', () => { if (!done) { done = true; resolve(); } });
+          reqHead.setTimeout(1500, () => { try { reqHead.destroy(); } catch {} if (!done) { done = true; resolve(); } });
+          reqHead.end();
+        });
+      } catch {}
     } else {
       const msg = allowDirectUrl ? 'URL inválida. Envie um arquivo ou uma URL http/https válida.' : 'Upload não configurado. Envie um arquivo (Cloudinary ausente) ou habilite URL direta.';
       return res.status(400).json({ success: false, message: msg });
@@ -68,7 +88,8 @@ async function uploadEssay(req, res) {
       customTheme: topic,
       type: bodyType === 'ENEM' ? 'ENEM' : 'PAS',
       bimester: Number(bodyBimester) || 1,
-  originalUrl,
+      originalUrl,
+      originalMimeType: originalMimeType,
       submittedAt: new Date(),
       status: 'PENDING',
     });

@@ -103,6 +103,7 @@ async function createEssay(req, res) {
       themeId: themeId || null,
       customTheme: customTheme || null,
       originalUrl,
+      originalMimeType: (req.file && req.file.mimetype) ? req.file.mimetype : 'application/pdf',
       status: 'PENDING'
     });
 
