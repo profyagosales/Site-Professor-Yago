@@ -8,6 +8,8 @@ const Class = require('../models/Class');
 const { sendEmail } = require('../services/emailService');
 const { recordEssayScore } = require('../services/gradesIntegration');
 const { renderEssayCorrectionPdf } = require('../services/pdfService');
+const https = require('https');
+const http = require('http');
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -402,5 +404,47 @@ module.exports = {
   listEssays,
   gradeEssay,
   updateAnnotations,
-  renderCorrection
+  renderCorrection,
+  async streamOriginal(req, res) {
+    try {
+      const { id } = req.params;
+      const essay = await Essay.findById(id);
+      if (!essay || !essay.originalUrl) return res.status(404).json({ message: 'Arquivo não encontrado' });
+      const url = essay.originalUrl;
+      const h = url.startsWith('https') ? https : http;
+      const headers = {};
+      // Forward Range for partial content, and basic headers
+      if (req.headers['range']) headers['Range'] = req.headers['range'];
+      if (essay.originalMimeType) headers['Accept'] = essay.originalMimeType;
+      // Some storages require auth headers; forward bearer if present (best-effort)
+      const auth = req.headers['authorization'];
+      if (auth) headers['Authorization'] = auth;
+      const method = (req.method || 'GET').toUpperCase();
+      const upstream = h.request(url, { method, headers }, (up) => {
+        const ct = essay.originalMimeType || up.headers['content-type'] || 'application/pdf';
+        res.setHeader('Content-Type', typeof ct === 'string' ? ct : 'application/pdf');
+        if (up.headers['content-length']) res.setHeader('Content-Length', up.headers['content-length']);
+        if (up.headers['content-range']) res.setHeader('Content-Range', up.headers['content-range']);
+        res.setHeader('Accept-Ranges', 'bytes');
+        const code = up.statusCode || (req.headers['range'] ? 206 : 200);
+        res.status(code);
+        if (method === 'HEAD') {
+          up.resume();
+          res.end();
+        } else {
+          up.pipe(res);
+        }
+      });
+      upstream.on('error', () => {
+        res.status(502).json({ message: 'Falha ao obter arquivo' });
+      });
+      upstream.end();
+      upstream.on('error', () => {
+        res.status(502).json({ message: 'Falha ao obter arquivo' });
+      });
+      req.on('close', () => { try { upstream.destroy(); } catch {} });
+    } catch (e) {
+      res.status(500).json({ message: 'Erro ao transmitir arquivo' });
+    }
+  }
 };

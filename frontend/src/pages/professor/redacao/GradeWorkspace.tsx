@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Document, pdfjs } from 'react-pdf';
+import { getToken } from '@/utils/auth';
 import { pasPreviewFrom } from '@/utils/pas';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchEssayById, gradeEssay, saveAnnotations, renderCorrection } from '@/services/essays.service';
@@ -48,6 +50,20 @@ export default function GradeWorkspace() {
     c1: string; c2: string; c3: string; c4: string; c5: string;
     NC: string; NL: string;
   }>(null);
+
+  // Configura worker do PDF também aqui para o sniff (evita depender do componente filho)
+  try {
+    // @ts-ignore
+    const workerSrc = (() => {
+      try {
+        // eslint-disable-next-line no-new-func
+        const base = (new Function('try { return import.meta.url } catch { return null }'))();
+        if (base) return new URL('pdfjs-dist/build/pdf.worker.min.mjs', base).toString();
+      } catch {}
+      return null;
+    })();
+    if (workerSrc) pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+  } catch {}
 
   useEffect(() => {
     let alive = true;
@@ -230,9 +246,23 @@ export default function GradeWorkspace() {
   if (err) return <div className="p-6 text-red-600">{err}</div>;
   if (!essay) return null;
 
-  const isPdfByExt = (essay.originalUrl || essay.fileUrl || '').toLowerCase().includes('.pdf');
+  const isPdfByExt = (essay.originalUrl || essay.fileUrl || essay.correctedUrl || '').toLowerCase().includes('.pdf');
   const isPdfByMime = typeof essay.originalMimeType === 'string' && essay.originalMimeType.toLowerCase().includes('pdf');
   const isPdf = isPdfByExt || isPdfByMime;
+  const [pdfCheck, setPdfCheck] = useState<'unknown'|'ok'|'fail'>('unknown');
+  useEffect(() => {
+    setPdfCheck('unknown');
+  }, [essay?.originalUrl, essay?.fileUrl]);
+  // Preferimos o proxy do backend para evitar CORS/Range issues
+  const idStr = essay._id || essay.id;
+  const proxied = idStr ? `/api/essays/${idStr}/file` : null;
+  const direct = essay.originalUrl || essay.fileUrl || essay.correctedUrl;
+  const srcUrl = proxied || direct;
+  const canRenderInline = isPdf || pdfCheck === 'ok';
+  const authHeader = useMemo(() => {
+    const t = getToken();
+    return t ? { Authorization: `Bearer ${t}` } : undefined;
+  }, []);
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -348,10 +378,16 @@ export default function GradeWorkspace() {
 
       <div className="grid md:grid-cols-2 gap-4">
         <div className="min-h-[420px] overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#F9FAFB]">
-          {isPdf ? (
+          {/* Sniffer invisível: tenta carregar o PDF para decidir inline quando o tipo é desconhecido */}
+      {!isPdf && (
+            <div className="hidden">
+        <Document file={{ url: srcUrl, httpHeaders: authHeader } as any} onLoadSuccess={()=> setPdfCheck('ok')} onLoadError={()=> setPdfCheck('fail')} />
+            </div>
+          )}
+          {canRenderInline ? (
             useNewAnnotator ? (
               <PdfAnnotator
-                src={essay.originalUrl || essay.fileUrl}
+                src={srcUrl}
                 storageKey={`rich:${essay._id || essay.id}`}
                 annos={richAnnos}
                 onChange={setRichAnnos}
@@ -366,7 +402,7 @@ export default function GradeWorkspace() {
               />
             ) : (
               <PdfHighlighter
-                src={essay.originalUrl || essay.fileUrl}
+                src={srcUrl}
                 annotations={annotations}
                 currentPage={currentPage}
                 onPageChange={setCurrentPage}
@@ -394,8 +430,10 @@ export default function GradeWorkspace() {
                 }}
               />
             )
+          ) : pdfCheck === 'fail' ? (
+            <a className="block p-4 text-orange-600 underline" href={srcUrl} target="_blank" rel="noreferrer">Abrir arquivo</a>
           ) : (
-            <a className="block p-4 text-orange-600 underline" href={essay.originalUrl || essay.fileUrl} target="_blank" rel="noreferrer">Abrir arquivo</a>
+            <div className="p-4 text-sm text-ys-ink-2">Verificando arquivo…</div>
           )}
         </div>
         <div className="space-y-3">

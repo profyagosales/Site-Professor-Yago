@@ -9,7 +9,8 @@ const {
   listEssays,
   gradeEssay,
   updateAnnotations,
-  renderCorrection
+  renderCorrection,
+  streamOriginal
 } = require('../controllers/essaysController');
 
 const router = express.Router();
@@ -25,5 +26,6 @@ router.get('/', authRequired, listEssays);
 router.patch('/:id/grade', authRequired, upload.single('correctedFile'), gradeEssay);
 router.patch('/:id/annotations', authRequired, updateAnnotations);
 router.post('/:id/render-correction', authRequired, renderCorrection);
+router.get('/:id/file', authRequired, streamOriginal);
 
 module.exports = router;

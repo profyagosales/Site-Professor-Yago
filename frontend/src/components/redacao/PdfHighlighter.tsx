@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { PDFDocument as PDFLibDocument } from 'pdf-lib';
 import type { Annotation } from '@/types/redacao';
+import { getToken } from '@/utils/auth';
 
 // Configure worker for Vite/ESM
 try {
@@ -44,6 +45,12 @@ export default function PdfHighlighter({ src, annotations, onAdd, onRemove, onUp
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const hoverTimerRef = useRef<number | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+  const authHeader = useMemo(() => {
+    try {
+      const t = getToken();
+      return t ? { Authorization: `Bearer ${t}` } : undefined;
+    } catch { return undefined; }
+  }, []);
   
   // Helpers para navegação entre páginas com anotações
   function pageHasAnnotations(p: number) { // p: 1-based
@@ -499,7 +506,7 @@ export default function PdfHighlighter({ src, annotations, onAdd, onRemove, onUp
       </div>
   <div ref={containerRef} className="relative mx-auto w-full max-w-full overflow-hidden" style={{ minHeight: 420 }} onWheel={(e)=>{ if (e.ctrlKey) { e.preventDefault(); setZoom(z=> Math.max(0.5, Math.min(2, Math.round((z + (e.deltaY < 0 ? 0.1 : -0.1))*10)/10))); } }}>
     <div style={{ position: 'relative', transform: `translate(${pan.x}px, ${pan.y}px)` }}>
-      <Document file={src} onLoadSuccess={onDocLoadSuccess} onLoadError={console.error}>
+  <Document file={{ url: src, httpHeaders: authHeader } as any} onLoadSuccess={onDocLoadSuccess} onLoadError={console.error}>
           <Page
       pageNumber={controlledPage ?? uncontrolledPage}
     width={effectiveWidth}

@@ -2,6 +2,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import type { Anno, AnnotationType, BoxAnno, HighlightAnno } from '@/types/annotations';
 import { Document, Page, pdfjs } from 'react-pdf';
+import { getToken } from '@/utils/auth';
 import { computeVisibleRange } from '@/lib/virtualPages';
 // Configura worker para Vite/ESM (evita import.meta direto em Jest)
 try {
@@ -55,6 +56,10 @@ export default function PdfAnnotator({ src, storageKey, annos, onChange, page: c
   const [viewportH, setViewportH] = useState(600);
   const pageRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const bufferScreens = Number((window as any).YS_VIRT_BUFFER ?? 1);
+  const authHeader = useMemo(() => {
+    const t = getToken();
+    return t ? { Authorization: `Bearer ${t}` } : undefined;
+  }, []);
 
   // mede altura do viewport do scroller ao montar
   useEffect(() => {
@@ -370,7 +375,7 @@ export default function PdfAnnotator({ src, storageKey, annos, onChange, page: c
         </div>
         {virtMode ? (
           <div className="relative mx-auto w-full max-w-full overflow-hidden" style={{ minHeight: 420 }}>
-            <Document file={src} onLoadSuccess={(d:any)=> setNumPages(d.numPages||1)} onLoadError={console.error}>
+            <Document file={{ url: src, httpHeaders: authHeader } as any} onLoadSuccess={(d:any)=> setNumPages(d.numPages||1)} onLoadError={console.error}>
               <div
                 ref={scrollerRef}
                 className="relative h-[70vh] overflow-auto"
@@ -464,7 +469,7 @@ export default function PdfAnnotator({ src, storageKey, annos, onChange, page: c
         ) : (
           <div className="relative mx-auto w-full max-w-full overflow-hidden" style={{ minHeight: 420 }}>
             <div className="relative" ref={containerRef} onMouseDown={handleDown} onMouseMove={(e)=> handleMove(e)} onMouseUp={handleUp}>
-              <Document file={src} onLoadSuccess={(p:any)=> setNumPages(p.numPages||1)} onLoadError={console.error}>
+              <Document file={{ url: src, httpHeaders: authHeader } as any} onLoadSuccess={(p:any)=> setNumPages(p.numPages||1)} onLoadError={console.error}>
                 <Page pageNumber={page} width={Math.floor((containerRef.current?.clientWidth || 640) * zoom)} renderTextLayer={false} renderAnnotationLayer={false} />
               </Document>
               <div data-testid="overlay-single" className="absolute left-0 top-0 z-10 h-full w-full">
