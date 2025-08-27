@@ -37,7 +37,11 @@ async function uploadEssay(req, res) {
     const allowDirectUrl = process.env.ALLOW_DIRECT_FILE_URL === 'true' || !cloudConfigured;
 
     if ((!req.file && !fileUrl) || !studentId || !topic) {
-      return res.status(400).json({ success: false, message: 'Arquivo ou URL, aluno e tema são obrigatórios' });
+      const missing = [];
+      if (!req.file && !fileUrl) missing.push('arquivo ou URL');
+      if (!studentId) missing.push('aluno');
+      if (!topic) missing.push('tema');
+      return res.status(400).json({ success: false, message: `Campos obrigatórios ausentes: ${missing.join(', ')}` });
     }
     // Confirma aluno e classId (se ausente, tenta obter do aluno)
     const student = await Student.findById(studentId).select('class');
@@ -54,7 +58,8 @@ async function uploadEssay(req, res) {
     } else if (allowDirectUrl && typeof fileUrl === 'string' && /^https?:\/\//.test(fileUrl)) {
       originalUrl = fileUrl;
     } else {
-      return res.status(400).json({ success: false, message: 'Upload não configurado. Envie um arquivo ou habilite URL direta.' });
+      const msg = allowDirectUrl ? 'URL inválida. Envie um arquivo ou uma URL http/https válida.' : 'Upload não configurado. Envie um arquivo (Cloudinary ausente) ou habilite URL direta.';
+      return res.status(400).json({ success: false, message: msg });
     }
 
     const essay = await Essay.create({

@@ -11,10 +11,14 @@ const baseURL = ENV_BASE || DEFAULT_BASE;
 export const api = axios.create({
   baseURL,
   withCredentials: false,
-  headers: { 'Content-Type': 'application/json' },
 });
 
 api.interceptors.request.use((config) => {
+  // Remover Content-Type explícito para permitir que o Axios defina automaticamente
+  // (multipart/form-data para FormData, application/json para objetos, etc.)
+  if (config.headers) {
+    try { delete (config.headers as any)['Content-Type']; } catch {}
+  }
   const token = getToken();
   if (token) {
     const hdrs = (config.headers ?? {}) as Record<string, any>;
