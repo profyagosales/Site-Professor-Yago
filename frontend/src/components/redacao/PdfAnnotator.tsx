@@ -375,7 +375,7 @@ export default function PdfAnnotator({ src, storageKey, annos, onChange, page: c
         </div>
         {virtMode ? (
           <div className="relative mx-auto w-full max-w-full overflow-hidden" style={{ minHeight: 420 }}>
-            <Document file={{ url: src, httpHeaders: authHeader } as any} onLoadSuccess={(d:any)=> setNumPages(d.numPages||1)} onLoadError={console.error}>
+            <Document file={{ url: src, httpHeaders: authHeader, withCredentials: true } as any} onLoadSuccess={(d:any)=> setNumPages(d.numPages||1)} onLoadError={console.error}>
               <div
                 ref={scrollerRef}
                 className="relative h-[70vh] overflow-auto"
@@ -469,7 +469,7 @@ export default function PdfAnnotator({ src, storageKey, annos, onChange, page: c
         ) : (
           <div className="relative mx-auto w-full max-w-full overflow-hidden" style={{ minHeight: 420 }}>
             <div className="relative" ref={containerRef} onMouseDown={handleDown} onMouseMove={(e)=> handleMove(e)} onMouseUp={handleUp}>
-              <Document file={{ url: src, httpHeaders: authHeader } as any} onLoadSuccess={(p:any)=> setNumPages(p.numPages||1)} onLoadError={console.error}>
+              <Document file={{ url: src, httpHeaders: authHeader, withCredentials: true } as any} onLoadSuccess={(p:any)=> setNumPages(p.numPages||1)} onLoadError={console.error}>
                 <Page pageNumber={page} width={Math.floor((containerRef.current?.clientWidth || 640) * zoom)} renderTextLayer={false} renderAnnotationLayer={false} />
               </Document>
               <div data-testid="overlay-single" className="absolute left-0 top-0 z-10 h-full w-full">

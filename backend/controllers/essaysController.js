@@ -412,13 +412,15 @@ module.exports = {
       if (!essay || !essay.originalUrl) return res.status(404).json({ message: 'Arquivo não encontrado' });
       const url = essay.originalUrl;
       const h = url.startsWith('https') ? https : http;
-      const headers = {};
+  const headers = {};
       // Forward Range for partial content, and basic headers
       if (req.headers['range']) headers['Range'] = req.headers['range'];
       if (essay.originalMimeType) headers['Accept'] = essay.originalMimeType;
       // Some storages require auth headers; forward bearer if present (best-effort)
-      const auth = req.headers['authorization'];
-      if (auth) headers['Authorization'] = auth;
+  const auth = req.headers['authorization'];
+  if (auth) headers['Authorization'] = auth;
+  // Forward cookies if present (same-origin deployments); safe best-effort
+  if (req.headers['cookie']) headers['Cookie'] = req.headers['cookie'];
       const method = (req.method || 'GET').toUpperCase();
       const upstream = h.request(url, { method, headers }, (up) => {
         const ct = essay.originalMimeType || up.headers['content-type'] || 'application/pdf';
@@ -426,7 +428,7 @@ module.exports = {
         if (up.headers['content-length']) res.setHeader('Content-Length', up.headers['content-length']);
         if (up.headers['content-range']) res.setHeader('Content-Range', up.headers['content-range']);
         res.setHeader('Accept-Ranges', 'bytes');
-        const code = up.statusCode || (req.headers['range'] ? 206 : 200);
+  const code = up.statusCode || (req.headers['range'] ? 206 : 200);
         res.status(code);
         if (method === 'HEAD') {
           up.resume();

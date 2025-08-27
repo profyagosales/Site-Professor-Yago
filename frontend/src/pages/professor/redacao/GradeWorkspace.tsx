@@ -380,7 +380,7 @@ export default function GradeWorkspace() {
           {/* Sniffer invisível: tenta carregar o PDF para decidir inline quando o tipo é desconhecido */}
       {!isPdf && (
             <div className="hidden">
-        <Document file={{ url: srcUrl, httpHeaders: authHeader } as any} onLoadSuccess={()=> setPdfCheck('ok')} onLoadError={()=> setPdfCheck('fail')} />
+              <Document file={{ url: srcUrl, httpHeaders: authHeader, withCredentials: true } as any} onLoadSuccess={()=> setPdfCheck('ok')} onLoadError={()=> setPdfCheck('fail')} />
             </div>
           )}
           {canRenderInline ? (

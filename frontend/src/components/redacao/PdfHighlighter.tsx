@@ -508,7 +508,7 @@ export default function PdfHighlighter({ src, annotations, onAdd, onRemove, onUp
       </div>
   <div ref={containerRef} className="relative mx-auto w-full max-w-full overflow-hidden" style={{ minHeight: 420 }} onWheel={(e)=>{ if (e.ctrlKey) { e.preventDefault(); setZoom(z=> Math.max(0.5, Math.min(2, Math.round((z + (e.deltaY < 0 ? 0.1 : -0.1))*10)/10))); } }}>
     <div style={{ position: 'relative', transform: `translate(${pan.x}px, ${pan.y}px)` }}>
-  <Document file={{ url: src, httpHeaders: authHeader } as any} onLoadSuccess={onDocLoadSuccess} onLoadError={console.error}>
+  <Document file={{ url: src, httpHeaders: authHeader, withCredentials: true } as any} onLoadSuccess={onDocLoadSuccess} onLoadError={console.error}>
           <Page
       pageNumber={controlledPage ?? uncontrolledPage}
     width={effectiveWidth}
