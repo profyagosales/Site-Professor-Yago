@@ -23,9 +23,12 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: process.env.VITE_API_URL || 'http://localhost:3333',
+  // Durante dev, proxy para o backend local. Pode ser sobrescrito por VITE_API_URL.
+  target: process.env.VITE_API_URL || 'http://localhost:5050',
         changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/api/, ''),
+  // Não reescreve o prefixo, já que o backend usa /api como prefixo padrão
+  // mantendo o caminho intacto para evitar confusões de cabeçalhos
+  // rewrite: (p) => p.replace(/^\/api/, ''),
       },
     },
   },

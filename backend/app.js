@@ -21,6 +21,7 @@ const uploadsRoutes = require('./routes/uploads');
 const notificationRoutes = require('./routes/notifications');
 const dashboardRoutes = require('./routes/dashboard');
 const contentsRoutes = require('./routes/contents');
+const devSeedRoutes = require('./routes/devSeed');
 
 const app = express();
 
@@ -28,7 +29,15 @@ const app = express();
 app.set('trust proxy', 1);
 
 // ---------- CONFIG BÁSICA ----------
-const API_PREFIX = process.env.API_PREFIX || '';
+// Prefixo padrão da API é "/api" para alinhar com o frontend e rewrites
+// Normaliza para sempre começar com "/" e não terminar com barra
+const _rawPrefix = process.env.API_PREFIX || '/api';
+const API_PREFIX = (() => {
+  let p = _rawPrefix || '/api';
+  if (!p.startsWith('/')) p = `/${p}`;
+  p = p.length > 1 ? p.replace(/\/+$/, '') : '/';
+  return p || '/api';
+})();
 const serveFrontend = process.env.SERVE_FRONTEND === 'true';
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -68,6 +77,8 @@ app.get(`${API_PREFIX}/healthz`, (req, res) => res.json({ ok: true }));
 
 // ---------- API ----------
 const api = express.Router();
+// Rota raiz da API para evitar 404 em chamadas para "/api" diretamente
+api.get('/', (_req, res) => res.json({ success: true, message: 'API ready', prefix: API_PREFIX }));
 api.use('/auth', authRoutes);
 api.use('/dashboard', dashboardRoutes);
 api.use('/email', emailRoutes);
@@ -86,12 +97,17 @@ api.use('/essays', essaysRoutes);
 api.use('/uploads', uploadsRoutes);
 api.use('/notifications', notificationRoutes);
 api.use('/contents', contentsRoutes);
+// dev utilities (guarded by SEED_TOKEN)
+api.use('/dev', devSeedRoutes);
 
 app.use(API_PREFIX, api);
 
-// 404 JSON para API
+// 404 JSON apenas para caminhos sob o prefixo da API
 app.use((req, res, next) => {
-  if (req.path.startsWith(API_PREFIX)) {
+  const p = req.path || '';
+  const apiBase = API_PREFIX.replace(/\/$/, '') || '/api';
+  const isApi = p === apiBase || p.startsWith(apiBase + '/');
+  if (isApi) {
     return res.status(404).json({ success: false, message: 'API route not found' });
   }
   next();
@@ -101,8 +117,11 @@ app.use((req, res, next) => {
 if (isProd && serveFrontend) {
   const distPath = path.join(__dirname, '../frontend/dist');
   app.use(express.static(distPath));
-  // Evita o bug do path-to-regexp: usa RegExp e ignora caminhos da API
-  app.get(/^(?!\/api\/).*/, (_req, res) => {
+  // Evita o bug do path-to-regexp: usa RegExp e ignora caminhos da API dinamicamente
+  const apiBase = (API_PREFIX || '/api').replace(/\/$/, '');
+  const escaped = apiBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const excludeApi = new RegExp(`^(?!${escaped}(?:\/|$)).*`);
+  app.get(excludeApi, (_req, res) => {
     res.sendFile(path.join(distPath, 'index.html'));
   });
 } else {

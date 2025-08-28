@@ -35,7 +35,9 @@ export const loginStudent = async ({ email, password }) => {
 export async function logout() {
   try {
     await api.post('/auth/logout');
-  } catch {}
+  } catch (e) {
+    // ignore logout errors (e.g., already logged out)
+  }
   localStorage.removeItem('auth_token');
   localStorage.removeItem('role');
 }
