@@ -5,12 +5,25 @@ const Teacher = require('../models/Teacher');
 async function authRequired(req, res, next) {
   try {
     // Aceita token via cookie ('session' legado ou 'auth' atual) ou via Authorization: Bearer
-    const token =
+    // Permitir múltiplas origens de token: cookie, Authorization, X-Auth-Token e, em último caso,
+    // query ?token= para caminhos específicos (ex.: stream de PDF), para reduzir 401 em clients embutidos
+    let token =
       req.cookies?.session ||
       req.cookies?.auth ||
       (req.headers.authorization?.startsWith('Bearer ')
         ? req.headers.authorization.slice(7)
-        : null);
+        : null) ||
+      (req.headers['x-auth-token'] ? String(req.headers['x-auth-token']) : null);
+
+    // Fallback controlado: aceita token na query apenas para stream de arquivos de redação
+    if (!token && req.method && /^(GET|HEAD)$/i.test(req.method)) {
+      const p = req.path || '';
+      if (/\/essays\/.+\/file$/i.test(p) || /\/redacoes\/.+\/arquivo$/i.test(p)) {
+        if (req.query && typeof req.query.token === 'string' && req.query.token.trim()) {
+          token = req.query.token.trim();
+        }
+      }
+    }
 
     if (!token) {
       return res.status(401).json({ success: false, message: 'Unauthenticated' });

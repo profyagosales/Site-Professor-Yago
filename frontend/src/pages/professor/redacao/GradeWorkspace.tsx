@@ -273,12 +273,20 @@ export default function GradeWorkspace() {
       proxied = `/api/essays/${idStr}/file`;
     }
   }
-  const direct = essay.originalUrl || essay.fileUrl || essay.correctedUrl;
-  const srcUrl = proxied || direct;
+    const direct = essay.originalUrl || essay.fileUrl || essay.correctedUrl;
+    const _t = getToken();
+    const authHeader = _t ? { Authorization: `Bearer ${_t}` } : undefined;
+    let srcUrl = proxied || direct;
+  // Se o sniff falhar especificamente por 401, tente uma URL com token via query (middleware permite para stream)
+  if (pdfCheck === 'fail' && proxied && _t) {
+    try {
+      const u = new URL(proxied, typeof window !== 'undefined' ? window.location.origin : 'http://local');
+      if (!u.searchParams.get('token')) u.searchParams.set('token', _t);
+      srcUrl = u.pathname + u.search;
+    } catch {}
+  }
   // Render inline apenas quando o sniff confirmar OK.
   const canRenderInline = pdfCheck === 'ok';
-  const _t = getToken();
-  const authHeader = _t ? { Authorization: `Bearer ${_t}` } : undefined;
 
   async function openPdfInNewTab() {
     // Tenta primeiro via proxy autenticado (relative /api/...)
