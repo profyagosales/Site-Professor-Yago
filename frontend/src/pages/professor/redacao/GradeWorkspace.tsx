@@ -50,10 +50,12 @@ export default function GradeWorkspace() {
     c1: string; c2: string; c3: string; c4: string; c5: string;
     NC: string; NL: string;
   }>(null);
-  // PDF sniffer status (declarado cedo para manter ordem de hooks estável entre renders)
+  // Resolução do src do PDF: faz preflight HEAD e tenta fallback com ?token em caso de 401
   const [pdfCheck, setPdfCheck] = useState<'unknown'|'ok'|'fail'>('unknown');
+  const [srcOk, setSrcOk] = useState<string | null>(null);
   useEffect(() => {
     setPdfCheck('unknown');
+    setSrcOk(null);
   }, [essay?.originalUrl, essay?.fileUrl]);
 
   // Configura worker do PDF também aqui para o sniff (evita depender do componente filho)
@@ -277,16 +279,30 @@ export default function GradeWorkspace() {
     const _t = getToken();
     const authHeader = _t ? { Authorization: `Bearer ${_t}` } : undefined;
     let srcUrl = proxied || direct;
-  // Se o sniff falhar especificamente por 401, tente uma URL com token via query (middleware permite para stream)
-  if (pdfCheck === 'fail' && proxied && _t) {
-    try {
-      const u = new URL(proxied, typeof window !== 'undefined' ? window.location.origin : 'http://local');
-      if (!u.searchParams.get('token')) u.searchParams.set('token', _t);
-      srcUrl = u.pathname + u.search;
-    } catch {}
-  }
-  // Render inline apenas quando o sniff confirmar OK.
-  const canRenderInline = pdfCheck === 'ok';
+    // Preflight HEAD: tenta sem token; se 401, tenta com ?token=
+    useEffect(() => {
+      let cancelled = false;
+      (async () => {
+        if (!proxied) return;
+        setPdfCheck('unknown');
+        // 1) tenta sem query token
+        try {
+          const r = await fetch(proxied, { method: 'HEAD', headers: authHeader as any, credentials: 'include' });
+          if (!cancelled && r.ok) { setSrcOk(proxied); setPdfCheck('ok'); return; }
+          if (!cancelled && r.status === 401 && _t) {
+            const u = new URL(proxied, typeof window !== 'undefined' ? window.location.origin : 'http://local');
+            if (!u.searchParams.get('token')) u.searchParams.set('token', _t);
+            const tokenUrl = u.pathname + u.search;
+            const r2 = await fetch(tokenUrl, { method: 'HEAD', credentials: 'include' });
+            if (!cancelled && r2.ok) { setSrcOk(tokenUrl); setPdfCheck('ok'); return; }
+          }
+        } catch {}
+        if (!cancelled) { setPdfCheck('fail'); setSrcOk(null); }
+      })();
+      return () => { cancelled = true; };
+    }, [proxied, _t]);
+    // Render inline quando o preflight confirmar OK.
+    const canRenderInline = pdfCheck === 'ok' && !!srcOk;
 
   async function openPdfInNewTab() {
     // Tenta primeiro via proxy autenticado (relative /api/...)
@@ -421,18 +437,14 @@ export default function GradeWorkspace() {
 
       <div className="grid md:grid-cols-2 gap-4">
         <div className="min-h-[420px] overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#F9FAFB]">
-          {/* Sniffer invisível: sempre tenta carregar para decidir inline, mesmo se a extensão/mime indicar PDF */}
-          <div className="hidden">
-            <Document
-              file={{ url: srcUrl, httpHeaders: authHeader, withCredentials: true } as any}
-              onLoadSuccess={()=> setPdfCheck('ok')}
-              onLoadError={()=> setPdfCheck('fail')}
-            />
-          </div>
+          {/* Status */}
+          {pdfCheck === 'unknown' && (
+            <div className="p-4 text-sm text-ys-ink-2">Verificando arquivo…</div>
+          )}
           {canRenderInline ? (
             useNewAnnotator ? (
               <PdfAnnotator
-                src={srcUrl}
+                src={srcOk || srcUrl}
                 storageKey={`rich:${essay._id || essay.id}`}
                 annos={richAnnos}
                 onChange={setRichAnnos}
@@ -447,7 +459,7 @@ export default function GradeWorkspace() {
               />
             ) : (
               <PdfHighlighter
-                src={srcUrl}
+                src={srcOk || srcUrl}
                 annotations={annotations}
                 currentPage={currentPage}
                 onPageChange={setCurrentPage}
@@ -476,10 +488,8 @@ export default function GradeWorkspace() {
               />
             )
           ) : pdfCheck === 'fail' ? (
-            <button className="block p-4 text-left text-orange-600 underline" onClick={openPdfInNewTab}>Abrir arquivo</button>
-          ) : (
-            <div className="p-4 text-sm text-ys-ink-2">Verificando arquivo…</div>
-          )}
+            <div className="p-4 text-sm text-red-600">Falha ao carregar o PDF.</div>
+          ) : null}
         </div>
         <div className="space-y-3">
           <div className="grid gap-3 md:grid-cols-3">
