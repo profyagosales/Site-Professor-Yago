@@ -273,7 +273,8 @@ export default function GradeWorkspace() {
     : null;
   const direct = essay.originalUrl || essay.fileUrl || essay.correctedUrl;
   const srcUrl = proxied || direct;
-  const canRenderInline = isPdf || pdfCheck === 'ok';
+  // Render inline apenas quando o sniff confirmar OK.
+  const canRenderInline = pdfCheck === 'ok';
   const _t = getToken();
   const authHeader = _t ? { Authorization: `Bearer ${_t}` } : undefined;
 
@@ -391,12 +392,14 @@ export default function GradeWorkspace() {
 
       <div className="grid md:grid-cols-2 gap-4">
         <div className="min-h-[420px] overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#F9FAFB]">
-          {/* Sniffer invisível: tenta carregar o PDF para decidir inline quando o tipo é desconhecido */}
-      {!isPdf && (
-            <div className="hidden">
-              <Document file={{ url: srcUrl, httpHeaders: authHeader, withCredentials: true } as any} onLoadSuccess={()=> setPdfCheck('ok')} onLoadError={()=> setPdfCheck('fail')} />
-            </div>
-          )}
+          {/* Sniffer invisível: sempre tenta carregar para decidir inline, mesmo se a extensão/mime indicar PDF */}
+          <div className="hidden">
+            <Document
+              file={{ url: srcUrl, httpHeaders: authHeader, withCredentials: true } as any}
+              onLoadSuccess={()=> setPdfCheck('ok')}
+              onLoadError={()=> setPdfCheck('fail')}
+            />
+          </div>
           {canRenderInline ? (
             useNewAnnotator ? (
               <PdfAnnotator

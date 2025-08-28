@@ -63,7 +63,8 @@ const corsMiddleware = cors({
   },
   credentials: true,
   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization','X-Requested-With'],
+  allowedHeaders: ['Content-Type','Authorization','X-Requested-With','Range'],
+  exposedHeaders: ['Content-Range','Accept-Ranges'],
   maxAge: 86400,
 });
 app.use(corsMiddleware);

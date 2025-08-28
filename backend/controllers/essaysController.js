@@ -421,7 +421,12 @@ module.exports = {
       const upstream = h.request(url, { method, headers }, (up) => {
         const status = up.statusCode || 200;
         if (status >= 400) {
-          // Mapeia erros do provedor para 502 para não confundir com auth local (401)
+          // Se o storage retornou 404, podemos redirecionar para a URL direta como fallback
+          if (status === 404 && url) {
+            up.resume();
+            return res.redirect(302, url);
+          }
+          // Mapeia demais erros do provedor para 502
           up.resume();
           return res.status(502).json({ message: 'Falha ao obter arquivo (upstream)' });
         }
