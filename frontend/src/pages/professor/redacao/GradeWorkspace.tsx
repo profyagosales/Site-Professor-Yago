@@ -216,6 +216,53 @@ export default function GradeWorkspace() {
     return () => { clearTimeout(debounce); clearTimeout(safety); };
   }, [dirty, essay, annotations, richAnnos, useNewAnnotator]);
 
+  // --- Cálculo de URLs do PDF e preflight (precisa ficar ANTES de qualquer return condicional) ---
+  const isPdfByExt = useMemo(() => (essay?.originalUrl || essay?.fileUrl || essay?.correctedUrl || '')
+    .toLowerCase().includes('.pdf'), [essay?.originalUrl, essay?.fileUrl, essay?.correctedUrl]);
+  const isPdfByMime = useMemo(() => typeof essay?.originalMimeType === 'string' && essay!.originalMimeType.toLowerCase().includes('pdf'), [essay?.originalMimeType]);
+  const isPdf = isPdfByExt || isPdfByMime;
+  const idStr = (essay as any)?._id || (essay as any)?.id;
+  const RAW_API_URL = ((import.meta as any).env?.VITE_API_URL || '').toString();
+  const base = RAW_API_URL.replace(/\/$/, '');
+  const proxied = useMemo(() => {
+    if (!idStr) return null;
+    try {
+      const baseOrigin = base ? new URL(base).origin : '';
+      const here = typeof window !== 'undefined' ? window.location.origin : '';
+      return baseOrigin && here && baseOrigin !== here
+        ? `/api/essays/${idStr}/file`
+        : (base ? `${base}/api/essays/${idStr}/file` : `/api/essays/${idStr}/file`);
+    } catch {
+      return `/api/essays/${idStr}/file`;
+    }
+  }, [idStr, base]);
+  const direct = essay?.originalUrl || essay?.fileUrl || essay?.correctedUrl;
+  const _t = getToken();
+  const authHeader = _t ? { Authorization: `Bearer ${_t}` } : undefined;
+  const srcUrl = proxied || direct || null;
+
+  // Preflight HEAD: tenta sem token; se 401, tenta com ?token=
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!proxied) { setPdfCheck('fail'); setSrcOk(null); return; }
+      setPdfCheck('unknown');
+      try {
+        const r = await fetch(proxied, { method: 'HEAD', headers: authHeader as any, credentials: 'include' });
+        if (!cancelled && r.ok) { setSrcOk(proxied); setPdfCheck('ok'); return; }
+        if (!cancelled && r.status === 401 && _t) {
+          const u = new URL(proxied, typeof window !== 'undefined' ? window.location.origin : 'http://local');
+          if (!u.searchParams.get('token')) u.searchParams.set('token', _t);
+          const tokenUrl = u.pathname + u.search;
+          const r2 = await fetch(tokenUrl, { method: 'HEAD', credentials: 'include' });
+          if (!cancelled && r2.ok) { setSrcOk(tokenUrl); setPdfCheck('ok'); return; }
+        }
+      } catch {}
+      if (!cancelled) { setPdfCheck('fail'); setSrcOk(null); }
+    })();
+    return () => { cancelled = true; };
+  }, [proxied, _t]);
+
   async function submit(finalizePdf=false, sendEmail=false) {
     if (!essay) return;
     try {
@@ -254,55 +301,6 @@ export default function GradeWorkspace() {
   if (loading && !essay) return <div className="p-6">Carregando…</div>;
   if (err) return <div className="p-6 text-red-600">{err}</div>;
   if (!essay) return null;
-
-  const isPdfByExt = (essay.originalUrl || essay.fileUrl || essay.correctedUrl || '').toLowerCase().includes('.pdf');
-  const isPdfByMime = typeof essay.originalMimeType === 'string' && essay.originalMimeType.toLowerCase().includes('pdf');
-  const isPdf = isPdfByExt || isPdfByMime;
-  // Preferimos o proxy do backend para evitar CORS/Range issues.
-  // Quando disponível, usamos URL ABSOLUTA do backend para evitar perda de Authorization em rewrites.
-  const idStr = essay._id || essay.id;
-  const RAW_API_URL = ((import.meta as any).env?.VITE_API_URL || '').toString();
-  const base = RAW_API_URL.replace(/\/$/, '');
-  // Em produção (Vercel), preferimos caminho relativo para passar pelo rewrite /api -> backend e evitar CORS
-  let proxied: string | null = null;
-  if (idStr) {
-    try {
-      const baseOrigin = base ? new URL(base).origin : '';
-      const here = typeof window !== 'undefined' ? window.location.origin : '';
-      // Se a base (Render) for diferente da origem atual (Vercel), use relativo
-      proxied = baseOrigin && here && baseOrigin !== here
-        ? `/api/essays/${idStr}/file`
-        : (base ? `${base}/api/essays/${idStr}/file` : `/api/essays/${idStr}/file`);
-    } catch {
-      proxied = `/api/essays/${idStr}/file`;
-    }
-  }
-    const direct = essay.originalUrl || essay.fileUrl || essay.correctedUrl;
-    const _t = getToken();
-    const authHeader = _t ? { Authorization: `Bearer ${_t}` } : undefined;
-    let srcUrl = proxied || direct;
-    // Preflight HEAD: tenta sem token; se 401, tenta com ?token=
-    useEffect(() => {
-      let cancelled = false;
-      (async () => {
-        if (!proxied) return;
-        setPdfCheck('unknown');
-        // 1) tenta sem query token
-        try {
-          const r = await fetch(proxied, { method: 'HEAD', headers: authHeader as any, credentials: 'include' });
-          if (!cancelled && r.ok) { setSrcOk(proxied); setPdfCheck('ok'); return; }
-          if (!cancelled && r.status === 401 && _t) {
-            const u = new URL(proxied, typeof window !== 'undefined' ? window.location.origin : 'http://local');
-            if (!u.searchParams.get('token')) u.searchParams.set('token', _t);
-            const tokenUrl = u.pathname + u.search;
-            const r2 = await fetch(tokenUrl, { method: 'HEAD', credentials: 'include' });
-            if (!cancelled && r2.ok) { setSrcOk(tokenUrl); setPdfCheck('ok'); return; }
-          }
-        } catch {}
-        if (!cancelled) { setPdfCheck('fail'); setSrcOk(null); }
-      })();
-      return () => { cancelled = true; };
-    }, [proxied, _t]);
     // Render inline quando o preflight confirmar OK.
     const canRenderInline = pdfCheck === 'ok' && !!srcOk;
 
