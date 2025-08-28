@@ -444,7 +444,7 @@ export default function GradeWorkspace() {
               />
             )
           ) : pdfCheck === 'fail' ? (
-            <a className="block p-4 text-orange-600 underline" href={srcUrl} target="_blank" rel="noreferrer">Abrir arquivo</a>
+            <a className="block p-4 text-orange-600 underline" href={direct || srcUrl} target="_blank" rel="noreferrer">Abrir arquivo</a>
           ) : (
             <div className="p-4 text-sm text-ys-ink-2">Verificando arquivo…</div>
           )}

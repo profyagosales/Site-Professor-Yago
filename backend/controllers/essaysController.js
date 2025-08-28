@@ -416,26 +416,23 @@ module.exports = {
       // Forward Range for partial content, and basic headers
       if (req.headers['range']) headers['Range'] = req.headers['range'];
       if (essay.originalMimeType) headers['Accept'] = essay.originalMimeType;
-      // Some storages require auth headers; forward bearer if present (best-effort)
-  const auth = req.headers['authorization'];
-  if (auth) headers['Authorization'] = auth;
-  // Forward cookies if present (same-origin deployments); safe best-effort
-  if (req.headers['cookie']) headers['Cookie'] = req.headers['cookie'];
+      // Não encaminhar Authorization/Cookie para evitar 401 em provedores externos
       const method = (req.method || 'GET').toUpperCase();
       const upstream = h.request(url, { method, headers }, (up) => {
+        const status = up.statusCode || 200;
+        if (status >= 400) {
+          // Mapeia erros do provedor para 502 para não confundir com auth local (401)
+          up.resume();
+          return res.status(502).json({ message: 'Falha ao obter arquivo (upstream)' });
+        }
         const ct = essay.originalMimeType || up.headers['content-type'] || 'application/pdf';
         res.setHeader('Content-Type', typeof ct === 'string' ? ct : 'application/pdf');
         if (up.headers['content-length']) res.setHeader('Content-Length', up.headers['content-length']);
         if (up.headers['content-range']) res.setHeader('Content-Range', up.headers['content-range']);
         res.setHeader('Accept-Ranges', 'bytes');
-  const code = up.statusCode || (req.headers['range'] ? 206 : 200);
-        res.status(code);
-        if (method === 'HEAD') {
-          up.resume();
-          res.end();
-        } else {
-          up.pipe(res);
-        }
+        res.status(req.headers['range'] ? 206 : 200);
+        if (method === 'HEAD') { up.resume(); res.end(); }
+        else { up.pipe(res); }
       });
       upstream.on('error', () => {
         res.status(502).json({ message: 'Falha ao obter arquivo' });

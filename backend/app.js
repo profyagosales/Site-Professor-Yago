@@ -100,7 +100,12 @@ api.use('/contents', contentsRoutes);
 // dev utilities (guarded by SEED_TOKEN)
 api.use('/dev', devSeedRoutes);
 
-app.use(API_PREFIX, api);
+// Em ambiente de teste, monte as rotas na raiz para compatibilidade com a suíte existente
+if (process.env.NODE_ENV === 'test') {
+  app.use('/', api);
+} else {
+  app.use(API_PREFIX, api);
+}
 
 // 404 JSON apenas para caminhos sob o prefixo da API
 app.use((req, res, next) => {

@@ -13,8 +13,23 @@ async function authRequired(req, res, next) {
     if (!token) {
       return res.status(401).json({ success: false, message: 'Unauthenticated' });
     }
-
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    // Verifica o token com o segredo atual; se falhar por assinatura inválida,
+    // tenta um segredo legado (JWT_SECRET_FALLBACK), útil após rotações de chave.
+    let payload;
+    try {
+      payload = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      const fb = process.env.JWT_SECRET_FALLBACK;
+      if (fb) {
+        try {
+          payload = jwt.verify(token, fb);
+        } catch (_) {
+          return res.status(401).json({ success: false, message: 'Unauthenticated' });
+        }
+      } else {
+        return res.status(401).json({ success: false, message: 'Unauthenticated' });
+      }
+    }
 
     // Enriquecer perfil/usuário para suportar tokens simples usados nos testes
     let profile = payload.role || null;
