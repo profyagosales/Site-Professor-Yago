@@ -259,24 +259,45 @@ export default function GradeWorkspace() {
   const idStr = essay._id || essay.id;
   const RAW_API_URL = ((import.meta as any).env?.VITE_API_URL || '').toString();
   const base = RAW_API_URL.replace(/\/$/, '');
-  function joinApi(baseUrl: string, path: string) {
-    const b = (baseUrl || '').replace(/\/$/, '');
-    const p = (path || '').replace(/^\//, '');
-    // evita duplicar /api quando a base já termina com /api
-    if (/\/api$/i.test(b) && /^api\//i.test(p)) {
-      return `${b}/${p.replace(/^api\//i, '')}`;
+  // Em produção (Vercel), preferimos caminho relativo para passar pelo rewrite /api -> backend e evitar CORS
+  let proxied: string | null = null;
+  if (idStr) {
+    try {
+      const baseOrigin = base ? new URL(base).origin : '';
+      const here = typeof window !== 'undefined' ? window.location.origin : '';
+      // Se a base (Render) for diferente da origem atual (Vercel), use relativo
+      proxied = baseOrigin && here && baseOrigin !== here
+        ? `/api/essays/${idStr}/file`
+        : (base ? `${base}/api/essays/${idStr}/file` : `/api/essays/${idStr}/file`);
+    } catch {
+      proxied = `/api/essays/${idStr}/file`;
     }
-    return `${b}/${p}`;
   }
-  const proxied = idStr
-    ? (base ? joinApi(base, `/api/essays/${idStr}/file`) : `/api/essays/${idStr}/file`)
-    : null;
   const direct = essay.originalUrl || essay.fileUrl || essay.correctedUrl;
   const srcUrl = proxied || direct;
   // Render inline apenas quando o sniff confirmar OK.
   const canRenderInline = pdfCheck === 'ok';
   const _t = getToken();
   const authHeader = _t ? { Authorization: `Bearer ${_t}` } : undefined;
+
+  async function openPdfInNewTab() {
+    // Tenta primeiro via proxy autenticado (relative /api/...)
+    const proxyUrl = `/api/essays/${idStr}/file`;
+    try {
+      const res = await fetch(proxyUrl, { headers: authHeader as any });
+      if (!res.ok) throw new Error('fetch-fail');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+      // limpa depois de um tempo
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      return;
+    } catch {
+      // Fallback para URL direta (pode exigir que o arquivo seja público)
+      if (direct) window.open(direct, '_blank', 'noopener,noreferrer');
+      else if (srcUrl) window.open(srcUrl, '_blank', 'noopener,noreferrer');
+    }
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -447,7 +468,7 @@ export default function GradeWorkspace() {
               />
             )
           ) : pdfCheck === 'fail' ? (
-            <a className="block p-4 text-orange-600 underline" href={direct || srcUrl} target="_blank" rel="noreferrer">Abrir arquivo</a>
+            <button className="block p-4 text-left text-orange-600 underline" onClick={openPdfInNewTab}>Abrir arquivo</button>
           ) : (
             <div className="p-4 text-sm text-ys-ink-2">Verificando arquivo…</div>
           )}

@@ -410,43 +410,73 @@ module.exports = {
       const { id } = req.params;
       const essay = await Essay.findById(id);
       if (!essay || !essay.originalUrl) return res.status(404).json({ message: 'Arquivo não encontrado' });
-      const url = essay.originalUrl;
-      const h = url.startsWith('https') ? https : http;
-  const headers = {};
-      // Forward Range for partial content, and basic headers
-      if (req.headers['range']) headers['Range'] = req.headers['range'];
-      if (essay.originalMimeType) headers['Accept'] = essay.originalMimeType;
-      // Não encaminhar Authorization/Cookie para evitar 401 em provedores externos
+      const origUrl = essay.originalUrl;
       const method = (req.method || 'GET').toUpperCase();
-      const upstream = h.request(url, { method, headers }, (up) => {
-        const status = up.statusCode || 200;
-        if (status >= 400) {
-          // Se o storage retornou 404, podemos redirecionar para a URL direta como fallback
-          if (status === 404 && url) {
+      const headers = {};
+      if (req.headers['range']) headers['Range'] = req.headers['range'];
+
+      const doRequest = (url, redirectsLeft) => new Promise((resolve) => {
+        const h = url.startsWith('https') ? https : http;
+        const r = h.request(url, { method, headers }, (up) => {
+          const status = up.statusCode || 200;
+          // Follow 3xx redirects (até 3 saltos)
+          if ([301,302,303,307,308].includes(status) && up.headers['location'] && redirectsLeft > 0) {
+            const loc = up.headers['location'];
             up.resume();
-            return res.redirect(302, url);
+            try {
+              const nextUrl = new URL(loc, url).toString();
+              resolve({ type: 'redirect', url: nextUrl });
+            } catch {
+              resolve({ type: 'error', code: 502, msg: 'Redirecionamento inválido' });
+            }
+            return;
           }
-          // Mapeia demais erros do provedor para 502
-          up.resume();
-          return res.status(502).json({ message: 'Falha ao obter arquivo (upstream)' });
+          if (status >= 400) {
+            if (status === 404 && url) {
+              up.resume();
+              resolve({ type: 'redirect-client', url });
+            } else {
+              up.resume();
+              resolve({ type: 'error', code: 502, msg: 'Falha ao obter arquivo (upstream)' });
+            }
+            return;
+          }
+          // Sucesso
+          resolve({ type: 'ok', stream: up, headers: up.headers });
+        });
+        r.on('error', () => resolve({ type: 'error', code: 502, msg: 'Falha ao obter arquivo' }));
+        r.end();
+      });
+
+      let current = origUrl;
+      let result;
+      let left = 3;
+      while (left >= 0) {
+        // eslint-disable-next-line no-await-in-loop
+        const r = await doRequest(current, left);
+        if (r.type === 'redirect') {
+          current = r.url;
+          left -= 1;
+          continue;
         }
-        const ct = essay.originalMimeType || up.headers['content-type'] || 'application/pdf';
-        res.setHeader('Content-Type', typeof ct === 'string' ? ct : 'application/pdf');
-        if (up.headers['content-length']) res.setHeader('Content-Length', up.headers['content-length']);
-        if (up.headers['content-range']) res.setHeader('Content-Range', up.headers['content-range']);
-        res.setHeader('Accept-Ranges', 'bytes');
-        res.status(req.headers['range'] ? 206 : 200);
-        if (method === 'HEAD') { up.resume(); res.end(); }
-        else { up.pipe(res); }
-      });
-      upstream.on('error', () => {
-        res.status(502).json({ message: 'Falha ao obter arquivo' });
-      });
-      upstream.end();
-      upstream.on('error', () => {
-        res.status(502).json({ message: 'Falha ao obter arquivo' });
-      });
-      req.on('close', () => { try { upstream.destroy(); } catch {} });
+        result = r;
+        break;
+      }
+
+      if (!result) return res.status(502).json({ message: 'Falha ao obter arquivo' });
+      if (result.type === 'redirect-client') return res.redirect(302, result.url);
+      if (result.type !== 'ok') return res.status(result.code || 502).json({ message: result.msg || 'Erro' });
+
+      const up = result.stream;
+      const upHeaders = result.headers || {};
+      const ct = essay.originalMimeType || upHeaders['content-type'] || 'application/pdf';
+      res.setHeader('Content-Type', typeof ct === 'string' ? ct : 'application/pdf');
+      if (upHeaders['content-length']) res.setHeader('Content-Length', upHeaders['content-length']);
+      if (upHeaders['content-range']) res.setHeader('Content-Range', upHeaders['content-range']);
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.status(req.headers['range'] ? 206 : 200);
+      if (method === 'HEAD') { up.resume(); res.end(); }
+      else { up.pipe(res); }
     } catch (e) {
       res.status(500).json({ message: 'Erro ao transmitir arquivo' });
     }
