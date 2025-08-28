@@ -4,8 +4,10 @@ const Teacher = require('../models/Teacher');
 
 async function authRequired(req, res, next) {
   try {
+    // Aceita token via cookie ('session' legado ou 'auth' atual) ou via Authorization: Bearer
     const token =
       req.cookies?.session ||
+      req.cookies?.auth ||
       (req.headers.authorization?.startsWith('Bearer ')
         ? req.headers.authorization.slice(7)
         : null);
@@ -32,8 +34,8 @@ async function authRequired(req, res, next) {
     }
 
     // Enriquecer perfil/usuário para suportar tokens simples usados nos testes
-    let profile = payload.role || null;
-    const id = payload.id || payload._id || null;
+  let profile = payload.role || null;
+  const id = payload.id || payload._id || payload.sub || null;
     let userClass = payload.class || null;
 
     if (!profile && id) {
@@ -53,8 +55,8 @@ async function authRequired(req, res, next) {
     req.profile = profile || req.profile;
     req.user = {
       ...payload,
-      _id: id || payload._id,
-      id: id || payload.id,
+      _id: id || payload._id || payload.sub,
+      id: id || payload.id || payload.sub,
       class: userClass || payload.class,
     };
     return next();
