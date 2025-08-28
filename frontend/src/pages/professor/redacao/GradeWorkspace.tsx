@@ -58,19 +58,21 @@ export default function GradeWorkspace() {
     setSrcOk(null);
   }, [essay?.originalUrl, essay?.fileUrl]);
 
-  // Configura worker do PDF também aqui para o sniff (evita depender do componente filho)
-  try {
-    // @ts-ignore
-    const workerSrc = (() => {
-      try {
-        // eslint-disable-next-line no-new-func
-        const base = (new Function('try { return import.meta.url } catch { return null }'))();
-        if (base) return new URL('pdfjs-dist/build/pdf.worker.min.mjs', base).toString();
-      } catch {}
-      return null;
-    })();
-    if (workerSrc) pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
-  } catch {}
+  // Configura worker do PDF de forma segura (efeito) para evitar efeitos colaterais no render
+  useEffect(() => {
+    try {
+      // @ts-ignore
+      const workerSrc = (() => {
+        try {
+          // eslint-disable-next-line no-new-func
+          const base = (new Function('try { return import.meta.url } catch { return null }'))();
+          if (base) return new URL('pdfjs-dist/build/pdf.worker.min.mjs', base).toString();
+        } catch {}
+        return null;
+      })();
+      if (workerSrc) pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+    } catch {}
+  }, []);
 
   useEffect(() => {
     let alive = true;
