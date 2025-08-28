@@ -257,9 +257,19 @@ export default function GradeWorkspace() {
   // Preferimos o proxy do backend para evitar CORS/Range issues.
   // Quando disponível, usamos URL ABSOLUTA do backend para evitar perda de Authorization em rewrites.
   const idStr = essay._id || essay.id;
-  const API_URL = (import.meta as any).env?.VITE_API_URL || '';
+  const RAW_API_URL = ((import.meta as any).env?.VITE_API_URL || '').toString();
+  const base = RAW_API_URL.replace(/\/$/, '');
+  function joinApi(baseUrl: string, path: string) {
+    const b = (baseUrl || '').replace(/\/$/, '');
+    const p = (path || '').replace(/^\//, '');
+    // evita duplicar /api quando a base já termina com /api
+    if (/\/api$/i.test(b) && /^api\//i.test(p)) {
+      return `${b}/${p.replace(/^api\//i, '')}`;
+    }
+    return `${b}/${p}`;
+  }
   const proxied = idStr
-    ? (API_URL ? `${API_URL}/api/essays/${idStr}/file` : `/api/essays/${idStr}/file`)
+    ? (base ? joinApi(base, `/api/essays/${idStr}/file`) : `/api/essays/${idStr}/file`)
     : null;
   const direct = essay.originalUrl || essay.fileUrl || essay.correctedUrl;
   const srcUrl = proxied || direct;
