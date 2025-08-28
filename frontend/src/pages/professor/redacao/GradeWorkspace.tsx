@@ -254,9 +254,13 @@ export default function GradeWorkspace() {
   const isPdfByExt = (essay.originalUrl || essay.fileUrl || essay.correctedUrl || '').toLowerCase().includes('.pdf');
   const isPdfByMime = typeof essay.originalMimeType === 'string' && essay.originalMimeType.toLowerCase().includes('pdf');
   const isPdf = isPdfByExt || isPdfByMime;
-  // Preferimos o proxy do backend para evitar CORS/Range issues
+  // Preferimos o proxy do backend para evitar CORS/Range issues.
+  // Quando disponível, usamos URL ABSOLUTA do backend para evitar perda de Authorization em rewrites.
   const idStr = essay._id || essay.id;
-  const proxied = idStr ? `/api/essays/${idStr}/file` : null;
+  const API_URL = (import.meta as any).env?.VITE_API_URL || '';
+  const proxied = idStr
+    ? (API_URL ? `${API_URL}/api/essays/${idStr}/file` : `/api/essays/${idStr}/file`)
+    : null;
   const direct = essay.originalUrl || essay.fileUrl || essay.correctedUrl;
   const srcUrl = proxied || direct;
   const canRenderInline = isPdf || pdfCheck === 'ok';
