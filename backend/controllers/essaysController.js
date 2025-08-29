@@ -411,13 +411,16 @@ module.exports = {
       const essay = await Essay.findById(id);
       if (!essay || !essay.originalUrl) return res.status(404).json({ message: 'Arquivo não encontrado' });
       const origUrl = essay.originalUrl;
-      const method = (req.method || 'GET').toUpperCase();
-      const headers = {};
-      if (req.headers['range']) headers['Range'] = req.headers['range'];
+  const method = (req.method || 'GET').toUpperCase();
+  const headers = {};
+  if (req.headers['range']) headers['Range'] = req.headers['range'];
+  // Para HEAD, alguns provedores não suportam; fazemos GET com Range mínimo para obter cabeçalhos
+  const upstreamMethod = method === 'HEAD' ? 'GET' : method;
+  if (method === 'HEAD' && !headers['Range']) headers['Range'] = 'bytes=0-0';
 
       const doRequest = (url, redirectsLeft) => new Promise((resolve) => {
         const h = url.startsWith('https') ? https : http;
-        const r = h.request(url, { method, headers }, (up) => {
+  const r = h.request(url, { method: upstreamMethod, headers }, (up) => {
           const status = up.statusCode || 200;
           // Follow 3xx redirects (até 3 saltos)
           if ([301,302,303,307,308].includes(status) && up.headers['location'] && redirectsLeft > 0) {
