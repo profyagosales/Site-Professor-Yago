@@ -474,58 +474,7 @@ export default function GradeWorkspace() {
             <div className="p-4 text-sm text-ys-ink-2">Verificando arquivo…</div>
           )}
           {canRenderInline && isPdf ? (
-            // Flag opcional para usar um viewer simplificado baseado em pdfjs sem alterar a UI existente
-            (typeof window !== 'undefined' && (window as any).YS_PDFJS) ? (
-              idStr ? <PdfViewer essayId={idStr} /> : <div className="p-4 text-sm text-ys-ink-2">Carregando…</div>
-            ) : (
-            useNewAnnotator ? (
-              <PdfAnnotator
-                src={effectiveSrc}
-                altSrc={direct || undefined}
-                storageKey={`rich:${essay._id || essay.id}`}
-                annos={richAnnos}
-                onChange={setRichAnnos}
-                page={currentPage}
-                onPageChange={setCurrentPage}
-                selectedId={selectedIndex!=null ? richAnnos[selectedIndex]?.id : null}
-                onSelectId={(id)=>{
-                  if (!id) { setSelectedIndex(null); return; }
-                  const idx = richAnnos.findIndex(a=> a.id===id);
-                  if (idx>=0) setSelectedIndex(idx);
-                }}
-              />
-            ) : (
-              <PdfHighlighter
-                src={effectiveSrc}
-                altSrc={direct || undefined}
-                annotations={annotations}
-                currentPage={currentPage}
-                onPageChange={setCurrentPage}
-                selectedIndex={selectedIndex}
-                onSelect={setSelectedIndex}
-                storageKey={`gw:${essay._id || essay.id}`}
-                onAdd={(a) => {
-                  setAnnotations((prev) => {
-                    const next = [...prev, a];
-                    setLastAddedIndex(next.length - 1);
-                    setSelectedIndex(next.length - 1);
-                    return next;
-                  });
-                }}
-                onRemove={(idx) => {
-                  setAnnotations((prev) => {
-                    const ann = prev[idx];
-                    setUndoStack((s)=> [{ idx, ann }, ...s].slice(0, 20));
-                    return prev.filter((_, i) => i !== idx);
-                  });
-                  if (selectedIndex === idx) setSelectedIndex(null);
-                }}
-                onUpdate={(idx, patch) => {
-                  setAnnotations((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
-                }}
-              />
-            )
-            )
+            idStr ? <PdfViewer essayId={idStr} /> : <div className="p-4 text-sm text-ys-ink-2">Carregando…</div>
           ) : canRenderInline && !isPdf ? (
             <div className="p-4 text-sm text-[#111827] space-y-2">
               <div>O arquivo não é um PDF (Content-Type: {contentType || essay.originalMimeType || 'desconhecido'}). Exibindo visualização básica.</div>
