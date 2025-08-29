@@ -97,7 +97,19 @@ export default function PdfHighlighter({ src, altSrc, annotations, onAdd, onRemo
         let ab: ArrayBuffer | null = null;
         try {
           const reqInit: RequestInit = isSameOrigin ? { headers } : {};
-          ab = await fetch(src, reqInit).then((r) => r.arrayBuffer());
+          const r1 = await fetch(src, reqInit);
+          if (!r1.ok && isSameOrigin) {
+            const t = getToken?.();
+            if (t) {
+              try {
+                const u = new URL(src, window.location.href);
+                u.searchParams.set('token', t);
+                const r2 = await fetch(u.toString());
+                if (r2.ok) ab = await r2.arrayBuffer();
+              } catch {}
+            }
+          }
+          if (!ab) ab = await r1.arrayBuffer();
         } catch {
           if (altSrc) {
             try { ab = await fetch(altSrc).then((r) => r.arrayBuffer()); } catch {}
@@ -541,10 +553,20 @@ export default function PdfHighlighter({ src, altSrc, annotations, onAdd, onRemo
             })()) as any}
             onLoadSuccess={onDocLoadSuccess}
             onLoadError={async (err: any) => {
-              // fallback: tenta baixar como blob com credenciais e reabrir
+              // fallback: tenta baixar como blob com credenciais; se falhar, tenta ?token; depois altSrc
               try {
                 const same = (() => { try { if (src.startsWith('/')) return true; return new URL(src, window.location.href).origin === window.location.origin; } catch { return false; } })();
-                const res = await fetch(src, same ? ({ headers: authHeader as any, credentials: 'include' } as RequestInit) : ({} as RequestInit));
+                let res = await fetch(src, same ? ({ headers: authHeader as any, credentials: 'include' } as RequestInit) : ({} as RequestInit));
+                if (!res.ok && same) {
+                  const t = getToken?.();
+                  if (t) {
+                    try {
+                      const u = new URL(src, window.location.href);
+                      u.searchParams.set('token', t);
+                      res = await fetch(u.toString(), { credentials: 'include' });
+                    } catch {}
+                  }
+                }
                 if (!res.ok) throw new Error('blob-fetch-failed');
                 const b = await res.blob();
                 const url = URL.createObjectURL(b);
