@@ -435,13 +435,14 @@ module.exports = {
             return;
           }
           if (status >= 400) {
-            if (status === 404 && url) {
-              up.resume();
-              resolve({ type: 'redirect-client', url });
-            } else {
-              up.resume();
-              resolve({ type: 'error', code: 502, msg: 'Falha ao obter arquivo (upstream)' });
+            // Propaga códigos comuns (401/403/404) para facilitar diagnóstico do client
+            up.resume();
+            if ([401, 403, 404].includes(status)) {
+              resolve({ type: 'error', code: status, msg: 'Upstream error' });
+              return;
             }
+            // 3xx já tratado acima; demais como 502 genérico
+            resolve({ type: 'error', code: 502, msg: 'Falha ao obter arquivo (upstream)' });
             return;
           }
           // Sucesso
@@ -502,12 +503,16 @@ module.exports = {
       if (result.type === 'redirect-client') return res.redirect(302, result.url);
       if (result.type !== 'ok') return res.status(result.code || 502).json({ message: result.msg || 'Erro' });
 
-      const up = result.stream;
+  const up = result.stream;
       const upHeaders = result.headers || {};
       const ct = essay.originalMimeType || upHeaders['content-type'] || 'application/pdf';
       res.setHeader('Content-Type', typeof ct === 'string' ? ct : 'application/pdf');
       if (upHeaders['content-length']) res.setHeader('Content-Length', upHeaders['content-length']);
       if (upHeaders['content-range']) res.setHeader('Content-Range', upHeaders['content-range']);
+  // Disposição inline com um nome de arquivo previsível
+  const safeName = `redacao-${essay._id || 'arquivo'}.pdf`;
+  res.setHeader('Content-Disposition', `inline; filename="${safeName}"`);
+  res.setHeader('Cache-Control', 'private, max-age=0');
       res.setHeader('Accept-Ranges', 'bytes');
       res.status(req.headers['range'] ? 206 : 200);
       if (method === 'HEAD') { up.resume(); res.end(); }
