@@ -260,6 +260,12 @@ export default function GradeWorkspace() {
           setPdfCheck('ok');
           return;
         }
+        // Se proxy /api retornou 5xx, tenta usar URL direta do arquivo (se disponível)
+        if (!cancelled && r.status >= 500 && direct) {
+          setSrcOk(direct);
+          setPdfCheck('ok');
+          return;
+        }
         // Se não for 401, ainda assim tentamos renderizar (falhas de HEAD/502/405 não impedem GET real)
         if (!cancelled && r.status !== 401) {
           const ct = r.headers.get('content-type');
@@ -277,6 +283,12 @@ export default function GradeWorkspace() {
             const ct2 = r2.headers.get('content-type');
             if (ct2) setContentType(ct2);
             setSrcOk(tokenUrl);
+            setPdfCheck('ok');
+            return;
+          }
+          // Se HEAD com token no proxy falhar 5xx, tenta URL direta
+          if (!cancelled && r2.status >= 500 && direct) {
+            setSrcOk(direct);
             setPdfCheck('ok');
             return;
           }
@@ -473,6 +485,7 @@ export default function GradeWorkspace() {
             useNewAnnotator ? (
               <PdfAnnotator
                 src={effectiveSrc}
+                altSrc={direct || undefined}
                 storageKey={`rich:${essay._id || essay.id}`}
                 annos={richAnnos}
                 onChange={setRichAnnos}
@@ -488,6 +501,7 @@ export default function GradeWorkspace() {
             ) : (
               <PdfHighlighter
                 src={effectiveSrc}
+                altSrc={direct || undefined}
                 annotations={annotations}
                 currentPage={currentPage}
                 onPageChange={setCurrentPage}

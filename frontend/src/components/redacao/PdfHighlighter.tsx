@@ -12,6 +12,8 @@ try {
 
 type Props = {
   src: string;
+  // Fallback absoluto (ex.: URL direta do Cloudinary) caso o proxy /api falhe
+  altSrc?: string;
   annotations: Annotation[];
   onAdd: (ann: Annotation) => void;
   onRemove?: (index: number) => void;
@@ -24,7 +26,7 @@ type Props = {
   storageKey?: string; // persist zoom/pan per essay
 };
 
-export default function PdfHighlighter({ src, annotations, onAdd, onRemove, onUpdate, pageNumber = 1, currentPage: controlledPage, onPageChange, selectedIndex, onSelect, storageKey }: Props) {
+export default function PdfHighlighter({ src, altSrc, annotations, onAdd, onRemove, onUpdate, pageNumber = 1, currentPage: controlledPage, onPageChange, selectedIndex, onSelect, storageKey }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [containerWidth, setContainerWidth] = useState<number>(480);
@@ -88,7 +90,16 @@ export default function PdfHighlighter({ src, annotations, onAdd, onRemove, onUp
       try {
         const headers: Record<string, string> = {};
         try { const t = getToken(); if (t) headers.Authorization = `Bearer ${t}`; } catch {}
-        const ab = await fetch(src, { headers }).then((r) => r.arrayBuffer());
+        // tenta baixar via src; se falhar (ex.: 5xx no proxy), tenta altSrc
+        let ab: ArrayBuffer | null = null;
+        try {
+          ab = await fetch(src, { headers }).then((r) => r.arrayBuffer());
+        } catch {
+          if (altSrc) {
+            try { ab = await fetch(altSrc).then((r) => r.arrayBuffer()); } catch {}
+          }
+        }
+        if (!ab) return;
         const pdf = await PDFLibDocument.load(ab);
     const cp = Math.max(1, (controlledPage ?? uncontrolledPage));
     const page = pdf.getPage(Math.max(0, cp - 1));
@@ -529,6 +540,17 @@ export default function PdfHighlighter({ src, annotations, onAdd, onRemove, onUp
                 const url = URL.createObjectURL(b);
                 setBlobUrl(url);
               } catch (e) {
+                // tenta URL alternativa direta
+                try {
+                  if (altSrc && altSrc !== src) {
+                    const r2 = await fetch(altSrc);
+                    if (!r2.ok) throw new Error('alt-fetch-failed');
+                    const b2 = await r2.blob();
+                    const u2 = URL.createObjectURL(b2);
+                    setBlobUrl(u2);
+                    return;
+                  }
+                } catch {}
                 console.error(err);
               }
             }}

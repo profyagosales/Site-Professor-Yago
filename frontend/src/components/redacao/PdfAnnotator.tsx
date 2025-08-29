@@ -21,6 +21,8 @@ try {
 
 type Props = {
   src: string;
+  // Fallback absoluto (ex.: URL direta do Cloudinary) caso o proxy /api falhe
+  altSrc?: string;
   storageKey: string; // localStorage key por redação
   annos: Anno[];
   onChange: (next: Anno[]) => void;
@@ -30,7 +32,7 @@ type Props = {
   onSelectId?: (id: string | null) => void;
 };
 
-export default function PdfAnnotator({ src, storageKey, annos, onChange, page: controlledPage, onPageChange, selectedId: controlledSel, onSelectId }: Props) {
+export default function PdfAnnotator({ src, altSrc, storageKey, annos, onChange, page: controlledPage, onPageChange, selectedId: controlledSel, onSelectId }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [numPages, setNumPages] = useState(1);
@@ -391,7 +393,19 @@ export default function PdfAnnotator({ src, storageKey, annos, onChange, page: c
                   const b = await res.blob();
                   const url = URL.createObjectURL(b);
                   setBlobUrl(url);
-                } catch (e) { console.error(err); }
+                } catch (e) {
+                  try {
+                    if (altSrc && altSrc !== src) {
+                      const r2 = await fetch(altSrc);
+                      if (!r2.ok) throw new Error('alt-fetch-failed');
+                      const b2 = await r2.blob();
+                      const u2 = URL.createObjectURL(b2);
+                      setBlobUrl(u2);
+                      return;
+                    }
+                  } catch {}
+                  console.error(err);
+                }
               }}
             >
               <div
@@ -497,7 +511,19 @@ export default function PdfAnnotator({ src, storageKey, annos, onChange, page: c
                     const b = await res.blob();
                     const url = URL.createObjectURL(b);
                     setBlobUrl(url);
-                  } catch (e) { console.error(err); }
+                  } catch (e) {
+                    try {
+                      if (altSrc && altSrc !== src) {
+                        const r2 = await fetch(altSrc);
+                        if (!r2.ok) throw new Error('alt-fetch-failed');
+                        const b2 = await r2.blob();
+                        const u2 = URL.createObjectURL(b2);
+                        setBlobUrl(u2);
+                        return;
+                      }
+                    } catch {}
+                    console.error(err);
+                  }
                 }}
               >
                 <Page pageNumber={page} width={Math.floor((containerRef.current?.clientWidth || 640) * zoom)} renderTextLayer={false} renderAnnotationLayer={false} />
