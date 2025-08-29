@@ -260,12 +260,8 @@ export default function GradeWorkspace() {
           setPdfCheck('ok');
           return;
         }
-        // Se proxy /api retornou 5xx, tenta usar URL direta do arquivo (se disponível)
-        if (!cancelled && r.status >= 500 && direct) {
-          setSrcOk(direct);
-          setPdfCheck('ok');
-          return;
-        }
+  // Em 5xx no proxy, não trocamos para URL direta automaticamente (pode ser protegida e gerar 401);
+  // seguimos de forma otimista com o próprio proxy no GET real
         // Se não for 401, ainda assim tentamos renderizar (falhas de HEAD/502/405 não impedem GET real)
         if (!cancelled && r.status !== 401) {
           const ct = r.headers.get('content-type');
@@ -286,12 +282,7 @@ export default function GradeWorkspace() {
             setPdfCheck('ok');
             return;
           }
-          // Se HEAD com token no proxy falhar 5xx, tenta URL direta
-          if (!cancelled && r2.status >= 500 && direct) {
-            setSrcOk(direct);
-            setPdfCheck('ok');
-            return;
-          }
+          // Em 5xx com token, ainda assim não alternamos para direto automaticamente
           // Mesmo após 401, tenta inline com token por via das dúvidas
           if (!cancelled) { setSrcOk(tokenUrl); setPdfCheck('ok'); return; }
         }
