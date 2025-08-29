@@ -15,3 +15,5 @@ Use this checklist during **staging** and **production** deployments to validate
 	- [ ] Confirmar que o worker do PDF (pdfjs-dist) está sendo servido corretamente (chunk separado) e não é bloqueado.
 
 Keep this checklist up to date as new features are added.
+
+<!-- Deploy trigger: 2025-08-29T00:00:00Z -->
