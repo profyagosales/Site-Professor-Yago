@@ -91,9 +91,13 @@ export default function PdfHighlighter({ src, altSrc, annotations, onAdd, onRemo
         const headers: Record<string, string> = {};
         try { const t = getToken(); if (t) headers.Authorization = `Bearer ${t}`; } catch {}
         // tenta baixar via src; se falhar (ex.: 5xx no proxy), tenta altSrc
+        const isSameOrigin = (() => {
+          try { if (src.startsWith('/')) return true; return new URL(src, window.location.href).origin === window.location.origin; } catch { return false; }
+        })();
         let ab: ArrayBuffer | null = null;
         try {
-          ab = await fetch(src, { headers }).then((r) => r.arrayBuffer());
+          const reqInit: RequestInit = isSameOrigin ? { headers } : {};
+          ab = await fetch(src, reqInit).then((r) => r.arrayBuffer());
         } catch {
           if (altSrc) {
             try { ab = await fetch(altSrc).then((r) => r.arrayBuffer()); } catch {}
@@ -245,13 +249,13 @@ export default function PdfHighlighter({ src, altSrc, annotations, onAdd, onRemo
       setPanOrigin(pan);
       return;
     }
-    // If clicked inside an existing box, start drag
-  if (origSize) {
+    // If clicked inside an existing box, start drag/resize
+    if (origSize) {
       const hit = hitTestBox(x, y);
       if (hit) {
         const { idx, handle } = hit;
-    setInternalSelected(idx);
-    onSelect?.(idx);
+        setInternalSelected(idx);
+        onSelect?.(idx);
         const b = projectToRendered(annotations[idx].bbox as any);
         if (handle) {
           setAction({ kind: 'resize', idx, handle, startX: x, startY: y, orig: b });
@@ -261,28 +265,30 @@ export default function PdfHighlighter({ src, altSrc, annotations, onAdd, onRemo
         return;
       }
     }
-    if (!canSelect) return;
-    setDragStart({ x, y });
-    setDragRect({ x, y, w: 0, h: 0 });
+    // start selection rectangle if allowed
+    if (canSelect && origSize) {
+      setInternalSelected(null);
+      onSelect?.(null);
+      setDragStart({ x, y });
+      setDragRect({ x, y, w: 0, h: 0 });
+    }
   }
 
   function onMouseMove(e: React.MouseEvent) {
-    if (isPanning && panStart) {
-      const dx = e.clientX - panStart.x;
-      const dy = e.clientY - panStart.y;
-      const viewport = containerRef.current as HTMLDivElement | null;
-      const vpW = viewport?.clientWidth || effectiveWidth;
-      const vpH = viewport?.clientHeight || renderedHeight;
-      const minX = Math.min(0, vpW - effectiveWidth);
-      const minY = Math.min(0, vpH - renderedHeight);
-      const nx = Math.max(minX, Math.min(0, panOrigin.x + dx));
-      const ny = Math.max(minY, Math.min(0, panOrigin.y + dy));
-      setPan({ x: nx, y: ny });
-      return;
-    }
     const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    if (isPanning && panStart) {
+      const vp = containerRef.current;
+      const vpW = (vp?.clientWidth || effectiveWidth);
+      const vpH = Math.max(420, (vp?.clientHeight || renderedHeight));
+      const minX = Math.min(0, vpW - effectiveWidth);
+      const minY = Math.min(0, vpH - renderedHeight);
+      const nx = Math.max(minX, Math.min(0, panOrigin.x + (e.clientX - panStart.x)));
+      const ny = Math.max(minY, Math.min(0, panOrigin.y + (e.clientY - panStart.y)));
+      setPan({ x: nx, y: ny });
+      return;
+    }
     if (action && origSize) {
       const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
       const minSize = 6; // px
@@ -529,12 +535,16 @@ export default function PdfHighlighter({ src, altSrc, annotations, onAdd, onRemo
   <div ref={containerRef} className="relative mx-auto w-full max-w-full overflow-hidden" style={{ minHeight: 420 }} onWheel={(e)=>{ if (e.ctrlKey) { e.preventDefault(); setZoom(z=> Math.max(0.5, Math.min(2, Math.round((z + (e.deltaY < 0 ? 0.1 : -0.1))*10)/10))); } }}>
     <div style={{ position: 'relative', transform: `translate(${pan.x}px, ${pan.y}px)` }}>
   <Document
-            file={(blobUrl || { url: src, httpHeaders: authHeader, withCredentials: true }) as any}
+            file={(blobUrl || (() => {
+              const same = (() => { try { if (src.startsWith('/')) return true; return new URL(src, window.location.href).origin === window.location.origin; } catch { return false; } })();
+              return same ? ({ url: src, httpHeaders: authHeader, withCredentials: true } as any) : (src as any);
+            })()) as any}
             onLoadSuccess={onDocLoadSuccess}
             onLoadError={async (err: any) => {
               // fallback: tenta baixar como blob com credenciais e reabrir
               try {
-                const res = await fetch(src, { headers: authHeader as any, credentials: 'include' });
+                const same = (() => { try { if (src.startsWith('/')) return true; return new URL(src, window.location.href).origin === window.location.origin; } catch { return false; } })();
+                const res = await fetch(src, same ? ({ headers: authHeader as any, credentials: 'include' } as RequestInit) : ({} as RequestInit));
                 if (!res.ok) throw new Error('blob-fetch-failed');
                 const b = await res.blob();
                 const url = URL.createObjectURL(b);

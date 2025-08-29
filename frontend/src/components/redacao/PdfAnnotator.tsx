@@ -384,11 +384,15 @@ export default function PdfAnnotator({ src, altSrc, storageKey, annos, onChange,
         {virtMode ? (
           <div className="relative mx-auto w-full max-w-full overflow-hidden" style={{ minHeight: 420 }}>
             <Document
-              file={(blobUrl || { url: src, httpHeaders: authHeader, withCredentials: true }) as any}
+              file={(blobUrl || (() => {
+                const same = (() => { try { if (src.startsWith('/')) return true; return new URL(src, window.location.href).origin === window.location.origin; } catch { return false; } })();
+                return same ? ({ url: src, httpHeaders: authHeader, withCredentials: true } as any) : (src as any);
+              })()) as any}
               onLoadSuccess={(d:any)=> setNumPages(d.numPages||1)}
               onLoadError={async (err: any) => {
                 try {
-                  const res = await fetch(src, { headers: authHeader as any, credentials: 'include' });
+                  const same = (() => { try { if (src.startsWith('/')) return true; return new URL(src, window.location.href).origin === window.location.origin; } catch { return false; } })();
+                  const res = await fetch(src, same ? ({ headers: authHeader as any, credentials: 'include' } as RequestInit) : ({} as RequestInit));
                   if (!res.ok) throw new Error('blob-fetch-failed');
                   const b = await res.blob();
                   const url = URL.createObjectURL(b);
@@ -502,11 +506,15 @@ export default function PdfAnnotator({ src, altSrc, storageKey, annos, onChange,
           <div className="relative mx-auto w-full max-w-full overflow-hidden" style={{ minHeight: 420 }}>
             <div className="relative" ref={containerRef} onMouseDown={handleDown} onMouseMove={(e)=> handleMove(e)} onMouseUp={handleUp}>
               <Document
-                file={(blobUrl || { url: src, httpHeaders: authHeader, withCredentials: true }) as any}
+                file={(blobUrl || (() => {
+                  const same = (() => { try { if (src.startsWith('/')) return true; return new URL(src, window.location.href).origin === window.location.origin; } catch { return false; } })();
+                  return same ? ({ url: src, httpHeaders: authHeader, withCredentials: true } as any) : (src as any);
+                })()) as any}
                 onLoadSuccess={(p:any)=> setNumPages(p.numPages||1)}
                 onLoadError={async (err:any) => {
                   try {
-                    const res = await fetch(src, { headers: authHeader as any, credentials: 'include' });
+                    const same = (() => { try { if (src.startsWith('/')) return true; return new URL(src, window.location.href).origin === window.location.origin; } catch { return false; } })();
+                    const res = await fetch(src, same ? ({ headers: authHeader as any, credentials: 'include' } as RequestInit) : ({} as RequestInit));
                     if (!res.ok) throw new Error('blob-fetch-failed');
                     const b = await res.blob();
                     const url = URL.createObjectURL(b);
