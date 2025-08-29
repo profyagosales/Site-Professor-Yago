@@ -26,6 +26,7 @@ type Props = {
 
 export default function PdfHighlighter({ src, annotations, onAdd, onRemove, onUpdate, pageNumber = 1, currentPage: controlledPage, onPageChange, selectedIndex, onSelect, storageKey }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [containerWidth, setContainerWidth] = useState<number>(480);
   const [renderedHeight, setRenderedHeight] = useState<number>(640);
   const [origSize, setOrigSize] = useState<{ w: number; h: number } | null>(null);
@@ -51,6 +52,14 @@ export default function PdfHighlighter({ src, annotations, onAdd, onRemove, onUp
       return t ? { Authorization: `Bearer ${t}` } : undefined;
     } catch { return undefined; }
   }, []);
+  // atualiza blobUrl ao trocar src
+  useEffect(() => {
+    if (blobUrl) {
+      try { URL.revokeObjectURL(blobUrl); } catch {}
+      setBlobUrl(null);
+    }
+  }, [src]);
+  useEffect(() => () => { if (blobUrl) { try { URL.revokeObjectURL(blobUrl); } catch {} } }, [blobUrl]);
   
   // Helpers para navegação entre páginas com anotações
   function pageHasAnnotations(p: number) { // p: 1-based
@@ -508,7 +517,22 @@ export default function PdfHighlighter({ src, annotations, onAdd, onRemove, onUp
       </div>
   <div ref={containerRef} className="relative mx-auto w-full max-w-full overflow-hidden" style={{ minHeight: 420 }} onWheel={(e)=>{ if (e.ctrlKey) { e.preventDefault(); setZoom(z=> Math.max(0.5, Math.min(2, Math.round((z + (e.deltaY < 0 ? 0.1 : -0.1))*10)/10))); } }}>
     <div style={{ position: 'relative', transform: `translate(${pan.x}px, ${pan.y}px)` }}>
-  <Document file={{ url: src, httpHeaders: authHeader, withCredentials: true } as any} onLoadSuccess={onDocLoadSuccess} onLoadError={console.error}>
+  <Document
+            file={(blobUrl || { url: src, httpHeaders: authHeader, withCredentials: true }) as any}
+            onLoadSuccess={onDocLoadSuccess}
+            onLoadError={async (err: any) => {
+              // fallback: tenta baixar como blob com credenciais e reabrir
+              try {
+                const res = await fetch(src, { headers: authHeader as any, credentials: 'include' });
+                if (!res.ok) throw new Error('blob-fetch-failed');
+                const b = await res.blob();
+                const url = URL.createObjectURL(b);
+                setBlobUrl(url);
+              } catch (e) {
+                console.error(err);
+              }
+            }}
+          >
           <Page
       pageNumber={controlledPage ?? uncontrolledPage}
     width={effectiveWidth}

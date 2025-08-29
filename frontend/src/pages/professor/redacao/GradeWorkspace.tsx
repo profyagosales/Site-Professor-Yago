@@ -53,9 +53,13 @@ export default function GradeWorkspace() {
   // Resolução do src do PDF: faz preflight HEAD e tenta fallback com ?token em caso de 401
   const [pdfCheck, setPdfCheck] = useState<'unknown'|'ok'|'fail'>('unknown');
   const [srcOk, setSrcOk] = useState<string | null>(null);
+  const [contentType, setContentType] = useState<string | null>(null);
+  const [forceInline, setForceInline] = useState(false);
   useEffect(() => {
     setPdfCheck('unknown');
     setSrcOk(null);
+    setContentType(null);
+    setForceInline(false);
   }, [essay?.originalUrl, essay?.fileUrl]);
 
   // Configura worker do PDF de forma segura (efeito) para evitar efeitos colaterais no render
@@ -220,7 +224,7 @@ export default function GradeWorkspace() {
   const isPdfByExt = useMemo(() => (essay?.originalUrl || essay?.fileUrl || essay?.correctedUrl || '')
     .toLowerCase().includes('.pdf'), [essay?.originalUrl, essay?.fileUrl, essay?.correctedUrl]);
   const isPdfByMime = useMemo(() => typeof essay?.originalMimeType === 'string' && essay!.originalMimeType.toLowerCase().includes('pdf'), [essay?.originalMimeType]);
-  const isPdf = isPdfByExt || isPdfByMime;
+  const isPdf = isPdfByExt || isPdfByMime || (contentType ? contentType.toLowerCase().includes('pdf') : false);
   const idStr = (essay as any)?._id || (essay as any)?.id;
   const RAW_API_URL = ((import.meta as any).env?.VITE_API_URL || '').toString();
   const base = RAW_API_URL.replace(/\/$/, '');
@@ -249,16 +253,39 @@ export default function GradeWorkspace() {
       setPdfCheck('unknown');
       try {
         const r = await fetch(proxied, { method: 'HEAD', headers: authHeader as any, credentials: 'include' });
-        if (!cancelled && r.ok) { setSrcOk(proxied); setPdfCheck('ok'); return; }
+        if (!cancelled && r.ok) {
+          const ct = r.headers.get('content-type');
+          if (ct) setContentType(ct);
+          setSrcOk(proxied);
+          setPdfCheck('ok');
+          return;
+        }
+        // Se não for 401, ainda assim tentamos renderizar (falhas de HEAD/502/405 não impedem GET real)
+        if (!cancelled && r.status !== 401) {
+          const ct = r.headers.get('content-type');
+          if (ct) setContentType(ct);
+          setSrcOk(proxied);
+          setPdfCheck('ok');
+          return;
+        }
         if (!cancelled && r.status === 401 && _t) {
           const u = new URL(proxied, typeof window !== 'undefined' ? window.location.origin : 'http://local');
           if (!u.searchParams.get('token')) u.searchParams.set('token', _t);
           const tokenUrl = u.pathname + u.search;
           const r2 = await fetch(tokenUrl, { method: 'HEAD', credentials: 'include' });
-          if (!cancelled && r2.ok) { setSrcOk(tokenUrl); setPdfCheck('ok'); return; }
+          if (!cancelled && r2.ok) {
+            const ct2 = r2.headers.get('content-type');
+            if (ct2) setContentType(ct2);
+            setSrcOk(tokenUrl);
+            setPdfCheck('ok');
+            return;
+          }
+          // Mesmo após 401, tenta inline com token por via das dúvidas
+          if (!cancelled) { setSrcOk(tokenUrl); setPdfCheck('ok'); return; }
         }
       } catch {}
-      if (!cancelled) { setPdfCheck('fail'); setSrcOk(null); }
+      // Em falha de rede do HEAD, ainda tentamos inline
+      if (!cancelled) { setSrcOk(proxied); setPdfCheck('ok'); }
     })();
     return () => { cancelled = true; };
   }, [proxied, _t]);
@@ -301,8 +328,9 @@ export default function GradeWorkspace() {
   if (loading && !essay) return <div className="p-6">Carregando…</div>;
   if (err) return <div className="p-6 text-red-600">{err}</div>;
   if (!essay) return null;
-    // Render inline quando o preflight confirmar OK.
-    const canRenderInline = pdfCheck === 'ok' && !!srcOk;
+    // Render inline quando o preflight confirmar OK, ou quando usuário forçar.
+    const canRenderInline = (pdfCheck === 'ok' && !!(srcOk || srcUrl)) || forceInline;
+    const effectiveSrc = (srcOk || srcUrl) || '';
 
   async function openPdfInNewTab() {
     // Tenta primeiro via proxy autenticado (relative /api/...)
@@ -441,10 +469,10 @@ export default function GradeWorkspace() {
           {pdfCheck === 'unknown' && (
             <div className="p-4 text-sm text-ys-ink-2">Verificando arquivo…</div>
           )}
-          {canRenderInline ? (
+          {canRenderInline && isPdf ? (
             useNewAnnotator ? (
               <PdfAnnotator
-                src={srcOk || srcUrl}
+                src={effectiveSrc}
                 storageKey={`rich:${essay._id || essay.id}`}
                 annos={richAnnos}
                 onChange={setRichAnnos}
@@ -459,7 +487,7 @@ export default function GradeWorkspace() {
               />
             ) : (
               <PdfHighlighter
-                src={srcOk || srcUrl}
+                src={effectiveSrc}
                 annotations={annotations}
                 currentPage={currentPage}
                 onPageChange={setCurrentPage}
@@ -487,8 +515,37 @@ export default function GradeWorkspace() {
                 }}
               />
             )
+          ) : canRenderInline && !isPdf ? (
+            <div className="p-4 text-sm text-[#111827] space-y-2">
+              <div>O arquivo não é um PDF (Content-Type: {contentType || essay.originalMimeType || 'desconhecido'}). Exibindo visualização básica.</div>
+              {/* tenta imagem; se falhar, usa iframe */}
+              <img src={effectiveSrc} alt="arquivo" className="mt-2 max-h-[70vh] w-full object-contain" onError={(e)=>{
+                const img = e.currentTarget; const parent = img.parentElement as HTMLElement | null; if (!parent) return;
+                img.style.display = 'none';
+                const iframe = document.createElement('iframe');
+                iframe.title = 'arquivo';
+                iframe.style.width = '100%'; iframe.style.height = '70vh'; iframe.className = 'rounded border';
+                iframe.src = effectiveSrc; parent.appendChild(iframe);
+              }} />
+              <div className="flex gap-2">
+                <button className="rounded border px-2 py-1" onClick={()=> openPdfInNewTab()}>Abrir em nova aba</button>
+              </div>
+            </div>
           ) : pdfCheck === 'fail' ? (
-            <div className="p-4 text-sm text-red-600">Falha ao carregar o PDF.</div>
+            <div className="p-4 text-sm text-red-600 space-y-2">
+              <div>Falha ao verificar o arquivo.</div>
+              <div className="flex gap-2">
+                <button className="rounded border px-2 py-1" onClick={()=>{ setForceInline(true); setSrcOk(srcUrl); }}>Tentar carregar mesmo assim</button>
+                {srcUrl && (
+                  <button className="rounded border px-2 py-1" onClick={()=>{
+                    const el = document.getElementById('fallback-pdf') as HTMLIFrameElement | null;
+                    if (el) { el.src = srcUrl; }
+                    setForceInline(false);
+                  }}>Ver básico (sem anotações)</button>
+                )}
+              </div>
+              <iframe id="fallback-pdf" title="arquivo" className="mt-2 h-[70vh] w-full rounded border" style={{ display: 'block' }} />
+            </div>
           ) : null}
         </div>
         <div className="space-y-3">

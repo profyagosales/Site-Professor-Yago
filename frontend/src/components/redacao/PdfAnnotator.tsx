@@ -32,6 +32,7 @@ type Props = {
 
 export default function PdfAnnotator({ src, storageKey, annos, onChange, page: controlledPage, onPageChange, selectedId: controlledSel, onSelectId }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [numPages, setNumPages] = useState(1);
   const [page, setPage] = useState(1);
   const [zoom, setZoom] = useState(1);
@@ -60,6 +61,11 @@ export default function PdfAnnotator({ src, storageKey, annos, onChange, page: c
     const t = getToken();
     return t ? { Authorization: `Bearer ${t}` } : undefined;
   }, []);
+  // reset blobUrl quando src muda e cleanup
+  useEffect(() => {
+    if (blobUrl) { try { URL.revokeObjectURL(blobUrl); } catch {} setBlobUrl(null); }
+  }, [src]);
+  useEffect(() => () => { if (blobUrl) { try { URL.revokeObjectURL(blobUrl); } catch {} } }, [blobUrl]);
 
   // mede altura do viewport do scroller ao montar
   useEffect(() => {
@@ -375,7 +381,19 @@ export default function PdfAnnotator({ src, storageKey, annos, onChange, page: c
         </div>
         {virtMode ? (
           <div className="relative mx-auto w-full max-w-full overflow-hidden" style={{ minHeight: 420 }}>
-            <Document file={{ url: src, httpHeaders: authHeader, withCredentials: true } as any} onLoadSuccess={(d:any)=> setNumPages(d.numPages||1)} onLoadError={console.error}>
+            <Document
+              file={(blobUrl || { url: src, httpHeaders: authHeader, withCredentials: true }) as any}
+              onLoadSuccess={(d:any)=> setNumPages(d.numPages||1)}
+              onLoadError={async (err: any) => {
+                try {
+                  const res = await fetch(src, { headers: authHeader as any, credentials: 'include' });
+                  if (!res.ok) throw new Error('blob-fetch-failed');
+                  const b = await res.blob();
+                  const url = URL.createObjectURL(b);
+                  setBlobUrl(url);
+                } catch (e) { console.error(err); }
+              }}
+            >
               <div
                 ref={scrollerRef}
                 className="relative h-[70vh] overflow-auto"
@@ -469,7 +487,19 @@ export default function PdfAnnotator({ src, storageKey, annos, onChange, page: c
         ) : (
           <div className="relative mx-auto w-full max-w-full overflow-hidden" style={{ minHeight: 420 }}>
             <div className="relative" ref={containerRef} onMouseDown={handleDown} onMouseMove={(e)=> handleMove(e)} onMouseUp={handleUp}>
-              <Document file={{ url: src, httpHeaders: authHeader, withCredentials: true } as any} onLoadSuccess={(p:any)=> setNumPages(p.numPages||1)} onLoadError={console.error}>
+              <Document
+                file={(blobUrl || { url: src, httpHeaders: authHeader, withCredentials: true }) as any}
+                onLoadSuccess={(p:any)=> setNumPages(p.numPages||1)}
+                onLoadError={async (err:any) => {
+                  try {
+                    const res = await fetch(src, { headers: authHeader as any, credentials: 'include' });
+                    if (!res.ok) throw new Error('blob-fetch-failed');
+                    const b = await res.blob();
+                    const url = URL.createObjectURL(b);
+                    setBlobUrl(url);
+                  } catch (e) { console.error(err); }
+                }}
+              >
                 <Page pageNumber={page} width={Math.floor((containerRef.current?.clientWidth || 640) * zoom)} renderTextLayer={false} renderAnnotationLayer={false} />
               </Document>
               <div data-testid="overlay-single" className="absolute left-0 top-0 z-10 h-full w-full">
