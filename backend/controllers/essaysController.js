@@ -470,16 +470,43 @@ module.exports = {
       const { id } = req.params;
       const essay = await Essay.findById(id);
       if (!essay || !essay.originalUrl) return res.status(404).json({ message: 'Arquivo não encontrado' });
-  const origUrl = essay.originalUrl;
+      const origUrl = essay.originalUrl;
   const method = (req.method || 'GET').toUpperCase();
   const headers = {};
-  if (req.headers['range']) headers['Range'] = req.headers['range'];
+      if (req.headers['range']) headers['Range'] = req.headers['range'];
   // Para HEAD, alguns provedores não suportam; fazemos GET com Range mínimo para obter cabeçalhos
   const upstreamMethod = method === 'HEAD' ? 'GET' : method;
   if (method === 'HEAD' && !headers['Range']) headers['Range'] = 'bytes=0-0';
 
+      // Modo de teste: retorna conteúdo mock para permitir testar HEAD/GET/Range sem rede
+      if (process.env.NODE_ENV === 'test') {
+        const buf = Buffer.from('%PDF-1.4\n%mock');
+        const total = buf.length;
+        res.setHeader('Accept-Ranges', 'bytes');
+        res.setHeader('Content-Type', essay.originalMimeType || 'application/pdf');
+        res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+        if (method === 'HEAD') {
+          res.setHeader('Content-Length', String(total));
+          return res.status(200).end();
+        }
+        const range = req.headers['range'];
+        if (range && /^bytes=\d+-\d*$/.test(range)) {
+          const m = /bytes=(\d+)-(\d*)/.exec(range);
+          const start = Number(m[1]);
+          const end = m[2] ? Number(m[2]) : total - 1;
+          if (start >= total) return res.status(416).end();
+          const e = Math.min(end, total - 1);
+          res.status(206);
+          res.setHeader('Content-Range', `bytes ${start}-${e}/${total}`);
+          res.setHeader('Content-Length', String(e - start + 1));
+          return res.end(buf.subarray(start, e + 1));
+        }
+        res.setHeader('Content-Length', String(total));
+        return res.status(200).end(buf);
+      }
+
       const doRequest = (url, redirectsLeft) => new Promise((resolve) => {
-        const h = url.startsWith('https') ? https : http;
+  const h = url.startsWith('https') ? https : http;
   const r = h.request(url, { method: upstreamMethod, headers }, (up) => {
           const status = up.statusCode || 200;
           // Follow 3xx redirects (até 3 saltos)
@@ -534,15 +561,24 @@ module.exports = {
               sign_url: true,
               secure: true
             });
-            return [signedUrl, origUrl];
+            // Alternativa preferida para PDFs privados
+            const signedRawPrivate = cloudinary.url(`${publicId}.${ext}`, {
+              resource_type: 'raw',
+              type: 'private',
+              sign_url: true,
+              secure: true
+            });
+            return [signedRawPrivate, signedUrl, origUrl];
           }
         } catch {}
         return [origUrl];
       })();
 
       let result;
+      let usedSigned = false;
       for (let c = 0; c < candidates.length; c++) {
         let current = candidates[c];
+        if (c === 0) usedSigned = true; // primeira tentativa é signedRawPrivate
         let left = 3;
         // eslint-disable-next-line no-await-in-loop
         while (left >= 0) {
@@ -561,22 +597,44 @@ module.exports = {
 
       if (!result) return res.status(502).json({ message: 'Falha ao obter arquivo' });
       if (result.type === 'redirect-client') return res.redirect(302, result.url);
-      if (result.type !== 'ok') return res.status(result.code || 502).json({ message: result.msg || 'Erro' });
+      if (result.type !== 'ok') {
+        if ([401,403,404].includes(result.code)) {
+          console.warn(`[streamOriginal] upstream ${result.code} para essay ${id}`);
+        }
+        return res.status(result.code || 502).json({ message: result.msg || 'Erro' });
+      }
 
-  const up = result.stream;
+      const up = result.stream;
       const upHeaders = result.headers || {};
       const ct = essay.originalMimeType || upHeaders['content-type'] || 'application/pdf';
       res.setHeader('Content-Type', typeof ct === 'string' ? ct : 'application/pdf');
-      if (upHeaders['content-length']) res.setHeader('Content-Length', upHeaders['content-length']);
-      if (upHeaders['content-range']) res.setHeader('Content-Range', upHeaders['content-range']);
-  // Disposição inline com um nome de arquivo previsível
-  const safeName = `redacao-${essay._id || 'arquivo'}.pdf`;
-  res.setHeader('Content-Disposition', `inline; filename="${safeName}"`);
-  res.setHeader('Cache-Control', 'private, max-age=0');
+      // Expor cabeçalhos via CORS já está configurado em app.js
+      const safeName = `redacao-${essay._id || 'arquivo'}.pdf`;
+      res.setHeader('Content-Disposition', `inline; filename="${safeName}"`);
+      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
       res.setHeader('Accept-Ranges', 'bytes');
-      res.status(req.headers['range'] ? 206 : 200);
-      if (method === 'HEAD') { up.resume(); res.end(); }
-      else { up.pipe(res); }
+
+      // HEAD: tentar informar Content-Length total
+      if (method === 'HEAD') {
+        const cr = upHeaders['content-range'];
+        if (cr && /(\/(\d+))$/.test(String(cr))) {
+          const m = /\/(\d+)$/.exec(String(cr));
+          if (m && m[1]) res.setHeader('Content-Length', m[1]);
+        } else if (upHeaders['content-length']) {
+          res.setHeader('Content-Length', upHeaders['content-length']);
+        }
+        if (usedSigned) console.info('[streamOriginal] usando URL assinada (Cloudinary)');
+        up.resume();
+        return res.status(200).end();
+      }
+
+      // GET: parcial ou completo
+      const hasRange = Boolean(req.headers['range']);
+      if (upHeaders['content-range']) res.setHeader('Content-Range', upHeaders['content-range']);
+      if (!hasRange && upHeaders['content-length']) res.setHeader('Content-Length', upHeaders['content-length']);
+      if (usedSigned) console.info('[streamOriginal] usando URL assinada (Cloudinary)');
+      res.status(hasRange ? 206 : 200);
+      up.pipe(res);
     } catch (e) {
       res.status(500).json({ message: 'Erro ao transmitir arquivo' });
     }

@@ -246,7 +246,7 @@ export default function GradeWorkspace() {
   const authHeader = _t ? { Authorization: `Bearer ${_t}` } : undefined;
   const srcUrl = proxied || direct || null;
 
-  // Preflight HEAD: tenta sem token; se 401, tenta com ?token=
+  // Preflight HEAD: tenta sem token; se 401, ainda permitimos o GET tentar via credenciais
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -271,22 +271,7 @@ export default function GradeWorkspace() {
           setPdfCheck('ok');
           return;
         }
-        if (!cancelled && r.status === 401 && _t) {
-          const u = new URL(proxied, typeof window !== 'undefined' ? window.location.origin : 'http://local');
-          if (!u.searchParams.get('token')) u.searchParams.set('token', _t);
-          const tokenUrl = u.pathname + u.search;
-          const r2 = await fetch(tokenUrl, { method: 'HEAD', credentials: 'include' });
-          if (!cancelled && r2.ok) {
-            const ct2 = r2.headers.get('content-type');
-            if (ct2) setContentType(ct2);
-            setSrcOk(tokenUrl);
-            setPdfCheck('ok');
-            return;
-          }
-          // Em 5xx com token, ainda assim não alternamos para direto automaticamente
-          // Mesmo após 401, tenta inline com token por via das dúvidas
-          if (!cancelled) { setSrcOk(tokenUrl); setPdfCheck('ok'); return; }
-        }
+  // Não usamos fallback com ?token= para evitar 414
       } catch {}
       // Em falha de rede do HEAD, ainda tentamos inline
       if (!cancelled) { setSrcOk(proxied); setPdfCheck('ok'); }
@@ -467,7 +452,7 @@ export default function GradeWorkspace() {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4">
+  <div className="grid gap-4" style={{ gridTemplateColumns: 'minmax(0, 7fr) minmax(0, 3fr)' }}>
         <div className="min-h-[420px] overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#F9FAFB]">
           {/* Status */}
           {pdfCheck === 'unknown' && (

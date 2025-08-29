@@ -26,7 +26,8 @@ export default function PdfViewer({ essayId }: { essayId: string }) {
       try {
         const token = getToken?.();
         const res = await fetch(`/api/essays/${essayId}/file`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          credentials: 'include'
         });
         if (!res.ok) throw new Error('PDF fetch failed');
         const data = await res.arrayBuffer();
@@ -46,7 +47,8 @@ export default function PdfViewer({ essayId }: { essayId: string }) {
       try {
         const token = getToken?.();
         const r = await fetch(`/api/essays/${essayId}/annotations`, {
-          headers: token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }
+          headers: token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' },
+          credentials: 'include'
         });
         if (!alive) return;
         if (r.ok) {
@@ -72,7 +74,8 @@ export default function PdfViewer({ essayId }: { essayId: string }) {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {})
           },
-          body: JSON.stringify(anns)
+          body: JSON.stringify(anns),
+          credentials: 'include'
         });
       } catch { /* noop */ }
       finally { setIsSaving(false); }

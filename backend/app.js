@@ -52,6 +52,7 @@ const allowList = [
     ...raw,
     'http://localhost:5173',
     'https://localhost:5173',
+    'https://site-professor-yago-frontend.vercel.app',
   ])
 ];
 
@@ -62,9 +63,9 @@ const corsMiddleware = cors({
     return cb(ok ? null : new Error(`CORS: origem não permitida: ${origin}`), ok);
   },
   credentials: true,
-  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  methods: ['GET','HEAD','POST','PUT','PATCH','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization','X-Requested-With','Range'],
-  exposedHeaders: ['Content-Range','Accept-Ranges','Content-Disposition'],
+  exposedHeaders: ['Content-Range','Accept-Ranges','Content-Disposition','Content-Length'],
   maxAge: 86400,
 });
 app.use(corsMiddleware);

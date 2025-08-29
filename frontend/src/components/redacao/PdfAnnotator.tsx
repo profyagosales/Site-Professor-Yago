@@ -393,17 +393,7 @@ export default function PdfAnnotator({ src, altSrc, storageKey, annos, onChange,
                 try {
                   const same = (() => { try { if (src.startsWith('/')) return true; return new URL(src, window.location.href).origin === window.location.origin; } catch { return false; } })();
                   let res = await fetch(src, same ? ({ headers: authHeader as any, credentials: 'include' } as RequestInit) : ({} as RequestInit));
-                  if (!res.ok && same) {
-                    // fallback: tenta ?token= no próprio /api
-                    const t = getToken?.();
-                    if (t) {
-                      try {
-                        const u = new URL(src, window.location.href);
-                        u.searchParams.set('token', t);
-                        res = await fetch(u.toString(), { credentials: 'include' });
-                      } catch {}
-                    }
-                  }
+                  // Não adicionar query ?token= para evitar 414; vamos direto para blob
                   if (!res.ok) throw new Error('blob-fetch-failed');
                   const b = await res.blob();
                   const url = URL.createObjectURL(b);
@@ -526,16 +516,7 @@ export default function PdfAnnotator({ src, altSrc, storageKey, annos, onChange,
                   try {
                     const same = (() => { try { if (src.startsWith('/')) return true; return new URL(src, window.location.href).origin === window.location.origin; } catch { return false; } })();
                     let res = await fetch(src, same ? ({ headers: authHeader as any, credentials: 'include' } as RequestInit) : ({} as RequestInit));
-                    if (!res.ok && same) {
-                      const t = getToken?.();
-                      if (t) {
-                        try {
-                          const u = new URL(src, window.location.href);
-                          u.searchParams.set('token', t);
-                          res = await fetch(u.toString(), { credentials: 'include' });
-                        } catch {}
-                      }
-                    }
+                    // Não adicionar query ?token= para evitar 414; vamos direto para blob
                     if (!res.ok) throw new Error('blob-fetch-failed');
                     const b = await res.blob();
                     const url = URL.createObjectURL(b);

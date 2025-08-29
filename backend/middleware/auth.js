@@ -3,10 +3,13 @@ const Student = require('../models/Student');
 const Teacher = require('../models/Teacher');
 
 async function authRequired(req, res, next) {
+  // Aceita token via cookie ('session' legado ou 'auth' atual) ou via Authorization: Bearer
+  // Permitir múltiplas origens de token: cookie, Authorization, X-Auth-Token
   try {
-    // Aceita token via cookie ('session' legado ou 'auth' atual) ou via Authorization: Bearer
-    // Permitir múltiplas origens de token: cookie, Authorization, X-Auth-Token e, em último caso,
-    // query ?token= para caminhos específicos (ex.: stream de PDF), para reduzir 401 em clients embutidos
+    const method = (req.method || 'GET').toUpperCase();
+    if (!['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'].includes(method)) {
+      // continua normalmente; Express já validará método
+    }
     let token =
       req.cookies?.session ||
       req.cookies?.auth ||
@@ -15,19 +18,12 @@ async function authRequired(req, res, next) {
         : null) ||
       (req.headers['x-auth-token'] ? String(req.headers['x-auth-token']) : null);
 
-    // Fallback controlado: aceita token na query apenas para stream de arquivos de redação
-    if (!token && req.method && /^(GET|HEAD)$/i.test(req.method)) {
-      const p = req.path || '';
-      if (/\/essays\/.+\/file$/i.test(p) || /\/redacoes\/.+\/arquivo$/i.test(p)) {
-        if (req.query && typeof req.query.token === 'string' && req.query.token.trim()) {
-          token = req.query.token.trim();
-        }
-      }
-    }
-
+    // Não aceitar mais token via query (?token=) para a rota de arquivo
     if (!token) {
+      console.warn(`[auth] 401 sem token para ${method} ${req.originalUrl || req.url}`);
       return res.status(401).json({ success: false, message: 'Unauthenticated' });
     }
+
     // Verifica o token com o segredo atual; se falhar por assinatura inválida,
     // tenta um segredo legado (JWT_SECRET_FALLBACK), útil após rotações de chave.
     let payload;
@@ -39,30 +35,33 @@ async function authRequired(req, res, next) {
         try {
           payload = jwt.verify(token, fb);
         } catch (_) {
+          console.warn('[auth] token inválido (fallback)');
           return res.status(401).json({ success: false, message: 'Unauthenticated' });
         }
       } else {
+        console.warn('[auth] token inválido');
         return res.status(401).json({ success: false, message: 'Unauthenticated' });
       }
     }
 
     // Enriquecer perfil/usuário para suportar tokens simples usados nos testes
-  let profile = payload.role || null;
-  const id = payload.id || payload._id || payload.sub || null;
+    let profile = payload.role || null;
+    const id = payload.id || payload._id || payload.sub || null;
     let userClass = payload.class || null;
 
     if (!profile && id) {
-      // Tenta identificar se é professor ou aluno a partir do id
-      const teacher = await Teacher.findById(id).select('_id').lean();
-      if (teacher) {
-        profile = 'teacher';
-      } else {
-        const student = await Student.findById(id).select('_id class').lean();
-        if (student) {
-          profile = 'student';
-          userClass = userClass || student.class;
+      try {
+        const teacher = await Teacher.findById(id).select('_id').lean();
+        if (teacher) {
+          profile = 'teacher';
+        } else {
+          const student = await Student.findById(id).select('_id class').lean();
+          if (student) {
+            profile = 'student';
+            userClass = userClass || student.class;
+          }
         }
-      }
+      } catch {}
     }
 
     req.profile = profile || req.profile;
@@ -74,6 +73,7 @@ async function authRequired(req, res, next) {
     };
     return next();
   } catch (e) {
+    console.warn('[auth] erro inesperado', e && e.message ? e.message : e);
     return res.status(401).json({ success: false, message: 'Unauthenticated' });
   }
 }

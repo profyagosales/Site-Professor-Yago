@@ -10,7 +10,7 @@ const baseURL = ENV_BASE || DEFAULT_BASE;
 
 export const api = axios.create({
   baseURL,
-  withCredentials: false,
+  withCredentials: true,
 });
 
 api.interceptors.request.use((config) => {
