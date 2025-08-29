@@ -410,7 +410,7 @@ module.exports = {
       const { id } = req.params;
       const essay = await Essay.findById(id);
       if (!essay || !essay.originalUrl) return res.status(404).json({ message: 'Arquivo não encontrado' });
-      const origUrl = essay.originalUrl;
+  const origUrl = essay.originalUrl;
   const method = (req.method || 'GET').toUpperCase();
   const headers = {};
   if (req.headers['range']) headers['Range'] = req.headers['range'];
@@ -451,19 +451,51 @@ module.exports = {
         r.end();
       });
 
-      let current = origUrl;
+      // Tenta primeiro uma URL assinada do Cloudinary (se possível), depois cai para a URL original
+      const candidates = (() => {
+        try {
+          const u = new URL(origUrl);
+          // Esperado: /<cloud>/<resource_type>/<type>/v<versao>/<public_id>.<ext>
+          const parts = u.pathname.split('/').filter(Boolean);
+          // parts[0]=<cloud>, [1]=resource_type, [2]=type, [3]=v..., [4..]=public_id segments
+          if (parts.length >= 5) {
+            const resource_type = parts[1];
+            const deliveryType = parts[2];
+            const last = parts[parts.length - 1] || '';
+            const dot = last.lastIndexOf('.');
+            const ext = dot > 0 ? last.slice(dot + 1) : 'pdf';
+            const pubSegments = parts.slice(4);
+            if (dot > 0) pubSegments[pubSegments.length - 1] = last.slice(0, dot);
+            const publicId = pubSegments.join('/');
+            const signedUrl = cloudinary.url(`${publicId}.${ext}`, {
+              resource_type,
+              type: deliveryType,
+              sign_url: true,
+              secure: true
+            });
+            return [signedUrl, origUrl];
+          }
+        } catch {}
+        return [origUrl];
+      })();
+
       let result;
-      let left = 3;
-      while (left >= 0) {
+      for (let c = 0; c < candidates.length; c++) {
+        let current = candidates[c];
+        let left = 3;
         // eslint-disable-next-line no-await-in-loop
-        const r = await doRequest(current, left);
-        if (r.type === 'redirect') {
-          current = r.url;
-          left -= 1;
-          continue;
+        while (left >= 0) {
+          // eslint-disable-next-line no-await-in-loop
+          const r = await doRequest(current, left);
+          if (r.type === 'redirect') {
+            current = r.url;
+            left -= 1;
+            continue;
+          }
+          result = r;
+          break;
         }
-        result = r;
-        break;
+        if (result && result.type === 'ok') break; // sucesso
       }
 
       if (!result) return res.status(502).json({ message: 'Falha ao obter arquivo' });
