@@ -405,6 +405,66 @@ module.exports = {
   gradeEssay,
   updateAnnotations,
   renderCorrection,
+  // Compat: endpoints GET/PUT para { highlights:[], comments:[] }
+  async getAnnotationsCompat(req, res) {
+    const { id } = req.params;
+    const essay = await Essay.findById(id).select('richAnnotations');
+    if (!essay) return res.status(404).json({ message: 'Redação não encontrada' });
+    const highlights = [];
+    const comments = [];
+    const rich = Array.isArray(essay.richAnnotations) ? essay.richAnnotations : [];
+    for (const a of rich) {
+      if (a && a.type === 'highlight' && Array.isArray(a.rects)) {
+        for (const r of a.rects) {
+          if (r && typeof r.x === 'number') {
+            highlights.push({ page: a.page, x: r.x, y: r.y, w: r.w, h: r.h });
+          }
+        }
+      }
+      if (a && a.type === 'comment' && a.at) {
+        comments.push({ page: a.page, x: a.at.x, y: a.at.y, text: a.text || '' });
+      }
+    }
+    return res.json({ highlights, comments });
+  },
+  async putAnnotationsCompat(req, res) {
+    const { id } = req.params;
+    const body = req.body || {};
+    const inHigh = Array.isArray(body.highlights) ? body.highlights : [];
+    const inCom = Array.isArray(body.comments) ? body.comments : [];
+    const essay = await Essay.findById(id);
+    if (!essay) return res.status(404).json({ message: 'Redação não encontrada' });
+    const prev = Array.isArray(essay.richAnnotations) ? essay.richAnnotations : [];
+    // Mantém tipos não cobertos (pen/box/strike) e substitui highlights/comments
+    const keep = prev.filter((a) => a && !['highlight', 'comment'].includes(a.type));
+    const now = new Date().toISOString();
+    const richHighlights = inHigh
+      .filter((r) => r && typeof r.page === 'number')
+      .map((r) => ({
+        id: (global.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`).toString(),
+        page: r.page,
+        type: 'highlight',
+        createdAt: now,
+        updatedAt: now,
+        rects: [{ x: r.x || 0, y: r.y || 0, w: r.w || 0, h: r.h || 0 }],
+        opacity: 0.35,
+        color: '#FFEB3B'
+      }));
+    const richComments = inCom
+      .filter((c) => c && typeof c.page === 'number')
+      .map((c) => ({
+        id: (global.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`).toString(),
+        page: c.page,
+        type: 'comment',
+        createdAt: now,
+        updatedAt: now,
+        at: { x: c.x || 0, y: c.y || 0 },
+        text: c.text || ''
+      }));
+    essay.richAnnotations = [...keep, ...richHighlights, ...richComments];
+    await essay.save();
+    return res.json({ highlights: inHigh, comments: inCom });
+  },
   async streamOriginal(req, res) {
     try {
       const { id } = req.params;

@@ -10,7 +10,9 @@ const {
   gradeEssay,
   updateAnnotations,
   renderCorrection,
-  streamOriginal
+  streamOriginal,
+  getAnnotationsCompat,
+  putAnnotationsCompat
 } = require('../controllers/essaysController');
 
 const router = express.Router();
@@ -25,6 +27,9 @@ router.post('/', authRequired, upload.single('file'), createEssay);
 router.get('/', authRequired, listEssays);
 router.patch('/:id/grade', authRequired, upload.single('correctedFile'), gradeEssay);
 router.patch('/:id/annotations', authRequired, updateAnnotations);
+// Compat: estrutura { highlights:[], comments:[] }
+router.get('/:id/annotations', authRequired, getAnnotationsCompat);
+router.put('/:id/annotations', authRequired, putAnnotationsCompat);
 router.post('/:id/render-correction', authRequired, renderCorrection);
 router.get('/:id/file', authRequired, streamOriginal);
 router.head('/:id/file', authRequired, streamOriginal);

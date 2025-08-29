@@ -8,6 +8,7 @@ import AnnotationEditor from '@/components/redacao/AnnotationEditor';
 import AnnotationEditorRich from '@/components/redacao/AnnotationEditorRich';
 import PdfHighlighter from '@/components/redacao/PdfHighlighter';
 import PdfAnnotator from '@/components/redacao/PdfAnnotator';
+import PdfViewer from '@/components/redacao/PdfViewer';
 import type { Anno } from '@/types/annotations';
 import type { Annotation } from '@/types/redacao';
 import { toast } from 'react-toastify';
@@ -473,6 +474,10 @@ export default function GradeWorkspace() {
             <div className="p-4 text-sm text-ys-ink-2">Verificando arquivo…</div>
           )}
           {canRenderInline && isPdf ? (
+            // Flag opcional para usar um viewer simplificado baseado em pdfjs sem alterar a UI existente
+            (typeof window !== 'undefined' && (window as any).YS_PDFJS) ? (
+              idStr ? <PdfViewer essayId={idStr} /> : <div className="p-4 text-sm text-ys-ink-2">Carregando…</div>
+            ) : (
             useNewAnnotator ? (
               <PdfAnnotator
                 src={effectiveSrc}
@@ -519,6 +524,7 @@ export default function GradeWorkspace() {
                   setAnnotations((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
                 }}
               />
+            )
             )
           ) : canRenderInline && !isPdf ? (
             <div className="p-4 text-sm text-[#111827] space-y-2">
