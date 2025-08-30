@@ -1,6 +1,5 @@
 {
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://site-professor-yago.onrender.com/api/$1" },
-    { "source": "/(.*)", "destination": "/" }
-  ]
+  "framework": "vite",
+  "buildCommand": "npm ci --legacy-peer-deps && npm run build",
+  "outputDirectory": "dist"
 }

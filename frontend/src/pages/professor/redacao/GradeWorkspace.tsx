@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import { getToken } from '@/utils/auth';
 import { pasPreviewFrom } from '@/utils/pas';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchEssayById, gradeEssay, saveAnnotations, renderCorrection } from '@/services/essays.service';
 import AnnotationEditor from '@/components/redacao/AnnotationEditor';
 import AnnotationEditorRich from '@/components/redacao/AnnotationEditorRich';
-import PdfHighlighter, { PdfHighlighterHandle, HighlightItem } from '@/components/redacao/PdfHighlighter';
+import type { PdfHighlighterHandle, HighlightItem } from '@/components/redacao/PdfHighlighter';
 import type { Anno } from '@/types/annotations';
 import { toast } from 'react-toastify';
+const RichHighlighter = import.meta.env.VITE_USE_RICH_ANNOS ?
+  React.lazy(() => import('@/components/redacao/PdfHighlighter')) : null;
 
 export default function GradeWorkspace() {
   const { id } = useParams();
@@ -436,15 +438,18 @@ export default function GradeWorkspace() {
             <div className="p-4 text-sm text-ys-ink-2">Verificando arquivo…</div>
           )}
           {canRenderInline && isPdf ? (
+            RichHighlighter ? (
             <div className="flex h-full">
               <div className="flex-1">
-                <PdfHighlighter
-                  ref={pdfRef}
-                  pdfUrl={effectiveSrc}
-                  highlights={annotations as HighlightItem[]}
-                  onChange={setAnnotations}
-                  onPageChange={setCurrentPage}
-                />
+                <Suspense fallback={<div className="p-4 text-sm text-ys-ink-2">Carregando…</div>}>
+                  <RichHighlighter
+                    ref={pdfRef}
+                    pdfUrl={effectiveSrc}
+                    highlights={annotations as HighlightItem[]}
+                    onChange={setAnnotations}
+                    onPageChange={setCurrentPage}
+                  />
+                </Suspense>
               </div>
               <div className="w-48 border-l flex flex-col">
                 <div className="flex-1 overflow-y-auto p-2 space-y-1 text-xs">
@@ -462,6 +467,9 @@ export default function GradeWorkspace() {
                 </div>
               </div>
             </div>
+            ) : (
+            <iframe src={effectiveSrc} title="arquivo" className="h-full w-full" />
+            )
           ) : canRenderInline && !isPdf ? (
             <div className="p-4 text-sm text-[#111827] space-y-2">
               <div>O arquivo não é um PDF (Content-Type: {contentType || essay.originalMimeType || 'desconhecido'}). Exibindo visualização básica.</div>

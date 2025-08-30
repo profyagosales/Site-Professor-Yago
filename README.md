@@ -1,6 +1,7 @@
 # Site-Professor-Yago
 
 Consulte o [Guia do Usuário](./USER_GUIDE.md) para entender os fluxos de login, envio de redação, correção e visualização de notas.
+**Nota de desenvolvimento:** o projeto na Vercel usa Root Directory = `frontend`, portanto toda a configuração de deploy fica dentro de `frontend/`.
 
 ## Required Environment Variables
 
