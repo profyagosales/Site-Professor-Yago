@@ -48,6 +48,9 @@ const allowList = [
   'https://site-professor-yago-frontend.vercel.app',
 ];
 
+const allowedMethods = 'GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD';
+const allowedHeaders = 'Content-Type,Authorization,Range';
+
 const corsMiddleware = cors({
   origin(origin, cb) {
     if (!origin) return cb(null, true);
@@ -55,8 +58,8 @@ const corsMiddleware = cors({
     return cb(ok ? null : new Error(`CORS: origem não permitida: ${origin}`), ok);
   },
   credentials: true,
-  methods: ['GET','HEAD','POST','PUT','PATCH','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization','X-Requested-With','Range'],
+  methods: allowedMethods,
+  allowedHeaders,
   exposedHeaders: ['Content-Range','Accept-Ranges','Content-Disposition'],
   maxAge: 86400,
 });
