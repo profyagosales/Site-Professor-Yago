@@ -1,17 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { getToken } from '@/utils/auth';
 import { pasPreviewFrom } from '@/utils/pas';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchEssayById, gradeEssay, saveAnnotations, renderCorrection } from '@/services/essays.service';
 import AnnotationEditor from '@/components/redacao/AnnotationEditor';
 import AnnotationEditorRich from '@/components/redacao/AnnotationEditorRich';
-import PdfHighlighter, { PdfHighlighterHandle, HighlightItem } from '@/components/redacao/PdfHighlighter';
+import type { PdfHighlighterHandle, HighlightItem } from '@/components/redacao/PdfHighlighter';
+const PdfHighlighter = lazy(() => import('@/components/redacao/PdfHighlighter'));
 import type { Anno } from '@/types/annotations';
 import { toast } from 'react-toastify';
 
 export default function GradeWorkspace() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const useRich = import.meta.env.VITE_USE_RICH_ANNOS === '1' || import.meta.env.VITE_USE_RICH_ANNOS === 'true';
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string|null>(null);
   const [essay, setEssay] = useState<any | null>(null);
@@ -438,29 +440,37 @@ export default function GradeWorkspace() {
           {canRenderInline && isPdf ? (
             <div className="flex h-full">
               <div className="flex-1">
-                <PdfHighlighter
-                  ref={pdfRef}
-                  pdfUrl={effectiveSrc}
-                  highlights={annotations as HighlightItem[]}
-                  onChange={setAnnotations}
-                  onPageChange={setCurrentPage}
-                />
+                {useRich ? (
+                  <Suspense fallback={<div>Carregando anotações…</div>}>
+                    <PdfHighlighter
+                      ref={pdfRef}
+                      pdfUrl={effectiveSrc}
+                      highlights={annotations as HighlightItem[]}
+                      onChange={setAnnotations}
+                      onPageChange={setCurrentPage}
+                    />
+                  </Suspense>
+                ) : (
+                  <div>Visualizador simples habilitado (anotações avançadas desativadas).</div>
+                )}
               </div>
-              <div className="w-48 border-l flex flex-col">
-                <div className="flex-1 overflow-y-auto p-2 space-y-1 text-xs">
-                  {pageHighlights.length === 0 && <div className="text-ys-ink-2">Sem anotações nesta página</div>}
-                  {pageHighlights.map((h,i)=> (
-                    <div key={h.id || i} className="border-b pb-1 mb-1">
-                      {h.label && <div className="font-medium">{h.label}</div>}
-                      <div>{h.comment}</div>
-                    </div>
-                  ))}
+              {useRich && (
+                <div className="w-48 border-l flex flex-col">
+                  <div className="flex-1 overflow-y-auto p-2 space-y-1 text-xs">
+                    {pageHighlights.length === 0 && <div className="text-ys-ink-2">Sem anotações nesta página</div>}
+                    {pageHighlights.map((h,i)=> (
+                      <div key={h.id || i} className="border-b pb-1 mb-1">
+                        {h.label && <div className="font-medium">{h.label}</div>}
+                        <div>{h.comment}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="p-2 border-t space-y-2">
+                    <button className="w-full rounded border px-2 py-1 text-xs" onClick={goToNextAnnotated}>Próxima com anotação</button>
+                    <button className="w-full rounded border px-2 py-1 text-xs" onClick={clearPage}>Limpar pág.</button>
+                  </div>
                 </div>
-                <div className="p-2 border-t space-y-2">
-                  <button className="w-full rounded border px-2 py-1 text-xs" onClick={goToNextAnnotated}>Próxima com anotação</button>
-                  <button className="w-full rounded border px-2 py-1 text-xs" onClick={clearPage}>Limpar pág.</button>
-                </div>
-              </div>
+              )}
             </div>
           ) : canRenderInline && !isPdf ? (
             <div className="p-4 text-sm text-[#111827] space-y-2">

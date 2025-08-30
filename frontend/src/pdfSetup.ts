@@ -1,4 +1,5 @@
-import { pdfjs } from 'react-pdf';
-import workerSrc from 'pdfjs-dist/build/pdf.worker.min?url';
+// Configura o worker do pdf.js para Vite
+import { GlobalWorkerOptions } from 'pdfjs-dist/build/pdf';
+import workerSrc from 'pdfjs-dist/build/pdf.worker.min.js?url';
 
-pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+GlobalWorkerOptions.workerSrc = workerSrc;
