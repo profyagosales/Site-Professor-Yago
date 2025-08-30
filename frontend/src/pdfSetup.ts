@@ -1,12 +1,15 @@
+let configured = false;
+
+/** Configura o worker do pdf.js somente quando chamado. */
 export async function ensurePdfWorker() {
-  if (typeof window === 'undefined') return;
-  if ((window as any).__PDF_WORKER_READY) return;
-  try {
-    const { pdfjs } = await import('react-pdf');
-    const workerUrl = (await import('pdfjs-dist/build/pdf.worker.min.js?worker&url')).default;
-    pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
-    (window as any).__PDF_WORKER_READY = true;
-  } catch (err) {
-    console.error('pdf worker setup failed', err);
-  }
+  if (configured) return;
+  const pdfjsMod = await import('pdfjs-dist/legacy/build/pdf'); // dynamic + legacy
+  const pdfjs: any = (pdfjsMod as any).default ?? pdfjsMod;
+  // Gera URL do worker a partir do bundle (Vite resolve para /assets/pdf.worker.min-*.js)
+  pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+    'pdf.worker.min.js',
+    import.meta.url
+  ).toString();
+  configured = true;
 }
+

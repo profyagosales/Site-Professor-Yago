@@ -11,7 +11,10 @@ import { toast } from 'react-toastify';
 import { ensurePdfWorker } from '../../../pdfSetup';
 
 const useRich = import.meta.env.VITE_USE_RICH_ANNOS === '1' || import.meta.env.VITE_USE_RICH_ANNOS === 'true';
-const PdfHighlighter = useRich ? React.lazy(() => import('@/components/redacao/PdfHighlighter')) : null;
+// impede o Vite de analisar e pre-carregar dependências do PDF
+const PdfHighlighter = React.lazy(() =>
+  import(/* @vite-ignore */ '../../../components/redacao/PdfHighlighter')
+);
 
 export default function GradeWorkspace() {
   const { id } = useParams();
@@ -60,7 +63,15 @@ export default function GradeWorkspace() {
   const [srcOk, setSrcOk] = useState<string | null>(null);
   const [contentType, setContentType] = useState<string | null>(null);
   const [forceInline, setForceInline] = useState(false);
-  useEffect(() => { void ensurePdfWorker(); }, []);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      await ensurePdfWorker(); // configura worker só quando a tela abre
+      if (!cancelled) setReady(true);
+    })();
+    return () => { cancelled = true; };
+  }, []);
   useEffect(() => {
     setPdfCheck('unknown');
     setSrcOk(null);
@@ -441,35 +452,39 @@ export default function GradeWorkspace() {
             <div className="p-4 text-sm text-ys-ink-2">Verificando arquivo…</div>
           )}
           {canRenderInline && isPdf ? (
-            useRich && PdfHighlighter ? (
-              <div className="flex h-full">
-                <div className="flex-1">
-                  <React.Suspense fallback={<div className="p-4 text-sm text-ys-ink-2">Carregando PDF…</div>}>
-                    <PdfHighlighter
-                      ref={pdfRef}
-                      pdfUrl={effectiveSrc}
-                      highlights={annotations as HighlightItem[]}
-                      onChange={setAnnotations}
-                      onPageChange={setCurrentPage}
-                    />
-                  </React.Suspense>
-                </div>
-                <div className="w-48 border-l flex flex-col">
-                  <div className="flex-1 overflow-y-auto p-2 space-y-1 text-xs">
-                    {pageHighlights.length === 0 && <div className="text-ys-ink-2">Sem anotações nesta página</div>}
-                    {pageHighlights.map((h,i)=> (
-                      <div key={h.id || i} className="border-b pb-1 mb-1">
-                        {h.label && <div className="font-medium">{h.label}</div>}
-                        <div>{h.comment}</div>
-                      </div>
-                    ))}
+            useRich ? (
+              ready ? (
+                <div className="flex h-full">
+                  <div className="flex-1">
+                    <React.Suspense fallback={<div className="p-4 text-sm text-ys-ink-2">Carregando PDF…</div>}>
+                      <PdfHighlighter
+                        ref={pdfRef}
+                        pdfUrl={effectiveSrc}
+                        highlights={annotations as HighlightItem[]}
+                        onChange={setAnnotations}
+                        onPageChange={setCurrentPage}
+                      />
+                    </React.Suspense>
                   </div>
-                  <div className="p-2 border-t space-y-2">
-                    <button className="w-full rounded border px-2 py-1 text-xs" onClick={goToNextAnnotated}>Próxima com anotação</button>
-                    <button className="w-full rounded border px-2 py-1 text-xs" onClick={clearPage}>Limpar pág.</button>
+                  <div className="w-48 border-l flex flex-col">
+                    <div className="flex-1 overflow-y-auto p-2 space-y-1 text-xs">
+                      {pageHighlights.length === 0 && <div className="text-ys-ink-2">Sem anotações nesta página</div>}
+                      {pageHighlights.map((h,i)=> (
+                        <div key={h.id || i} className="border-b pb-1 mb-1">
+                          {h.label && <div className="font-medium">{h.label}</div>}
+                          <div>{h.comment}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="p-2 border-t space-y-2">
+                      <button className="w-full rounded border px-2 py-1 text-xs" onClick={goToNextAnnotated}>Próxima com anotação</button>
+                      <button className="w-full rounded border px-2 py-1 text-xs" onClick={clearPage}>Limpar pág.</button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="p-4 text-sm text-ys-ink-2">Carregando PDF…</div>
+              )
             ) : (
               <div className="p-4 text-sm text-ys-ink-2">Visualização de PDF desativada</div>
             )

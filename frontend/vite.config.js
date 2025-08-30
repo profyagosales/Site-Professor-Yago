@@ -1,19 +1,22 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'node:path'
-import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-      react: path.resolve(__dirname, 'node_modules/react'),
-      'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
-    },
+    alias: [
+      { find: 'react', replacement: path.resolve(__dirname, 'node_modules/react') },
+      { find: 'react-dom', replacement: path.resolve(__dirname, 'node_modules/react-dom') },
+      // força pdf.js legacy para evitar TDZ / CJS mix
+      { find: 'pdfjs-dist/build/pdf', replacement: 'pdfjs-dist/legacy/build/pdf' },
+      { find: 'pdfjs-dist/build/pdf.worker', replacement: 'pdfjs-dist/legacy/build/pdf.worker' },
+      { find: /^pdfjs-dist$/, replacement: 'pdfjs-dist/legacy/build/pdf' },
+      { find: '@', replacement: path.resolve(__dirname, 'src') },
+    ],
   },
   optimizeDeps: {
-    exclude: ['react-pdf', 'pdfjs-dist', 'pdfjs-dist/build/pdf.worker.min.js', 'warning'],
+    exclude: ['react-pdf', 'pdfjs-dist', 'pdfjs-dist/legacy/build/pdf'],
   },
   build: {
     rollupOptions: {
@@ -24,7 +27,7 @@ export default defineConfig({
         },
       },
     },
-    commonjsOptions: { include: [/react-pdf-highlighter/, /pdfjs-dist/, /node_modules/], transformMixedEsModules: true },
+    commonjsOptions: { transformMixedEsModules: true },
     chunkSizeWarningLimit: 1200,
   },
   server: {
