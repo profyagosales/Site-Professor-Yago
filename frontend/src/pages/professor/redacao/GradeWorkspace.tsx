@@ -39,7 +39,6 @@ export default function GradeWorkspace() {
   const [autosaving, setAutosaving] = useState(false);
   const [undoStack, setUndoStack] = useState<Array<{ idx: number; ann: HighlightItem }>>([]);
   const [redoStack, setRedoStack] = useState<Array<{ idx: number; ann: HighlightItem }>>([]);
-  const [thumbs, setThumbs] = useState<'1'|'2'>('2');
   const [dirty, setDirty] = useState(false);
   const [suppressDirty, setSuppressDirty] = useState(true);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
@@ -316,7 +315,7 @@ export default function GradeWorkspace() {
     return () => { cancelled = true; };
   }, [proxied, _t]);
 
-  async function submit(finalizePdf=false, sendEmail=false) {
+  async function submit(generatePdf=false) {
     if (!essay) return;
     try {
       setLoading(true);
@@ -342,8 +341,8 @@ export default function GradeWorkspace() {
           comments,
         });
       }
-      if (finalizePdf) {
-        await renderCorrection(essay._id || essay.id, { sendEmail, thumbnailsCount: Number(thumbs) });
+      if (generatePdf) {
+        await renderCorrection(essay._id || essay.id);
       }
   toast.success('Correção salva');
   setDirty(false);
@@ -436,62 +435,14 @@ export default function GradeWorkspace() {
               </select>
             </div>
           )}
-          {snapshot && (
-            <button
-              className="rounded-lg border border-[#E5E7EB] px-3 py-1.5 disabled:opacity-60"
-              disabled={loading || !dirty}
-              onClick={() => {
-                if (!snapshot) return;
-                setSuppressDirty(true);
-                setAnnotations(snapshot.annotations);
-                setComments(snapshot.comments);
-                setWeight(snapshot.weight);
-                setBimestralValue(snapshot.bimestralPointsValue);
-                setCountInBimestral(snapshot.countInBimestral);
-                setAnnul(snapshot.annul);
-                setC1(snapshot.c1); setC2(snapshot.c2); setC3(snapshot.c3); setC4(snapshot.c4); setC5(snapshot.c5);
-                setNC(snapshot.NC); setNL(snapshot.NL);
-                setDirty(false);
-                setTimeout(() => setSuppressDirty(false), 0);
-              }}
-            >Descartar alterações</button>
-          )}
-          <button className="inline-flex items-center gap-2 rounded-lg border border-[#E5E7EB] px-3 py-1.5 disabled:opacity-60" disabled={loading} onClick={()=>submit(false,false)}>
-            {loading && <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-[#9CA3AF] border-t-transparent" />}
-            <span>Salvar</span>
-          </button>
-          <button className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-3 py-1.5 text-white disabled:opacity-60" disabled={loading} onClick={()=>submit(true,false)}>
-            {loading && <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/80 border-t-transparent" />}
-            <span>Salvar + PDF</span>
-          </button>
-          <button className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-3 py-1.5 text-white disabled:opacity-60" disabled={loading} onClick={()=>submit(true,true)}>
-            {loading && <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/80 border-t-transparent" />}
-            <span>Salvar + PDF + E-mail</span>
-          </button>
-          <div className="ml-2 flex items-center gap-1 text-xs text-ys-ink-2">
-            <span>Miniaturas:</span>
-            <select value={thumbs} onChange={(e)=>setThumbs(e.target.value as '1'|'2')} className="rounded border p-1">
-              <option value="1">1</option>
-              <option value="2">2</option>
-            </select>
-          </div>
-          <div className="ml-2 flex items-center gap-1 text-xs text-ys-ink-2">
-            <button title="Ir para anotação anterior" className="rounded border px-2 py-1" disabled={annotations.length === 0} onClick={()=>{
-              if (annotations.length===0) return;
-              const next = selectedIndex==null ? 0 : (selectedIndex - 1 + annotations.length) % annotations.length;
-              setSelectedIndex(next);
-              const p = (annotations[next] as any)?.bbox?.page; if (typeof p === 'number') setCurrentPage(p+1);
-            }}>Anterior</button>
-            <button title="Ir para próxima anotação" className="rounded border px-2 py-1" disabled={annotations.length === 0} onClick={()=>{
-              if (annotations.length===0) return;
-              const next = selectedIndex==null ? 0 : (selectedIndex + 1) % annotations.length;
-              setSelectedIndex(next);
-              const p = (annotations[next] as any)?.bbox?.page; if (typeof p === 'number') setCurrentPage(p+1);
-            }}>Próxima</button>
-            <span className="ml-1 text-[11px] text-ys-ink-2">
-              {annotations.length > 0 ? `${(selectedIndex ?? 0) + 1} de ${annotations.length}` : '0 de 0'}
-            </span>
-          </div>
+            <button className="inline-flex items-center gap-2 rounded-lg border border-[#E5E7EB] px-3 py-1.5 disabled:opacity-60" disabled={loading} onClick={()=>submit(false)}>
+              {loading && <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-[#9CA3AF] border-t-transparent" />}
+              <span>Salvar</span>
+            </button>
+            <button className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-3 py-1.5 text-white disabled:opacity-60" disabled={loading} onClick={()=>submit(true)}>
+              {loading && <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/80 border-t-transparent" />}
+              <span>Gerar PDF corrigido</span>
+            </button>
         </div>
       </div>
 
@@ -517,6 +468,7 @@ export default function GradeWorkspace() {
                   {pageHighlights.length === 0 && <div className="text-ys-ink-2">Sem anotações nesta página</div>}
                   {pageHighlights.map((h,i)=> (
                     <div key={h.id || i} className="border-b pb-1 mb-1">
+                      {h.label && <div className="font-medium">{h.label}</div>}
                       <div>{h.comment}</div>
                     </div>
                   ))}
