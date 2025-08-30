@@ -3,7 +3,8 @@ import { PdfLoader, PdfHighlighter as RPH, Highlight, Popup } from 'react-pdf-hi
 
 export interface HighlightItem {
   id: string;
-  color: string;
+  color: 'yellow' | 'red' | 'blue';
+  label?: string;
   comment: string;
   selection: any;
   bbox: { page: number; x: number; y: number; w: number; h: number };
@@ -20,16 +21,23 @@ export interface PdfHighlighterHandle {
   jumpToPage: (p:number) => void;
 }
 
-const COLORS: Record<string,string> = {
-  yellow: 'rgba(253, 224, 71, 0.4)',
-  red: 'rgba(239, 68, 68, 0.4)',
-  blue: 'rgba(59, 130, 246, 0.4)'
+const COLORS: Record<HighlightItem['color'], string> = {
+  yellow: '#FDE68A66',
+  red: '#FCA5A559',
+  blue: '#93C5FD59',
 };
 
 function PdfHighlighter({ pdfUrl, highlights, onChange, onPageChange }: Props, ref: any) {
-  const [active, setActive] = useState<'yellow'|'red'|'blue'>('yellow');
+  const [active, setActive] = useState<HighlightItem['color']>('yellow');
   const scrollRef = useRef<any>(null);
   const viewerRef = useRef<any>(null);
+  const [modal, setModal] = useState<{
+    position: any;
+    content: any;
+    hide: () => void;
+  } | null>(null);
+  const [title, setTitle] = useState('');
+  const [text, setText] = useState('');
 
   useImperativeHandle(ref, () => ({
     jumpToPage(page: number) {
@@ -38,35 +46,62 @@ function PdfHighlighter({ pdfUrl, highlights, onChange, onPageChange }: Props, r
     }
   }), [highlights]);
 
-  function handleSelection(position:any, content:any) {
-    const text = window.prompt('Comentário') || '';
+  function handleSelection(position:any, content:any, hide: () => void) {
+    setModal({ position, content, hide });
+    setTitle('');
+    setText('');
+  }
+
+  function saveModal() {
+    if (!modal) return;
     const id = Math.random().toString(36).slice(2);
+    const { position, content, hide } = modal;
     const { pageNumber, boundingRect } = position;
     const bbox = {
       page: pageNumber,
       x: boundingRect.x1,
       y: boundingRect.y1,
       w: boundingRect.x2 - boundingRect.x1,
-      h: boundingRect.y2 - boundingRect.y1
+      h: boundingRect.y2 - boundingRect.y1,
     };
-    onChange([...highlights, { id, color: active, comment: text, selection: { position, content }, bbox }]);
+    onChange([
+      ...highlights,
+      { id, color: active, label: title, comment: text, selection: { position, content }, bbox },
+    ]);
+    hide();
+    setModal(null);
   }
 
-  function highlightTransform(h: HighlightItem, _idx: number, setTip: any, hideTip: any, _t: any, _s: any, isScrolledTo: boolean) {
+  function highlightTransform(
+    h: HighlightItem,
+    _idx: number,
+    setTip: any,
+    hideTip: any,
+    _t: any,
+    _s: any,
+    isScrolledTo: boolean,
+  ) {
+    const lbl = h.label || '';
     const inner = (
       <Highlight
         key={h.id}
         isScrolledTo={isScrolledTo}
         position={h.selection.position}
-        comment={{ text: h.comment }}
+        comment={{ text: lbl ? `${lbl}: ${h.comment}` : h.comment }}
         highlightStyle={{ background: COLORS[h.color] || COLORS.yellow }}
       />
+    );
+    const popup = (
+      <div className="p-1 text-xs">
+        {lbl && <div className="font-medium">{lbl}</div>}
+        <div>{h.comment}</div>
+      </div>
     );
     return (
       <Popup
         key={h.id}
-        popupContent={<div className="p-1 text-xs">{h.comment}</div>}
-        onMouseOver={() => setTip(<div className="p-1 text-xs">{h.comment}</div>)}
+        popupContent={popup}
+        onMouseOver={() => setTip(popup)}
         onMouseOut={hideTip}
       >
         {inner}
@@ -87,6 +122,7 @@ function PdfHighlighter({ pdfUrl, highlights, onChange, onPageChange }: Props, r
   }
 
   return (
+    <>
     <div className="h-full flex flex-col">
       <div className="flex gap-2 p-2 border-b">
         {(['yellow','red','blue'] as const).map(c => (
@@ -107,9 +143,8 @@ function PdfHighlighter({ pdfUrl, highlights, onChange, onPageChange }: Props, r
               scrollRef={(scrollTo) => { scrollRef.current = scrollTo; }}
               onScrollChange={onScroll}
               enableAreaSelection={() => true}
-              onSelectionFinished={(position, content, hide, _tr) => {
-                handleSelection(position, content);
-                hide();
+              onSelectionFinished={(position, content, hide) => {
+                handleSelection(position, content, hide);
               }}
               highlightTransform={highlightTransform}
               highlights={highlights}
@@ -118,6 +153,44 @@ function PdfHighlighter({ pdfUrl, highlights, onChange, onPageChange }: Props, r
         </PdfLoader>
       </div>
     </div>
+    {modal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="w-full max-w-sm rounded bg-white p-4 shadow-lg">
+          <h3 className="mb-2 text-lg font-medium">Novo comentário</h3>
+          <input
+            className="mb-2 w-full rounded border p-2 text-sm"
+            placeholder="Título"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <textarea
+            className="mb-2 w-full rounded border p-2 text-sm"
+            placeholder="Texto"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
+          <div className="mt-2 flex justify-end gap-2">
+            <button
+              className="rounded border px-3 py-1 text-sm"
+              onClick={() => {
+                modal.hide();
+                setModal(null);
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              className="rounded bg-orange-500 px-3 py-1 text-sm text-white disabled:opacity-60"
+              disabled={!title || !text}
+              onClick={saveModal}
+            >
+              Salvar
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
