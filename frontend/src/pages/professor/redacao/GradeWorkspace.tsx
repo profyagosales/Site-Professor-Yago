@@ -266,7 +266,7 @@ export default function GradeWorkspace() {
   const authHeader = _t ? { Authorization: `Bearer ${_t}` } : undefined;
   const srcUrl = proxied || direct || null;
 
-  // Preflight HEAD: tenta sem token; se 401, tenta com ?token=
+  // Preflight HEAD: tenta sem token; se 401, obtém token via POST e tenta novamente
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -281,35 +281,37 @@ export default function GradeWorkspace() {
           setPdfCheck('ok');
           return;
         }
-  // Em 5xx no proxy, não trocamos para URL direta automaticamente (pode ser protegida e gerar 401);
-  // seguimos de forma otimista com o próprio proxy no GET real
+        if (!cancelled && r.status === 401) {
+          try {
+            const tokenEndpoint = proxied.replace(/\/file$/, '/file-token');
+            const tokenResp = await fetch(tokenEndpoint, { method: 'POST', headers: authHeader as any, credentials: 'include' });
+            if (!tokenResp.ok) throw new Error('token');
+            const data = await tokenResp.json();
+            const token = data?.token;
+            if (!token) throw new Error('token-missing');
+            const tokenUrl = proxied + `?token=${encodeURIComponent(token)}`;
+            const r2 = await fetch(tokenUrl, { method: 'HEAD', credentials: 'include' });
+            if (!cancelled && r2.ok) {
+              const ct2 = r2.headers.get('content-type');
+              if (ct2) setContentType(ct2);
+              setSrcOk(tokenUrl);
+              setPdfCheck('ok');
+              return;
+            }
+          } catch {}
+          if (!cancelled) { setSrcOk(null); setPdfCheck('fail'); }
+          return;
+        }
         // Se não for 401, ainda assim tentamos renderizar (falhas de HEAD/502/405 não impedem GET real)
-        if (!cancelled && r.status !== 401) {
+        if (!cancelled) {
           const ct = r.headers.get('content-type');
           if (ct) setContentType(ct);
           setSrcOk(proxied);
           setPdfCheck('ok');
-          return;
         }
-        if (!cancelled && r.status === 401 && _t) {
-          const u = new URL(proxied, typeof window !== 'undefined' ? window.location.origin : 'http://local');
-          if (!u.searchParams.get('token')) u.searchParams.set('token', _t);
-          const tokenUrl = u.pathname + u.search;
-          const r2 = await fetch(tokenUrl, { method: 'HEAD', credentials: 'include' });
-          if (!cancelled && r2.ok) {
-            const ct2 = r2.headers.get('content-type');
-            if (ct2) setContentType(ct2);
-            setSrcOk(tokenUrl);
-            setPdfCheck('ok');
-            return;
-          }
-          // Em 5xx com token, ainda assim não alternamos para direto automaticamente
-          // Mesmo após 401, tenta inline com token por via das dúvidas
-          if (!cancelled) { setSrcOk(tokenUrl); setPdfCheck('ok'); return; }
-        }
-      } catch {}
-      // Em falha de rede do HEAD, ainda tentamos inline
-      if (!cancelled) { setSrcOk(proxied); setPdfCheck('ok'); }
+      } catch {
+        if (!cancelled) { setSrcOk(null); setPdfCheck('fail'); }
+      }
     })();
     return () => { cancelled = true; };
   }, [proxied, _t]);
