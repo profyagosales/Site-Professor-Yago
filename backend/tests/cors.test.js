@@ -2,7 +2,7 @@ const request = require('supertest');
 const { app } = require('../app');
 
 describe('CORS configuration', () => {
-  const allowedOrigin = 'http://localhost:5173';
+  const allowedOrigin = 'https://professoryagosales.com.br';
 
   it('responds to preflight requests from allowed origins', async () => {
     const res = await request(app)
