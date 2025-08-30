@@ -153,4 +153,9 @@ export async function renderCorrection(id: string, opts?: { sendEmail?: boolean;
   return res.data;
 }
 
-export default { fetchEssays, gradeEssay, saveAnnotations, renderCorrection };
+export async function sendCorrectionEmail(id: string) {
+  const res = await api.post(`/essays/${id}/send-email`);
+  return res.data;
+}
+
+export default { fetchEssays, gradeEssay, saveAnnotations, renderCorrection, sendCorrectionEmail };

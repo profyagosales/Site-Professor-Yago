@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import DashboardRedacoes from '@/pages/redacao/DashboardRedacoes';
 import { MemoryRouter } from 'react-router-dom';
 import { listarPendentes, listarCorrigidas } from '@/services/redacoes';
-import { gradeEssay } from '@/services/essays.service';
+import * as essaysService from '@/services/essays.service';
 
 jest.mock('@/services/redacoes');
 jest.mock('@/services/essays.service');
@@ -19,7 +19,8 @@ describe('DashboardRedacoes', () => {
   beforeEach(() => {
     listarPendentes.mockResolvedValue({ redacoes: [] });
     listarCorrigidas.mockResolvedValue({ redacoes: [] });
-    gradeEssay.mockResolvedValue({});
+    essaysService.gradeEssay.mockResolvedValue({});
+    essaysService.sendCorrectionEmail = jest.fn().mockResolvedValue({});
   });
 
   it('renders with empty lists', async () => {
@@ -44,6 +45,28 @@ describe('DashboardRedacoes', () => {
     fireEvent.click(btn);
     const enviar = await screen.findByText('Enviar');
     fireEvent.click(enviar);
-    await waitFor(() => expect(gradeEssay).toHaveBeenCalled());
+    await waitFor(() => expect(essaysService.gradeEssay).toHaveBeenCalled());
+  });
+
+  it('sends email and updates state', async () => {
+    listarCorrigidas.mockResolvedValueOnce({
+      redacoes: [
+        {
+          _id: '1',
+          type: 'ENEM',
+          student: { name: 'Aluno', photo: '' },
+          class: { series: 1, letter: 'A' },
+          submittedAt: new Date().toISOString(),
+        },
+      ],
+    });
+    renderPage();
+    const tab = await screen.findByText('Corrigidas');
+    fireEvent.click(tab);
+    const emailBtn = await screen.findByText('Enviar por e-mail');
+    fireEvent.click(emailBtn);
+    await waitFor(() => expect(essaysService.sendCorrectionEmail).toHaveBeenCalledWith('1'));
+    expect(await screen.findByText('Enviado')).toBeInTheDocument();
+    expect(await screen.findByText('Enviar novamente')).toBeInTheDocument();
   });
 });
