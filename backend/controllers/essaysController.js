@@ -240,7 +240,9 @@ async function gradeEssay(req, res) {
       enemCompetencies = {},
       pasBreakdown = {},
       comments,
-      sendEmail = true
+      sendEmail = true,
+      countInBimestral,
+      bimestralPointsValue
     } = req.body;
 
     if (bimestreWeight === undefined) {
@@ -250,6 +252,7 @@ async function gradeEssay(req, res) {
     if (isNaN(weight) || weight < 0 || weight > 10) {
       return res.status(400).json({ message: 'bimestreWeight inválido' });
     }
+    const bVal = bimestralPointsValue != null ? Number(bimestralPointsValue) : null;
 
     let correctedUrl = essay.correctedUrl;
     if (req.file) {
@@ -258,6 +261,7 @@ async function gradeEssay(req, res) {
 
     let rawScore = null;
     let scaledScore = null;
+    let bimestralComputedScore = null;
 
     if (annulmentReason) {
       rawScore = 0;
@@ -273,6 +277,10 @@ async function gradeEssay(req, res) {
       const normalized = rawScore / 1000;
       scaledScore = roundToOneDecimal(weight * normalized);
       if (scaledScore > weight) scaledScore = weight;
+      if (bVal != null && !isNaN(bVal)) {
+        bimestralComputedScore = roundToOneDecimal(bVal * normalized);
+        if (bimestralComputedScore > bVal) bimestralComputedScore = bVal;
+      }
     } else {
       const NC = Number(pasBreakdown.NC);
       const NL = Number(pasBreakdown.NL);
@@ -288,12 +296,19 @@ async function gradeEssay(req, res) {
       scaledScore = roundToOneDecimal(weight * normalized);
       if (scaledScore > weight) scaledScore = weight;
       essay.pasBreakdown = { NC, NE, NL };
+      if (bVal != null && !isNaN(bVal)) {
+        bimestralComputedScore = roundToOneDecimal(bVal * normalized);
+        if (bimestralComputedScore > bVal) bimestralComputedScore = bVal;
+      }
     }
 
     essay.annulmentReason = annulmentReason || null;
     essay.bimestreWeight = weight;
     essay.rawScore = rawScore;
     essay.scaledScore = scaledScore;
+    essay.countInBimestral = Boolean(countInBimestral);
+    essay.bimestralPointsValue = bVal;
+    essay.bimestralComputedScore = bimestralComputedScore;
     essay.enemCompetencies = essay.type === 'ENEM' ? enemCompetencies : undefined;
     essay.correctedUrl = correctedUrl;
     essay.teacherId = req.user._id;
@@ -310,8 +325,8 @@ async function gradeEssay(req, res) {
       studentId: essay.studentId,
       classId: essay.classId,
       bimester: essay.bimester,
-      points: scaledScore,
-      maxPoints: weight,
+      points: bimestralComputedScore != null ? bimestralComputedScore : scaledScore,
+      maxPoints: bVal != null ? bVal : weight,
       rawScore,
       type: essay.type,
       themeName,

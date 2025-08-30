@@ -102,9 +102,13 @@ export async function gradeEssay(id: string, payload: {
   enemCompetencies?: { c1: number; c2: number; c3: number; c4: number; c5: number };
   pas?: { NC: number; NL: number };
   comments?: string;
+  countInBimestral?: boolean;
+  bimestralPointsValue?: number;
 }) {
   const weight = payload.weight ?? 1;
   const body: any = { bimestreWeight: weight, comments: payload.comments };
+  if (payload.countInBimestral !== undefined) body.countInBimestral = payload.countInBimestral;
+  if (payload.bimestralPointsValue !== undefined) body.bimestralPointsValue = payload.bimestralPointsValue;
   if (payload.annul) body.annulmentReason = 'IDENTIFICACAO';
   if (payload.essayType === 'ENEM' && payload.enemCompetencies) body.enemCompetencies = payload.enemCompetencies;
   if (payload.essayType === 'PAS' && payload.pas) body.pasBreakdown = { NC: payload.pas.NC, NL: payload.pas.NL };

@@ -21,6 +21,8 @@ export default function GradeWorkspace() {
   const [comments, setComments] = useState('');
   const [weight, setWeight] = useState('1');
   const [annul, setAnnul] = useState(false);
+  const [bimestralValue, setBimestralValue] = useState('1');
+  const [countInBimestral, setCountInBimestral] = useState(true);
   // ENEM
   const [c1, setC1] = useState('0');
   const [c2, setC2] = useState('0');
@@ -45,6 +47,8 @@ export default function GradeWorkspace() {
     annotations: HighlightItem[];
     comments: string;
     weight: string;
+    bimestralPointsValue: string;
+    countInBimestral: boolean;
     annul: boolean;
     c1: string; c2: string; c3: string; c4: string; c5: string;
     NC: string; NL: string;
@@ -90,6 +94,8 @@ export default function GradeWorkspace() {
   if (data?.richAnnotations) setRichAnnos(data.richAnnotations);
   if (data?.comments) setComments(data.comments);
   if (data?.bimestreWeight) setWeight(String(data.bimestreWeight));
+  if (data?.bimestralPointsValue != null) setBimestralValue(String(data.bimestralPointsValue));
+  if (data?.countInBimestral !== undefined) setCountInBimestral(Boolean(data.countInBimestral));
         if (data?.type === 'ENEM' && data?.enemCompetencies) {
           setC1(String(data.enemCompetencies.c1 || 0));
           setC2(String(data.enemCompetencies.c2 || 0));
@@ -107,6 +113,8 @@ export default function GradeWorkspace() {
           annotations: data?.annotations || [],
           comments: data?.comments || '',
           weight: String(data?.bimestreWeight || '1'),
+          bimestralPointsValue: String(data?.bimestralPointsValue || '1'),
+          countInBimestral: Boolean(data?.countInBimestral),
           annul: Boolean(data?.annulmentReason),
           c1: String(data?.enemCompetencies?.c1 || '0'),
           c2: String(data?.enemCompetencies?.c2 || '0'),
@@ -154,7 +162,7 @@ export default function GradeWorkspace() {
   }
 
   // Mark form dirty on relevant changes
-  useEffect(() => { if (!loading && !suppressDirty) setDirty(true); }, [annotations, comments, c1, c2, c3, c4, c5, NC, NL, weight, annul, loading, suppressDirty]);
+  useEffect(() => { if (!loading && !suppressDirty) setDirty(true); }, [annotations, comments, c1, c2, c3, c4, c5, NC, NL, weight, annul, bimestralValue, countInBimestral, loading, suppressDirty]);
   // beforeunload guard
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -316,6 +324,8 @@ export default function GradeWorkspace() {
           essayType: 'ENEM',
           weight: Number(weight)||1,
           annul,
+          countInBimestral,
+          bimestralPointsValue: Number(bimestralValue)||0,
           enemCompetencies: { c1: Number(c1), c2: Number(c2), c3: Number(c3), c4: Number(c4), c5: Number(c5) },
           comments,
         });
@@ -324,6 +334,8 @@ export default function GradeWorkspace() {
           essayType: 'PAS',
           weight: Number(weight)||1,
           annul,
+          countInBimestral,
+          bimestralPointsValue: Number(bimestralValue)||0,
           pas: { NC: Number(NC), NL: Number(NL) },
           comments,
         });
@@ -334,7 +346,7 @@ export default function GradeWorkspace() {
   toast.success('Correção salva');
   setDirty(false);
   setLastSavedAt(new Date());
-  setSnapshot({ annotations, comments, weight, annul, c1, c2, c3, c4, c5, NC, NL });
+  setSnapshot({ annotations, comments, weight, bimestralPointsValue: bimestralValue, countInBimestral, annul, c1, c2, c3, c4, c5, NC, NL });
       navigate('/professor/redacao');
     } catch (e:any) {
       toast.error(e?.response?.data?.message || 'Falha ao salvar');
@@ -432,6 +444,8 @@ export default function GradeWorkspace() {
                 setAnnotations(snapshot.annotations);
                 setComments(snapshot.comments);
                 setWeight(snapshot.weight);
+                setBimestralValue(snapshot.bimestralPointsValue);
+                setCountInBimestral(snapshot.countInBimestral);
                 setAnnul(snapshot.annul);
                 setC1(snapshot.c1); setC2(snapshot.c2); setC3(snapshot.c3); setC4(snapshot.c4); setC5(snapshot.c5);
                 setNC(snapshot.NC); setNL(snapshot.NL);
@@ -545,11 +559,16 @@ export default function GradeWorkspace() {
           ) : null}
         </div>
         <div className="space-y-3">
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-4">
             <div>
               <label className="block text-sm font-medium text-[#111827]">Peso</label>
               <input value={weight} onChange={(e)=>setWeight(e.target.value)} type="number" min={0} max={10} className="w-full rounded border p-2" />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-[#111827]">Valor bimestral</label>
+              <input value={bimestralValue} onChange={(e)=>setBimestralValue(e.target.value)} type="number" min={0} className="w-full rounded border p-2" />
+            </div>
+            <label className="inline-flex items-center gap-2 mt-6 text-sm text-[#111827]"><input type="checkbox" checked={countInBimestral} onChange={(e)=>setCountInBimestral(e.target.checked)} /> Contar no bimestre</label>
             <label className="inline-flex items-center gap-2 mt-6 text-sm text-[#111827]"><input type="checkbox" checked={annul} onChange={(e)=>setAnnul(e.target.checked)} /> Anular</label>
           </div>
 
