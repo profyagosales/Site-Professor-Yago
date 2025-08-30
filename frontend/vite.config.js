@@ -1,39 +1,34 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'node:path'
+import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
       react: path.resolve(__dirname, 'node_modules/react'),
       'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
-      '@': path.resolve(__dirname, 'src'),
     },
   },
   optimizeDeps: {
     include: [
-      'react',
-      'react-dom',
-      'react-pdf',
-      'react-pdf-highlighter',
-      'pdfjs-dist/build/pdf',
-      'pdfjs-dist/build/pdf.worker.min',
+      'react', 'react-dom',
+      'react-pdf', 'pdfjs-dist',
+      'react-pdf-highlighter'
     ],
   },
   build: {
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('react-pdf') || id.includes('pdfjs-dist') || id.includes('pdf-lib')) return 'pdf';
-          if (id.includes('node_modules')) return 'vendor';
+          if (id.includes('react-pdf') || id.includes('pdfjs-dist') || id.includes('pdf-lib')) return 'pdf'
+          if (id.includes('node_modules')) return 'vendor'
         },
       },
     },
-    commonjsOptions: {
-      include: [/node_modules/, /react-pdf-highlighter/, /pdfjs-dist/],
-      transformMixedEsModules: true,
-    },
+    commonjsOptions: { include: [/react-pdf-highlighter/, /pdfjs-dist/, /node_modules/] },
     chunkSizeWarningLimit: 1200,
   },
   server: {
