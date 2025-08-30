@@ -14,7 +14,7 @@ export const gradeEssay = (id, formData) =>
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 export const saveAnnotations = (id, data) =>
-  api.patch(`/essays/${id}/annotations`, data);
+  api.put(`/essays/${id}/annotations`, data);
 
 export default {
   listThemes,

@@ -144,7 +144,7 @@ export async function saveAnnotations(id: string, annotations: Annotation[], ric
   const body: any = { annotations };
   // behind flag: enviar anotações ricas sem quebrar o contrato existente
   if (rich?.annos && (window as any).YS_USE_RICH_ANNOS) body.richAnnotations = rich.annos;
-  const res = await api.patch(`/essays/${id}/annotations`, body);
+  const res = await api.put(`/essays/${id}/annotations`, body);
   return res.data;
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Document, pdfjs } from 'react-pdf';
 import { getToken } from '@/utils/auth';
 import { pasPreviewFrom } from '@/utils/pas';
@@ -6,11 +6,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { fetchEssayById, gradeEssay, saveAnnotations, renderCorrection } from '@/services/essays.service';
 import AnnotationEditor from '@/components/redacao/AnnotationEditor';
 import AnnotationEditorRich from '@/components/redacao/AnnotationEditorRich';
-import PdfHighlighter from '@/components/redacao/PdfHighlighter';
-import PdfAnnotator from '@/components/redacao/PdfAnnotator';
-import PdfViewer from '@/components/redacao/PdfViewer';
+import PdfHighlighter, { PdfHighlighterHandle, HighlightItem } from '@/components/redacao/PdfHighlighter';
 import type { Anno } from '@/types/annotations';
-import type { Annotation } from '@/types/redacao';
 import { toast } from 'react-toastify';
 
 export default function GradeWorkspace() {
@@ -19,7 +16,7 @@ export default function GradeWorkspace() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string|null>(null);
   const [essay, setEssay] = useState<any | null>(null);
-  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [annotations, setAnnotations] = useState<HighlightItem[]>([]);
   const [richAnnos, setRichAnnos] = useState<Anno[]>([]);
   const [comments, setComments] = useState('');
   const [weight, setWeight] = useState('1');
@@ -36,15 +33,16 @@ export default function GradeWorkspace() {
   const [lastAddedIndex, setLastAddedIndex] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const pdfRef = useRef<PdfHighlighterHandle>(null);
   const [autosaving, setAutosaving] = useState(false);
-  const [undoStack, setUndoStack] = useState<Array<{ idx: number; ann: Annotation }>>([]);
-  const [redoStack, setRedoStack] = useState<Array<{ idx: number; ann: Annotation }>>([]);
+  const [undoStack, setUndoStack] = useState<Array<{ idx: number; ann: HighlightItem }>>([]);
+  const [redoStack, setRedoStack] = useState<Array<{ idx: number; ann: HighlightItem }>>([]);
   const [thumbs, setThumbs] = useState<'1'|'2'>('2');
   const [dirty, setDirty] = useState(false);
   const [suppressDirty, setSuppressDirty] = useState(true);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [snapshot, setSnapshot] = useState<null | {
-    annotations: Annotation[];
+    annotations: HighlightItem[];
     comments: string;
     weight: string;
     annul: boolean;
@@ -88,7 +86,7 @@ export default function GradeWorkspace() {
         const data = await fetchEssayById(id);
         if (!alive) return;
     setEssay(data);
-  if (data?.annotations) setAnnotations(data.annotations);
+  if (data?.annotations) setAnnotations(data.annotations as any);
   if (data?.richAnnotations) setRichAnnos(data.richAnnotations);
   if (data?.comments) setComments(data.comments);
   if (data?.bimestreWeight) setWeight(String(data.bimestreWeight));
@@ -140,6 +138,20 @@ export default function GradeWorkspace() {
     return { raw, scaled } as any;
   }, [NC, NL, annotations, weight]);
   const neCount = useMemo(() => annotations.filter(a => a.color === 'green' && (a.label||'').toLowerCase().includes('erro')).length, [annotations]);
+
+  const pageHighlights = useMemo(() => annotations.filter(a => (a as any)?.bbox?.page === currentPage), [annotations, currentPage]);
+
+  function goToNextAnnotated() {
+    const pages = Array.from(new Set(annotations.map(a => (a as any)?.bbox?.page).filter((p):p is number => typeof p === 'number'))).sort((a,b)=>a-b);
+    if (pages.length === 0) return;
+    const next = pages.find(p => p > currentPage) ?? pages[0];
+    if (pdfRef.current) pdfRef.current.jumpToPage(next);
+    setCurrentPage(next);
+  }
+
+  function clearPage() {
+    setAnnotations(prev => prev.filter(a => (a as any)?.bbox?.page !== currentPage));
+  }
 
   // Mark form dirty on relevant changes
   useEffect(() => { if (!loading && !suppressDirty) setDirty(true); }, [annotations, comments, c1, c2, c3, c4, c5, NC, NL, weight, annul, loading, suppressDirty]);
@@ -205,7 +217,7 @@ export default function GradeWorkspace() {
     const debounce = setTimeout(async () => {
       try {
         setAutosaving(true);
-    await saveAnnotations(essay._id || essay.id, annotations, { annos: useNewAnnotator ? richAnnos : undefined });
+    await saveAnnotations(essay._id || essay.id, annotations as any, { annos: useNewAnnotator ? richAnnos : undefined });
         setLastSavedAt(new Date());
       } catch {}
       finally { setAutosaving(false); }
@@ -213,7 +225,7 @@ export default function GradeWorkspace() {
     const safety = setTimeout(async () => {
       try {
         setAutosaving(true);
-    await saveAnnotations(essay._id || essay.id, annotations, { annos: useNewAnnotator ? richAnnos : undefined });
+    await saveAnnotations(essay._id || essay.id, annotations as any, { annos: useNewAnnotator ? richAnnos : undefined });
         setLastSavedAt(new Date());
       } catch {}
       finally { setAutosaving(false); }
@@ -298,7 +310,7 @@ export default function GradeWorkspace() {
     if (!essay) return;
     try {
       setLoading(true);
-  await saveAnnotations(essay._id || essay.id, annotations, { annos: useNewAnnotator ? richAnnos : undefined });
+  await saveAnnotations(essay._id || essay.id, annotations as any, { annos: useNewAnnotator ? richAnnos : undefined });
       if (essay.type === 'ENEM') {
         await gradeEssay(essay._id || essay.id, {
           essayType: 'ENEM',
@@ -474,7 +486,31 @@ export default function GradeWorkspace() {
             <div className="p-4 text-sm text-ys-ink-2">Verificando arquivo…</div>
           )}
           {canRenderInline && isPdf ? (
-            idStr ? <PdfViewer essayId={idStr} /> : <div className="p-4 text-sm text-ys-ink-2">Carregando…</div>
+            <div className="flex h-full">
+              <div className="flex-1">
+                <PdfHighlighter
+                  ref={pdfRef}
+                  pdfUrl={effectiveSrc}
+                  highlights={annotations as HighlightItem[]}
+                  onChange={setAnnotations}
+                  onPageChange={setCurrentPage}
+                />
+              </div>
+              <div className="w-48 border-l flex flex-col">
+                <div className="flex-1 overflow-y-auto p-2 space-y-1 text-xs">
+                  {pageHighlights.length === 0 && <div className="text-ys-ink-2">Sem anotações nesta página</div>}
+                  {pageHighlights.map((h,i)=> (
+                    <div key={h.id || i} className="border-b pb-1 mb-1">
+                      <div>{h.comment}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="p-2 border-t space-y-2">
+                  <button className="w-full rounded border px-2 py-1 text-xs" onClick={goToNextAnnotated}>Próxima com anotação</button>
+                  <button className="w-full rounded border px-2 py-1 text-xs" onClick={clearPage}>Limpar pág.</button>
+                </div>
+              </div>
+            </div>
           ) : canRenderInline && !isPdf ? (
             <div className="p-4 text-sm text-[#111827] space-y-2">
               <div>O arquivo não é um PDF (Content-Type: {contentType || essay.originalMimeType || 'desconhecido'}). Exibindo visualização básica.</div>
