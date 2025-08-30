@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import { toArray, api } from '@/lib/api';
 import { FaPen } from 'react-icons/fa';
 import NovaRedacaoModal from './NovaRedacaoModal';
+import Avatar from '@/components/ui/Avatar';
 
 function DashboardRedacoes() {
   const [tab, setTab] = useState('pendentes');
@@ -154,56 +155,52 @@ function DashboardRedacoes() {
 
       {tab === 'pendentes' && (
         <div className="space-y-md">
-          {arrify(pendentes).map((r) => (
-            <div
-              key={r._id}
-              className="ys-card flex items-center justify-between"
-            >
-              <div className="flex items-center gap-md">
-                {r.student?.photo ? (
-                  <img
-                    src={r.student.photo}
-                    alt={r.student?.name || 'Aluno'}
-                    className="w-12 h-12 rounded-full object-cover"
+          {arrify(pendentes).map((r) => {
+            const photo = r.student?.photoUrl || r.student?.avatarUrl || r.student?.photo;
+            return (
+              <div
+                key={r._id}
+                className="ys-card flex items-center justify-between"
+              >
+                <div className="flex items-center gap-md">
+                  <Avatar
+                    src={photo}
+                    name={r.student?.name}
+                    className="w-12 h-12"
                   />
-                ) : (
-                  <div className="w-12 h-12 rounded-full bg-[#E5E7EB] flex items-center justify-center text-[#6B7280]">
-                    {(r.student?.name || 'A').slice(0,1)}
+                  <div>
+                    <p className="font-semibold">
+                      {r.student?.rollNumber ? `Nº ${r.student.rollNumber}` : r.student?.name}
+                    </p>
+                    <p className="text-sm text-black/70">
+                      {r.class?.series}ª{r.class?.letter} •{' '}
+                      {new Date(r.submittedAt).toLocaleDateString()}
+                    </p>
                   </div>
-                )}
-                <div>
-                  <p className="font-semibold">
-                    {r.student?.rollNumber ? `Nº ${r.student.rollNumber}` : r.student?.name}
-                  </p>
-                  <p className="text-sm text-black/70">
-                    {r.class?.series}ª{r.class?.letter} •
-                    {' '}
-                    {new Date(r.submittedAt).toLocaleDateString()}
-                  </p>
+                </div>
+                <div className="flex items-center gap-md">
+                  {r.lastEmailSentAt ? (
+                    <>
+                      <span className="text-green-600">Enviado</span>
+                      <button className="ys-btn-ghost" onClick={() => handleSendEmail(r._id)}>
+                        Enviar novamente
+                      </button>
+                    </>
+                  ) : (
+                    <button className="ys-btn-ghost" onClick={() => handleSendEmail(r._id)}>
+                      Enviar por e-mail
+                    </button>
+                  )}
+                  <button className="ys-btn-ghost" onClick={() => setEditEssay(r)} aria-label="Editar">
+                    <FaPen />
+                  </button>
+                  <button className="ys-btn-primary" onClick={() => setModalEssay(r)}>
+                    Corrigir
+                  </button>
                 </div>
               </div>
-              <div className="flex items-center gap-md">
-                {r.lastEmailSentAt ? (
-                  <>
-                    <span className="text-green-600">Enviado</span>
-                    <button className="ys-btn-ghost" onClick={() => handleSendEmail(r._id)}>
-                      Enviar novamente
-                    </button>
-                  </>
-                ) : (
-                  <button className="ys-btn-ghost" onClick={() => handleSendEmail(r._id)}>
-                    Enviar por e-mail
-                  </button>
-                )}
-                <button className="ys-btn-ghost" onClick={() => setEditEssay(r)} aria-label="Editar">
-                  <FaPen />
-                </button>
-                <button className="ys-btn-primary" onClick={() => setModalEssay(r)}>
-                  Corrigir
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
           </div>
       )}
 
@@ -235,54 +232,50 @@ function DashboardRedacoes() {
             />
           </div>
           <div className="space-y-md">
-            {arrify(corrigidas).map((r) => (
-              <div
-                key={r._id}
-                className="ys-card flex items-center justify-between"
-              >
-                <div className="flex items-center gap-md">
-                  {r.student?.photo ? (
-                    <img
-                      src={r.student.photo}
-                      alt={r.student?.name || 'Aluno'}
-                      className="w-12 h-12 rounded-full object-cover"
+            {arrify(corrigidas).map((r) => {
+              const photo = r.student?.photoUrl || r.student?.avatarUrl || r.student?.photo;
+              return (
+                <div
+                  key={r._id}
+                  className="ys-card flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-md">
+                    <Avatar
+                      src={photo}
+                      name={r.student?.name}
+                      className="w-12 h-12"
                     />
-                  ) : (
-                    <div className="w-12 h-12 rounded-full bg-[#E5E7EB] flex items-center justify-center text-[#6B7280]">
-                      {(r.student?.name || 'A').slice(0,1)}
+                    <div>
+                      <p className="font-semibold">
+                        {r.student?.rollNumber ? `Nº ${r.student.rollNumber}` : r.student?.name}
+                      </p>
+                      <p className="text-sm text-black/70">
+                        {r.class?.series}ª{r.class?.letter} •{' '}
+                        {new Date(r.submittedAt).toLocaleDateString()}
+                      </p>
                     </div>
-                  )}
-                  <div>
-                    <p className="font-semibold">
-                      {r.student?.rollNumber ? `Nº ${r.student.rollNumber}` : r.student?.name}
-                    </p>
-                    <p className="text-sm text-black/70">
-                      {r.class?.series}ª{r.class?.letter} •
-                      {' '}
-                      {new Date(r.submittedAt).toLocaleDateString()}
-                    </p>
+                  </div>
+                  <div className="flex items-center gap-md">
+                    {r.lastEmailSentAt ? (
+                      <>
+                        <span className="text-green-600">Enviado</span>
+                        <button className="ys-btn-ghost" onClick={() => handleSendEmail(r._id)}>
+                          Enviar novamente
+                        </button>
+                      </>
+                    ) : (
+                      <button className="ys-btn-ghost" onClick={() => handleSendEmail(r._id)}>
+                        Enviar por e-mail
+                      </button>
+                    )}
+                    <button className="ys-btn-ghost" onClick={() => setEditEssay(r)} aria-label="Editar">
+                      <FaPen />
+                    </button>
+                    <button className="ys-btn-ghost">Visualizar</button>
                   </div>
                 </div>
-                <div className="flex items-center gap-md">
-                  {r.lastEmailSentAt ? (
-                    <>
-                      <span className="text-green-600">Enviado</span>
-                      <button className="ys-btn-ghost" onClick={() => handleSendEmail(r._id)}>
-                        Enviar novamente
-                      </button>
-                    </>
-                  ) : (
-                    <button className="ys-btn-ghost" onClick={() => handleSendEmail(r._id)}>
-                      Enviar por e-mail
-                    </button>
-                  )}
-                  <button className="ys-btn-ghost" onClick={() => setEditEssay(r)} aria-label="Editar">
-                    <FaPen />
-                  </button>
-                  <button className="ys-btn-ghost">Visualizar</button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
             </div>
         </div>
       )}

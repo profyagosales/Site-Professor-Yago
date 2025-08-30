@@ -80,7 +80,7 @@ function DashboardProfessor(){
 
   return (
     <div className="pt-4 p-md space-y-md">
-      <ProfileHeader name={user.name} subtitle="Professor" avatarUrl={user.avatarUrl} onLogout={handleLogout} />
+      <ProfileHeader name={user.name} subtitle="Professor" avatarUrl={user.photoUrl || user.avatarUrl} onLogout={handleLogout} />
 
       <div className="flex flex-wrap gap-md">
         <button className="ys-btn-primary" onClick={() => setShowEmail(true)}>Enviar e-mail</button>
