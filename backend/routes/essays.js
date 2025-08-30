@@ -10,6 +10,7 @@ const {
   gradeEssay,
   updateAnnotations,
   renderCorrection,
+  sendCorrectionEmail,
   generateFileToken,
   streamOriginal,
   getAnnotationsCompat,
@@ -35,5 +36,6 @@ router.post('/:id/render-correction', authRequired, renderCorrection);
 router.post('/:id/file-token', authRequired, generateFileToken);
 router.get('/:id/file', authRequired, streamOriginal);
 router.head('/:id/file', authRequired, streamOriginal);
+router.post('/:id/send-email', authRequired, sendCorrectionEmail);
 
 module.exports = router;

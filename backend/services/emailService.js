@@ -8,16 +8,31 @@ async function createTransporter() {
     return transporter;
   }
 
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, NODE_ENV } = process.env;
+  const {
+    SMTP_HOST,
+    SMTP_PORT,
+    SMTP_USER,
+    SMTP_PASS,
+    NODE_ENV,
+    ZOHO_HOST,
+    ZOHO_PORT,
+    ZOHO_USER,
+    ZOHO_PASS
+  } = process.env;
 
-  if (SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS) {
+  const host = SMTP_HOST || ZOHO_HOST;
+  const port = SMTP_PORT || ZOHO_PORT;
+  const user = SMTP_USER || ZOHO_USER;
+  const pass = SMTP_PASS || ZOHO_PASS;
+
+  if (host && port && user && pass) {
     transporter = nodemailer.createTransport({
-      host: SMTP_HOST,
-      port: Number(SMTP_PORT),
-      secure: Number(SMTP_PORT) === 465,
+      host,
+      port: Number(port),
+      secure: Number(port) === 465,
       auth: {
-        user: SMTP_USER,
-        pass: SMTP_PASS
+        user,
+        pass
       }
     });
   } else if (NODE_ENV !== 'production') {
@@ -42,7 +57,10 @@ async function sendEmail({ to, subject, html, attachments } = {}) {
   const transport = await createTransporter();
 
   const mailOptions = {
-    from: process.env.SMTP_FROM || (transport.options.auth && transport.options.auth.user),
+    from:
+      process.env.SMTP_FROM ||
+      process.env.ZOHO_FROM ||
+      (transport.options.auth && transport.options.auth.user),
     to,
     subject,
     html,
