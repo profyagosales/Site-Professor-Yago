@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import { toArray, api } from '@/lib/api';
 import { FaPen } from 'react-icons/fa';
 import NovaRedacaoModal from './NovaRedacaoModal';
-import Avatar from '@/components/ui/Avatar';
+import Avatar from '@/components/common/Avatar';
 
 function DashboardRedacoes() {
   const [tab, setTab] = useState('pendentes');

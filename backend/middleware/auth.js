@@ -94,3 +94,75 @@ async function authRequired(req, res, next) {
 module.exports = authRequired;
 module.exports.authRequired = authRequired;
 
+async function authOptional(req, res, next) {
+  try {
+    let token =
+      req.cookies?.token ||
+      req.cookies?.session ||
+      req.cookies?.auth ||
+      (req.headers.authorization?.startsWith('Bearer ')
+        ? req.headers.authorization.slice(7)
+        : null) ||
+      (req.headers['x-auth-token'] ? String(req.headers['x-auth-token']) : null);
+
+    if (!token) return next();
+
+    let payload;
+    try {
+      payload = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      const fb = process.env.JWT_SECRET_FALLBACK;
+      if (fb) {
+        try {
+          payload = jwt.verify(token, fb);
+        } catch (_) {
+          return next();
+        }
+      } else {
+        return next();
+      }
+    }
+
+    // Tokens específicos para arquivos
+    if (payload.essayId) {
+      const fullPath = `${req.baseUrl || ''}${req.path || ''}`;
+      const match =
+        fullPath.match(/\/essays\/([^/]+)\/file$/i) ||
+        fullPath.match(/\/redacoes\/([^/]+)\/arquivo$/i);
+      if (!match || String(match[1]) !== String(payload.essayId)) {
+        return next();
+      }
+    }
+
+    let profile = payload.role || null;
+    const id = payload.id || payload._id || payload.sub || null;
+    let userClass = payload.class || null;
+
+    if (!profile && id) {
+      const teacher = await Teacher.findById(id).select('_id').lean();
+      if (teacher) {
+        profile = 'teacher';
+      } else {
+        const student = await Student.findById(id).select('_id class').lean();
+        if (student) {
+          profile = 'student';
+          userClass = userClass || student.class;
+        }
+      }
+    }
+
+    req.profile = profile || req.profile;
+    req.user = {
+      ...payload,
+      _id: id || payload._id || payload.sub,
+      id: id || payload.id || payload.sub,
+      class: userClass || payload.class,
+    };
+    return next();
+  } catch (e) {
+    return next();
+  }
+}
+
+module.exports.authOptional = authOptional;
+
