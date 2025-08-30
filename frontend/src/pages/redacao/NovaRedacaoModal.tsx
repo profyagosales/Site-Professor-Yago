@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { api } from '@/lib/api';
 import { searchStudents } from '@/services/students2';
+import ThemeCombo from '@/components/redacao/ThemeCombo';
 
 interface Props {
   isOpen: boolean;
@@ -14,9 +15,7 @@ export default function NovaRedacaoModal({ isOpen, onClose, onCreated }: Props) 
   const [studentQuery, setStudentQuery] = useState('');
   const [studentOptions, setStudentOptions] = useState<any[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
-  const [themes, setThemes] = useState<any[]>([]);
-  const [themeId, setThemeId] = useState('');
-  const [customTheme, setCustomTheme] = useState('');
+  const [theme, setTheme] = useState<{ id?: string; name: string }>({ name: '' });
   const [type, setType] = useState<'ENEM' | 'PAS'>('ENEM');
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -27,9 +26,7 @@ export default function NovaRedacaoModal({ isOpen, onClose, onCreated }: Props) 
       setStudentQuery('');
       setStudentOptions([]);
       setSelectedStudent(null);
-      setThemes([]);
-      setThemeId('');
-      setCustomTheme('');
+      setTheme({ name: '' });
       setType('ENEM');
       setFile(null);
       setError(null);
@@ -37,22 +34,7 @@ export default function NovaRedacaoModal({ isOpen, onClose, onCreated }: Props) 
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    let alive = true;
-    (async () => {
-      try {
-        const res = await api.get('/essays/themes', { params: { type } });
-        const list = res.data?.data || res.data || [];
-        if (alive) setThemes(Array.isArray(list) ? list : []);
-      } catch {
-        if (alive) setThemes([]);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [type, isOpen]);
+  // themes now loaded via ThemeCombo
 
   useEffect(() => {
     if (!studentQuery) {
@@ -85,7 +67,7 @@ export default function NovaRedacaoModal({ isOpen, onClose, onCreated }: Props) 
       setError('Selecione um aluno');
       return;
     }
-    if (!themeId && !customTheme.trim()) {
+    if (!theme?.id && !theme.name.trim()) {
       setError('Selecione o tema');
       return;
     }
@@ -99,8 +81,8 @@ export default function NovaRedacaoModal({ isOpen, onClose, onCreated }: Props) 
         fd.append('classId', selectedStudent.class || selectedStudent.classId);
       }
       fd.append('type', type);
-      if (themeId === 'custom') fd.append('customTheme', customTheme);
-      else fd.append('themeId', themeId);
+      if (theme?.id) fd.append('themeId', theme.id);
+      else fd.append('customTheme', theme.name);
       fd.append('file', file);
       await api.post('/essays', fd);
       toast.success('Redação criada');
@@ -163,28 +145,7 @@ export default function NovaRedacaoModal({ isOpen, onClose, onCreated }: Props) 
           </div>
           <div>
             <label className="block text-sm font-medium text-[#111827]">Tema</label>
-            <select
-              value={themeId}
-              onChange={(e) => setThemeId(e.target.value)}
-              className="w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
-            >
-              <option value="">Selecione…</option>
-              {themes.map((t) => (
-                <option key={t._id || t.id} value={t._id || t.id}>
-                  {t.name}
-                </option>
-              ))}
-              <option value="custom">Tema não cadastrado</option>
-            </select>
-            {themeId === 'custom' && (
-              <input
-                type="text"
-                value={customTheme}
-                onChange={(e) => setCustomTheme(e.target.value)}
-                placeholder="Descreva o tema"
-                className="mt-2 w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
-            )}
+            <ThemeCombo allowCreate value={theme} onChange={setTheme} />
           </div>
           <div>
             <label className="block text-sm font-medium text-[#111827]">Tipo</label>

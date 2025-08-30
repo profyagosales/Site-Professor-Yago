@@ -120,7 +120,7 @@ async function createEssay(req, res) {
 async function updateEssay(req, res) {
   try {
     const { id } = req.params;
-    const { themeId, customTheme, bimester, type } = req.body || {};
+    const { themeId, customTheme, bimester, type, studentId } = req.body || {};
     const update = {};
 
     if (themeId !== undefined) {
@@ -133,6 +133,7 @@ async function updateEssay(req, res) {
     }
     if (bimester !== undefined) update.bimester = Number(bimester);
     if (type !== undefined) update.type = type;
+    if (studentId !== undefined) update.studentId = studentId || null;
 
     if (req.file) {
       const originalUrl = await uploadBuffer(req.file.buffer, 'essays/original');
