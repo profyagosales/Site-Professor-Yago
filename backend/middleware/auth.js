@@ -46,6 +46,17 @@ async function authRequired(req, res, next) {
       }
     }
 
+    // Tokens específicos para arquivos de redação: exigem que o caminho corresponda
+    if (payload.essayId) {
+      const fullPath = `${req.baseUrl || ''}${req.path || ''}`;
+      const match =
+        fullPath.match(/\/essays\/([^/]+)\/file$/i) ||
+        fullPath.match(/\/redacoes\/([^/]+)\/arquivo$/i);
+      if (!match || String(match[1]) !== String(payload.essayId)) {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+      }
+    }
+
     // Enriquecer perfil/usuário para suportar tokens simples usados nos testes
   let profile = payload.role || null;
   const id = payload.id || payload._id || payload.sub || null;
