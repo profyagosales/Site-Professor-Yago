@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { listarPendentes, listarCorrigidas } from '@/services/redacoes';
-import { gradeEssay } from '@/services/essays.service';
+import { gradeEssay, sendCorrectionEmail } from '@/services/essays.service';
 import { toast } from 'react-toastify';
 import { toArray } from '@/lib/api';
 
@@ -17,6 +17,20 @@ function DashboardRedacoes() {
     const r = toArray ? toArray(v) : undefined;
     return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
   };
+
+  async function handleSendEmail(id: string) {
+    try {
+      await sendCorrectionEmail(id);
+      const sentAt = new Date().toISOString();
+      setPendentes((prev) => prev.map((p) => (p._id === id ? { ...p, lastEmailSentAt: sentAt } : p)));
+      setCorrigidas((prev) => prev.map((c) => (c._id === id ? { ...c, lastEmailSentAt: sentAt } : c)));
+      toast.success('Email enviado');
+    } catch (err: any) {
+      console.error('Erro ao enviar email', err);
+      const message = err.response?.data?.message ?? 'Erro ao enviar email';
+      toast.error(message);
+    }
+  }
 
   useEffect(() => {
     const loadPendentes = async () => {
@@ -126,7 +140,23 @@ function DashboardRedacoes() {
                   </p>
                 </div>
               </div>
-              <button className="ys-btn-primary" onClick={() => setModalEssay(r)}>Corrigir</button>
+              <div className="flex items-center gap-md">
+                {r.lastEmailSentAt ? (
+                  <>
+                    <span className="text-green-600">Enviado</span>
+                    <button className="ys-btn-ghost" onClick={() => handleSendEmail(r._id)}>
+                      Enviar novamente
+                    </button>
+                  </>
+                ) : (
+                  <button className="ys-btn-ghost" onClick={() => handleSendEmail(r._id)}>
+                    Enviar por e-mail
+                  </button>
+                )}
+                <button className="ys-btn-primary" onClick={() => setModalEssay(r)}>
+                  Corrigir
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -188,9 +218,23 @@ function DashboardRedacoes() {
                     </p>
                   </div>
                 </div>
+                <div className="flex items-center gap-md">
+                  {r.lastEmailSentAt ? (
+                    <>
+                      <span className="text-green-600">Enviado</span>
+                      <button className="ys-btn-ghost" onClick={() => handleSendEmail(r._id)}>
+                        Enviar novamente
+                      </button>
+                    </>
+                  ) : (
+                    <button className="ys-btn-ghost" onClick={() => handleSendEmail(r._id)}>
+                      Enviar por e-mail
+                    </button>
+                  )}
                   <button className="ys-btn-ghost">Visualizar</button>
                 </div>
-              ))}
+              </div>
+            ))}
             </div>
         </div>
       )}
