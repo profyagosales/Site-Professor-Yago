@@ -3,32 +3,37 @@ import { PdfLoader, PdfHighlighter as RPH, Highlight, Popup } from 'react-pdf-hi
 
 export interface HighlightItem {
   id: string;
-  color: 'yellow' | 'red' | 'blue';
+  color: string;
   label?: string;
   comment: string;
   selection: any;
   bbox: { page: number; x: number; y: number; w: number; h: number };
 }
 
+type PaletteItem = { id: string; color: string; label: string };
+
 interface Props {
   pdfUrl: string;
   highlights: HighlightItem[];
   onChange: (h: HighlightItem[]) => void;
   onPageChange?: (p:number) => void;
+  palette?: PaletteItem[];
+  requireComment?: boolean;
 }
 
 export interface PdfHighlighterHandle {
   jumpToPage: (p:number) => void;
 }
 
-const COLORS: Record<HighlightItem['color'], string> = {
-  yellow: '#FDE68A66',
-  red: '#FCA5A559',
-  blue: '#93C5FD59',
-};
+const DEFAULT_PALETTE: PaletteItem[] = [
+  { id: 'grammar', color: '#22C55E66', label: 'Ortografia/Gramática' },
+  { id: 'cohesion', color: '#F59E0B66', label: 'Coesão/Coerência' },
+  { id: 'argument', color: '#3B82F666', label: 'Argumentação/Ideias' },
+];
 
-function PdfHighlighter({ pdfUrl, highlights, onChange, onPageChange }: Props, ref: any) {
-  const [active, setActive] = useState<HighlightItem['color']>('yellow');
+function PdfHighlighter({ pdfUrl, highlights, onChange, onPageChange, palette = DEFAULT_PALETTE, requireComment = true }: Props, ref: any) {
+  const COLORS = Object.fromEntries(palette.map(p => [p.id, p.color])) as Record<string, string>;
+  const [active, setActive] = useState<string>(palette[0]?.id || '');
   const scrollRef = useRef<any>(null);
   const viewerRef = useRef<any>(null);
   const [modal, setModal] = useState<{
@@ -54,6 +59,7 @@ function PdfHighlighter({ pdfUrl, highlights, onChange, onPageChange }: Props, r
 
   function saveModal() {
     if (!modal) return;
+    if (requireComment && (!title.trim() || !text.trim())) return;
     const id = Math.random().toString(36).slice(2);
     const { position, content, hide } = modal;
     const { pageNumber, boundingRect } = position;
@@ -88,7 +94,7 @@ function PdfHighlighter({ pdfUrl, highlights, onChange, onPageChange }: Props, r
         isScrolledTo={isScrolledTo}
         position={h.selection.position}
         comment={{ text: lbl ? `${lbl}: ${h.comment}` : h.comment }}
-        highlightStyle={{ background: COLORS[h.color] || COLORS.yellow }}
+        highlightStyle={{ background: COLORS[h.color] || palette[0]?.color }}
       />
     );
     const popup = (
@@ -125,12 +131,14 @@ function PdfHighlighter({ pdfUrl, highlights, onChange, onPageChange }: Props, r
     <>
     <div className="h-full flex flex-col">
       <div className="flex gap-2 p-2 border-b">
-        {(['yellow','red','blue'] as const).map(c => (
+        {palette.map(p => (
           <button
-            key={c}
-            className={`h-6 w-6 rounded ${active===c? 'ring-2 ring-black':''}`}
-            style={{ background: COLORS[c] }}
-            onClick={()=>setActive(c)}
+            key={p.id}
+            aria-label={p.label}
+            title={p.label}
+            className={`h-6 w-6 rounded ${active===p.id? 'ring-2 ring-black':''}`}
+            style={{ background: p.color }}
+            onClick={()=>setActive(p.id)}
           />
         ))}
       </div>
@@ -181,7 +189,7 @@ function PdfHighlighter({ pdfUrl, highlights, onChange, onPageChange }: Props, r
             </button>
             <button
               className="rounded bg-orange-500 px-3 py-1 text-sm text-white disabled:opacity-60"
-              disabled={!title || !text}
+              disabled={requireComment && (!title || !text)}
               onClick={saveModal}
             >
               Salvar
