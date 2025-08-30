@@ -411,6 +411,43 @@ async function renderCorrection(req, res) {
   }
 }
 
+// Send correction email separately
+async function sendCorrectionEmail(req, res) {
+  try {
+    const { id } = req.params;
+    const essay = await Essay.findById(id);
+    if (!essay) return res.status(404).json({ message: 'Redação não encontrada' });
+
+    const student = await Student.findById(essay.studentId);
+    if (!student) return res.status(404).json({ message: 'Aluno não encontrado' });
+    const classInfo = await Class.findById(essay.classId);
+    const themeName = essay.themeId
+      ? (await EssayTheme.findById(essay.themeId))?.name
+      : essay.customTheme;
+
+    const html = `<!DOCTYPE html><p>Olá ${student.name},</p>` +
+      `<p>Sua redação foi corrigida.</p>` +
+      `<p>Turma: ${classInfo.series}${classInfo.letter} - ${classInfo.discipline}</p>` +
+      `<p>Bimestre: ${essay.bimester}</p>` +
+      `<p>Tipo: ${essay.type}</p>` +
+      `<p>Tema: ${themeName}</p>` +
+      `<p>Nota: ${essay.rawScore}</p>` +
+      `<p>Nota bimestral: ${essay.scaledScore}</p>` +
+      `<p><a href="${essay.correctedUrl}">Baixar correção</a></p>`;
+
+    await sendEmail({ to: student.email, subject: 'Sua redação foi corrigida', html });
+
+    essay.email = essay.email || {};
+    essay.email.lastSentAt = new Date();
+    await essay.save();
+
+    res.json({ message: 'Email enviado' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erro ao enviar email' });
+  }
+}
+
 module.exports = {
   upload,
   getThemes,
@@ -421,6 +458,7 @@ module.exports = {
   gradeEssay,
   updateAnnotations,
   renderCorrection,
+  sendCorrectionEmail,
   generateFileToken,
   // Compat: endpoints GET/PUT para { highlights:[], comments:[] }
   async getAnnotationsCompat(req, res) {
