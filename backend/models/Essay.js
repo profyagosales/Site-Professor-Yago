@@ -51,6 +51,9 @@ const essaySchema = new mongoose.Schema({
   rawScore: { type: Number, default: null },
   scaledScore: { type: Number, default: null },
   bimestreWeight: { type: Number, default: null },
+  countInBimestral: { type: Boolean, default: false },
+  bimestralPointsValue: { type: Number, default: null },
+  bimestralComputedScore: { type: Number, default: null },
   enemCompetencies: {
     c1: Number,
     c2: Number,

@@ -85,7 +85,9 @@ describe('Essays flow', () => {
       .set('Authorization', `Bearer ${teacherToken}`)
       .send({
         bimestreWeight: 1,
-        enemCompetencies: { c1: 200, c2: 160, c3: 160, c4: 160, c5: 120 }
+        enemCompetencies: { c1: 200, c2: 160, c3: 160, c4: 160, c5: 120 },
+        countInBimestral: true,
+        bimestralPointsValue: 1
       });
     expect(gradeEnem.body.rawScore).toBe(800);
     expect(gradeEnem.body.scaledScore).toBe(0.8);
@@ -97,7 +99,9 @@ describe('Essays flow', () => {
       .set('Authorization', `Bearer ${teacherToken}`)
       .send({
         bimestreWeight: 1.5,
-        pasBreakdown: { NC: 7.5, NE: 0, NL: 30 }
+        pasBreakdown: { NC: 7.5, NE: 0, NL: 30 },
+        countInBimestral: true,
+        bimestralPointsValue: 1.5
       });
     expect(gradePas.body.rawScore).toBe(7.3);
     expect(gradePas.body.scaledScore).toBe(1.1);
@@ -114,7 +118,7 @@ describe('Essays flow', () => {
     const annulGrade = await request(app)
       .patch(`/essays/${annulId}/grade`)
       .set('Authorization', `Bearer ${teacherToken}`)
-      .send({ bimestreWeight: 2, annulmentReason: 'IDENTIFICACAO' });
+      .send({ bimestreWeight: 2, annulmentReason: 'IDENTIFICACAO', countInBimestral: true, bimestralPointsValue: 2 });
     expect(annulGrade.body.rawScore).toBe(0);
     expect(annulGrade.body.scaledScore).toBe(0);
   });
