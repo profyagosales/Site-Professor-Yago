@@ -6,8 +6,11 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: [
-      { find: 'react', replacement: path.resolve(__dirname, 'node_modules/react') },
-      { find: 'react-dom', replacement: path.resolve(__dirname, 'node_modules/react-dom') },
+      { find: 'warning', replacement: path.resolve(__dirname, 'src/shims/warning.js') },
+      { find: 'react/jsx-runtime', replacement: path.resolve(__dirname, 'node_modules/react/jsx-runtime.js') },
+      { find: 'react', replacement: path.resolve(__dirname, 'node_modules/react/index.js') },
+      { find: 'react-dom/client', replacement: path.resolve(__dirname, 'node_modules/react-dom/client.js') },
+      { find: 'react-dom', replacement: path.resolve(__dirname, 'node_modules/react-dom/index.js') },
       // força pdf.js legacy para evitar TDZ / CJS mix
       { find: 'pdfjs-dist/build/pdf', replacement: 'pdfjs-dist/legacy/build/pdf' },
       { find: 'pdfjs-dist/build/pdf.worker', replacement: 'pdfjs-dist/legacy/build/pdf.worker' },
@@ -16,7 +19,7 @@ export default defineConfig({
     ],
   },
   optimizeDeps: {
-    exclude: ['react-pdf', 'pdfjs-dist', 'pdfjs-dist/legacy/build/pdf'],
+    exclude: ['react-pdf', 'pdfjs-dist', 'react-pdf-highlighter', 'warning'],
   },
   build: {
     rollupOptions: {
@@ -27,6 +30,7 @@ export default defineConfig({
         },
       },
     },
+    modulePreload: false, // evita pré-carregar chunks de PDF na home
     commonjsOptions: { transformMixedEsModules: true },
     chunkSizeWarningLimit: 1200,
   },
