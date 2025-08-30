@@ -364,7 +364,7 @@ export default function GradeWorkspace() {
     // Tenta primeiro via proxy autenticado (relative /api/...)
     const proxyUrl = `/api/essays/${idStr}/file`;
     try {
-      const res = await fetch(proxyUrl, { headers: authHeader as any });
+      const res = await fetch(proxyUrl, { headers: authHeader as any, credentials: 'include' });
       if (!res.ok) throw new Error('fetch-fail');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
