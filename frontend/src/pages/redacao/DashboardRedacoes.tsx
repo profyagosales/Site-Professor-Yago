@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { listarPendentes, listarCorrigidas } from '@/services/redacoes';
 import { gradeEssay, sendCorrectionEmail } from '@/services/essays.service';
 import { toast } from 'react-toastify';
-import { toArray } from '@/lib/api';
+import { toArray, api } from '@/lib/api';
+import { FaPen } from 'react-icons/fa';
 
 function DashboardRedacoes() {
   const [tab, setTab] = useState('pendentes');
@@ -12,11 +13,25 @@ function DashboardRedacoes() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [modalEssay, setModalEssay] = useState(null);
+  const [editEssay, setEditEssay] = useState<any>(null);
+  const [editTopic, setEditTopic] = useState('');
+  const [editBimester, setEditBimester] = useState('');
+  const [editType, setEditType] = useState<'ENEM' | 'PAS'>('PAS');
+  const [editFile, setEditFile] = useState<File | null>(null);
 
   const arrify = (v) => {
     const r = toArray ? toArray(v) : undefined;
     return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
   };
+
+  useEffect(() => {
+    if (editEssay) {
+      setEditTopic(editEssay.customTheme || editEssay.theme?.name || '');
+      setEditBimester(editEssay.bimester ? String(editEssay.bimester) : '');
+      setEditType(editEssay.type || 'PAS');
+      setEditFile(null);
+    }
+  }, [editEssay]);
 
   async function handleSendEmail(id: string) {
     try {
@@ -28,6 +43,27 @@ function DashboardRedacoes() {
     } catch (err: any) {
       console.error('Erro ao enviar email', err);
       const message = err.response?.data?.message ?? 'Erro ao enviar email';
+      toast.error(message);
+    }
+  }
+
+  async function handleUpdateEssay() {
+    if (!editEssay) return;
+    try {
+      const fd = new FormData();
+      if (editTopic) fd.append('customTheme', editTopic);
+      if (editBimester) fd.append('bimester', editBimester);
+      if (editType) fd.append('type', editType);
+      if (editFile) fd.append('file', editFile);
+      const res = await api.put(`/essays/${editEssay._id}`, fd);
+      const updated = res.data;
+      setPendentes((prev) => prev.map((p) => (p._id === editEssay._id ? { ...p, ...updated } : p)));
+      setCorrigidas((prev) => prev.map((c) => (c._id === editEssay._id ? { ...c, ...updated } : c)));
+      toast.success('Redação atualizada');
+      setEditEssay(null);
+    } catch (err: any) {
+      console.error('Erro ao atualizar redação', err);
+      const message = err.response?.data?.message ?? 'Erro ao atualizar redação';
       toast.error(message);
     }
   }
@@ -153,6 +189,9 @@ function DashboardRedacoes() {
                     Enviar por e-mail
                   </button>
                 )}
+                <button className="ys-btn-ghost" onClick={() => setEditEssay(r)} aria-label="Editar">
+                  <FaPen />
+                </button>
                 <button className="ys-btn-primary" onClick={() => setModalEssay(r)}>
                   Corrigir
                 </button>
@@ -231,6 +270,9 @@ function DashboardRedacoes() {
                       Enviar por e-mail
                     </button>
                   )}
+                  <button className="ys-btn-ghost" onClick={() => setEditEssay(r)} aria-label="Editar">
+                    <FaPen />
+                  </button>
                   <button className="ys-btn-ghost">Visualizar</button>
                 </div>
               </div>
@@ -272,6 +314,52 @@ function DashboardRedacoes() {
             <button className="ys-btn-ghost" onClick={() => setModalEssay(null)}>
               Fechar
             </button>
+          </div>
+        </div>
+      )}
+
+      {editEssay && (
+        <div role="dialog" className="fixed inset-0 bg-black/50 flex items-center justify-center">
+          <div className="bg-white p-md space-y-md w-full max-w-md">
+            <p className="font-semibold">Editar redação</p>
+            <input
+              value={editTopic}
+              onChange={(e) => setEditTopic(e.target.value)}
+              placeholder="Tema"
+              className="w-full border rounded px-2 py-1"
+            />
+            <select
+              value={editBimester}
+              onChange={(e) => setEditBimester(e.target.value)}
+              className="w-full border rounded px-2 py-1"
+            >
+              <option value="">Bimestre</option>
+              <option value="1">1º</option>
+              <option value="2">2º</option>
+              <option value="3">3º</option>
+              <option value="4">4º</option>
+            </select>
+            <select
+              value={editType}
+              onChange={(e) => setEditType(e.target.value as any)}
+              className="w-full border rounded px-2 py-1"
+            >
+              <option value="ENEM">ENEM</option>
+              <option value="PAS">PAS</option>
+            </select>
+            <input
+              type="file"
+              accept="application/pdf"
+              onChange={(e) => setEditFile(e.target.files?.[0] || null)}
+            />
+            <div className="flex justify-end gap-md">
+              <button className="ys-btn-primary" onClick={handleUpdateEssay}>
+                Salvar
+              </button>
+              <button className="ys-btn-ghost" onClick={() => setEditEssay(null)}>
+                Cancelar
+              </button>
+            </div>
           </div>
         </div>
       )}
