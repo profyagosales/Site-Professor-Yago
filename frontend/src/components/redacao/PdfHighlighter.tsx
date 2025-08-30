@@ -19,6 +19,7 @@ interface Props {
   onPageChange?: (p:number) => void;
   palette?: PaletteItem[];
   requireComment?: boolean;
+  token?: string;
 }
 
 export interface PdfHighlighterHandle {
@@ -26,12 +27,12 @@ export interface PdfHighlighterHandle {
 }
 
 const DEFAULT_PALETTE: PaletteItem[] = [
-  { id: 'grammar', color: '#22C55E66', label: 'Ortografia/Gramática' },
-  { id: 'cohesion', color: '#F59E0B66', label: 'Coesão/Coerência' },
-  { id: 'argument', color: '#3B82F666', label: 'Argumentação/Ideias' },
+  { id: 'grammar', color: '#86EFAC99', label: 'Ortografia/Gramática' },
+  { id: 'cohesion', color: '#FDE68A99', label: 'Coesão/Coerência' },
+  { id: 'argument', color: '#93C5FD99', label: 'Argumentação/Conteúdo' },
 ];
 
-function PdfHighlighter({ pdfUrl, highlights, onChange, onPageChange, palette = DEFAULT_PALETTE, requireComment = true }: Props, ref: any) {
+function PdfHighlighter({ pdfUrl, highlights, onChange, onPageChange, palette = DEFAULT_PALETTE, requireComment = true, token }: Props, ref: any) {
   const COLORS = Object.fromEntries(palette.map(p => [p.id, p.color])) as Record<string, string>;
   const [active, setActive] = useState<string>(palette[0]?.id || '');
   const scrollRef = useRef<any>(null);
@@ -136,14 +137,16 @@ function PdfHighlighter({ pdfUrl, highlights, onChange, onPageChange, palette = 
             key={p.id}
             aria-label={p.label}
             title={p.label}
-            className={`h-6 w-6 rounded ${active===p.id? 'ring-2 ring-black':''}`}
-            style={{ background: p.color }}
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${active===p.id? 'ring-2 ring-black':''}`}
             onClick={()=>setActive(p.id)}
-          />
+          >
+            <span className="h-4 w-4 rounded" style={{ background: p.color }} />
+            {p.label}
+          </button>
         ))}
       </div>
       <div className="flex-1 overflow-hidden">
-        <PdfLoader url={pdfUrl} beforeLoad={<div className="p-4 text-sm">Carregando…</div>}>
+        <PdfLoader url={{ url: pdfUrl, httpHeaders: token ? { Authorization: `Bearer ${token}` } : undefined, withCredentials: true } as any} beforeLoad={<div className="p-4 text-sm">Carregando…</div>}>
           {(doc) => (
             <RPH
               pdfDocument={doc}

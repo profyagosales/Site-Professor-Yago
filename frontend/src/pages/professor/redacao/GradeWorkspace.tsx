@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { getToken } from '@/utils/auth';
 import { pasPreviewFrom } from '@/utils/pas';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchEssayById, gradeEssay, saveAnnotations, renderCorrection } from '@/services/essays.service';
@@ -17,9 +16,9 @@ const PdfHighlighter = React.lazy(() =>
 );
 
 const HIGHLIGHT_PALETTE = [
-  { id: 'grammar', color: '#22C55E66', label: 'Ortografia/Gramática' },
-  { id: 'cohesion', color: '#F59E0B66', label: 'Coesão/Coerência' },
-  { id: 'argument', color: '#3B82F666', label: 'Argumentação/Ideias' },
+  { id: 'grammar', color: '#86EFAC99', label: 'Ortografia/Gramática' },
+  { id: 'cohesion', color: '#FDE68A99', label: 'Coesão/Coerência' },
+  { id: 'argument', color: '#93C5FD99', label: 'Argumentação/Conteúdo' },
 ];
 
 export default function GradeWorkspace() {
@@ -32,7 +31,7 @@ export default function GradeWorkspace() {
   const [richAnnos, setRichAnnos] = useState<Anno[]>([]);
   const [comments, setComments] = useState('');
   const [weight, setWeight] = useState('1');
-  const [annul, setAnnul] = useState(false);
+  const [annulReason, setAnnulReason] = useState('');
   const [bimestralValue, setBimestralValue] = useState('1');
   const [countInBimestral, setCountInBimestral] = useState(true);
   // ENEM
@@ -60,7 +59,7 @@ export default function GradeWorkspace() {
     weight: string;
     bimestralPointsValue: string;
     countInBimestral: boolean;
-    annul: boolean;
+    annulmentReason: string;
     c1: string; c2: string; c3: string; c4: string; c5: string;
     NC: string; NL: string;
   }>(null);
@@ -111,7 +110,7 @@ export default function GradeWorkspace() {
           setNC(String(data.pasBreakdown.NC || 0));
           setNL(String(data.pasBreakdown.NL || 1));
         }
-        setAnnul(Boolean(data?.annulmentReason));
+        setAnnulReason(data?.annulmentReason || '');
         // initialize snapshot and clear dirty tracking
         const snap = {
           annotations: data?.annotations || [],
@@ -119,7 +118,7 @@ export default function GradeWorkspace() {
           weight: String(data?.bimestreWeight || '1'),
           bimestralPointsValue: String(data?.bimestralPointsValue || '1'),
           countInBimestral: Boolean(data?.countInBimestral),
-          annul: Boolean(data?.annulmentReason),
+          annulmentReason: String(data?.annulmentReason || ''),
           c1: String(data?.enemCompetencies?.c1 || '0'),
           c2: String(data?.enemCompetencies?.c2 || '0'),
           c3: String(data?.enemCompetencies?.c3 || '0'),
@@ -142,14 +141,15 @@ export default function GradeWorkspace() {
   const [forceAnnotator, setForceAnnotator] = useState<null | 'rich' | 'legacy'>(null);
   const useNewAnnotator = forceAnnotator ? forceAnnotator === 'rich' : Boolean((window as any).YS_USE_RICH_ANNOS);
   const pasPreview = useMemo(() => {
+    if (!countInBimestral) return { raw: 0, scaled: 0 } as any;
     const w = Number(weight) || 1;
     const nc = Number(NC);
     const nl = Number(NL);
     if ([nc, nl, w].some(Number.isNaN)) return { raw: 0, scaled: 0 } as any;
     const { raw, scaled } = pasPreviewFrom({ NC: nc, NL: Math.max(1, nl), annotations, weight: w });
     return { raw, scaled } as any;
-  }, [NC, NL, annotations, weight]);
-  const neCount = useMemo(() => annotations.filter(a => a.color === 'green' && (a.label||'').toLowerCase().includes('erro')).length, [annotations]);
+  }, [NC, NL, annotations, weight, countInBimestral]);
+  const neCount = useMemo(() => annotations.filter(a => a.color === 'grammar' && (a.label||'').toLowerCase().includes('erro')).length, [annotations]);
 
   const pageHighlights = useMemo(() => annotations.filter(a => (a as any)?.bbox?.page === currentPage), [annotations, currentPage]);
 
@@ -166,7 +166,7 @@ export default function GradeWorkspace() {
   }
 
   // Mark form dirty on relevant changes
-  useEffect(() => { if (!loading && !suppressDirty) setDirty(true); }, [annotations, comments, c1, c2, c3, c4, c5, NC, NL, weight, annul, bimestralValue, countInBimestral, loading, suppressDirty]);
+  useEffect(() => { if (!loading && !suppressDirty) setDirty(true); }, [annotations, comments, c1, c2, c3, c4, c5, NC, NL, weight, annulReason, bimestralValue, countInBimestral, loading, suppressDirty]);
   // beforeunload guard
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -266,65 +266,36 @@ export default function GradeWorkspace() {
     }
   }, [idStr, base]);
   const direct = essay?.originalUrl || essay?.fileUrl || essay?.correctedUrl;
-  const _t = getToken();
-  const authHeader = _t ? { Authorization: `Bearer ${_t}` } : undefined;
   const srcUrl = proxied || direct || null;
+  const [fileToken, setFileToken] = useState<string | null>(null);
 
-  function withToken(url: string, token: string) {
-    const u = new URL(url, window.location.origin);
-    if (!u.searchParams.get('token')) u.searchParams.set('token', token);
-    return u.toString();
-  }
-
-  // Preflight HEAD: tenta sem token; se 401, obtém token via POST e tenta novamente
+  // Preflight HEAD usando token de arquivo via header
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (!proxied) { setPdfCheck('fail'); setSrcOk(null); return; }
       setPdfCheck('unknown');
       try {
-        const r = await fetch(proxied, { method: 'HEAD', headers: authHeader as any, credentials: 'include' });
-        if (!cancelled && r.ok) {
-          const ct = r.headers.get('content-type');
+        const tokenEndpoint = proxied.replace(/\/file$/, '/file-token');
+        const tokenResp = await fetch(tokenEndpoint, { method: 'POST', credentials: 'include' });
+        if (!tokenResp.ok) throw new Error('token');
+        const data = await tokenResp.json();
+        const token = data?.token;
+        if (!token) throw new Error('token-missing');
+        const head = await fetch(proxied, { method: 'HEAD', credentials: 'include', headers: { Authorization: `Bearer ${token}` } });
+        if (!cancelled && head.ok) {
+          const ct = head.headers.get('content-type');
           if (ct) setContentType(ct);
           setSrcOk(proxied);
+          setFileToken(token);
           setPdfCheck('ok');
           return;
         }
-        if (!cancelled && r.status === 401) {
-          try {
-            const tokenEndpoint = proxied.replace(/\/file$/, '/file-token');
-            const tokenResp = await fetch(tokenEndpoint, { method: 'POST', headers: authHeader as any, credentials: 'include' });
-            if (!tokenResp.ok) throw new Error('token');
-            const data = await tokenResp.json();
-            const token = data?.token;
-            if (!token) throw new Error('token-missing');
-            const tokenUrl = withToken(proxied, token);
-            const r2 = await fetch(tokenUrl, { method: 'HEAD', credentials: 'include' });
-            if (!cancelled && r2.ok) {
-              const ct2 = r2.headers.get('content-type');
-              if (ct2) setContentType(ct2);
-              setSrcOk(tokenUrl);
-              setPdfCheck('ok');
-              return;
-            }
-          } catch {}
-          if (!cancelled) { setSrcOk(null); setPdfCheck('fail'); }
-          return;
-        }
-        // Se não for 401, ainda assim tentamos renderizar (falhas de HEAD/502/405 não impedem GET real)
-        if (!cancelled) {
-          const ct = r.headers.get('content-type');
-          if (ct) setContentType(ct);
-          setSrcOk(proxied);
-          setPdfCheck('ok');
-        }
-      } catch {
-        if (!cancelled) { setSrcOk(null); setPdfCheck('fail'); }
-      }
+      } catch {}
+      if (!cancelled) { setSrcOk(null); setPdfCheck('fail'); }
     })();
     return () => { cancelled = true; };
-  }, [proxied, _t]);
+  }, [proxied]);
 
   async function submit(generatePdf=false) {
     if (!essay) return;
@@ -335,7 +306,7 @@ export default function GradeWorkspace() {
         await gradeEssay(essay._id || essay.id, {
           essayType: 'ENEM',
           weight: Number(weight)||1,
-          annul,
+          annulmentReason: annulReason || undefined,
           countInBimestral,
           bimestralPointsValue: Number(bimestralValue)||0,
           enemCompetencies: { c1: Number(c1), c2: Number(c2), c3: Number(c3), c4: Number(c4), c5: Number(c5) },
@@ -345,7 +316,7 @@ export default function GradeWorkspace() {
         await gradeEssay(essay._id || essay.id, {
           essayType: 'PAS',
           weight: Number(weight)||1,
-          annul,
+          annulmentReason: annulReason || undefined,
           countInBimestral,
           bimestralPointsValue: Number(bimestralValue)||0,
           pas: { NC: Number(NC), NL: Number(NL) },
@@ -358,7 +329,7 @@ export default function GradeWorkspace() {
   toast.success('Correção salva');
   setDirty(false);
   setLastSavedAt(new Date());
-  setSnapshot({ annotations, comments, weight, bimestralPointsValue: bimestralValue, countInBimestral, annul, c1, c2, c3, c4, c5, NC, NL });
+  setSnapshot({ annotations, comments, weight, bimestralPointsValue: bimestralValue, countInBimestral, annulmentReason: annulReason, c1, c2, c3, c4, c5, NC, NL });
       navigate('/professor/redacao');
     } catch (e:any) {
       toast.error(e?.response?.data?.message || 'Falha ao salvar');
@@ -477,6 +448,7 @@ export default function GradeWorkspace() {
                         onPageChange={setCurrentPage}
                         palette={HIGHLIGHT_PALETTE}
                         requireComment
+                        token={fileToken || undefined}
                       />
                     </React.Suspense>
                   </div>
@@ -539,14 +511,24 @@ export default function GradeWorkspace() {
           <div className="grid gap-3 md:grid-cols-4">
             <div>
               <label className="block text-sm font-medium text-[#111827]">Peso</label>
-              <input value={weight} onChange={(e)=>setWeight(e.target.value)} type="number" min={0} max={10} className="w-full rounded border p-2" />
+              <input value={weight} onChange={(e)=>setWeight(e.target.value)} type="number" min={0} max={10} className="w-full rounded border p-2" disabled={!countInBimestral} />
             </div>
             <div>
               <label className="block text-sm font-medium text-[#111827]">Valor bimestral</label>
-              <input value={bimestralValue} onChange={(e)=>setBimestralValue(e.target.value)} type="number" min={0} className="w-full rounded border p-2" />
+              <input value={bimestralValue} onChange={(e)=>setBimestralValue(e.target.value)} type="number" min={0} className="w-full rounded border p-2" disabled={!countInBimestral} />
             </div>
             <label className="inline-flex items-center gap-2 mt-6 text-sm text-[#111827]"><input type="checkbox" checked={countInBimestral} onChange={(e)=>setCountInBimestral(e.target.checked)} /> Contar no bimestre</label>
-            <label className="inline-flex items-center gap-2 mt-6 text-sm text-[#111827]"><input type="checkbox" checked={annul} onChange={(e)=>setAnnul(e.target.checked)} /> Anular</label>
+            <div className="mt-6">
+              <label className="block text-sm font-medium text-[#111827]">Anular</label>
+              <select className="rounded border p-2 text-sm" value={annulReason} onChange={e=>setAnnulReason(e.target.value)}>
+                <option value="">—</option>
+                <option value="Menos de 7 linhas">Menos de 7 linhas</option>
+                <option value="Fuga ao tema">Fuga ao tema</option>
+                <option value="Cópia">Cópia</option>
+                <option value="Ilegível/sem identificação">Ilegível/sem identificação</option>
+                <option value="Outros">Outros</option>
+              </select>
+            </div>
           </div>
 
           {essay.type === 'ENEM' ? (
@@ -559,7 +541,7 @@ export default function GradeWorkspace() {
                   </select>
                 ))}
               </div>
-              <p className="text-sm text-ys-ink-2">Total ENEM: <span className="font-medium text-[#111827]">{enemTotal}</span> / 1000 {annul && '(anulada)'}</p>
+              <p className="text-sm text-ys-ink-2">Total ENEM: <span className="font-medium text-[#111827]">{enemTotal}</span> / 1000 {annulReason && '(anulada)'}</p>
             </div>
           ) : (
             <div className="space-y-2">
