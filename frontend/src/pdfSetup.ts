@@ -1,8 +1,4 @@
-import { pdfjs } from 'react-pdf';
-
-let configured = false;
-export function ensurePdfWorker() {
-  if (configured) return;
+export async function ensurePdfWorker() {
+  const { pdfjs } = await import('react-pdf');
   pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.mjs';
-  configured = true;
 }
