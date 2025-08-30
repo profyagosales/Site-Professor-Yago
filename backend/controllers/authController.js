@@ -66,8 +66,13 @@ async function doLogin({ Model, role, req, res }) {
 
     // Cookie opcional
     if (String(process.env.USE_COOKIE_AUTH).toLowerCase() === 'true') {
-      res.cookie('auth', token, {
-        httpOnly: true, secure: true, sameSite: 'none', maxAge: 7 * 24 * 60 * 60 * 1000,
+      res.cookie('token', token, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'None',
+        domain: '.professoryagosales.com.br',
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
       });
       return res.json({ success: true, user });
     }

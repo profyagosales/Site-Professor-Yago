@@ -9,10 +9,11 @@ const router = express.Router();
 
 function setSessionCookie(res, payload) {
   const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
-  res.cookie('session', token, {
+  res.cookie('token', token, {
     httpOnly: true,
     secure: true,
-    sameSite: 'none',
+    sameSite: 'None',
+    domain: '.professoryagosales.com.br',
     path: '/',
   });
   return token;
@@ -109,7 +110,13 @@ router.get('/me', authRequired, (req, res) => {
 
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {
-  res.clearCookie('session', { path: '/' });
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'None',
+    domain: '.professoryagosales.com.br',
+    path: '/',
+  });
   res.json({ success: true });
 });
 
