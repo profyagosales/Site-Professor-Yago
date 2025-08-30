@@ -20,6 +20,7 @@ describe('DashboardRedacoes', () => {
     listarPendentes.mockResolvedValue({ redacoes: [] });
     listarCorrigidas.mockResolvedValue({ redacoes: [] });
     essaysService.gradeEssay.mockResolvedValue({});
+    // eslint-disable-next-line no-import-assign
     essaysService.sendCorrectionEmail = jest.fn().mockResolvedValue({});
   });
 
