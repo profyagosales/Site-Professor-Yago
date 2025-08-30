@@ -10,6 +10,7 @@ const { recordEssayScore } = require('../services/gradesIntegration');
 const { renderEssayCorrectionPdf } = require('../services/pdfService');
 const https = require('https');
 const http = require('http');
+const jwt = require('jsonwebtoken');
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -160,6 +161,21 @@ async function listEssays(req, res) {
   ]);
 
   res.json({ items, total, page, limit });
+}
+
+async function generateFileToken(req, res) {
+  try {
+    const userId = req.user && (req.user._id || req.user.id);
+    const { id: essayId } = req.params;
+    if (!userId || !essayId) {
+      return res.status(400).json({ message: 'Dados inválidos' });
+    }
+    const token = jwt.sign({ sub: String(userId), essayId: String(essayId) }, process.env.JWT_SECRET, { expiresIn: '10m' });
+    return res.json({ token });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Erro ao gerar token de arquivo' });
+  }
 }
 
 function roundToOneDecimal(num) {
@@ -405,6 +421,7 @@ module.exports = {
   gradeEssay,
   updateAnnotations,
   renderCorrection,
+  generateFileToken,
   // Compat: endpoints GET/PUT para { highlights:[], comments:[] }
   async getAnnotationsCompat(req, res) {
     const { id } = req.params;
