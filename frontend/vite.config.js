@@ -6,8 +6,20 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
+      react: path.resolve(__dirname, 'node_modules/react'),
+      'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
       '@': path.resolve(__dirname, 'src'),
     },
+  },
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-pdf',
+      'react-pdf-highlighter',
+      'pdfjs-dist/build/pdf',
+      'pdfjs-dist/build/pdf.worker.min',
+    ],
   },
   build: {
     rollupOptions: {
@@ -17,6 +29,10 @@ export default defineConfig({
           if (id.includes('node_modules')) return 'vendor';
         },
       },
+    },
+    commonjsOptions: {
+      include: [/node_modules/, /react-pdf-highlighter/, /pdfjs-dist/],
+      transformMixedEsModules: true,
     },
     chunkSizeWarningLimit: 1200,
   },
