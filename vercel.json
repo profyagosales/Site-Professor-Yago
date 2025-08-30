@@ -7,9 +7,10 @@
     { "source": "/(.*)", "destination": "/" }
   ],
   "env": {
-    "VITE_API_URL": "https://site-professor-yago.onrender.com",
-  "VITE_USE_COOKIE_AUTH": "true",
-  "VITE_USE_RICH_ANNOS": "1",
-  "VITE_VIRT_PDF": "1"
+    "VITE_API_URL": "https://api.professoryagosales.com.br",
+    "VITE_API_BASE_URL": "https://api.professoryagosales.com.br",
+    "VITE_USE_COOKIE_AUTH": "true",
+    "VITE_USE_RICH_ANNOS": "1",
+    "VITE_VIRT_PDF": "1"
   }
 }
