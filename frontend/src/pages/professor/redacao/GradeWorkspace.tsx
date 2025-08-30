@@ -16,6 +16,12 @@ const PdfHighlighter = React.lazy(() =>
   import(/* @vite-ignore */ '../../../components/redacao/PdfHighlighter')
 );
 
+const HIGHLIGHT_PALETTE = [
+  { id: 'grammar', color: '#22C55E66', label: 'Ortografia/Gramática' },
+  { id: 'cohesion', color: '#F59E0B66', label: 'Coesão/Coerência' },
+  { id: 'argument', color: '#3B82F666', label: 'Argumentação/Ideias' },
+];
+
 export default function GradeWorkspace() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -264,6 +270,12 @@ export default function GradeWorkspace() {
   const authHeader = _t ? { Authorization: `Bearer ${_t}` } : undefined;
   const srcUrl = proxied || direct || null;
 
+  function withToken(url: string, token: string) {
+    const u = new URL(url, window.location.origin);
+    if (!u.searchParams.get('token')) u.searchParams.set('token', token);
+    return u.toString();
+  }
+
   // Preflight HEAD: tenta sem token; se 401, obtém token via POST e tenta novamente
   useEffect(() => {
     let cancelled = false;
@@ -287,7 +299,7 @@ export default function GradeWorkspace() {
             const data = await tokenResp.json();
             const token = data?.token;
             if (!token) throw new Error('token-missing');
-            const tokenUrl = proxied + `?token=${encodeURIComponent(token)}`;
+            const tokenUrl = withToken(proxied, token);
             const r2 = await fetch(tokenUrl, { method: 'HEAD', credentials: 'include' });
             if (!cancelled && r2.ok) {
               const ct2 = r2.headers.get('content-type');
@@ -463,6 +475,8 @@ export default function GradeWorkspace() {
                         highlights={annotations as HighlightItem[]}
                         onChange={setAnnotations}
                         onPageChange={setCurrentPage}
+                        palette={HIGHLIGHT_PALETTE}
+                        requireComment
                       />
                     </React.Suspense>
                   </div>
