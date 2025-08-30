@@ -4,6 +4,7 @@ import { gradeEssay, sendCorrectionEmail } from '@/services/essays.service';
 import { toast } from 'react-toastify';
 import { toArray, api } from '@/lib/api';
 import { FaPen } from 'react-icons/fa';
+import NovaRedacaoModal from './NovaRedacaoModal';
 
 function DashboardRedacoes() {
   const [tab, setTab] = useState('pendentes');
@@ -18,6 +19,7 @@ function DashboardRedacoes() {
   const [editBimester, setEditBimester] = useState('');
   const [editType, setEditType] = useState<'ENEM' | 'PAS'>('PAS');
   const [editFile, setEditFile] = useState<File | null>(null);
+  const [newModalOpen, setNewModalOpen] = useState(false);
 
   const arrify = (v) => {
     const r = toArray ? toArray(v) : undefined;
@@ -68,23 +70,24 @@ function DashboardRedacoes() {
     }
   }
 
+  const loadPendentes = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await listarPendentes();
+      setPendentes(arrify(data.redacoes));
+      toast.success('Dados carregados');
+    } catch (err) {
+      console.error('Erro ao carregar pendentes', err);
+      const message = err.response?.data?.message ?? 'Erro ao carregar pendentes';
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadPendentes = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await listarPendentes();
-        setPendentes(arrify(data.redacoes));
-        toast.success('Dados carregados');
-      } catch (err) {
-        console.error('Erro ao carregar pendentes', err);
-        const message = err.response?.data?.message ?? 'Erro ao carregar pendentes';
-        setError(message);
-        toast.error(message);
-      } finally {
-        setLoading(false);
-      }
-    };
     loadPendentes();
   }, []);
 
@@ -144,6 +147,9 @@ function DashboardRedacoes() {
         >
           Corrigidas
         </button>
+        <button className="ys-btn-primary ml-auto" onClick={() => setNewModalOpen(true)}>
+          Nova redação
+        </button>
       </div>
 
       {tab === 'pendentes' && (
@@ -198,7 +204,7 @@ function DashboardRedacoes() {
               </div>
             </div>
           ))}
-        </div>
+          </div>
       )}
 
       {tab === 'corrigidas' && (
@@ -279,6 +285,13 @@ function DashboardRedacoes() {
             ))}
             </div>
         </div>
+      )}
+      {newModalOpen && (
+        <NovaRedacaoModal
+          isOpen={newModalOpen}
+          onClose={() => setNewModalOpen(false)}
+          onCreated={loadPendentes}
+        />
       )}
 
       {modalEssay && (
