@@ -4,10 +4,11 @@ const Teacher = require('../models/Teacher');
 
 async function authRequired(req, res, next) {
   try {
-    // Aceita token via cookie ('session' legado ou 'auth' atual) ou via Authorization: Bearer
+    // Aceita token via cookie ('token' atual, 'session' legado ou 'auth' anterior) ou via Authorization: Bearer
     // Permitir múltiplas origens de token: cookie, Authorization, X-Auth-Token e, em último caso,
     // query ?token= para caminhos específicos (ex.: stream de PDF), para reduzir 401 em clients embutidos
     let token =
+      req.cookies?.token ||
       req.cookies?.session ||
       req.cookies?.auth ||
       (req.headers.authorization?.startsWith('Bearer ')
