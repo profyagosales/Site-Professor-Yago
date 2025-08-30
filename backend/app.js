@@ -42,17 +42,10 @@ const serveFrontend = process.env.SERVE_FRONTEND === 'true';
 const isProd = process.env.NODE_ENV === 'production';
 
 // --- CORS (múltiplas origens) ---
-const raw = (process.env.APP_DOMAIN || '')
-  .split(',')
-  .map(s => s.trim())
-  .filter(Boolean);
-
 const allowList = [
-  ...new Set([
-    ...raw,
-    'http://localhost:5173',
-    'https://localhost:5173',
-  ])
+  'https://professoryagosales.com.br',
+  'https://www.professoryagosales.com.br',
+  'https://site-professor-yago-frontend.vercel.app',
 ];
 
 const corsMiddleware = cors({
@@ -62,7 +55,7 @@ const corsMiddleware = cors({
     return cb(ok ? null : new Error(`CORS: origem não permitida: ${origin}`), ok);
   },
   credentials: true,
-  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  methods: ['GET','HEAD','POST','PUT','PATCH','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization','X-Requested-With','Range'],
   exposedHeaders: ['Content-Range','Accept-Ranges','Content-Disposition'],
   maxAge: 86400,
