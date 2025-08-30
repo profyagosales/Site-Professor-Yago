@@ -41,4 +41,18 @@ describe('Auth routes', () => {
     expect(res.body.data.token).toBeDefined();
     expect(res.body.data.student.email).toBe(email);
   });
+
+  it('sets token cookie with SameSite=None on login', async () => {
+    const email = `teach${Date.now()}@example.com`;
+    const password = 'pass123';
+    await Teacher.create({ name: 'T', email, password });
+
+    const agent = request.agent(app);
+    const res = await agent.post('/auth/login-teacher').send({ email, password });
+    expect(res.status).toBe(200);
+    const cookies = res.headers['set-cookie'] || [];
+    const tokenCookie = cookies.find((c) => c.startsWith('token='));
+    expect(tokenCookie).toBeDefined();
+    expect(tokenCookie).toEqual(expect.stringContaining('SameSite=None'));
+  });
 });
