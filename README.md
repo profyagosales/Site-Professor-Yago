@@ -116,7 +116,7 @@ npm run build
 ## Hosting Tips
 
 - **Backend**: Platforms like Heroku or Render work well for hosting the Node.js server.
-- **Frontend**: Deploy the built frontend on services such as Vercel.
+- **Frontend**: Deploy the built frontend on services such as Vercel. In the Vercel dashboard, set the **Root Directory** to `frontend`, use `npm install --legacy-peer-deps` as the install command and `npm run build` to build, with the output directory `dist`.
 - **DNS & CORS**: When frontend and backend are hosted separately, configure DNS so the frontend uses your `APP_DOMAIN` and ensure the backend allows that origin in its CORS settings.
 
 
