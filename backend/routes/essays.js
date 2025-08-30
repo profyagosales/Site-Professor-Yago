@@ -6,6 +6,7 @@ const {
   createTheme,
   updateTheme,
   createEssay,
+  updateEssay,
   listEssays,
   gradeEssay,
   updateAnnotations,
@@ -27,6 +28,7 @@ router.patch('/themes/:id', authRequired, updateTheme);
 // Essays
 router.post('/', authRequired, upload.single('file'), createEssay);
 router.get('/', authRequired, listEssays);
+router.put('/:id', authRequired, upload.single('file'), updateEssay);
 router.patch('/:id/grade', authRequired, upload.single('correctedFile'), gradeEssay);
 router.patch('/:id/annotations', authRequired, updateAnnotations);
 // Compat: estrutura { highlights:[], comments:[] }

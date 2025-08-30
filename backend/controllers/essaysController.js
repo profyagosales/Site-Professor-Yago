@@ -117,6 +117,43 @@ async function createEssay(req, res) {
   }
 }
 
+async function updateEssay(req, res) {
+  try {
+    const { id } = req.params;
+    const { themeId, customTheme, bimester, type } = req.body || {};
+    const update = {};
+
+    if (themeId !== undefined) {
+      update.themeId = themeId || null;
+      if (themeId) update.customTheme = null;
+    }
+    if (customTheme !== undefined) {
+      update.customTheme = customTheme || null;
+      if (customTheme) update.themeId = null;
+    }
+    if (bimester !== undefined) update.bimester = Number(bimester);
+    if (type !== undefined) update.type = type;
+
+    if (req.file) {
+      const originalUrl = await uploadBuffer(req.file.buffer, 'essays/original');
+      update.originalUrl = originalUrl;
+      update.originalMimeType = req.file.mimetype || 'application/pdf';
+    }
+
+    if (Object.keys(update).length === 0) {
+      return res.status(400).json({ message: 'Nenhum dado para atualizar' });
+    }
+
+    const essay = await Essay.findByIdAndUpdate(id, { $set: update }, { new: true });
+    if (!essay) return res.status(404).json({ message: 'Redação não encontrada' });
+
+    res.json(essay);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erro ao atualizar redação' });
+  }
+}
+
 // List essays
 async function listEssays(req, res) {
   const filter = {};
@@ -454,6 +491,7 @@ module.exports = {
   createTheme,
   updateTheme,
   createEssay,
+  updateEssay,
   listEssays,
   gradeEssay,
   updateAnnotations,
