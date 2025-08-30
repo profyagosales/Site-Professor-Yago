@@ -13,11 +13,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: [
-      'react', 'react-dom',
-      'react-pdf', 'pdfjs-dist',
-      'react-pdf-highlighter'
-    ],
+    exclude: ['react-pdf', 'pdfjs-dist', 'pdfjs-dist/build/pdf.worker.min.js', 'warning'],
   },
   build: {
     rollupOptions: {
@@ -28,7 +24,7 @@ export default defineConfig({
         },
       },
     },
-    commonjsOptions: { include: [/react-pdf-highlighter/, /pdfjs-dist/, /node_modules/] },
+    commonjsOptions: { include: [/react-pdf-highlighter/, /pdfjs-dist/, /node_modules/], transformMixedEsModules: true },
     chunkSizeWarningLimit: 1200,
   },
   server: {

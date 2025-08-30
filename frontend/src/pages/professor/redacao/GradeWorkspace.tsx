@@ -8,6 +8,7 @@ import AnnotationEditorRich from '@/components/redacao/AnnotationEditorRich';
 import type { PdfHighlighterHandle, HighlightItem } from '@/components/redacao/PdfHighlighter';
 import type { Anno } from '@/types/annotations';
 import { toast } from 'react-toastify';
+import { ensurePdfWorker } from '../../../pdfSetup';
 
 const useRich = import.meta.env.VITE_USE_RICH_ANNOS === '1' || import.meta.env.VITE_USE_RICH_ANNOS === 'true';
 const PdfHighlighter = useRich ? React.lazy(() => import('@/components/redacao/PdfHighlighter')) : null;
@@ -59,6 +60,7 @@ export default function GradeWorkspace() {
   const [srcOk, setSrcOk] = useState<string | null>(null);
   const [contentType, setContentType] = useState<string | null>(null);
   const [forceInline, setForceInline] = useState(false);
+  useEffect(() => { void ensurePdfWorker(); }, []);
   useEffect(() => {
     setPdfCheck('unknown');
     setSrcOk(null);
