@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Document, pdfjs } from 'react-pdf';
 import { getToken } from '@/utils/auth';
 import { pasPreviewFrom } from '@/utils/pas';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -63,22 +62,6 @@ export default function GradeWorkspace() {
     setContentType(null);
     setForceInline(false);
   }, [essay?.originalUrl, essay?.fileUrl]);
-
-  // Configura worker do PDF de forma segura (efeito) para evitar efeitos colaterais no render
-  useEffect(() => {
-    try {
-      // @ts-ignore
-      const workerSrc = (() => {
-        try {
-          // eslint-disable-next-line no-new-func
-          const base = (new Function('try { return import.meta.url } catch { return null }'))();
-          if (base) return new URL('pdfjs-dist/build/pdf.worker.min.mjs', base).toString();
-        } catch {}
-        return null;
-      })();
-      if (workerSrc) pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
-    } catch {}
-  }, []);
 
   useEffect(() => {
     let alive = true;
