@@ -1,13 +1,8 @@
 import axios from 'axios';
 import { getToken } from '@/utils/auth';
 
-// Garante que a URL base termine com /api
-function normalizeBase(url?: string) {
-  const base = (url || '').replace(/\/+$/, '');
-  return base.endsWith('/api') ? base : `${base}/api`;
-}
-
-const baseURL = normalizeBase((import.meta as any).env?.VITE_API_BASE_URL);
+// Sempre usa /api para o proxy do Vercel
+const baseURL = '/api';
 
 export const api = axios.create({
   baseURL,
