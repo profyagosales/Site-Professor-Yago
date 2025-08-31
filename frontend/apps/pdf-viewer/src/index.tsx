@@ -10,8 +10,8 @@ function App() {
     function onMessage(e: MessageEvent) {
       if (e.origin !== window.location.origin) return;
       const msg = e.data;
-      if (msg?.type === 'open-pdf') {
-        setFileUrl(msg.url);
+      if (msg?.type === 'open' || msg?.type === 'open-pdf') {
+        setFileUrl(msg.fileUrl || msg.url);
         setMeta(msg.meta);
       }
     }

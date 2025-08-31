@@ -27,9 +27,18 @@ export default function Viewer({ fileUrl, meta }: Props) {
 
   return (
     <div ref={containerRef} style={{ width: '100%' }}>
-      <Document file={fileUrl} onLoadSuccess={onLoadSuccess} onLoadError={(e)=> window.parent.postMessage({type:'error', message:String(e.message || e)}, window.location.origin)}>
+      <Document
+        file={{ url: fileUrl, httpHeaders: meta?.token ? { Authorization: `Bearer ${meta.token}` } : undefined }}
+        onLoadSuccess={onLoadSuccess}
+        onLoadError={(e) =>
+          window.parent.postMessage(
+            { type: 'error', message: String(e.message || e) },
+            window.location.origin,
+          )
+        }
+      >
         {Array.from({ length: numPages }, (_, i) => (
-          <Page key={i+1} pageNumber={i+1} width={600} />
+          <Page key={i + 1} pageNumber={i + 1} width={600} />
         ))}
       </Document>
     </div>
