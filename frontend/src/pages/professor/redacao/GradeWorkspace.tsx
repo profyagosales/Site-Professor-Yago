@@ -7,6 +7,7 @@ import AnnotationEditorRich from '@/components/redacao/AnnotationEditorRich';
 import type { Highlight } from '@/components/redacao/types';
 import type { Anno } from '@/types/annotations';
 import { toast } from 'react-toastify';
+import Avatar from '@/components/Avatar';
 
 const useRich = import.meta.env.VITE_USE_RICH_ANNOS === '1' || import.meta.env.VITE_USE_RICH_ANNOS === 'true';
 const useIframe = import.meta.env.VITE_PDF_IFRAME !== '0';
@@ -314,13 +315,11 @@ export default function GradeWorkspace() {
       )}
   <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          {essay.studentId?.photo ? (
-            <img src={essay.studentId.photo} alt={essay.studentId.name} className="h-16 w-16 rounded-full object-cover" />
-          ) : (
-            <div className="h-16 w-16 rounded-full bg-[#E5E7EB] flex items-center justify-center text-[#6B7280]">
-              {(essay.studentId?.name || 'A').slice(0,1)}
-            </div>
-          )}
+          <Avatar
+            src={essay.studentId?.photo}
+            name={essay.studentId?.name}
+            className="h-16 w-16"
+          />
           <div>
             <h2 className="text-lg font-semibold">{essay.studentId?.name || '-'}</h2>
             <p className="text-sm text-ys-ink-2">
