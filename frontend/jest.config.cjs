@@ -9,9 +9,10 @@ module.exports = {
       ]
     }],
   },
-  setupFilesAfterEnv: ['<rootDir>/setupTests.js'],
+  setupFilesAfterEnv: ['<rootDir>/src/setupTests.ts'],
   moduleNameMapper: {
-    '^@/(.*)\\.css$': '<rootDir>/src/__mocks__/styleMock.js',
+    '^react$': require.resolve('react'),
+    '^react-dom$': require.resolve('react-dom'),
     '^@/(.*)$': '<rootDir>/src/$1',
     '\\.(css|less|scss|sass)$': '<rootDir>/src/__mocks__/styleMock.js'
   }
