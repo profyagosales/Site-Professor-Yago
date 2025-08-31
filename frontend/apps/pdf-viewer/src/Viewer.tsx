@@ -3,7 +3,7 @@ import { Document, Page } from 'react-pdf';
 import { GlobalWorkerOptions } from 'pdfjs-dist';
 
 interface Props {
-  fileSource: string | { url: string; httpHeaders?: Record<string, string> };
+  fileSource: string | { url: string; httpHeaders?: Record<string, string>; withCredentials?: boolean };
   meta?: any;
 }
 
