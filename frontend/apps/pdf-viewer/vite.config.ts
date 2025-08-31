@@ -1,12 +1,12 @@
+import path from 'path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { resolve } from 'path';
 
 export default defineConfig({
-  root: resolve(__dirname),
-  base: '/viewer/',
   plugins: [react()],
+  base: '/viewer/',            // importante para servir estático em /viewer/*
   build: {
-    outDir: 'dist'
+    outDir: path.resolve(__dirname, '../../dist/viewer'),
+    emptyOutDir: false          // não limpar o dist do app principal
   }
 });

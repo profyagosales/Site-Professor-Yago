@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Document, Page, pdfjs } from 'react-pdf';
+import { Document, Page } from 'react-pdf';
+import { GlobalWorkerOptions } from 'pdfjs-dist';
 
 interface Props {
   fileSource: string | { url: string; httpHeaders?: Record<string, string> };
@@ -11,7 +12,7 @@ export default function Viewer({ fileSource }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    pdfjs.GlobalWorkerOptions.workerSrc = '/viewer/pdf.worker.mjs';
+    GlobalWorkerOptions.workerSrc = '/pdf.worker.mjs';
   }, []);
 
   function onLoadSuccess({ numPages }: { numPages: number }) {

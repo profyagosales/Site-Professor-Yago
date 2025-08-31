@@ -1,13 +1,6 @@
 {
-  "framework": "vite",
-  "buildCommand": "npm install --legacy-peer-deps && npm run build",
-  "outputDirectory": "dist",
+  "version": 2,
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://api.professoryagosales.com.br/:path*" },
-    { "source": "/(.*)", "destination": "/" }
-  ],
-  "routes": [
-    { "src": "/pdf.worker.mjs", "dest": "/pdf.worker.mjs" },
-    { "src": "/viewer/(.*)", "dest": "/viewer/$1" }
+    { "source": "/api/(.*)", "destination": "https://api.professoryagosales.com.br/api/$1" }
   ]
 }
