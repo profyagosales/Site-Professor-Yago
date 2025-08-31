@@ -1,5 +1,9 @@
 {
   "rewrites": [
     { "source": "/api/:path*", "destination": "https://api.professoryagosales.com.br/:path*" }
+  ],
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
