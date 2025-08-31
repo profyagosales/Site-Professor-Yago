@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 
 interface Props {
-  fileUrl: string;
-  meta: any;
+  fileSource: string | { url: string; httpHeaders?: Record<string, string> };
+  meta?: any;
 }
 
-export default function Viewer({ fileUrl, meta }: Props) {
+export default function Viewer({ fileSource }: Props) {
   const [numPages, setNumPages] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -28,7 +28,7 @@ export default function Viewer({ fileUrl, meta }: Props) {
   return (
     <div ref={containerRef} style={{ width: '100%' }}>
       <Document
-        file={{ url: fileUrl, httpHeaders: meta?.token ? { Authorization: `Bearer ${meta.token}` } : undefined }}
+        file={fileSource}
         onLoadSuccess={onLoadSuccess}
         onLoadError={(e) =>
           window.parent.postMessage(
