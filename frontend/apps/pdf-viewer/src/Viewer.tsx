@@ -12,7 +12,7 @@ export default function Viewer({ fileSource }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    GlobalWorkerOptions.workerSrc = '/pdf.worker.mjs';
+    GlobalWorkerOptions.workerSrc = '/viewer/pdf.worker.mjs';
   }, []);
 
   function onLoadSuccess({ numPages }: { numPages: number }) {
