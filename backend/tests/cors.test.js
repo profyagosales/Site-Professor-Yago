@@ -8,10 +8,12 @@ describe('CORS configuration', () => {
     const res = await request(app)
       .options('/')
       .set('Origin', allowedOrigin)
-      .set('Access-Control-Request-Method', 'GET');
+      .set('Access-Control-Request-Method', 'HEAD')
+      .set('Access-Control-Request-Headers', 'Authorization');
 
     expect(res.status).toBe(204);
     expect(res.headers['access-control-allow-origin']).toBe(allowedOrigin);
+    expect(res.headers['access-control-allow-headers']).toMatch(/Authorization/);
   });
 
   it('blocks requests from disallowed origins', async () => {

@@ -21,6 +21,7 @@ const uploadsRoutes = require('./routes/uploads');
 const notificationRoutes = require('./routes/notifications');
 const dashboardRoutes = require('./routes/dashboard');
 const contentsRoutes = require('./routes/contents');
+const themesRoutes = require('./routes/themes');
 const devSeedRoutes = require('./routes/devSeed');
 
 const app = express();
@@ -96,6 +97,7 @@ api.use('/notifications', notificationRoutes);
 api.use('/contents', contentsRoutes);
 // dev utilities (guarded by SEED_TOKEN)
 api.use('/dev', devSeedRoutes);
+api.use('/themes', themesRoutes);
 
 // Em ambiente de teste, monte as rotas na raiz para compatibilidade com a suíte existente
 if (process.env.NODE_ENV === 'test') {

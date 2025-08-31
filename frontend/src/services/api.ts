@@ -45,3 +45,8 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+export const Themes = {
+  list: (q = '') => api.get('/themes', { params: { q } }).then((r) => r.data),
+  create: (name: string) => api.post('/themes', { name }).then((r) => r.data),
+};

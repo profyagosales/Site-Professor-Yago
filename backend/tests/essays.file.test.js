@@ -13,6 +13,7 @@ describe('Essay file streaming', () => {
   let server;
   let fileUrl;
   let pdfBuffer;
+  let fileToken;
 
   beforeEach(async () => {
     const cls = await Class.create({ series: 1, letter: 'A', discipline: 'Port', teachers: [] });
@@ -24,7 +25,7 @@ describe('Essay file streaming', () => {
     });
     studentToken = jwt.sign({ id: student._id }, process.env.JWT_SECRET);
 
-    pdfBuffer = Buffer.from('%PDF-1.4 test\n');
+    pdfBuffer = Buffer.alloc(200, 0);
     server = http.createServer((req, res) => {
       const total = pdfBuffer.length;
       const range = req.headers.range;
@@ -62,6 +63,10 @@ describe('Essay file streaming', () => {
       .attach('file', Buffer.from('pdf'), 'file.pdf');
     essayId = createRes.body._id;
     await Essay.findByIdAndUpdate(essayId, { $set: { originalUrl: fileUrl } });
+    const tokenRes = await request(app)
+      .post(`/essays/${essayId}/file-token`)
+      .set('Authorization', `Bearer ${studentToken}`);
+    fileToken = tokenRes.body.token;
   });
 
   afterEach(() => {
@@ -71,18 +76,27 @@ describe('Essay file streaming', () => {
   it('HEAD /essays/:id/file returns 200 with Accept-Ranges header', async () => {
     const res = await request(app)
       .head(`/essays/${essayId}/file`)
-      .set('Authorization', `Bearer ${studentToken}`);
+      .set('Authorization', `Bearer ${fileToken}`);
     expect(res.status).toBe(200);
     expect(res.headers['accept-ranges']).toBe('bytes');
+    expect(res.headers['content-type']).toBe('application/pdf');
   });
 
   it('GET /essays/:id/file with Range returns 206 and Content-Range', async () => {
     const res = await request(app)
       .get(`/essays/${essayId}/file`)
-      .set('Authorization', `Bearer ${studentToken}`)
-      .set('Range', 'bytes=0-0');
+      .set('Authorization', `Bearer ${fileToken}`)
+      .set('Range', 'bytes=0-99');
     expect(res.status).toBe(206);
-    expect(res.headers['content-range']).toBe(`bytes 0-0/${pdfBuffer.length}`);
+    expect(res.headers['content-range']).toBe(`bytes 0-99/${pdfBuffer.length}`);
+  });
+
+  it('POST /essays/:id/file-token returns token string', async () => {
+    const res = await request(app)
+      .post(`/essays/${essayId}/file-token`)
+      .set('Authorization', `Bearer ${studentToken}`);
+    expect(res.status).toBe(200);
+    expect(typeof res.body.token).toBe('string');
   });
 });
 
