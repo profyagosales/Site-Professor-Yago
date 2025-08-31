@@ -1,52 +1,27 @@
-import axios from 'axios';
-import { getToken } from '@/utils/auth';
+import axios from "axios";
 
-// Usar VITE_API_URL para produção (/api) ou vazio para desenvolvimento
-const baseURL = import.meta.env.VITE_API_URL || '';
+// 1) Base URL prioriza VITE_API_BASE_URL em prod.
+// 2) Em dev, deixamos vazio e o Vite proxy cuida do /api.
+const RAW = import.meta.env.VITE_API_BASE_URL?.trim() || "";
+// normaliza para não ter barra dupla depois
+const BASE =
+  RAW !== ""
+    ? RAW.replace(/\/+$/, "")
+    : "";
 
+// ATENÇÃO: quando BASE !== "", todas as chamadas devem ser relativas (ex.: "/auth/login-teacher")
+// para evitar "/api/api".
 export const api = axios.create({
-  baseURL,
+  baseURL: BASE, // ex.: https://api.professoryagosales.com.br/api
   withCredentials: true,
-  headers: { 'Content-Type': 'application/json' },
+  headers: { "Content-Type": "application/json" },
 });
 
-export async function createFileToken(essayId: string) {
-  const { data } = await api.post(`/essays/${essayId}/file-token`);
-  return data?.token as string;
-}
-
+// Opcional: já injeta Authorization se existir token salvo
 api.interceptors.request.use((config) => {
-  // Remover Content-Type explícito para permitir que o Axios defina automaticamente
-  // (multipart/form-data para FormData, application/json para objetos, etc.)
-  if (config.headers) {
-    try { delete (config.headers as any)['Content-Type']; } catch {}
-  }
-  const token = getToken();
-  if (token) {
-    const hdrs = (config.headers ?? {}) as Record<string, any>;
-    hdrs.Authorization = `Bearer ${token}`;
-    config.headers = hdrs as any;
+  const t = localStorage.getItem("auth_token");
+  if (t && !config.headers?.Authorization) {
+    config.headers = { ...config.headers, Authorization: `Bearer ${t}` };
   }
   return config;
 });
-
-api.interceptors.response.use(
-  (r) => r,
-  (error) => {
-    if (error?.response?.status === 401) {
-      try { localStorage.removeItem('auth_token'); localStorage.removeItem('role'); } catch {}
-      if (typeof window !== 'undefined') {
-        const here = window.location.pathname;
-        if (!/login-professor/.test(here)) window.location.replace('/login-professor');
-      }
-    }
-    return Promise.reject(error);
-  }
-);
-
-export default api;
-
-export const Themes = {
-  list: (q = '') => api.get('/themes', { params: { q } }).then((r) => r.data),
-  create: (name: string) => api.post('/themes', { name }).then((r) => r.data),
-};
