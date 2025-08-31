@@ -15,6 +15,11 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+export async function createFileToken(essayId: string) {
+  const { data } = await api.post(`/essays/${essayId}/file-token`);
+  return data?.token as string;
+}
+
 api.interceptors.request.use((config) => {
   // Remover Content-Type explícito para permitir que o Axios defina automaticamente
   // (multipart/form-data para FormData, application/json para objetos, etc.)

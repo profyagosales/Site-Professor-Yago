@@ -3,9 +3,11 @@
   "buildCommand": "npm install --legacy-peer-deps && npm run build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://api.professoryagosales.com.br/api/$1" },
-    { "source": "/pdf.worker.mjs", "destination": "/pdf.worker.mjs" },
-    { "source": "/viewer/(.*)", "destination": "/viewer/$1" },
+    { "source": "/api/:path*", "destination": "https://api.professoryagosales.com.br/:path*" },
     { "source": "/(.*)", "destination": "/" }
+  ],
+  "routes": [
+    { "src": "/pdf.worker.mjs", "dest": "/pdf.worker.mjs" },
+    { "src": "/viewer/(.*)", "dest": "/viewer/$1" }
   ]
 }

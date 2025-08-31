@@ -4,8 +4,10 @@ const Theme = require('../models/Theme');
 
 const router = express.Router();
 
+const authRequired = auth.authRequired || auth;
+
 // GET /themes?q=
-router.get('/', auth.authRequired, async (req, res, next) => {
+router.get('/', authRequired, async (req, res, next) => {
   try {
     const q = (req.query.q || '').toString();
     const filter = q ? { name: { $regex: `^${q}`, $options: 'i' } } : {};
@@ -15,7 +17,7 @@ router.get('/', auth.authRequired, async (req, res, next) => {
 });
 
 // POST /themes { name }
-router.post('/', auth.authRequired, async (req, res, next) => {
+router.post('/', authRequired, async (req, res, next) => {
   try {
     const name = (req.body && req.body.name || '').toString().trim();
     if (!name) return res.status(400).json({ message: 'name required' });
