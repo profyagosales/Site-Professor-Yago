@@ -8,12 +8,12 @@ export const isAuthed = () => ({
 });
 
 export async function getCurrentUser() {
-  const { data } = await api.get('/auth/me');
+  const { data } = await api.get('/api/auth/me');
   return data;
 }
 
 export const loginTeacher = async (payload) => {
-  const { data } = await api.post('/auth/login-teacher', payload);
+  const { data } = await api.post('/api/auth/login-teacher', payload);
   if (data?.success) {
     const t = data?.data?.token;
     if (t) localStorage.setItem('auth_token', t);
@@ -24,7 +24,7 @@ export const loginTeacher = async (payload) => {
 };
 
 export const loginStudent = async ({ email, password }) => {
-  const { data } = await api.post('/auth/login-student', { email, password });
+  const { data } = await api.post('/api/auth/login-student', { email, password });
   if (data?.success) {
     const t = data?.data?.token;
     if (t) localStorage.setItem('auth_token', t);
@@ -36,7 +36,7 @@ export const loginStudent = async ({ email, password }) => {
 
 export async function logout() {
   try {
-    await api.post('/auth/logout');
+    await api.post('/api/auth/logout');
   } catch (e) {
     // ignore logout errors (e.g., already logged out)
   }

@@ -54,7 +54,7 @@ function DashboardProfessor(){
   }, [])
 
   const handleLogout = async () => {
-    await api.post('/auth/logout')
+    await api.post('/api/auth/logout')
     localStorage.removeItem('auth_token')
     delete api.defaults.headers.common['Authorization']
     navigate('/login-professor')

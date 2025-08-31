@@ -7,6 +7,7 @@ import type { Highlight } from '@/components/redacao/types';
 import type { Anno } from '@/types/annotations';
 import { toast } from 'react-toastify';
 import Avatar from '@/components/Avatar';
+import { api } from '@/services/api';
 
 const useRich =
   import.meta.env.VITE_USE_RICH_ANNOS === '1' ||
@@ -234,13 +235,9 @@ export default function GradeWorkspace() {
     const baseUrl = `/api/essays/${id}/file`;
     (async () => {
       try {
-        const resp = await fetch(`/api/essays/${id}/file-token`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-        });
-        if (!resp.ok) throw new Error('token');
-        const { token } = await resp.json();
+        const resp = await api.post(`/api/essays/${id}/file-token`);
+        if (!resp.data?.token) throw new Error('token');
+        const { token } = resp.data;
         const headResp = await fetch(baseUrl, {
           method: 'HEAD',
           headers: { Authorization: `Bearer ${token}` },

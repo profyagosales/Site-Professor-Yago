@@ -9,7 +9,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactElem
     let alive = true;
     (async () => {
       try {
-        await api.get("/auth/me");
+        await api.get("/api/auth/me");
         if (alive) setOk(true);
       } catch (err: any) {
         if (alive) setErr(err);

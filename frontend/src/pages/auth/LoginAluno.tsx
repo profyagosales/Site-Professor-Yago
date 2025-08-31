@@ -16,7 +16,7 @@ export default function LoginAluno() {
     e.preventDefault();
     setErro("");
     try {
-      const { data } = await api.post("/auth/login-student", { email, password });
+      const { data } = await api.post("/api/auth/login-student", { email, password });
       if (data?.success) {
         const t = data?.data?.token;
         if (t) localStorage.setItem("auth_token", t);

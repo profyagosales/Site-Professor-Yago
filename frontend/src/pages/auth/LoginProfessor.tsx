@@ -16,7 +16,7 @@ export default function LoginProfessor() {
     e.preventDefault();
     setErro("");
     try {
-      const { data } = await api.post("/auth/login-teacher", { email, password: senha });
+      const { data } = await api.post("/api/auth/login-teacher", { email, password: senha });
       if (data?.success) {
         // save token for Bearer flows (cookie also set by backend)
         localStorage.setItem("auth_token", data.token);

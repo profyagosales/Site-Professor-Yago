@@ -10,7 +10,7 @@ const BASE =
     : "";
 
 // ATENÇÃO: quando BASE !== "", todas as chamadas devem ser relativas (ex.: "/auth/login-teacher")
-// para evitar "/api/api".
+// para evitar "/api/api". Quando BASE é vazio (dev), as chamadas devem incluir "/api/"
 export const api = axios.create({
   baseURL: BASE, // ex.: https://api.professoryagosales.com.br/api
   withCredentials: true,
