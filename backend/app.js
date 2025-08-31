@@ -46,9 +46,15 @@ const serveFrontend = process.env.SERVE_FRONTEND === 'true';
 const isProd = process.env.NODE_ENV === 'production';
 
 // --- CORS ---
+const allowedOrigins = [
+  'https://professoryagosales.com.br',
+  'https://www.professoryagosales.com.br',
+  'https://site-professor-yago-frontend.vercel.app'
+];
+
 app.use(cors({
   origin(origin, cb) {
-    if (!origin || origin === frontendOrigin) return cb(null, true);
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
     return cb(new Error(`CORS: origem não permitida: ${origin}`));
   },
   credentials: true,
