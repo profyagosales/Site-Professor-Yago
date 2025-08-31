@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { getToken } from '@/utils/auth';
 
-// Para o Vercel, não precisamos de baseURL pois ele faz proxy de /api/*
-const baseURL = '';
+// Usar VITE_API_URL para produção (/api) ou vazio para desenvolvimento
+const baseURL = import.meta.env.VITE_API_URL || '';
 
 export const api = axios.create({
   baseURL,

@@ -1,5 +1,5 @@
 {
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://api.professoryagosales.com.br/$1" }
+    { "source": "/api/:path*", "destination": "https://api.professoryagosales.com.br/:path*" }
   ]
 }
