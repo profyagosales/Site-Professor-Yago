@@ -4,22 +4,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { fetchEssayById, gradeEssay, saveAnnotations, renderCorrection } from '@/services/essays.service';
 import AnnotationEditor from '@/components/redacao/AnnotationEditor';
 import AnnotationEditorRich from '@/components/redacao/AnnotationEditorRich';
-import type { PdfHighlighterHandle, HighlightItem } from '@/components/redacao/PdfHighlighter';
+import type { Highlight } from '@/components/redacao/types';
 import type { Anno } from '@/types/annotations';
 import { toast } from 'react-toastify';
-import { ensurePdfWorker } from '../../../pdfSetup';
 
 const useRich = import.meta.env.VITE_USE_RICH_ANNOS === '1' || import.meta.env.VITE_USE_RICH_ANNOS === 'true';
-// impede o Vite de analisar e pre-carregar dependências do PDF
-const PdfHighlighter = React.lazy(() =>
-  import(/* @vite-ignore */ '../../../components/redacao/PdfHighlighter')
-);
-
-const HIGHLIGHT_PALETTE = [
-  { id: 'grammar', color: '#86EFAC99', label: 'Ortografia/Gramática' },
-  { id: 'cohesion', color: '#FDE68A99', label: 'Coesão/Coerência' },
-  { id: 'argument', color: '#93C5FD99', label: 'Argumentação/Conteúdo' },
-];
+const useIframe = import.meta.env.VITE_PDF_IFRAME !== '0';
 
 export default function GradeWorkspace() {
   const { id } = useParams();
@@ -27,7 +17,7 @@ export default function GradeWorkspace() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string|null>(null);
   const [essay, setEssay] = useState<any | null>(null);
-  const [annotations, setAnnotations] = useState<HighlightItem[]>([]);
+  const [annotations, setAnnotations] = useState<Highlight[]>([]);
   const [richAnnos, setRichAnnos] = useState<Anno[]>([]);
   const [comments, setComments] = useState('');
   const [weight, setWeight] = useState('1');
@@ -46,15 +36,14 @@ export default function GradeWorkspace() {
   const [lastAddedIndex, setLastAddedIndex] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const pdfRef = useRef<PdfHighlighterHandle>(null);
   const [autosaving, setAutosaving] = useState(false);
-  const [undoStack, setUndoStack] = useState<Array<{ idx: number; ann: HighlightItem }>>([]);
-  const [redoStack, setRedoStack] = useState<Array<{ idx: number; ann: HighlightItem }>>([]);
+  const [undoStack, setUndoStack] = useState<Array<{ idx: number; ann: Highlight }>>([]);
+  const [redoStack, setRedoStack] = useState<Array<{ idx: number; ann: Highlight }>>([]);
   const [dirty, setDirty] = useState(false);
   const [suppressDirty, setSuppressDirty] = useState(true);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [snapshot, setSnapshot] = useState<null | {
-    annotations: HighlightItem[];
+    annotations: Highlight[];
     comments: string;
     weight: string;
     bimestralPointsValue: string;
@@ -63,11 +52,13 @@ export default function GradeWorkspace() {
     c1: string; c2: string; c3: string; c4: string; c5: string;
     NC: string; NL: string;
   }>(null);
-  // Resolução do src do PDF
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [contentType, setContentType] = useState<string | null>(null);
   const [pdfCheck, setPdfCheck] = useState<'unknown' | 'ok' | 'fail'>('unknown');
   const [ready, setReady] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [iframeError, setIframeError] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -136,19 +127,8 @@ export default function GradeWorkspace() {
   }, [NC, NL, annotations, weight, countInBimestral]);
   const neCount = useMemo(() => annotations.filter(a => a.color === 'grammar' && (a.label||'').toLowerCase().includes('erro')).length, [annotations]);
 
-  const pageHighlights = useMemo(() => annotations.filter(a => (a as any)?.bbox?.page === currentPage), [annotations, currentPage]);
 
-  function goToNextAnnotated() {
-    const pages = Array.from(new Set(annotations.map(a => (a as any)?.bbox?.page).filter((p):p is number => typeof p === 'number'))).sort((a,b)=>a-b);
-    if (pages.length === 0) return;
-    const next = pages.find(p => p > currentPage) ?? pages[0];
-    if (pdfRef.current) pdfRef.current.jumpToPage(next);
-    setCurrentPage(next);
-  }
-
-  function clearPage() {
-    setAnnotations(prev => prev.filter(a => (a as any)?.bbox?.page !== currentPage));
-  }
+  // navegação de anotações removida no modo iframe
 
   // Mark form dirty on relevant changes
   useEffect(() => { if (!loading && !suppressDirty) setDirty(true); }, [annotations, comments, c1, c2, c3, c4, c5, NC, NL, weight, annulReason, bimestralValue, countInBimestral, loading, suppressDirty]);
@@ -230,52 +210,51 @@ export default function GradeWorkspace() {
     return () => { clearTimeout(debounce); clearTimeout(safety); };
   }, [dirty, essay, annotations, richAnnos, useNewAnnotator]);
 
-  // --- Carregamento do arquivo em blob com token curto ---
+  // obter token curto para o viewer em iframe
   useEffect(() => {
-    let cancelled = false;
+    if (!id || !useIframe) return;
     (async () => {
-      if (!id) return;
-      setPdfCheck('unknown');
-      setViewerUrl(null);
       try {
-        await ensurePdfWorker();
-        const tokenRes = await fetch(`/api/essays/${id}/file-token`, {
+        const res = await fetch('/api/file-token', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ essayId: id }),
           credentials: 'include',
         });
-        if (!tokenRes.ok) throw new Error('token');
-        const { token } = await tokenRes.json();
-        const headRes = await fetch(`/api/essays/${id}/file`, {
-          method: 'HEAD',
-          headers: { Authorization: `Bearer ${token}` },
-          credentials: 'include',
-        });
-        if (!headRes.ok) throw new Error('head');
-        const ct = headRes.headers.get('content-type');
-        if (!cancelled && ct) setContentType(ct);
-        const fileRes = await fetch(`/api/essays/${id}/file`, {
-          headers: { Authorization: `Bearer ${token}` },
-          credentials: 'include',
-        });
-        if (!fileRes.ok) throw new Error('file');
-        const blob = await fileRes.blob();
-        if (!cancelled) {
-          const objectUrl = URL.createObjectURL(blob);
-          setViewerUrl(objectUrl);
-          setPdfCheck('ok');
-          setReady(true);
-        }
-      } catch {
-        if (!cancelled) {
-          setPdfCheck('fail');
-          setReady(false);
-        }
+        if (!res.ok) throw new Error('token');
+        const { token } = await res.json();
+        setFileUrl(`/api/essays/${id}/file?token=${token}`);
+      } catch (e) {
+        setIframeError('Falha ao carregar PDF');
       }
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
+  }, [id, useIframe]);
+
+  useEffect(() => {
+    function onMessage(e: MessageEvent) {
+      if (e.origin !== window.location.origin) return;
+      const msg = e.data;
+      if (msg?.type === 'height' && iframeRef.current) {
+        iframeRef.current.style.height = `${msg.value}px`;
+      } else if (msg?.type === 'loaded') {
+        setReady(true);
+      } else if (msg?.type === 'annos-changed') {
+        setAnnotations(msg.payload || []);
+      } else if (msg?.type === 'error') {
+        setIframeError(msg.message || 'Erro');
+      }
+    }
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
+
+  function handleIframeLoad() {
+    if (!iframeRef.current || !fileUrl) return;
+    iframeRef.current.contentWindow?.postMessage(
+      { type: 'open', fileUrl, meta: { essayId: id, commentsRequired: true } },
+      window.location.origin,
+    );
+  }
 
   const isPdf = contentType ? contentType.toLowerCase().includes('pdf') : false;
   const effectiveSrc = viewerUrl || '';
@@ -325,26 +304,7 @@ export default function GradeWorkspace() {
   if (!essay) return null;
 
   async function openPdfInNewTab() {
-    if (!id) return;
-    try {
-      const tokenRes = await fetch(`/api/essays/${id}/file-token`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (!tokenRes.ok) throw new Error('token');
-      const { token } = await tokenRes.json();
-      const fileRes = await fetch(`/api/essays/${id}/file`, {
-        headers: { Authorization: `Bearer ${token}` },
-        credentials: 'include',
-      });
-      if (!fileRes.ok) throw new Error('file');
-      const blob = await fileRes.blob();
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank', 'noopener,noreferrer');
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    } catch {
-      // ignore
-    }
+    if (fileUrl) window.open(fileUrl, '_blank', 'noopener,noreferrer');
   }
 
   return (
@@ -416,70 +376,25 @@ export default function GradeWorkspace() {
       <div className="grid md:grid-cols-2 gap-4">
         <div className="min-h-[420px] overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#F9FAFB]">
           {/* Status */}
-          {pdfCheck === 'unknown' && (
-            <div className="p-4 text-sm text-ys-ink-2">Verificando arquivo…</div>
-          )}
-          {canRenderInline && isPdf ? (
-            useRich ? (
-              ready ? (
-                <div className="flex h-full">
-                  <div className="flex-1">
-                    <React.Suspense fallback={<div className="p-4 text-sm text-ys-ink-2">Carregando PDF…</div>}>
-                      <PdfHighlighter
-                        ref={pdfRef}
-                        fileUrl={effectiveSrc}
-                        highlights={annotations as HighlightItem[]}
-                        onChange={setAnnotations}
-                        onPageChange={setCurrentPage}
-                        palette={HIGHLIGHT_PALETTE}
-                        requireComment
-                      />
-                    </React.Suspense>
-                  </div>
-                  <div className="w-48 border-l flex flex-col">
-                    <div className="flex-1 overflow-y-auto p-2 space-y-1 text-xs">
-                      {pageHighlights.length === 0 && <div className="text-ys-ink-2">Sem anotações nesta página</div>}
-                      {pageHighlights.map((h,i)=> (
-                        <div key={h.id || i} className="border-b pb-1 mb-1">
-                          {h.label && <div className="font-medium">{h.label}</div>}
-                          <div>{h.comment}</div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="p-2 border-t space-y-2">
-                      <button className="w-full rounded border px-2 py-1 text-xs" onClick={goToNextAnnotated}>Próxima com anotação</button>
-                      <button className="w-full rounded border px-2 py-1 text-xs" onClick={clearPage}>Limpar pág.</button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-4 text-sm text-ys-ink-2">Carregando PDF…</div>
-              )
+          {useIframe ? (
+            fileUrl && !iframeError ? (
+              <iframe
+                ref={iframeRef}
+                src="/viewer/index.html"
+                className="w-full border-0"
+                onLoad={handleIframeLoad}
+              />
             ) : (
-              <div className="p-4 text-sm text-ys-ink-2">Visualização de PDF desativada</div>
-            )
-          ) : canRenderInline && !isPdf ? (
-            <div className="p-4 text-sm text-[#111827] space-y-2">
-              <div>O arquivo não é um PDF (Content-Type: {contentType || essay.originalMimeType || 'desconhecido'}). Exibindo visualização básica.</div>
-              {/* tenta imagem; se falhar, usa iframe */}
-              <img src={effectiveSrc} alt="arquivo" className="mt-2 max-h-[70vh] w-full object-contain" onError={(e)=>{
-                const img = e.currentTarget; const parent = img.parentElement as HTMLElement | null; if (!parent) return;
-                img.style.display = 'none';
-                const iframe = document.createElement('iframe');
-                iframe.title = 'arquivo';
-                iframe.style.width = '100%'; iframe.style.height = '70vh'; iframe.className = 'rounded border';
-                iframe.src = effectiveSrc; parent.appendChild(iframe);
-              }} />
-              <div className="flex gap-2">
-                <button className="rounded border px-2 py-1" onClick={()=> openPdfInNewTab()}>Abrir em nova aba</button>
+              <div className="p-4 text-sm text-ys-ink-2">
+                {iframeError || 'Carregando PDF…'}
+                {fileUrl && (
+                  <button className="ml-2 underline" onClick={openPdfInNewTab}>Abrir em nova aba</button>
+                )}
               </div>
-            </div>
-          ) : pdfCheck === 'fail' ? (
-            <div className="p-4 text-sm text-red-600 space-y-2">
-              <div>Falha ao carregar o arquivo.</div>
-              <button className="rounded border px-2 py-1" onClick={()=> openPdfInNewTab()}>Abrir em nova aba</button>
-            </div>
-          ) : null}
+            )
+          ) : (
+            <div className="p-4 text-sm text-ys-ink-2">Visualização de PDF desativada</div>
+          )}
         </div>
         <div className="space-y-3">
           <div className="grid gap-3 md:grid-cols-4">

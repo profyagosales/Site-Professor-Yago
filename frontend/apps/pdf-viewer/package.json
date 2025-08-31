@@ -1,0 +1,17 @@
+{
+  "name": "pdf-viewer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "copy-worker": "node scripts/copy-worker.cjs",
+    "postinstall": "npm run copy-worker"
+  },
+  "dependencies": {
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-pdf": "^7.7.3",
+    "react-pdf-highlighter": "7.0.0",
+    "pdfjs-dist": "^4.7.76"
+  }
+}

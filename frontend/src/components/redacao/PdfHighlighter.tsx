@@ -4,36 +4,20 @@ import React, {
   useRef,
   useState,
 } from 'react';
-
-export interface HighlightItem {
-  id: string;
-  color: string;
-  label?: string;
-  comment: string;
-  selection: any;
-  bbox: { page: number; x: number; y: number; w: number; h: number };
-}
-
-type PaletteItem = { id: string; color: string; label: string };
+import { HIGHLIGHT_PALETTE } from './palette';
+import type { Highlight } from './types';
 
 interface Props {
   fileUrl: string;
-  highlights: HighlightItem[];
-  onChange: (h: HighlightItem[]) => void;
+  highlights: Highlight[];
+  onChange: (h: Highlight[]) => void;
   onPageChange?: (p: number) => void;
-  palette?: PaletteItem[];
   requireComment?: boolean;
 }
 
 export interface PdfHighlighterHandle {
   jumpToPage: (p: number) => void;
 }
-
-const DEFAULT_PALETTE: PaletteItem[] = [
-  { id: 'grammar', color: '#86EFAC99', label: 'Ortografia/Gramática' },
-  { id: 'cohesion', color: '#FDE68A99', label: 'Coesão/Coerência' },
-  { id: 'argument', color: '#93C5FD99', label: 'Argumentação/Conteúdo' },
-];
 
 const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
   (
@@ -42,7 +26,6 @@ const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
       highlights,
       onChange,
       onPageChange,
-      palette = DEFAULT_PALETTE,
       requireComment = true,
     },
     ref,
@@ -58,9 +41,9 @@ const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
     }, []);
 
     const COLORS = Object.fromEntries(
-      palette.map((p) => [p.id, p.color]),
+      HIGHLIGHT_PALETTE.map((p) => [p.id, p.fill]),
     ) as Record<string, string>;
-    const [active, setActive] = useState<string>(palette[0]?.id || '');
+    const [active, setActive] = useState<string>(HIGHLIGHT_PALETTE[0]?.id || '');
     const scrollRef = useRef<any>(null);
     const viewerRef = useRef<any>(null);
     const [modal, setModal] = useState<{
@@ -101,23 +84,30 @@ const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
         w: boundingRect.x2 - boundingRect.x1,
         h: boundingRect.y2 - boundingRect.y1,
       };
+      const paletteItem = HIGHLIGHT_PALETTE.find(p => p.id === active)!;
       onChange([
         ...highlights,
         {
           id,
-          color: active,
-          label: title,
+          pageNumber,
+          rects: [{ left: bbox.x, top: bbox.y, width: bbox.w, height: bbox.h }],
+          color: paletteItem.hex,
+          fill: paletteItem.fill,
+          category: paletteItem.id,
+          label: paletteItem.label,
           comment: text,
+          createdAt: new Date().toISOString(),
+          author: null,
           selection: { position, content },
           bbox,
-        },
+        } as any,
       ]);
       hide();
       setModal(null);
     }
 
     function highlightTransform(
-      h: HighlightItem,
+      h: Highlight,
       _idx: number,
       setTip: any,
       hideTip: any,
@@ -132,7 +122,7 @@ const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
           isScrolledTo={isScrolledTo}
           position={h.selection.position}
           comment={{ text: lbl ? `${lbl}: ${h.comment}` : h.comment }}
-          highlightStyle={{ background: COLORS[h.color] || palette[0]?.color }}
+          highlightStyle={{ background: h.fill || COLORS[h.category] }}
         />
       );
       const popup = (
@@ -174,23 +164,19 @@ const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
           <>
             <div className="h-full flex flex-col">
               <div className="flex gap-2 p-2 border-b">
-                {palette.map((p) => (
-                  <button
-                    key={p.id}
-                    aria-label={p.label}
-                    title={p.label}
-                    className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${
-                      active === p.id ? 'ring-2 ring-black' : ''
-                    }`}
-                    onClick={() => setActive(p.id)}
-                  >
-                    <span
-                      className="h-4 w-4 rounded"
-                      style={{ background: p.color }}
+                <div role="radiogroup" className="flex gap-2">
+                  {HIGHLIGHT_PALETTE.map((p, idx) => (
+                    <button
+                      role="radio"
+                      key={p.id}
+                      aria-label={p.label}
+                      title={`${p.label} (${idx + 1})`}
+                      className={`h-5 w-5 rounded-[6px] border ${active === p.id ? 'ring-2 ring-black' : ''}`}
+                      style={{ background: p.fill }}
+                      onClick={() => setActive(p.id)}
                     />
-                    {p.label}
-                  </button>
-                ))}
+                  ))}
+                </div>
               </div>
               <div className="flex-1 overflow-hidden">
                 <PdfLoader
