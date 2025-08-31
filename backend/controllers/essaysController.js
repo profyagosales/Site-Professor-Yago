@@ -188,15 +188,29 @@ async function listEssays(req, res) {
     }
   }
 
-  const [items, total] = await Promise.all([
+  const [rawItems, total] = await Promise.all([
     Essay.find(filter)
       .populate('studentId', 'name rollNumber photo')
       .populate('classId', 'series letter discipline')
       .sort({ submittedAt: -1 })
       .skip(skip)
-      .limit(limit),
+      .limit(limit)
+      .lean(),
     Essay.countDocuments(filter)
   ]);
+
+  const items = rawItems.map((e) => ({
+    ...e,
+    student: e.studentId
+      ? {
+          _id: e.studentId._id,
+          name: e.studentId.name,
+          rollNumber: e.studentId.rollNumber,
+          photoUrl: e.studentId.photo,
+        }
+      : undefined,
+    class: e.classId,
+  }));
 
   res.json({ items, total, page, limit });
 }

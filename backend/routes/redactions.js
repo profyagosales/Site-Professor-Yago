@@ -87,7 +87,14 @@ router.get('/pendentes', async (req, res, next) => {
     // Adapta chaves para UI legada: student/class
     const mapped = data.map((e) => ({
       _id: e._id,
-      student: e.studentId,
+      student: e.studentId
+        ? {
+            _id: e.studentId._id,
+            name: e.studentId.name,
+            rollNumber: e.studentId.rollNumber,
+            photoUrl: e.studentId.photo,
+          }
+        : undefined,
       class: e.classId,
       submittedAt: e.submittedAt || e.createdAt,
       status: e.status,
@@ -112,7 +119,14 @@ router.get('/corrigidas', async (req, res, next) => {
       .sort({ submittedAt: -1 });
     const mapped = data.map((e) => ({
       _id: e._id,
-      student: e.studentId,
+      student: e.studentId
+        ? {
+            _id: e.studentId._id,
+            name: e.studentId.name,
+            rollNumber: e.studentId.rollNumber,
+            photoUrl: e.studentId.photo,
+          }
+        : undefined,
       class: e.classId,
       submittedAt: e.submittedAt || e.createdAt,
       status: e.status,
