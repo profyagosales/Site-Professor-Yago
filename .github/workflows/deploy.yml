@@ -28,6 +28,8 @@ jobs:
         run: npm install --prefix backend
       - name: Install frontend dependencies
         run: npm install --prefix frontend
+      - name: Vercel config preflight
+        run: npm --prefix frontend run vercel:preflight
       - name: Clean MongoDB cache
         run: rm -rf ~/.cache/mongodb-binaries
       - run: npm test --prefix backend

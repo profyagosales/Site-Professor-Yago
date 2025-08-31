@@ -15,6 +15,7 @@ jobs:
           node-version: 20
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
+      - run: npm --prefix frontend run vercel:preflight
       - run: pnpm typecheck
       - run: pnpm build
       - run: pnpm lint
