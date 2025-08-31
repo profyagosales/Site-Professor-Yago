@@ -7,39 +7,11 @@ import type { Highlight } from '@/components/redacao/types';
 import type { Anno } from '@/types/annotations';
 import { toast } from 'react-toastify';
 import Avatar from '@/components/Avatar';
-import { createFileToken } from '@/services/api';
 
-const useRich = import.meta.env.VITE_USE_RICH_ANNOS === '1' || import.meta.env.VITE_USE_RICH_ANNOS === 'true';
+const useRich =
+  import.meta.env.VITE_USE_RICH_ANNOS === '1' ||
+  import.meta.env.VITE_USE_RICH_ANNOS === 'true';
 const useIframe = import.meta.env.VITE_PDF_IFRAME !== '0';
-
-async function loadPdfInline(essayId: string, iframeEl: HTMLIFrameElement) {
-  const token = await createFileToken(essayId);
-  if (!token) throw new Error('token-missing');
-
-  const headResp = await fetch(`/api/essays/${essayId}/file`, {
-    method: 'HEAD',
-    headers: { Authorization: `Bearer ${token}` },
-    credentials: 'include',
-  });
-  if (!headResp.ok) throw new Error(`head-failed:${headResp.status}`);
-
-  const fileResp = await fetch(`/api/essays/${essayId}/file`, {
-    headers: { Authorization: `Bearer ${token}` },
-    credentials: 'include',
-  });
-  if (!fileResp.ok) throw new Error(`file-failed:${fileResp.status}`);
-
-  const blob = await fileResp.blob();
-  const url = URL.createObjectURL(blob);
-
-  if (iframeEl?.contentWindow) {
-    iframeEl.contentWindow.postMessage({ type: 'open-pdf', url }, window.location.origin);
-  } else {
-    iframeEl.src = url;
-  }
-
-  return () => URL.revokeObjectURL(url);
-}
 
 export default function GradeWorkspace() {
   const { id } = useParams();
@@ -86,6 +58,8 @@ export default function GradeWorkspace() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [iframeError, setIframeError] = useState<string | null>(null);
   const [pdfReady, setPdfReady] = useState(false);
+  const [fileUrl, setFileUrl] = useState('');
+  const [fileToken, setFileToken] = useState('');
 
   useEffect(() => {
     let alive = true;
@@ -252,18 +226,53 @@ export default function GradeWorkspace() {
     return () => { clearTimeout(debounce); clearTimeout(safety); };
   }, [dirty, essay, annotations, richAnnos, useNewAnnotator]);
 
-  // carregar PDF no iframe utilizando token curto
+  // carregar token do arquivo e preparar URL base
   useEffect(() => {
-    if (!id || !useIframe || !iframeRef.current) return;
-    let revoke: (() => void) | undefined;
-    loadPdfInline(id, iframeRef.current)
-      .then((fn) => {
-        revoke = fn;
+    if (!id || !useIframe) return;
+    setPdfReady(false);
+    setIframeError(null);
+    const baseUrl = `/api/essays/${id}/file`;
+    (async () => {
+      try {
+        const resp = await fetch(`/api/essays/${id}/file-token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+        if (!resp.ok) throw new Error('token');
+        const { token } = await resp.json();
+        const headResp = await fetch(baseUrl, {
+          method: 'HEAD',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!headResp.ok) throw new Error(`head-failed:${headResp.status}`);
+        setFileUrl(baseUrl);
+        setFileToken(token);
         setPdfReady(true);
-      })
-      .catch(() => setIframeError('Falha ao carregar PDF'));
-    return () => { if (revoke) revoke(); };
+      } catch {
+        setIframeError('Falha ao carregar PDF');
+      }
+    })();
   }, [id, useIframe]);
+
+  function sendFileToIframe() {
+    if (!iframeRef.current || !fileUrl || !fileToken) return;
+    iframeRef.current.contentWindow?.postMessage(
+      {
+        type: 'open',
+        fileUrl,
+        meta: {
+          essayId: id,
+          token: fileToken,
+        },
+      },
+      window.location.origin,
+    );
+  }
+
+  useEffect(() => {
+    sendFileToIframe();
+  }, [fileUrl, fileToken]);
 
   useEffect(() => {
     function onMessage(e: MessageEvent) {
@@ -325,25 +334,9 @@ export default function GradeWorkspace() {
   if (err) return <div className="p-6 text-red-600">{err}</div>;
   if (!essay) return null;
 
-  async function openPdfInNewTab() {
+  function openPdfInNewTab() {
     if (!id) return;
-    try {
-      const token = await createFileToken(id);
-      const resp = await fetch(`/api/essays/${id}/file`, {
-        headers: { Authorization: `Bearer ${token}` },
-        credentials: 'include',
-      });
-      if (!resp.ok) throw new Error('download');
-      const url = URL.createObjectURL(await resp.blob());
-      const a = document.createElement('a');
-      a.href = url;
-      a.target = '_blank';
-      a.rel = 'noopener';
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-    } catch (e) {
-      toast.error('Falha ao abrir PDF');
-    }
+    window.open(`/api/essays/${id}/file`, '_blank', 'noopener');
   }
 
   return (
@@ -419,6 +412,7 @@ export default function GradeWorkspace() {
                 ref={iframeRef}
                 src="/viewer/index.html"
                 className="w-full border-0"
+                onLoad={sendFileToIframe}
               />
             ) : (
               <div className="p-4 text-sm text-ys-ink-2">
