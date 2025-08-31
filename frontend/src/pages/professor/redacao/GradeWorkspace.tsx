@@ -63,26 +63,11 @@ export default function GradeWorkspace() {
     c1: string; c2: string; c3: string; c4: string; c5: string;
     NC: string; NL: string;
   }>(null);
-  // Resolução do src do PDF: faz preflight HEAD e tenta fallback com ?token em caso de 401
-  const [pdfCheck, setPdfCheck] = useState<'unknown'|'ok'|'fail'>('unknown');
-  const [srcOk, setSrcOk] = useState<string | null>(null);
+  // Resolução do src do PDF
+  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [contentType, setContentType] = useState<string | null>(null);
-  const [forceInline, setForceInline] = useState(false);
+  const [pdfCheck, setPdfCheck] = useState<'unknown' | 'ok' | 'fail'>('unknown');
   const [ready, setReady] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      await ensurePdfWorker(); // configura worker só quando a tela abre
-      if (!cancelled) setReady(true);
-    })();
-    return () => { cancelled = true; };
-  }, []);
-  useEffect(() => {
-    setPdfCheck('unknown');
-    setSrcOk(null);
-    setContentType(null);
-    setForceInline(false);
-  }, [essay?.originalUrl, essay?.fileUrl]);
 
   useEffect(() => {
     let alive = true;
@@ -245,57 +230,56 @@ export default function GradeWorkspace() {
     return () => { clearTimeout(debounce); clearTimeout(safety); };
   }, [dirty, essay, annotations, richAnnos, useNewAnnotator]);
 
-  // --- Cálculo de URLs do PDF e preflight (precisa ficar ANTES de qualquer return condicional) ---
-  const isPdfByExt = useMemo(() => (essay?.originalUrl || essay?.fileUrl || essay?.correctedUrl || '')
-    .toLowerCase().includes('.pdf'), [essay?.originalUrl, essay?.fileUrl, essay?.correctedUrl]);
-  const isPdfByMime = useMemo(() => typeof essay?.originalMimeType === 'string' && essay!.originalMimeType.toLowerCase().includes('pdf'), [essay?.originalMimeType]);
-  const isPdf = isPdfByExt || isPdfByMime || (contentType ? contentType.toLowerCase().includes('pdf') : false);
-  const idStr = (essay as any)?._id || (essay as any)?.id;
-  const RAW_API_URL = ((import.meta as any).env?.VITE_API_URL || '').toString();
-  const base = RAW_API_URL.replace(/\/$/, '');
-  const proxied = useMemo(() => {
-    if (!idStr) return null;
-    try {
-      const baseOrigin = base ? new URL(base).origin : '';
-      const here = typeof window !== 'undefined' ? window.location.origin : '';
-      return baseOrigin && here && baseOrigin !== here
-        ? `/api/essays/${idStr}/file`
-        : (base ? `${base}/api/essays/${idStr}/file` : `/api/essays/${idStr}/file`);
-    } catch {
-      return `/api/essays/${idStr}/file`;
-    }
-  }, [idStr, base]);
-  const direct = essay?.originalUrl || essay?.fileUrl || essay?.correctedUrl;
-  const srcUrl = proxied || direct || null;
-  const [fileToken, setFileToken] = useState<string | null>(null);
-
-  // Preflight HEAD usando token de arquivo via header
+  // --- Carregamento do arquivo em blob com token curto ---
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!proxied) { setPdfCheck('fail'); setSrcOk(null); return; }
+      if (!id) return;
       setPdfCheck('unknown');
+      setViewerUrl(null);
       try {
-        const tokenEndpoint = proxied.replace(/\/file$/, '/file-token');
-        const tokenResp = await fetch(tokenEndpoint, { method: 'POST', credentials: 'include' });
-        if (!tokenResp.ok) throw new Error('token');
-        const data = await tokenResp.json();
-        const token = data?.token;
-        if (!token) throw new Error('token-missing');
-        const head = await fetch(proxied, { method: 'HEAD', credentials: 'include', headers: { Authorization: `Bearer ${token}` } });
-        if (!cancelled && head.ok) {
-          const ct = head.headers.get('content-type');
-          if (ct) setContentType(ct);
-          setSrcOk(proxied);
-          setFileToken(token);
+        await ensurePdfWorker();
+        const tokenRes = await fetch(`/api/essays/${id}/file-token`, {
+          method: 'POST',
+          credentials: 'include',
+        });
+        if (!tokenRes.ok) throw new Error('token');
+        const { token } = await tokenRes.json();
+        const headRes = await fetch(`/api/essays/${id}/file`, {
+          method: 'HEAD',
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
+        });
+        if (!headRes.ok) throw new Error('head');
+        const ct = headRes.headers.get('content-type');
+        if (!cancelled && ct) setContentType(ct);
+        const fileRes = await fetch(`/api/essays/${id}/file`, {
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
+        });
+        if (!fileRes.ok) throw new Error('file');
+        const blob = await fileRes.blob();
+        if (!cancelled) {
+          const objectUrl = URL.createObjectURL(blob);
+          setViewerUrl(objectUrl);
           setPdfCheck('ok');
-          return;
+          setReady(true);
         }
-      } catch {}
-      if (!cancelled) { setSrcOk(null); setPdfCheck('fail'); }
+      } catch {
+        if (!cancelled) {
+          setPdfCheck('fail');
+          setReady(false);
+        }
+      }
     })();
-    return () => { cancelled = true; };
-  }, [proxied]);
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const isPdf = contentType ? contentType.toLowerCase().includes('pdf') : false;
+  const effectiveSrc = viewerUrl || '';
+  const canRenderInline = pdfCheck === 'ok' && !!viewerUrl;
 
   async function submit(generatePdf=false) {
     if (!essay) return;
@@ -339,26 +323,27 @@ export default function GradeWorkspace() {
   if (loading && !essay) return <div className="p-6">Carregando…</div>;
   if (err) return <div className="p-6 text-red-600">{err}</div>;
   if (!essay) return null;
-    // Render inline quando o preflight confirmar OK, ou quando usuário forçar.
-    const canRenderInline = (pdfCheck === 'ok' && !!(srcOk || srcUrl)) || forceInline;
-    const effectiveSrc = (srcOk || srcUrl) || '';
 
   async function openPdfInNewTab() {
-    // Tenta primeiro via proxy autenticado (relative /api/...)
-    const proxyUrl = `/api/essays/${idStr}/file`;
+    if (!id) return;
     try {
-      const res = await fetch(proxyUrl, { headers: authHeader as any, credentials: 'include' });
-      if (!res.ok) throw new Error('fetch-fail');
-      const blob = await res.blob();
+      const tokenRes = await fetch(`/api/essays/${id}/file-token`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!tokenRes.ok) throw new Error('token');
+      const { token } = await tokenRes.json();
+      const fileRes = await fetch(`/api/essays/${id}/file`, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      });
+      if (!fileRes.ok) throw new Error('file');
+      const blob = await fileRes.blob();
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank', 'noopener,noreferrer');
-      // limpa depois de um tempo
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      return;
     } catch {
-      // Fallback para URL direta (pode exigir que o arquivo seja público)
-      if (direct) window.open(direct, '_blank', 'noopener,noreferrer');
-      else if (srcUrl) window.open(srcUrl, '_blank', 'noopener,noreferrer');
+      // ignore
     }
   }
 
@@ -442,13 +427,12 @@ export default function GradeWorkspace() {
                     <React.Suspense fallback={<div className="p-4 text-sm text-ys-ink-2">Carregando PDF…</div>}>
                       <PdfHighlighter
                         ref={pdfRef}
-                        pdfUrl={effectiveSrc}
+                        fileUrl={effectiveSrc}
                         highlights={annotations as HighlightItem[]}
                         onChange={setAnnotations}
                         onPageChange={setCurrentPage}
                         palette={HIGHLIGHT_PALETTE}
                         requireComment
-                        token={fileToken || undefined}
                       />
                     </React.Suspense>
                   </div>
@@ -492,18 +476,8 @@ export default function GradeWorkspace() {
             </div>
           ) : pdfCheck === 'fail' ? (
             <div className="p-4 text-sm text-red-600 space-y-2">
-              <div>Falha ao verificar o arquivo.</div>
-              <div className="flex gap-2">
-                <button className="rounded border px-2 py-1" onClick={()=>{ setForceInline(true); setSrcOk(srcUrl); }}>Tentar carregar mesmo assim</button>
-                {srcUrl && (
-                  <button className="rounded border px-2 py-1" onClick={()=>{
-                    const el = document.getElementById('fallback-pdf') as HTMLIFrameElement | null;
-                    if (el) { el.src = srcUrl; }
-                    setForceInline(false);
-                  }}>Ver básico (sem anotações)</button>
-                )}
-              </div>
-              <iframe id="fallback-pdf" title="arquivo" className="mt-2 h-[70vh] w-full rounded border" style={{ display: 'block' }} />
+              <div>Falha ao carregar o arquivo.</div>
+              <button className="rounded border px-2 py-1" onClick={()=> openPdfInNewTab()}>Abrir em nova aba</button>
             </div>
           ) : null}
         </div>
