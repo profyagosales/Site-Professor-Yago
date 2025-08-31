@@ -3,6 +3,7 @@ import { useState } from 'react';
 interface AvatarProps {
   src?: string;
   name?: string;
+  size?: number;
   className?: string;
 }
 
@@ -15,17 +16,24 @@ const COLORS = [
   'bg-pink-500',
 ];
 
-export default function Avatar({ src, name = '', className = '' }: AvatarProps) {
+function hash(str: string) {
+  let h = 0;
+  for (let i = 0; i < str.length; i += 1) {
+    h = (h << 5) - h + str.charCodeAt(i);
+    h |= 0; // eslint-disable-line no-bitwise
+  }
+  return Math.abs(h);
+}
+
+export default function Avatar({ src, name = '', size = 32, className = '' }: AvatarProps) {
   const [error, setError] = useState(false);
   const initials = name
     .split(' ')
-    .map((p) => p[0])
     .filter(Boolean)
-    .join('')
     .slice(0, 2)
-    .toUpperCase();
-  const charCode = name.charCodeAt(0) || 0;
-  const color = COLORS[charCode % COLORS.length];
+    .map((s) => s[0]?.toUpperCase() || '')
+    .join('');
+  const color = COLORS[hash(name) % COLORS.length];
 
   if (src && !error) {
     return (
@@ -34,6 +42,7 @@ export default function Avatar({ src, name = '', className = '' }: AvatarProps) 
         alt={name}
         onError={() => setError(true)}
         className={`rounded-full object-cover ${className}`}
+        style={{ width: size, height: size }}
       />
     );
   }
@@ -41,6 +50,7 @@ export default function Avatar({ src, name = '', className = '' }: AvatarProps) 
   return (
     <div
       className={`rounded-full flex items-center justify-center text-white font-medium ${color} ${className}`}
+      style={{ width: size, height: size }}
     >
       {initials || '?'}
     </div>
