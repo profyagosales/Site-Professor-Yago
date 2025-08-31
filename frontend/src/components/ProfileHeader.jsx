@@ -1,9 +1,9 @@
 import React from 'react'
-import Avatar from '@/components/ui/Avatar'
+import Avatar from '@/components/Avatar'
 
 export default function ProfileHeader({ profile, name: propName, subtitle, avatarUrl, onLogout }) {
   const name = propName || profile?.name || ''
-  const avatar = avatarUrl || profile?.photoUrl || profile?.avatarUrl
+  const avatar = avatarUrl || profile?.photoUrl || profile?.avatarUrl || undefined
 
   return (
     <div className="flex justify-between items-center p-4 rounded-xl bg-gradient-to-br from-[#ffb347] to-[#ff8c2b] text-white shadow-[0_8px_24px_rgba(255,140,43,0.2)]">

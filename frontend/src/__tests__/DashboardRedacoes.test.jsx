@@ -1,9 +1,12 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import DashboardRedacoes from '@/pages/redacao/DashboardRedacoes';
 import { MemoryRouter } from 'react-router-dom';
 import { listarPendentes, listarCorrigidas } from '@/services/redacoes';
 import * as essaysService from '@/services/essays.service';
+import { api } from '@/lib/api';
 
+jest.mock('@/lib/api');
 jest.mock('@/services/redacoes');
 jest.mock('@/services/essays.service');
 
@@ -69,5 +72,41 @@ describe('DashboardRedacoes', () => {
     await waitFor(() => expect(essaysService.sendCorrectionEmail).toHaveBeenCalledWith('1'));
     expect(await screen.findByText('Enviado')).toBeInTheDocument();
     expect(await screen.findByText('Enviar novamente')).toBeInTheDocument();
+  });
+
+  it('updates item after editing', async () => {
+    listarPendentes.mockResolvedValueOnce({
+      redacoes: [
+        {
+          _id: '1',
+          type: 'ENEM',
+          student: { name: 'Aluno', photo: '' },
+          class: { series: 1, letter: 'A' },
+          submittedAt: new Date().toISOString(),
+          theme: { name: 'Antigo' },
+          fileUrl: 'file.pdf',
+        },
+      ],
+    });
+    api.put.mockResolvedValue({
+      data: {
+        _id: '1',
+        student: { name: 'Aluno' },
+        class: { series: 1, letter: 'A' },
+        submittedAt: new Date().toISOString(),
+        theme: { name: 'Novo Tema' },
+        fileUrl: 'file.pdf',
+      },
+    });
+    renderPage();
+    const editBtn = await screen.findByLabelText('Editar');
+    fireEvent.click(editBtn);
+    const themeInput = await screen.findByPlaceholderText('Buscar tema...');
+    await userEvent.clear(themeInput);
+    await userEvent.type(themeInput, 'Novo Tema');
+    const saveBtn = await screen.findByText('Salvar');
+    fireEvent.click(saveBtn);
+    await waitFor(() => expect(api.put).toHaveBeenCalled());
+    expect(await screen.findByText('Novo Tema')).toBeInTheDocument();
   });
 });

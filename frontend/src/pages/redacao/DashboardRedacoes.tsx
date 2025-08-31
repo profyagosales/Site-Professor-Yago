@@ -5,7 +5,10 @@ import { toast } from 'react-toastify';
 import { toArray, api } from '@/lib/api';
 import { FaPen } from 'react-icons/fa';
 import NovaRedacaoModal from './NovaRedacaoModal';
-import Avatar from '@/components/common/Avatar';
+import Avatar from '@/components/Avatar';
+import ThemeCombo from '@/components/redacao/ThemeCombo';
+import { FaFilePdf } from 'react-icons/fa';
+import { searchStudents } from '@/services/students2';
 
 function DashboardRedacoes() {
   const [tab, setTab] = useState('pendentes');
@@ -16,10 +19,13 @@ function DashboardRedacoes() {
   const [error, setError] = useState(null);
   const [modalEssay, setModalEssay] = useState(null);
   const [editEssay, setEditEssay] = useState<any>(null);
-  const [editTopic, setEditTopic] = useState('');
+  const [editTheme, setEditTheme] = useState<{ id?: string; name: string }>({ name: '' });
   const [editBimester, setEditBimester] = useState('');
   const [editType, setEditType] = useState<'ENEM' | 'PAS'>('PAS');
   const [editFile, setEditFile] = useState<File | null>(null);
+  const [editStudentQuery, setEditStudentQuery] = useState('');
+  const [editStudentOptions, setEditStudentOptions] = useState<any[]>([]);
+  const [editStudent, setEditStudent] = useState<any | null>(null);
   const [newModalOpen, setNewModalOpen] = useState(false);
 
   const arrify = (v) => {
@@ -29,12 +35,37 @@ function DashboardRedacoes() {
 
   useEffect(() => {
     if (editEssay) {
-      setEditTopic(editEssay.customTheme || editEssay.theme?.name || '');
+      setEditTheme({
+        id: editEssay.theme?._id || editEssay.theme?.id,
+        name: editEssay.customTheme || editEssay.theme?.name || '',
+      });
       setEditBimester(editEssay.bimester ? String(editEssay.bimester) : '');
       setEditType(editEssay.type || 'PAS');
       setEditFile(null);
+      setEditStudent(editEssay.student || null);
+      setEditStudentQuery(editEssay.student?.name || '');
     }
   }, [editEssay]);
+
+  useEffect(() => {
+    if (!editStudentQuery) {
+      setEditStudentOptions([]);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      try {
+        const r = await searchStudents({ q: editStudentQuery, page: 1, pageSize: 10 });
+        if (!alive) return;
+        setEditStudentOptions(Array.isArray(r?.items) ? r.items : []);
+      } catch {
+        if (alive) setEditStudentOptions([]);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [editStudentQuery]);
 
   async function handleSendEmail(id: string) {
     try {
@@ -54,7 +85,11 @@ function DashboardRedacoes() {
     if (!editEssay) return;
     try {
       const fd = new FormData();
-      if (editTopic) fd.append('customTheme', editTopic);
+      if (editStudent) {
+        fd.append('studentId', editStudent._id || editStudent.id);
+      }
+      if (editTheme?.id) fd.append('themeId', editTheme.id);
+      else if (editTheme.name) fd.append('customTheme', editTheme.name);
       if (editBimester) fd.append('bimester', editBimester);
       if (editType) fd.append('type', editType);
       if (editFile) fd.append('file', editFile);
@@ -172,6 +207,7 @@ function DashboardRedacoes() {
                     <p className="font-semibold">
                       {r.student?.rollNumber ? `Nº ${r.student.rollNumber}` : r.student?.name}
                     </p>
+                    <p className="text-sm text-black/70">{r.theme?.name || r.customTheme || '-'}</p>
                     <p className="text-sm text-black/70">
                       {r.class?.series}ª{r.class?.letter} •{' '}
                       {new Date(r.submittedAt).toLocaleDateString()}
@@ -191,6 +227,15 @@ function DashboardRedacoes() {
                       Enviar por e-mail
                     </button>
                   )}
+                  <a
+                    className="ys-btn-ghost"
+                    href={r.fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Arquivo"
+                  >
+                    <FaFilePdf />
+                  </a>
                   <button className="ys-btn-ghost" onClick={() => setEditEssay(r)} aria-label="Editar">
                     <FaPen />
                   </button>
@@ -249,6 +294,7 @@ function DashboardRedacoes() {
                       <p className="font-semibold">
                         {r.student?.rollNumber ? `Nº ${r.student.rollNumber}` : r.student?.name}
                       </p>
+                      <p className="text-sm text-black/70">{r.theme?.name || r.customTheme || '-'}</p>
                       <p className="text-sm text-black/70">
                         {r.class?.series}ª{r.class?.letter} •{' '}
                         {new Date(r.submittedAt).toLocaleDateString()}
@@ -268,10 +314,18 @@ function DashboardRedacoes() {
                         Enviar por e-mail
                       </button>
                     )}
+                    <a
+                      className="ys-btn-ghost"
+                      href={r.fileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label="Arquivo"
+                    >
+                      <FaFilePdf />
+                    </a>
                     <button className="ys-btn-ghost" onClick={() => setEditEssay(r)} aria-label="Editar">
                       <FaPen />
                     </button>
-                    <button className="ys-btn-ghost">Visualizar</button>
                   </div>
                 </div>
               );
@@ -328,12 +382,38 @@ function DashboardRedacoes() {
         <div role="dialog" className="fixed inset-0 bg-black/50 flex items-center justify-center">
           <div className="bg-white p-md space-y-md w-full max-w-md">
             <p className="font-semibold">Editar redação</p>
-            <input
-              value={editTopic}
-              onChange={(e) => setEditTopic(e.target.value)}
-              placeholder="Tema"
-              className="w-full border rounded px-2 py-1"
-            />
+            <div>
+              <label className="block text-sm font-medium">Aluno</label>
+              <input
+                value={editStudentQuery}
+                onChange={(e) => setEditStudentQuery(e.target.value)}
+                placeholder="Buscar aluno..."
+                className="w-full border rounded px-2 py-1 mb-1"
+              />
+              <div className="max-h-40 overflow-auto border rounded">
+                {editStudentOptions.map((s) => (
+                  <button
+                    type="button"
+                    key={s._id || s.id}
+                    className={`w-full text-left px-2 py-1 hover:bg-[#F3F4F6] ${
+                      editStudent && (editStudent._id || editStudent.id) === (s._id || s.id)
+                        ? 'bg-[#FEF3C7]'
+                        : ''
+                    }`}
+                    onClick={() => setEditStudent(s)}
+                  >
+                    {s.name}
+                  </button>
+                ))}
+                {editStudentOptions.length === 0 && (
+                  <div className="p-2 text-sm text-ys-ink-2">Digite para buscar alunos…</div>
+                )}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Tema</label>
+              <ThemeCombo allowCreate value={editTheme} onChange={setEditTheme} />
+            </div>
             <select
               value={editBimester}
               onChange={(e) => setEditBimester(e.target.value)}

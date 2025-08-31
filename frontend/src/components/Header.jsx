@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import flags from '@/config/features';
-import Avatar from './common/Avatar';
+import Avatar from './Avatar';
 
 const TEACHER_MENU = [
   { to: '/turmas', label: 'Turmas' },
@@ -18,7 +18,7 @@ export default function Header() {
   const role = getRole();
   const menu = role === 'teacher' ? TEACHER_MENU : [];
   const name = localStorage.getItem('userName') || '';
-  const photo = localStorage.getItem('userPhoto') || '';
+  const photo = localStorage.getItem('userPhoto') || undefined;
   return (
     <header className="app-nav w-full border-b bg-white">
       <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
