@@ -12,21 +12,22 @@ export default function LoginAluno() {
   const [password, setPassword] = useState("");
   const [erro, setErro] = useState("");
 
-  async function onSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErro("");
     try {
-      const { data } = await api.post("/auth/login-student", { email, password });
+      const { data } = await api.post("/api/auth/login-student", { email, password });
       if (data?.success) {
         const t = data?.data?.token;
-        if (t) localStorage.setItem('auth_token', t);
+        if (t) localStorage.setItem("auth_token", t);
         localStorage.setItem("role", "student");
-        navigate("/aluno/caderno", { replace: true });
+        navigate("/dashboard-aluno");
       } else {
-        setErro(data?.message ?? "Erro no login do aluno");
+        setErro(data?.message || "Erro no login");
       }
-    } catch (err: any) {
-      setErro(err?.response?.data?.message ?? "Erro no login do aluno");
+    } catch (error: any) {
+      console.error("Login error:", error);
+      setErro(error?.response?.data?.message || "Erro no login do aluno");
     }
   }
 
@@ -41,7 +42,7 @@ export default function LoginAluno() {
         'Acesse gabaritos e materiais',
       ]}
     >
-      <form onSubmit={onSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <Field label="E-mail" type="email" required value={email} placeholder="seunome@exemplo.com" autoComplete="email" onChange={e=>setEmail(e.target.value)} />
         <Field label="Senha" type="password" required value={password} placeholder="••••••••" autoComplete="current-password" onChange={e=>setPassword(e.target.value)} />
         {erro && <p className="text-sm text-red-600">{erro}</p>}
