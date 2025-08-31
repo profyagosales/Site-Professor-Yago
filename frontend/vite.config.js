@@ -29,14 +29,13 @@ export default defineConfig({
     chunkSizeWarningLimit: 1200,
   },
   server: {
+    port: 5173,
     proxy: {
+      // tudo que começa com /api vai para o backend local
       '/api': {
-  // Durante dev, proxy para o backend local. Pode ser sobrescrito por VITE_API_URL.
-  target: process.env.VITE_API_URL || 'http://localhost:5050',
+        target: 'http://localhost:5050',
         changeOrigin: true,
-  // Não reescreve o prefixo, já que o backend usa /api como prefixo padrão
-  // mantendo o caminho intacto para evitar confusões de cabeçalhos
-  // rewrite: (p) => p.replace(/^\/api/, ''),
+        secure: false,
       },
     },
   },
