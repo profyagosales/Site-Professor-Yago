@@ -6,7 +6,7 @@ export default function PrivateRoute() {
   const [state, setState] = useState<'loading' | 'ok' | 'fail'>('loading');
 
   useEffect(() => {
-    api.get('/api/auth/me')
+    api.get('/auth/me')
       .then(() => setState('ok'))
       .catch(() => setState('fail'));
   }, []);
