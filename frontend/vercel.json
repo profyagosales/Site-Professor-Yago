@@ -1,9 +1,5 @@
 {
   "rewrites": [
     { "source": "/api/(.*)", "destination": "https://api.professoryagosales.com.br/$1" }
-  ],
-  "routes": [
-    { "src": "/viewer/(.*)", "dest": "/viewer/$1" },
-    { "src": "/pdf.worker.mjs", "dest": "/pdf.worker.mjs" }
   ]
 }
