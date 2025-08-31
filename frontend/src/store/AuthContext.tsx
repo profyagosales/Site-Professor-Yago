@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function loginTeacher(email: string, password: string) {
-    const { data } = await api.post("/api/auth/login-teacher", { email, password });
+    const { data } = await api.post("/auth/login-teacher", { email, password });
     if (data?.token) {
       localStorage.setItem("auth_token", data.token);
       api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;

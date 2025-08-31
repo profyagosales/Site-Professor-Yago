@@ -13,7 +13,7 @@ export async function getCurrentUser() {
 }
 
 export const loginTeacher = async (payload) => {
-  const { data } = await api.post('/api/auth/login-teacher', payload);
+  const { data } = await api.post('/auth/login-teacher', payload);
   if (data?.success) {
     const t = data?.data?.token;
     if (t) localStorage.setItem('auth_token', t);
