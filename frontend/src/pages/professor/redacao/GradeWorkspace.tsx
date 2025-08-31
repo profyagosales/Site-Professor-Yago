@@ -7,9 +7,39 @@ import type { Highlight } from '@/components/redacao/types';
 import type { Anno } from '@/types/annotations';
 import { toast } from 'react-toastify';
 import Avatar from '@/components/Avatar';
+import { createFileToken } from '@/services/api';
 
 const useRich = import.meta.env.VITE_USE_RICH_ANNOS === '1' || import.meta.env.VITE_USE_RICH_ANNOS === 'true';
 const useIframe = import.meta.env.VITE_PDF_IFRAME !== '0';
+
+async function loadPdfInline(essayId: string, iframeEl: HTMLIFrameElement) {
+  const token = await createFileToken(essayId);
+  if (!token) throw new Error('token-missing');
+
+  const headResp = await fetch(`/api/essays/${essayId}/file`, {
+    method: 'HEAD',
+    headers: { Authorization: `Bearer ${token}` },
+    credentials: 'include',
+  });
+  if (!headResp.ok) throw new Error(`head-failed:${headResp.status}`);
+
+  const fileResp = await fetch(`/api/essays/${essayId}/file`, {
+    headers: { Authorization: `Bearer ${token}` },
+    credentials: 'include',
+  });
+  if (!fileResp.ok) throw new Error(`file-failed:${fileResp.status}`);
+
+  const blob = await fileResp.blob();
+  const url = URL.createObjectURL(blob);
+
+  if (iframeEl?.contentWindow) {
+    iframeEl.contentWindow.postMessage({ type: 'open-pdf', url }, window.location.origin);
+  } else {
+    iframeEl.src = url;
+  }
+
+  return () => URL.revokeObjectURL(url);
+}
 
 export default function GradeWorkspace() {
   const { id } = useParams();
@@ -53,13 +83,9 @@ export default function GradeWorkspace() {
     c1: string; c2: string; c3: string; c4: string; c5: string;
     NC: string; NL: string;
   }>(null);
-  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
-  const [contentType, setContentType] = useState<string | null>(null);
-  const [pdfCheck, setPdfCheck] = useState<'unknown' | 'ok' | 'fail'>('unknown');
-  const [ready, setReady] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [iframeError, setIframeError] = useState<string | null>(null);
+  const [pdfReady, setPdfReady] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -226,24 +252,17 @@ export default function GradeWorkspace() {
     return () => { clearTimeout(debounce); clearTimeout(safety); };
   }, [dirty, essay, annotations, richAnnos, useNewAnnotator]);
 
-  // obter token curto para o viewer em iframe
+  // carregar PDF no iframe utilizando token curto
   useEffect(() => {
-    if (!id || !useIframe) return;
-    (async () => {
-      try {
-        const res = await fetch('/api/file-token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ essayId: id }),
-          credentials: 'include',
-        });
-        if (!res.ok) throw new Error('token');
-        const { token } = await res.json();
-        setFileUrl(`/api/essays/${id}/file?token=${token}`);
-      } catch (e) {
-        setIframeError('Falha ao carregar PDF');
-      }
-    })();
+    if (!id || !useIframe || !iframeRef.current) return;
+    let revoke: (() => void) | undefined;
+    loadPdfInline(id, iframeRef.current)
+      .then((fn) => {
+        revoke = fn;
+        setPdfReady(true);
+      })
+      .catch(() => setIframeError('Falha ao carregar PDF'));
+    return () => { if (revoke) revoke(); };
   }, [id, useIframe]);
 
   useEffect(() => {
@@ -252,8 +271,6 @@ export default function GradeWorkspace() {
       const msg = e.data;
       if (msg?.type === 'height' && iframeRef.current) {
         iframeRef.current.style.height = `${msg.value}px`;
-      } else if (msg?.type === 'loaded') {
-        setReady(true);
       } else if (msg?.type === 'annos-changed') {
         setAnnotations(msg.payload || []);
       } else if (msg?.type === 'error') {
@@ -264,17 +281,6 @@ export default function GradeWorkspace() {
     return () => window.removeEventListener('message', onMessage);
   }, []);
 
-  function handleIframeLoad() {
-    if (!iframeRef.current || !fileUrl) return;
-    iframeRef.current.contentWindow?.postMessage(
-      { type: 'open', fileUrl, meta: { essayId: id, commentsRequired: true } },
-      window.location.origin,
-    );
-  }
-
-  const isPdf = contentType ? contentType.toLowerCase().includes('pdf') : false;
-  const effectiveSrc = viewerUrl || '';
-  const canRenderInline = pdfCheck === 'ok' && !!viewerUrl;
 
   async function submit(generatePdf=false) {
     if (!essay) return;
@@ -320,13 +326,30 @@ export default function GradeWorkspace() {
   if (!essay) return null;
 
   async function openPdfInNewTab() {
-    if (fileUrl) window.open(fileUrl, '_blank', 'noopener,noreferrer');
+    if (!id) return;
+    try {
+      const token = await createFileToken(id);
+      const resp = await fetch(`/api/essays/${id}/file`, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      });
+      if (!resp.ok) throw new Error('download');
+      const url = URL.createObjectURL(await resp.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (e) {
+      toast.error('Falha ao abrir PDF');
+    }
   }
 
   return (
     <div className="p-4 md:p-6 space-y-4">
       {import.meta.env.DEV && (
-        <div className="text-xs text-ys-ink-2">Flag rich: {String((window as any).YS_USE_RICH_ANNOS)} • isPdf: {String(isPdf)} • mime: {essay.originalMimeType || '-'}</div>
+        <div className="text-xs text-ys-ink-2">Flag rich: {String((window as any).YS_USE_RICH_ANNOS)} • mime: {essay.originalMimeType || '-'}</div>
       )}
   <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -391,17 +414,16 @@ export default function GradeWorkspace() {
         <div className="min-h-[420px] overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#F9FAFB]">
           {/* Status */}
           {useIframe ? (
-            fileUrl && !iframeError ? (
+            pdfReady && !iframeError ? (
               <iframe
                 ref={iframeRef}
                 src="/viewer/index.html"
                 className="w-full border-0"
-                onLoad={handleIframeLoad}
               />
             ) : (
               <div className="p-4 text-sm text-ys-ink-2">
                 {iframeError || 'Carregando PDF…'}
-                {fileUrl && (
+                {id && (
                   <button className="ml-2 underline" onClick={openPdfInNewTab}>Abrir em nova aba</button>
                 )}
               </div>

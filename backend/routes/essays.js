@@ -1,6 +1,7 @@
 const express = require('express');
 const auth = require('../middleware/auth');
-const { authRequired, authOptional } = auth;
+const authRequired = auth.authRequired || auth;
+const authOptional = auth.authOptional || auth;
 const {
   upload,
   getThemes,
@@ -42,7 +43,7 @@ router.get('/:id/annotations', authRequired, getAnnotationsCompat);
 router.put('/:id/annotations', authRequired, putAnnotationsCompat);
 router.post('/:id/render-correction', authRequired, renderCorrection);
 // Token curto para baixar arquivo
-router.post('/:id/file-token', authRequired, fileController.issueFileToken);
+router.post('/:id/file-token', authOptional, fileController.issueFileToken);
 
 // Preflight sem corpo
 router.head('/:id/file', authOptional, async (req, res, next) => {

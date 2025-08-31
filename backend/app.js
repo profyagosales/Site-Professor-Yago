@@ -23,6 +23,9 @@ const dashboardRoutes = require('./routes/dashboard');
 const contentsRoutes = require('./routes/contents');
 const themesRoutes = require('./routes/themes');
 const devSeedRoutes = require('./routes/devSeed');
+const fileController = require('./controllers/fileController');
+const authMw = require('./middleware/auth');
+const authOptional = authMw.authOptional || authMw;
 
 const app = express();
 
@@ -98,6 +101,13 @@ api.use('/contents', contentsRoutes);
 // dev utilities (guarded by SEED_TOKEN)
 api.use('/dev', devSeedRoutes);
 api.use('/themes', themesRoutes);
+// Compat: alias antigo para obter token de arquivo
+api.post('/file-token', authOptional, (req, res, next) => {
+  const { essayId } = req.body || {};
+  if (!essayId) return res.status(400).json({ success: false, message: 'essayId required' });
+  req.params = { ...(req.params || {}), id: essayId };
+  return fileController.issueFileToken(req, res, next);
+});
 
 // Em ambiente de teste, monte as rotas na raiz para compatibilidade com a suíte existente
 if (process.env.NODE_ENV === 'test') {
