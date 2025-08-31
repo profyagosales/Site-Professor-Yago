@@ -11,7 +11,7 @@
     "test": "jest",
     "lint": "eslint src --max-warnings=0",
     "postinstall": "node ./scripts/copy-pdf-worker.cjs",
-    "check:pdf-imports": "grep -R \"from 'react-pdf'\" src | grep -v PdfHighlighter | grep -v VisualizarArquivo || true"
+    "check:pdf-imports": "grep -R 'react-pdf\\|pdfjs-dist\\|react-pdf-highlighter' src | grep -v 'PdfHighlighter.tsx' && (echo '\n❌ Encontrado import estático de PDF' && exit 1) || echo 'OK'"
   },
   "dependencies": {
     "axios": "^1.11.0",
