@@ -215,31 +215,17 @@ function DashboardRedacoes() {
                   </div>
                 </div>
                 <div className="flex items-center gap-md">
-                  {r.lastEmailSentAt ? (
-                    <>
-                      <span className="text-green-600">Enviado</span>
-                      <button className="ys-btn-ghost" onClick={() => handleSendEmail(r._id)}>
-                        Enviar novamente
-                      </button>
-                    </>
-                  ) : (
-                    <button className="ys-btn-ghost" onClick={() => handleSendEmail(r._id)}>
-                      Enviar por e-mail
-                    </button>
-                  )}
-                  <a
+                  <button
                     className="ys-btn-ghost"
-                    href={r.fileUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label="Arquivo"
+                    onClick={() => setEditEssay(r)}
+                    aria-label="Editar"
                   >
-                    <FaFilePdf />
-                  </a>
-                  <button className="ys-btn-ghost" onClick={() => setEditEssay(r)} aria-label="Editar">
                     <FaPen />
                   </button>
-                  <button className="ys-btn-primary" onClick={() => setModalEssay(r)}>
+                  <button
+                    className="ys-btn-primary"
+                    onClick={() => setModalEssay(r)}
+                  >
                     Corrigir
                   </button>
                 </div>
