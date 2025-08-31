@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const Student = require('../models/Student');
 const Teacher = require('../models/Teacher');
+const { fileTokenSecret } = require('../config');
 
 async function authRequired(req, res, next) {
   try {
@@ -165,4 +166,8 @@ async function authOptional(req, res, next) {
 }
 
 module.exports.authOptional = authOptional;
+
+module.exports.verifyFileToken = (token) => {
+  return jwt.verify(token, fileTokenSecret);
+};
 

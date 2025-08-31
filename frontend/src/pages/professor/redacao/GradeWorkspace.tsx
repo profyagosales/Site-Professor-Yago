@@ -58,7 +58,7 @@ export default function GradeWorkspace() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [iframeError, setIframeError] = useState<string | null>(null);
   const [pdfReady, setPdfReady] = useState(false);
-  const [fileUrl, setFileUrl] = useState('');
+  const [fileBase, setFileBase] = useState('');
   const [fileToken, setFileToken] = useState('');
 
   useEffect(() => {
@@ -246,7 +246,7 @@ export default function GradeWorkspace() {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!headResp.ok) throw new Error(`head-failed:${headResp.status}`);
-        setFileUrl(baseUrl);
+        setFileBase(baseUrl);
         setFileToken(token);
         setPdfReady(true);
       } catch {
@@ -256,15 +256,12 @@ export default function GradeWorkspace() {
   }, [id, useIframe]);
 
   function sendFileToIframe() {
-    if (!iframeRef.current || !fileUrl || !fileToken) return;
+    if (!iframeRef.current || !fileBase || !fileToken) return;
     iframeRef.current.contentWindow?.postMessage(
       {
         type: 'open',
-        fileUrl,
-        meta: {
-          essayId: id,
-          token: fileToken,
-        },
+        meta: { token: fileToken },
+        file: fileBase,
       },
       window.location.origin,
     );
@@ -272,7 +269,7 @@ export default function GradeWorkspace() {
 
   useEffect(() => {
     sendFileToIframe();
-  }, [fileUrl, fileToken]);
+  }, [fileBase, fileToken]);
 
   useEffect(() => {
     function onMessage(e: MessageEvent) {
@@ -335,8 +332,8 @@ export default function GradeWorkspace() {
   if (!essay) return null;
 
   function openPdfInNewTab() {
-    if (!id) return;
-    window.open(`/api/essays/${id}/file`, '_blank', 'noopener');
+    if (!fileBase || !fileToken) return;
+    window.open(`${fileBase}?t=${fileToken}`, '_blank', 'noopener');
   }
 
   return (

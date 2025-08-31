@@ -1,100 +1,90 @@
 const jwt = require('jsonwebtoken');
-const { FILE_TOKEN_SECRET, FILE_TOKEN_TTL_SECONDS } = require('../config');
-const Essay = require('../models/Essay');
-const https = require('https');
-const http = require('http');
-const path = require('path');
+const { fileTokenSecret, fileTokenTtl } = require('../config');
+const { getEssayFileStream } = require('../services/fileService');
 
-async function assertUserCanAccessEssay(user, essay) {
-  if (!user) throw Object.assign(new Error('unauthorized'), { status: 401 });
-  return true;
-}
-
-function readRemoteHead(url) {
-  return new Promise((resolve) => {
-    const h = url.startsWith('https') ? https : http;
-    const r = h.request(url, { method: 'HEAD' }, (up) => {
-      const headers = up.headers || {};
-      resolve({ headers });
-      up.resume();
-    });
-    r.on('error', () => resolve({ headers: {} }));
-    r.end();
-  });
-}
-
-exports.issueFileToken = async function issueFileToken(req, res) {
-  const essay = await Essay.findById(req.params.id).lean();
-  if (!essay) throw Object.assign(new Error('not found'), { status: 404 });
-  await assertUserCanAccessEssay(req.user, essay);
+exports.issueFileToken = async (req, res) => {
+  const { id } = req.params;
   const token = jwt.sign(
-    { sub: String(req.user._id || req.user.id), essayId: String(essay._id) },
-    FILE_TOKEN_SECRET,
-    { expiresIn: FILE_TOKEN_TTL_SECONDS }
+    { essayId: id, scope: 'file:read' },
+    fileTokenSecret,
+    { expiresIn: fileTokenTtl }
   );
-  res.json({ token, ttl: FILE_TOKEN_TTL_SECONDS });
+  res.json({ token, expiresIn: fileTokenTtl });
 };
 
-exports.authorizeFileAccess = async function authorizeFileAccess({ essayId, token, user }) {
-  const essay = await Essay.findById(essayId).lean();
-  if (!essay) throw Object.assign(new Error('not found'), { status: 404 });
-  if (token) {
-    try {
-      const payload = jwt.verify(token, FILE_TOKEN_SECRET);
-      if (String(payload.essayId) !== String(essay._id)) throw new Error('essay mismatch');
-      return true;
-    } catch (e) {
-      throw Object.assign(new Error('invalid token'), { status: 401 });
-    }
+function extractToken(req) {
+  const h = req.headers.authorization;
+  if (h && h.toLowerCase().startsWith('bearer ')) return h.slice(7).trim();
+  if (req.method === 'GET' && typeof req.query.t === 'string' && req.query.t.length < 2048) {
+    return req.query.t;
   }
-  await assertUserCanAccessEssay(user, essay);
-  return true;
-};
+  return null;
+}
 
-exports.getFileMeta = async function getFileMeta(essayId) {
-  const essay = await Essay.findById(essayId).lean();
-  if (!essay || !essay.originalUrl) {
-    return { length: 0, contentType: 'application/pdf', filename: 'redacao.pdf' };
+function assertToken(token) {
+  if (!token) {
+    const e = new Error('Missing token');
+    e.status = 401;
+    throw e;
   }
-  const head = await readRemoteHead(essay.originalUrl);
-  const contentType = head.headers['content-type'] || essay.originalMimeType || 'application/pdf';
-  const length = Number(head.headers['content-length'] || 0);
-  const filename = path.basename(essay.originalUrl.split('?')[0]) || 'redacao.pdf';
-  return { length, contentType, filename };
+  return jwt.verify(token, fileTokenSecret);
+}
+
+exports.headFile = async (req, res, next) => {
+  try {
+    const token = extractToken(req);
+    const payload = assertToken(token);
+    if (payload.essayId !== req.params.id) {
+      const e = new Error('Token/essay mismatch');
+      e.status = 403;
+      throw e;
+    }
+
+    const { length, mime } = await getEssayFileStream(req.params.id, { headOnly: true });
+    res.setHeader('Accept-Ranges', 'bytes');
+    if (length != null) res.setHeader('Content-Length', length);
+    res.setHeader('Content-Type', mime || 'application/pdf');
+    res.setHeader('Cache-Control', 'private, max-age=0, must-revalidate');
+    return res.status(200).end();
+  } catch (err) {
+    next(err);
+  }
 };
 
-exports.streamFile = async function streamFile(req, res, essayId) {
-  const essay = await Essay.findById(essayId).lean();
-  if (!essay || !essay.originalUrl) throw Object.assign(new Error('file not found'), { status: 404 });
-
-  const fileUrl = essay.originalUrl;
-  const range = req.headers.range;
-  const method = (req.method || 'GET').toUpperCase();
-  const headers = {};
-  if (range) headers.Range = range;
-  const upstreamMethod = method === 'HEAD' ? 'GET' : method;
-  if (method === 'HEAD' && !headers.Range) headers.Range = 'bytes=0-0';
-
-  const h = fileUrl.startsWith('https') ? https : http;
-  const upReq = h.request(fileUrl, { method: upstreamMethod, headers }, (up) => {
-    const status = up.statusCode || 200;
-    if (status >= 400) {
-      res.status(status).end();
-      up.resume();
-      return;
+exports.getFile = async (req, res, next) => {
+  try {
+    const token = extractToken(req);
+    const payload = assertToken(token);
+    if (payload.essayId !== req.params.id) {
+      const e = new Error('Token/essay mismatch');
+      e.status = 403;
+      throw e;
     }
-    const ct = essay.originalMimeType || up.headers['content-type'] || 'application/pdf';
-    res.set({
-      'Accept-Ranges': 'bytes',
-      'Content-Type': ct,
-      'Content-Disposition': `inline; filename="${path.basename(fileUrl.split('?')[0])}"`,
-    });
-    if (up.headers['content-length']) res.set('Content-Length', up.headers['content-length']);
-    if (up.headers['content-range']) res.set('Content-Range', up.headers['content-range']);
-    res.status(range ? 206 : 200);
-    if (method === 'HEAD') { up.resume(); res.end(); }
-    else { up.pipe(res); }
-  });
-  upReq.on('error', () => res.status(502).end());
-  upReq.end();
+
+    const { stream, length, mime } = await getEssayFileStream(req.params.id);
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Content-Type', mime || 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="essay-${req.params.id}.pdf"`);
+
+    const range = req.headers.range;
+    if (length != null && range) {
+      const match = /bytes=(\d+)-(\d*)/.exec(range);
+      if (match) {
+        const start = parseInt(match[1], 10);
+        const end = match[2] ? parseInt(match[2], 10) : (length - 1);
+        const chunkSize = (end - start) + 1;
+        res.status(206);
+        res.setHeader('Content-Range', `bytes ${start}-${end}/${length}`);
+        res.setHeader('Content-Length', chunkSize);
+        const up = await stream({ start, end });
+        return up.pipe(res);
+      }
+    }
+
+    if (length != null) res.setHeader('Content-Length', length);
+    const up = await stream();
+    return up.pipe(res);
+  } catch (err) {
+    next(err);
+  }
 };

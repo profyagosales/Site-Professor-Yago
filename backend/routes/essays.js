@@ -1,7 +1,6 @@
 const express = require('express');
 const auth = require('../middleware/auth');
 const authRequired = auth.authRequired || auth;
-const authOptional = auth.authOptional || auth;
 const {
   upload,
   getThemes,
@@ -17,13 +16,7 @@ const {
   getAnnotationsCompat,
   putAnnotationsCompat
 } = require('../controllers/essaysController');
-const fileController = require('../controllers/fileController');
-
-function readBearer(req) {
-  const h = req.get('authorization');
-  if (h && /^bearer /i.test(h)) return h.slice(7).trim();
-  return req.query.token;
-}
+const files = require('../controllers/fileController');
 
 const router = express.Router();
 
@@ -43,32 +36,9 @@ router.get('/:id/annotations', authRequired, getAnnotationsCompat);
 router.put('/:id/annotations', authRequired, putAnnotationsCompat);
 router.post('/:id/render-correction', authRequired, renderCorrection);
 // Token curto para baixar arquivo
-router.post('/:id/file-token', authOptional, fileController.issueFileToken);
-
-// Preflight sem corpo
-router.head('/:id/file', authOptional, async (req, res, next) => {
-  try {
-    const token = readBearer(req);
-    await fileController.authorizeFileAccess({ essayId: req.params.id, token, user: req.user });
-    const meta = await fileController.getFileMeta(req.params.id);
-    res.set({
-      'Accept-Ranges': 'bytes',
-      'Content-Type': meta.contentType || 'application/pdf',
-      ...(meta.length ? { 'Content-Length': meta.length } : {}),
-      'Content-Disposition': `inline; filename="${meta.filename || 'redacao.pdf'}"`
-    });
-    res.status(200).end();
-  } catch (err) { next(err); }
-});
-
-// Streaming com Range
-router.get('/:id/file', authOptional, async (req, res, next) => {
-  try {
-    const token = readBearer(req);
-    await fileController.authorizeFileAccess({ essayId: req.params.id, token, user: req.user });
-    await fileController.streamFile(req, res, req.params.id);
-  } catch (err) { next(err); }
-});
+router.post('/:id/file-token', authRequired, files.issueFileToken);
+router.head('/:id/file', files.headFile);
+router.get('/:id/file', files.getFile);
 router.post('/:id/send-email', authRequired, sendCorrectionEmail);
 
 module.exports = router;

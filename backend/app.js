@@ -23,9 +23,9 @@ const dashboardRoutes = require('./routes/dashboard');
 const contentsRoutes = require('./routes/contents');
 const themesRoutes = require('./routes/themes');
 const devSeedRoutes = require('./routes/devSeed');
-const fileController = require('./controllers/fileController');
 const authMw = require('./middleware/auth');
 const authOptional = authMw.authOptional || authMw;
+const { frontendOrigin } = require('./config');
 
 const app = express();
 
@@ -45,30 +45,18 @@ const API_PREFIX = (() => {
 const serveFrontend = process.env.SERVE_FRONTEND === 'true';
 const isProd = process.env.NODE_ENV === 'production';
 
-// --- CORS (múltiplas origens) ---
-const allowList = [
-  'https://professoryagosales.com.br',
-  'https://www.professoryagosales.com.br',
-  'https://site-professor-yago-frontend.vercel.app',
-];
-
-const allowedMethods = 'GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD';
-const allowedHeaders = 'Content-Type,Authorization,Range';
-
-const corsMiddleware = cors({
+// --- CORS ---
+app.use(cors({
   origin(origin, cb) {
-    if (!origin) return cb(null, true);
-    const ok = allowList.includes(origin);
-    return cb(ok ? null : new Error(`CORS: origem não permitida: ${origin}`), ok);
+    if (!origin || origin === frontendOrigin) return cb(null, true);
+    return cb(new Error(`CORS: origem não permitida: ${origin}`));
   },
   credentials: true,
-  methods: allowedMethods,
-  allowedHeaders,
-  exposedHeaders: ['Content-Range','Accept-Ranges','Content-Disposition'],
-  maxAge: 86400,
-});
-app.use(corsMiddleware);
-app.options(/.*/, corsMiddleware);
+  methods: ['GET', 'HEAD', 'OPTIONS', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Range'],
+  exposedHeaders: ['Content-Length', 'Content-Range', 'Accept-Ranges', 'Content-Disposition'],
+  optionsSuccessStatus: 204,
+}));
 
 app.use(cookieParser());
 app.use(express.json());
@@ -101,13 +89,6 @@ api.use('/contents', contentsRoutes);
 // dev utilities (guarded by SEED_TOKEN)
 api.use('/dev', devSeedRoutes);
 api.use('/themes', themesRoutes);
-// Compat: alias antigo para obter token de arquivo
-api.post('/file-token', authOptional, (req, res, next) => {
-  const { essayId } = req.body || {};
-  if (!essayId) return res.status(400).json({ success: false, message: 'essayId required' });
-  req.params = { ...(req.params || {}), id: essayId };
-  return fileController.issueFileToken(req, res, next);
-});
 
 // Em ambiente de teste, monte as rotas na raiz para compatibilidade com a suíte existente
 if (process.env.NODE_ENV === 'test') {

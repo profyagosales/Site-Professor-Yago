@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import Viewer from './Viewer';
 
-type FileSource = string | { url: string; httpHeaders?: Record<string, string> };
+type FileSource = string | { url: string; httpHeaders?: Record<string, string>; withCredentials?: boolean };
 
 function App() {
   const [fileSource, setFileSource] = useState<FileSource | null>(null);
@@ -11,16 +11,18 @@ function App() {
   useEffect(() => {
     function onMessage(event: MessageEvent) {
       if (event.origin !== window.location.origin) return;
-      const { type, fileUrl, meta } = event.data || {};
+      const { type, file, fileUrl, meta } = event.data || {};
       if (type === 'open' || type === 'open-pdf') {
+        const url = file || fileUrl;
         setMeta(meta);
         if (meta?.token) {
           setFileSource({
-            url: fileUrl,
+            url,
             httpHeaders: { Authorization: `Bearer ${meta.token}` },
+            withCredentials: true,
           });
         } else {
-          setFileSource(fileUrl);
+          setFileSource(url);
         }
       }
     }
