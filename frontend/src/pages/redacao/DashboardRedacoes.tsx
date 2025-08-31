@@ -191,7 +191,6 @@ function DashboardRedacoes() {
       {tab === 'pendentes' && (
         <div className="space-y-md">
           {arrify(pendentes).map((r) => {
-            const photo = r.student?.photoUrl || r.student?.avatarUrl || r.student?.photo;
             return (
               <div
                 key={r._id}
@@ -199,7 +198,7 @@ function DashboardRedacoes() {
               >
                 <div className="flex items-center gap-md">
                   <Avatar
-                    src={photo}
+                    src={r.student?.photoUrl}
                     name={r.student?.name}
                     className="w-12 h-12"
                   />
@@ -264,7 +263,6 @@ function DashboardRedacoes() {
           </div>
           <div className="space-y-md">
             {arrify(corrigidas).map((r) => {
-              const photo = r.student?.photoUrl || r.student?.avatarUrl || r.student?.photo;
               return (
                 <div
                   key={r._id}
@@ -272,7 +270,7 @@ function DashboardRedacoes() {
                 >
                   <div className="flex items-center gap-md">
                     <Avatar
-                      src={photo}
+                      src={r.student?.photoUrl}
                       name={r.student?.name}
                       className="w-12 h-12"
                     />

@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { pasPreviewFrom } from '@/utils/pas';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchEssayById, gradeEssay, saveAnnotations, renderCorrection } from '@/services/essays.service';
 import AnnotationEditor from '@/components/redacao/AnnotationEditor';
@@ -23,6 +22,7 @@ export default function GradeWorkspace() {
   const [comments, setComments] = useState('');
   const [weight, setWeight] = useState('1');
   const [annulReason, setAnnulReason] = useState('');
+  const [annulOther, setAnnulOther] = useState('');
   const [bimestralValue, setBimestralValue] = useState('1');
   const [countInBimestral, setCountInBimestral] = useState(true);
   // ENEM
@@ -114,19 +114,34 @@ export default function GradeWorkspace() {
     return () => { alive = false };
   }, [id]);
 
-  const enemTotal = useMemo(() => [c1,c2,c3,c4,c5].map(Number).reduce((a,b)=>a+(isNaN(b)?0:b),0), [c1,c2,c3,c4,c5]);
+  const effectiveAnnul = annulReason === 'Outros' ? annulOther.trim() : annulReason;
+  const enemPreview = useMemo(() => {
+    const total = [c1, c2, c3, c4, c5]
+      .map((n) => Number(n) || 0)
+      .reduce((a, b) => a + b, 0);
+    const bVal = Number(bimestralValue) || 0;
+    const bimestral = countInBimestral
+      ? effectiveAnnul
+        ? 0
+        : (total / 1000) * bVal
+      : null;
+    return { total, bimestral };
+  }, [c1, c2, c3, c4, c5, bimestralValue, countInBimestral, effectiveAnnul]);
   const [forceAnnotator, setForceAnnotator] = useState<null | 'rich' | 'legacy'>(null);
   const useNewAnnotator = forceAnnotator ? forceAnnotator === 'rich' : Boolean((window as any).YS_USE_RICH_ANNOS);
-  const pasPreview = useMemo(() => {
-    if (!countInBimestral) return { raw: 0, scaled: 0 } as any;
-    const w = Number(weight) || 1;
+  const neCount = useMemo(() => annotations.filter(a => a.color === 'green').length, [annotations]);
+  const nr = useMemo(() => {
     const nc = Number(NC);
-    const nl = Number(NL);
-    if ([nc, nl, w].some(Number.isNaN)) return { raw: 0, scaled: 0 } as any;
-    const { raw, scaled } = pasPreviewFrom({ NC: nc, NL: Math.max(1, nl), annotations, weight: w });
-    return { raw, scaled } as any;
-  }, [NC, NL, annotations, weight, countInBimestral]);
-  const neCount = useMemo(() => annotations.filter(a => a.color === 'grammar' && (a.label||'').toLowerCase().includes('erro')).length, [annotations]);
+    const nl = Math.max(1, Number(NL));
+    const raw = nc - (2 * neCount) / nl;
+    return Math.max(0, Math.min(10, raw));
+  }, [NC, NL, neCount]);
+  const pasBimestral = useMemo(() => {
+    if (!countInBimestral) return null;
+    const bVal = Number(bimestralValue);
+    if (Number.isNaN(bVal)) return null;
+    return effectiveAnnul ? 0 : (nr / 10) * bVal;
+  }, [countInBimestral, bimestralValue, nr, effectiveAnnul]);
 
 
   // navegação de anotações removida no modo iframe
@@ -270,7 +285,7 @@ export default function GradeWorkspace() {
         await gradeEssay(essay._id || essay.id, {
           essayType: 'ENEM',
           weight: Number(weight)||1,
-          annulmentReason: annulReason || undefined,
+          annulmentReason: effectiveAnnul || undefined,
           countInBimestral,
           bimestralPointsValue: Number(bimestralValue)||0,
           enemCompetencies: { c1: Number(c1), c2: Number(c2), c3: Number(c3), c4: Number(c4), c5: Number(c5) },
@@ -280,7 +295,7 @@ export default function GradeWorkspace() {
         await gradeEssay(essay._id || essay.id, {
           essayType: 'PAS',
           weight: Number(weight)||1,
-          annulmentReason: annulReason || undefined,
+          annulmentReason: effectiveAnnul || undefined,
           countInBimestral,
           bimestralPointsValue: Number(bimestralValue)||0,
           pas: { NC: Number(NC), NL: Number(NL) },
@@ -293,7 +308,7 @@ export default function GradeWorkspace() {
   toast.success('Correção salva');
   setDirty(false);
   setLastSavedAt(new Date());
-  setSnapshot({ annotations, comments, weight, bimestralPointsValue: bimestralValue, countInBimestral, annulmentReason: annulReason, c1, c2, c3, c4, c5, NC, NL });
+  setSnapshot({ annotations, comments, weight, bimestralPointsValue: bimestralValue, countInBimestral, annulmentReason: effectiveAnnul, c1, c2, c3, c4, c5, NC, NL });
       navigate('/professor/redacao');
     } catch (e:any) {
       toast.error(e?.response?.data?.message || 'Falha ao salvar');
@@ -372,7 +387,7 @@ export default function GradeWorkspace() {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_260px]">
         <div className="min-h-[420px] overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#F9FAFB]">
           {/* Status */}
           {useIframe ? (
@@ -396,28 +411,39 @@ export default function GradeWorkspace() {
           )}
         </div>
         <div className="space-y-3">
-          <div className="grid gap-3 md:grid-cols-4">
-            <div>
-              <label className="block text-sm font-medium text-[#111827]">Peso</label>
-              <input value={weight} onChange={(e)=>setWeight(e.target.value)} type="number" min={0} max={10} className="w-full rounded border p-2" disabled={!countInBimestral} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-[#111827]">Valor bimestral</label>
-              <input value={bimestralValue} onChange={(e)=>setBimestralValue(e.target.value)} type="number" min={0} className="w-full rounded border p-2" disabled={!countInBimestral} />
-            </div>
-            <label className="inline-flex items-center gap-2 mt-6 text-sm text-[#111827]"><input type="checkbox" checked={countInBimestral} onChange={(e)=>setCountInBimestral(e.target.checked)} /> Contar no bimestre</label>
-            <div className="mt-6">
-              <label className="block text-sm font-medium text-[#111827]">Anular</label>
-              <select className="rounded border p-2 text-sm" value={annulReason} onChange={e=>setAnnulReason(e.target.value)}>
+            <div className="grid gap-3 md:grid-cols-4">
+              <div>
+                <label className="block text-sm font-medium text-[#111827]">Peso</label>
+                <input value={weight} onChange={(e)=>setWeight(e.target.value)} type="number" min={0} max={10} className="w-full rounded border p-2" disabled={!countInBimestral} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#111827]">Valor bimestral</label>
+                <input value={bimestralValue} onChange={(e)=>setBimestralValue(e.target.value)} type="number" min={0} className="w-full rounded border p-2" disabled={!countInBimestral} />
+              </div>
+              <label className="inline-flex items-center gap-2 mt-6 text-sm text-[#111827]"><input type="checkbox" checked={countInBimestral} onChange={(e)=>setCountInBimestral(e.target.checked)} /> Contar no bimestre</label>
+              <div className="mt-6">
+                <label className="block text-sm font-medium text-[#111827]">Anular</label>
+                <select className="rounded border p-2 text-sm" value={annulReason} onChange={e=>setAnnulReason(e.target.value)}>
                 <option value="">—</option>
                 <option value="Menos de 7 linhas">Menos de 7 linhas</option>
                 <option value="Fuga ao tema">Fuga ao tema</option>
                 <option value="Cópia">Cópia</option>
-                <option value="Ilegível/sem identificação">Ilegível/sem identificação</option>
+                <option value="Letra ilegível">Letra ilegível</option>
+                <option value="Identificação">Identificação</option>
+                <option value="Parte desconectada">Parte desconectada</option>
                 <option value="Outros">Outros</option>
-              </select>
+                </select>
+                {annulReason === 'Outros' && (
+                  <input
+                    type="text"
+                    value={annulOther}
+                    onChange={(e) => setAnnulOther(e.target.value)}
+                    className="mt-2 w-full rounded border p-2 text-sm"
+                    placeholder="Motivo"
+                  />
+                )}
+              </div>
             </div>
-          </div>
 
           {essay.type === 'ENEM' ? (
             <div className="space-y-2">
@@ -429,7 +455,14 @@ export default function GradeWorkspace() {
                   </select>
                 ))}
               </div>
-              <p className="text-sm text-ys-ink-2">Total ENEM: <span className="font-medium text-[#111827]">{enemTotal}</span> / 1000 {annulReason && '(anulada)'}</p>
+              <p className="text-sm text-ys-ink-2">
+                Total ENEM: <span className="font-medium text-[#111827]">{effectiveAnnul ? 0 : enemPreview.total}</span> / 1000 {effectiveAnnul && '(anulada)'}
+              </p>
+              {countInBimestral && (
+                <p className="text-sm text-ys-ink-2">
+                  Prévia bimestral: <span className="font-medium text-[#111827]">{(enemPreview.bimestral ?? 0).toFixed(1)}</span> / {bimestralValue}
+                </p>
+              )}
             </div>
           ) : (
             <div className="space-y-2">
@@ -443,7 +476,17 @@ export default function GradeWorkspace() {
                   <input type="number" min={1} value={NL} onChange={e=> setNL(e.target.value)} className="w-full rounded border p-2" />
                 </div>
               </div>
-              <p className="text-sm text-ys-ink-2">Prévia PAS: nota <span className="font-medium text-[#111827]">{pasPreview.raw}</span>/10 • bimestral <span className="font-medium text-[#111827]">{pasPreview.scaled}</span> / {weight} • NE: <span className="font-medium text-[#111827]">{neCount}</span></p>
+              <p className="text-sm text-ys-ink-2">NE (auto): <span className="font-medium text-[#111827]">{neCount}</span></p>
+              <p className="text-sm text-ys-ink-2">
+                NR = NC - 2 * NE / NL = {Number(NC) || 0} - 2 * {neCount} / {Number(NL) || 1} =
+                <span className="font-medium text-[#111827]"> {effectiveAnnul ? 0 : nr.toFixed(2)}</span>
+                {effectiveAnnul && ' (anulada)'}
+              </p>
+              {countInBimestral && (
+                <p className="text-sm text-ys-ink-2">
+                  Prévia bimestral: <span className="font-medium text-[#111827]">{(pasBimestral ?? 0).toFixed(1)}</span> / {bimestralValue}
+                </p>
+              )}
             </div>
           )}
 
