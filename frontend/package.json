@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "vercel-build": "npm ci --legacy-peer-deps || npm install --legacy-peer-deps && vite build",
+    "build": "vite build && npm run build:viewer",
+    "build:viewer": "node apps/pdf-viewer/scripts/copy-worker.cjs && vite build --config apps/pdf-viewer/vite.config.ts --outDir dist/viewer",
+    "vercel-build": "npm ci --legacy-peer-deps || npm install --legacy-peer-deps && npm run build",
     "preview": "vite preview",
     "test": "jest",
     "lint": "eslint src --max-warnings=0",
