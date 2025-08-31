@@ -20,7 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await api.get("/api/auth/me");
+        const { data } = await api.get("/auth/me");
         setUser(data?.user ?? null);
       } catch {
         setUser(null);
@@ -31,17 +31,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function loginTeacher(email: string, password: string) {
-    const { data } = await api.post("/api/auth/login-teacher", { email, password });
+    const { data } = await api.post("/auth/login-teacher", { email, password });
     if (data?.token) {
       localStorage.setItem("auth_token", data.token);
       api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
     }
-    const me = await api.get("/api/auth/me");
+    const me = await api.get("/auth/me");
     setUser(me.data?.user ?? null);
   }
 
   async function logout() {
-    try { await api.post("/api/auth/logout"); } catch {}
+    try { await api.post("/auth/logout"); } catch {}
     localStorage.removeItem("auth_token");
     delete api.defaults.headers.common["Authorization"];
     setUser(null);

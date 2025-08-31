@@ -2,9 +2,10 @@ import AuthShell from "@/components/auth/AuthShell";
 import { CardBody } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api } from "@/services/api";
+import { api, setAuthToken } from "@/services/api";
+import { ROUTES } from "@/routes";
 
 export default function LoginProfessor() {
   const navigate = useNavigate();
@@ -12,16 +13,18 @@ export default function LoginProfessor() {
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
 
+  useEffect(() => {
+    if (localStorage.getItem("auth_token")) navigate(ROUTES.prof.resumo, { replace: true });
+  }, [navigate]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErro("");
     try {
-      const { data } = await api.post("/api/auth/login-teacher", { email, password: senha });
-      if (data?.success) {
-        // save token for Bearer flows (cookie also set by backend)
-        localStorage.setItem("auth_token", data.token);
-        api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
-        navigate("/dashboard-professor");
+      const { data } = await api.post("/auth/login-teacher", { email, password: senha });
+      if (data?.success && data?.token) {
+        setAuthToken(data.token);
+        navigate(ROUTES.prof.resumo, { replace: true });
       } else {
         setErro(data?.message || "Erro no login");
       }
