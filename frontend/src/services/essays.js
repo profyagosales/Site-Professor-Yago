@@ -1,4 +1,4 @@
-import { api } from '@/lib/api';
+import { api } from '@/services/api';
 
 export const listThemes = (params) => api.get('/essays/themes', { params });
 export const createTheme = (data) => api.post('/essays/themes', data);

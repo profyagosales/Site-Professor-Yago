@@ -1,29 +1,33 @@
 import { useEffect, useState } from "react";
-import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { api, setAuthToken } from "../services/api";
+import { Navigate, Outlet } from "react-router-dom";
+import { api } from "@/services/api";
 import { ROUTES } from "@/routes";
+import { setAuthToken } from "@/services/api";
 
 export default function RequireAuth() {
-  const loc = useLocation();
-  const [status, setStatus] = useState<"idle" | "checking" | "ok" | "unauth">("idle");
-  const token = typeof window !== 'undefined' ? localStorage.getItem("auth_token") : null;
+  const [status, setStatus] = useState<"idle"|"checking"|"ok"|"fail">("idle");
 
   useEffect(() => {
-    if (!token) {
-      setStatus("unauth");
+    const t = localStorage.getItem("auth_token");
+    if (!t) {
+      setStatus("fail");
       return;
     }
-    setAuthToken(token);
-    setStatus("checking");
-    api.get("/auth/me")
-      .then(() => setStatus("ok"))
-      .catch(() => {
+    let mounted = true;
+    (async () => {
+      setStatus("checking");
+      try {
+        await api.get("/auth/me");
+        if (mounted) setStatus("ok");
+      } catch {
         setAuthToken(undefined);
-        setStatus("unauth");
-      });
-  }, [token, loc.pathname]);
+        if (mounted) setStatus("fail");
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
-  if (status === "unauth") return <Navigate to={ROUTES.auth.loginProf} replace state={{ from: loc }} />;
-  if (status !== "ok") return <div style={{ padding: 24 }}>Carregando…</div>;
+  if (status === "idle" || status === "checking") return <div>Carregando…</div>;
+  if (status === "fail") return <Navigate to={ROUTES.auth.loginProf} replace />;
   return <Outlet />;
 }

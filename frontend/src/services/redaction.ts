@@ -1,4 +1,4 @@
-import { api } from '@/lib/api';
+import { api } from '@/services/api';
 
 export async function listThemes() {
   const { data } = await api.get('/redactions/themes');

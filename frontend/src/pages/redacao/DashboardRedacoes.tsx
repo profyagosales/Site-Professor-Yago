@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { listarPendentes, listarCorrigidas } from '@/services/redacoes';
 import { gradeEssay, sendCorrectionEmail } from '@/services/essays.service';
 import { toast } from 'react-toastify';
-import { toArray, api } from '@/lib/api';
+import { toArray, api } from '@/services/api';
 import { FaPen } from 'react-icons/fa';
 import NovaRedacaoModal from './NovaRedacaoModal';
 import Avatar from '@/components/Avatar';

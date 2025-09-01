@@ -1,4 +1,4 @@
-import { api, pickData } from '@/lib/api';
+import { api, pickData } from '@/services/api';
 
 export const listClasses = () => api.get('/classes').then(pickData);
 

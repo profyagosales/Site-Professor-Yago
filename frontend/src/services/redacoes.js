@@ -1,4 +1,4 @@
-import { api } from '@/lib/api';
+import { api } from '@/services/api';
 
 // Nota: fluxo de envio legado permanece não usado no novo dashboard.
 export const enviarRedacao = (formData) =>

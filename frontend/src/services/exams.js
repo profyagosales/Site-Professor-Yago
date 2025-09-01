@@ -1,4 +1,4 @@
-import { api } from '@/lib/api';
+import { api } from '@/services/api';
 
 export async function listUpcomingExams({ teacherId, daysAhead = 30, limit = 5 }) {
   if (!teacherId) return [];

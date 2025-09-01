@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
-import { api } from '@/lib/api';
+import { api } from '@/services/api';
 import { searchStudents } from '@/services/students2';
 import ThemeCombo from '@/components/redacao/ThemeCombo';
 
