@@ -1,8 +1,10 @@
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody } from "@/components/ui/Card";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { ROUTES } from "@/routes";
 
 export default function Landing() {
+  const nav = useNavigate();
   return (
     <section className="relative overflow-hidden">
       <div className="max-w-6xl mx-auto px-4 pt-16 pb-24">
@@ -23,10 +25,8 @@ export default function Landing() {
           <p className="text-ys-ink-2 mb-6">Notas • Redação • Recados • Gabaritos</p>
 
           <div className="flex flex-wrap items-center gap-3 mb-12">
-            <Link to="/login-professor">
-              <Button>Sou Professor</Button>
-            </Link>
-            <Link to="/login-aluno">
+            <Button onClick={() => nav(ROUTES.auth.loginProf)}>Sou Professor</Button>
+            <Link to={ROUTES.loginAluno}>
               <Button>Sou Aluno</Button>
             </Link>
           </div>

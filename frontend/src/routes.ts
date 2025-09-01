@@ -5,9 +5,11 @@ export const ROUTES = {
 
   prof: {
     base: "/professor",
+    root: "/professor",
     resumo: "/professor/resumo",
     turmas: "/professor/turmas",
     notasDaClasse: "/professor/notas-da-classe",
+    notas: "/professor/notas-da-classe",
     caderno: "/professor/caderno",
     gabarito: "/professor/gabarito",
     redacao: "/professor/redacao",
@@ -28,5 +30,10 @@ export const ROUTES = {
 
   legacy: {
     dashboardAluno: "/dashboard-aluno",
+  },
+
+  auth: {
+    loginProf: "/login-professor",
+    loginAluno: "/login-aluno",
   },
 } as const;
