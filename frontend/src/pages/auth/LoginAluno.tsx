@@ -4,7 +4,8 @@ import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api } from "@/services/api";
+import { api, setAuthToken } from "@/services/api";
+import { ROUTES } from "@/routes";
 
 export default function LoginAluno() {
   const navigate = useNavigate();
@@ -19,9 +20,12 @@ export default function LoginAluno() {
       const { data } = await api.post("/auth/login-student", { email, password });
       if (data?.success) {
         const t = data?.data?.token;
-        if (t) localStorage.setItem("auth_token", t);
+        if (t) {
+          localStorage.setItem("auth_token", t);
+          setAuthToken(t);
+        }
         localStorage.setItem("role", "student");
-        navigate("/dashboard-aluno");
+        navigate(ROUTES.aluno.landing, { replace: true });
       } else {
         setErro(data?.message || "Erro no login");
       }

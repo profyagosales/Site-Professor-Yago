@@ -22,14 +22,15 @@ import AlunoCaderno from '@/pages/aluno/Caderno';
 import AlunoGabarito from '@/pages/aluno/Gabarito';
 import AlunoRedacoes from '@/pages/aluno/Redacoes';
 import AlunoNotas from '@/pages/aluno/Notas';
+import { ROUTES } from '@/routes';
 
 export const router = createBrowserRouter([
   {
     element: <PublicLayout />,
     children: [
-      { path: '/', element: <Landing /> },
-      { path: '/login-professor', element: <LoginProfessor /> },
-      { path: '/login-aluno', element: <LoginAluno /> },
+      { path: ROUTES.home, element: <Landing /> },
+      { path: ROUTES.loginProfessor, element: <LoginProfessor /> },
+      { path: ROUTES.loginAluno, element: <LoginAluno /> },
     ],
   },
   {
@@ -38,40 +39,41 @@ export const router = createBrowserRouter([
       {
         element: <AppShellLayout />,
         children: [
-          // Página principal do professor: Resumo
-          { path: '/professor', element: <Navigate to="/professor/resumo" replace /> },
-          { path: '/professor/resumo', element: <DashboardProfessor /> },
-          // Compat: rotas antigas/curtas
-          { path: '/dashboard', element: <Navigate to="/professor/resumo" replace /> },
-          { path: '/professor/dashboard', element: <Navigate to="/professor/resumo" replace /> },
-          { path: '/turmas', element: <Navigate to="/professor/turmas" replace /> },
-          { path: '/caderno', element: <Navigate to="/professor/caderno" replace /> },
-          { path: '/gabarito', element: <Navigate to="/professor/gabarito" replace /> },
-          { path: '/notas-da-classe', element: <Navigate to="/professor/notas-da-classe" replace /> },
-          { path: '/redacao', element: <Navigate to="/professor/redacao" replace /> },
-          { path: '/professor/turmas', element: <TurmasPage /> },
+          { path: ROUTES.prof.base, element: <Navigate to={ROUTES.prof.resumo} replace /> },
+          { path: ROUTES.prof.resumo, element: <DashboardProfessor /> },
+          // Aliases legados úteis
+          { path: '/dashboard', element: <Navigate to={ROUTES.prof.resumo} replace /> },
+          { path: '/professor/dashboard', element: <Navigate to={ROUTES.prof.resumo} replace /> },
+          { path: '/turmas', element: <Navigate to={ROUTES.prof.turmas} replace /> },
+          { path: '/caderno', element: <Navigate to={ROUTES.prof.caderno} replace /> },
+          { path: '/gabarito', element: <Navigate to={ROUTES.prof.gabarito} replace /> },
+          { path: '/notas-da-classe', element: <Navigate to={ROUTES.prof.notasDaClasse} replace /> },
+          { path: '/redacao', element: <Navigate to={ROUTES.prof.redacao} replace /> },
+          { path: ROUTES.prof.turmas, element: <TurmasPage /> },
           { path: '/professor/turmas/:id/alunos', element: <TurmaAlunosPage /> },
-          { path: '/professor/notas-da-classe', element: <NotasDaClasse /> },
-          { path: '/professor/caderno', element: <CadernoProf /> },
-          { path: '/professor/gabarito', element: <GabaritoProf /> },
-          { path: '/professor/redacao', element: <Suspense fallback={<div className="p-6">Carregando…</div>}><RedacaoProfessorPage /></Suspense> },
+          { path: ROUTES.prof.notasDaClasse, element: <NotasDaClasse /> },
+          { path: ROUTES.prof.caderno, element: <CadernoProf /> },
+          { path: ROUTES.prof.gabarito, element: <GabaritoProf /> },
+          { path: ROUTES.prof.redacao, element: <Suspense fallback={<div className="p-6">Carregando…</div>}><RedacaoProfessorPage /></Suspense> },
           { path: '/professor/redacao/:id', element: <Suspense fallback={<div className="p-6">Carregando…</div>}><GradeWorkspace /></Suspense> },
-          { path: '/professor/alunos', element: <ListaAlunos /> },
+          { path: ROUTES.prof.alunos, element: <ListaAlunos /> },
           { path: '/professor/alunos/:id', element: <PerfilAluno /> },
         ],
       },
       {
         element: <AppShellLayout />,
         children: [
-          { path: '/aluno', element: <Navigate to="/aluno/caderno" replace /> },
-          { path: '/aluno/dashboard', element: <DashboardAluno /> },
-          { path: '/aluno/caderno', element: <AlunoCaderno /> },
-          { path: '/aluno/gabaritos', element: <AlunoGabarito /> },
-          { path: '/aluno/redacoes', element: <AlunoRedacoes /> },
-          { path: '/aluno/notas', element: <AlunoNotas /> },
+          { path: ROUTES.aluno.base, element: <Navigate to={ROUTES.aluno.landing} replace /> },
+          { path: ROUTES.aluno.dashboard, element: <DashboardAluno /> },
+          { path: ROUTES.aluno.caderno, element: <AlunoCaderno /> },
+          { path: ROUTES.aluno.gabaritos, element: <AlunoGabarito /> },
+          { path: ROUTES.aluno.redacoes, element: <AlunoRedacoes /> },
+          { path: ROUTES.aluno.notas, element: <AlunoNotas /> },
         ],
       },
     ],
   },
+  // Alias legado explícito
+  { path: ROUTES.legacy.dashboardAluno, element: <Navigate to={ROUTES.aluno.dashboard} replace /> },
   { path: '*', element: <NotFound /> },
 ]);

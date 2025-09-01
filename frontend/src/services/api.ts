@@ -1,7 +1,11 @@
 import axios from "axios";
 
 const raw = import.meta.env.VITE_API_BASE_URL || "/api";
-const baseURL = raw.replace(/\/$/, "");
+let baseURL = raw.replace(/\/$/, "");
+// Garante que URLs absolutas do backend terminem com /api
+if (/^https?:\/\//.test(baseURL) && !/\/api$/.test(baseURL)) {
+  baseURL = `${baseURL}/api`;
+}
 
 export const api = axios.create({
   baseURL,

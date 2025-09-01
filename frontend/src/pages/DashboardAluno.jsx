@@ -19,7 +19,7 @@ import flags from '@/config/features'
 function ShortcutCards() {
   const shortcuts = [
     ...(flags.redaction
-      ? [{ path: '/aluno/redacao', title: 'Redações', subtitle: 'Minhas redações', icon: <FaPen className="text-orange w-6 h-6" /> }]
+      ? [{ path: '/aluno/redacoes', title: 'Redações', subtitle: 'Minhas redações', icon: <FaPen className="text-orange w-6 h-6" /> }]
       : []),
     { path: '/aluno/notas', title: 'Notas', subtitle: 'Resumo por bimestre', icon: <FaStar className="text-orange w-6 h-6" /> },
     { path: '/aluno/gabaritos', title: 'Gabaritos', subtitle: 'PDFs corrigidos', icon: <FaFilePdf className="text-orange w-6 h-6" /> },
@@ -68,7 +68,8 @@ function ContentsCard({ contents = [] }) {
     <div className="ys-card p-md">
       <div className="flex justify-between items-center mb-sm">
         <h3 className="font-semibold">Próximos conteúdos</h3>
-        <Link to="/conteudos" className="text-orange text-sm">Ver todos</Link>
+        {/* sem rota dedicada por enquanto */}
+        <span className="text-orange text-sm opacity-60 cursor-not-allowed">Ver todos</span>
       </div>
       <ul className="space-y-1 text-sm">
         {contents.length === 0 && <li className="text-black/60">Nenhum conteúdo</li>}
@@ -89,7 +90,8 @@ function AnnouncementsCard({ items = [] }) {
     <div className="ys-card p-md">
       <div className="flex justify-between items-center mb-sm">
         <h3 className="font-semibold">Avisos</h3>
-        <Link to="/aluno/avisos" className="text-orange text-sm">Ver todos</Link>
+        {/* sem rota dedicada por enquanto */}
+        <span className="text-orange text-sm opacity-60 cursor-not-allowed">Ver todos</span>
       </div>
       <ul className="space-y-1 text-sm">
         {items.length === 0 && <li className="text-black/60">Nenhum aviso</li>}

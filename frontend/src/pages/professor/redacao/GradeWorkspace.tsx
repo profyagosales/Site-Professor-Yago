@@ -232,10 +232,10 @@ export default function GradeWorkspace() {
     if (!id || !useIframe) return;
     setPdfReady(false);
     setIframeError(null);
-    const baseUrl = `/api/essays/${id}/file`;
+    const baseUrl = `/essays/${id}/file`;
     (async () => {
       try {
-        const resp = await api.post(`/api/essays/${id}/file-token`);
+        const resp = await api.post(`/essays/${id}/file-token`);
         if (!resp.data?.token) throw new Error('token');
         const { token } = resp.data;
         const headResp = await fetch(baseUrl, {
@@ -329,8 +329,8 @@ export default function GradeWorkspace() {
   if (!essay) return null;
 
   function openPdfInNewTab() {
-    if (!fileBase || !fileToken) return;
-    window.open(`${fileBase}?t=${fileToken}`, '_blank', 'noopener');
+    if (!id) return;
+    window.open(`/api/essays/${id}/file`, '_blank', 'noopener');
   }
 
   return (
