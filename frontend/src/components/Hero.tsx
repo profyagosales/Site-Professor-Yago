@@ -1,5 +1,6 @@
 import { YSLogoAlive } from "./YSLogoAlive";
 import { Link } from "react-router-dom";
+import { ROUTES } from "@/routes";
 
 export function Hero(){
   return (
@@ -22,8 +23,8 @@ export function Hero(){
 
         {/* 3) Ações */}
         <div className="flex items-center justify-center gap-4 pt-1">
-          <Link to="/login-professor" className="ys-btn-primary ys-glass">Sou Professor</Link>
-          <Link to="/login-aluno" className="ys-btn-ghost">Sou Aluno</Link>
+          <Link to={ROUTES.auth.loginProf} className="ys-btn-primary ys-glass">Sou Professor</Link>
+          <Link to={ROUTES.loginAluno} className="ys-btn-ghost">Sou Aluno</Link>
         </div>
       </div>
     </section>

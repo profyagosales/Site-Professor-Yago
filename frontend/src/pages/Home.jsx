@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import LogoYS from '@/components/LogoYS';
+import { ROUTES } from '@/routes';
 
 export default function Home() {
   const navigate = useNavigate();
@@ -11,14 +12,14 @@ export default function Home() {
         <div className="flex gap-4 justify-center mt-8">
           <button
             type="button"
-            onClick={() => navigate('/login-professor')}
+            onClick={() => navigate(ROUTES.auth.loginProf)}
             className="bg-white text-orange-600 font-semibold rounded-xl px-6 py-3 shadow transition hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
           >
             Sou Professor
           </button>
           <button
             type="button"
-            onClick={() => navigate('/login-aluno')}
+            onClick={() => navigate(ROUTES.loginAluno)}
             className="bg-white text-orange-600 font-semibold rounded-xl px-6 py-3 shadow transition hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
           >
             Sou Aluno
