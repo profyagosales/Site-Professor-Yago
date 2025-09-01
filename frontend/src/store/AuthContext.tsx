@@ -20,6 +20,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
+        const token = localStorage.getItem("auth_token");
+        if (!token) {
+          setUser(null);
+          return;
+        }
         const { data } = await api.get("/auth/me");
         setUser(data?.user ?? null);
       } catch {

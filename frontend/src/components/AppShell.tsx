@@ -32,8 +32,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const hideNav = [ROUTES.loginProfessor, "/login-aluno"].includes(loc.pathname);
 
   function goHomeByRole() {
-    if (role === "teacher") return ROUTES.prof.resumo;
-    if (role === "student") return ROUTES.aluno.landing;
+    const token = localStorage.getItem("auth_token");
+    const isInProfArea = window.location.pathname.startsWith("/professor");
+    if (token && isInProfArea && role === "teacher") return ROUTES.prof.resumo;
+    if (token && role === "student") return ROUTES.aluno.landing;
     return ROUTES.home;
   }
 
@@ -67,8 +69,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   className={({ isActive }) =>
                     [
                       "px-3 py-1.5 rounded-xl text-sm font-medium transition-colors",
-                      i.primary ? "bg-ys-amber text-white hover:brightness-110" : "text-gray-800 hover:bg-gray-100",
-                      isActive && (i.primary ? "ring-2 ring-white/40" : "bg-orange-500 text-white font-semibold hover:bg-orange-400"),
+                      isActive ? "bg-orange-100 text-orange-700 font-semibold" : "text-gray-800 hover:bg-gray-100",
+                      i.primary && !isActive ? "font-semibold" : "",
                     ].join(" ")
                   }
                 >
