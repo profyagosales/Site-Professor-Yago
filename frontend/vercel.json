@@ -1,6 +1,7 @@
 {
   "rewrites": [
     { "source": "/api/:path*", "destination": "https://api.professoryagosales.com.br/:path*" },
+    { "source": "/viewer/assets/(.*)", "destination": "/viewer/assets/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

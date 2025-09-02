@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Document, Page } from 'react-pdf';
-import { GlobalWorkerOptions } from 'pdfjs-dist';
+import { pdfjs } from 'react-pdf';
+
+// Configurar worker com caminho correto para os assets do viewer
+pdfjs.GlobalWorkerOptions.workerSrc = '/viewer/assets/pdf.worker.min.js';
 
 interface Props {
   fileSource: string | { url: string; httpHeaders?: Record<string, string>; withCredentials?: boolean };
@@ -10,10 +13,6 @@ interface Props {
 export default function Viewer({ fileSource }: Props) {
   const [numPages, setNumPages] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    GlobalWorkerOptions.workerSrc = '/viewer/pdf.worker.mjs';
-  }, []);
 
   function onLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
