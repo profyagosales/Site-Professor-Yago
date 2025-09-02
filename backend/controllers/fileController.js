@@ -12,6 +12,9 @@ exports.issueFileToken = async (req, res) => {
   res.json({ token, expiresIn: fileTokenTtl });
 };
 
+// Alias para compatibilidade
+exports.issueToken = exports.issueFileToken;
+
 function extractToken(req) {
   const h = req.headers.authorization;
   if (h && h.toLowerCase().startsWith('bearer ')) return h.slice(7).trim();
@@ -86,5 +89,14 @@ exports.getFile = async (req, res, next) => {
     return up.pipe(res);
   } catch (err) {
     next(err);
+  }
+};
+
+// Método unificado para HEAD e GET
+exports.streamFile = async (req, res, next) => {
+  if (req.method === 'HEAD') {
+    return exports.headFile(req, res, next);
+  } else {
+    return exports.getFile(req, res, next);
   }
 };

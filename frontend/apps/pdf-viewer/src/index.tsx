@@ -11,15 +11,15 @@ function App() {
   useEffect(() => {
     function onMessage(event: MessageEvent) {
       if (event.origin !== window.location.origin) return;
-      const { type, file, fileUrl, meta } = event.data || {};
-      if (type === 'open' || type === 'open-pdf') {
-        const url = file || fileUrl;
-        setMeta(meta);
-        if (meta?.token) {
+      const msg = event.data;
+      if (msg?.type === 'open') {
+        const { url, token } = msg.payload || {};
+        setMeta(msg.payload);
+        if (token) {
           setFileSource({
             url,
-            httpHeaders: { Authorization: `Bearer ${meta.token}` },
-            withCredentials: true,
+            httpHeaders: { Authorization: `Bearer ${token}` },
+            withCredentials: false,
           });
         } else {
           setFileSource(url);

@@ -53,16 +53,18 @@ const allowedOrigins = [
 ];
 
 app.use(cors({
-  origin(origin, cb) {
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
-    return cb(new Error(`CORS: origem não permitida: ${origin}`));
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.some(o => origin === o)) return cb(null, true);
+    return cb(null, false);
   },
   credentials: true,
-  methods: ['GET', 'HEAD', 'OPTIONS', 'POST'],
+  methods: ['GET','POST','PUT','DELETE','PATCH','HEAD','OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Range'],
-  exposedHeaders: ['Content-Length', 'Content-Range', 'Accept-Ranges', 'Content-Disposition'],
-  optionsSuccessStatus: 204,
+  exposedHeaders: ['Content-Length', 'Accept-Ranges', 'Content-Disposition']
 }));
+
+app.options('*', cors());
 
 app.use(cookieParser());
 app.use(express.json());

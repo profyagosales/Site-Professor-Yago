@@ -230,66 +230,36 @@ export default function GradeWorkspace() {
     return () => { clearTimeout(debounce); clearTimeout(safety); };
   }, [dirty, essay, annotations, richAnnos, useNewAnnotator]);
 
-  // carregar PDF via blob
+  // carregar PDF via iframe viewer
   useEffect(() => {
-    if (!id) return;
+    if (!id || !useIframe) return;
     setPdfReady(false);
     setIframeError(null);
-    setPdfError(null);
-    
-    const fileBaseUrl = `${API_BASE_URL}/essays/${id}/file`;
     
     (async () => {
       try {
-        // Validar existência do PDF com Authorization
-        const headResp = await fetch(fileBaseUrl, {
-          method: 'HEAD',
-          headers: { ...authHeader() },
-        });
-        if (!headResp.ok) {
-          setPdfError('Falha ao carregar PDF');
-          return;
-        }
+        // Pegar token para o arquivo
+        const resp = await api.post(`/essays/${id}/file-token`);
+        if (!resp.data?.token) throw new Error('token');
+        const { token } = resp.data;
         
-        if (useIframe) {
-          // Manter lógica iframe existente
-          const resp = await api.post(`/essays/${id}/file-token`);
-          if (!resp.data?.token) throw new Error('token');
-          const { token } = resp.data;
-          setFileBase(`/essays/${id}/file`);
-          setFileToken(token);
-          setPdfReady(true);
-        } else {
-          // Carregar via blob para viewer inline
-          await loadPdfBlob(fileBaseUrl);
-        }
+        const fileUrl = `${API_BASE_URL}/essays/${id}/file`;
+        setFileBase(fileUrl);
+        setFileToken(token);
+        setPdfReady(true);
       } catch {
         setIframeError('Falha ao carregar PDF');
-        setPdfError('Falha ao carregar PDF');
       }
     })();
   }, [id, useIframe]);
-  
-  async function loadPdfBlob(fileBaseUrl: string) {
-    try {
-      const res = await fetch(fileBaseUrl, { headers: { ...authHeader() } });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      setPdfBlobUrl(url);
-      setPdfReady(true);
-    } catch (e) {
-      setPdfError('Falha ao carregar PDF');
-    }
-  }
+
 
   function sendFileToIframe() {
     if (!iframeRef.current || !fileBase || !fileToken) return;
     iframeRef.current.contentWindow?.postMessage(
       {
         type: 'open',
-        meta: { token: fileToken },
-        file: fileBase,
+        payload: { url: fileBase, token: fileToken },
       },
       window.location.origin,
     );
@@ -361,14 +331,21 @@ export default function GradeWorkspace() {
 
   async function openPdfInNewTab() {
     if (!id) return;
-    const fileBaseUrl = `${API_BASE_URL}/essays/${id}/file`;
     try {
+      // Preferência: URL com token curto na query
+      if (fileToken && fileBase) {
+        const urlWithToken = `${fileBase}?t=${fileToken}`;
+        window.open(urlWithToken, '_blank', 'noopener');
+        return;
+      }
+      
+      // Fallback: blob
+      const fileBaseUrl = `${API_BASE_URL}/essays/${id}/file`;
       const res = await fetch(fileBaseUrl, { headers: { ...authHeader() } });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank', 'noopener,noreferrer');
-      // opcional: revogar depois de alguns segundos
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (e) {
       console.error('openPdfInNewTab error', e);

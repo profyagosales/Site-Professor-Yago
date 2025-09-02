@@ -1,6 +1,7 @@
 const express = require('express');
 const auth = require('../middleware/auth');
 const authRequired = auth.authRequired || auth;
+const authOptional = auth.authOptional || auth;
 const {
   upload,
   getThemes,
@@ -33,12 +34,15 @@ router.patch('/:id/grade', authRequired, upload.single('correctedFile'), gradeEs
 router.patch('/:id/annotations', authRequired, updateAnnotations);
 // Compat: estrutura { highlights:[], comments:[] }
 router.get('/:id/annotations', authRequired, getAnnotationsCompat);
-router.put('/:id/annotations', authRequired, putAnnotationsCompat);
+router.options('/:id/annotations', (req, res) => res.status(200).end());
+router.post('/:id/annotations', authRequired, putAnnotationsCompat); // create
+router.put('/:id/annotations', authRequired, putAnnotationsCompat);  // update/upsert
 router.post('/:id/render-correction', authRequired, renderCorrection);
 // Token curto para baixar arquivo
-router.post('/:id/file-token', authRequired, files.issueFileToken);
-router.head('/:id/file', files.headFile);
-router.get('/:id/file', files.getFile);
+router.post('/:id/file-token', authRequired, files.issueToken);
+// Arquivo com suporte a Range, HEAD/GET unificado
+router.head('/:id/file', authOptional, files.streamFile);
+router.get('/:id/file', authOptional, files.streamFile);
 router.post('/:id/send-email', authRequired, sendCorrectionEmail);
 
 module.exports = router;
