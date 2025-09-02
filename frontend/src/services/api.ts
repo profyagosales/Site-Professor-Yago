@@ -1,8 +1,22 @@
 import axios from "axios";
 
 // Centralizar API_BASE_URL
-export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'https://api.professoryagosales.com.br/api';
+function buildApiBaseUrl() {
+  let raw = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+  raw = raw.trim();
+  
+  // fallback seguro
+  if (!raw) raw = 'https://api.professoryagosales.com.br/api';
+  
+  // normalizar para garantir /api no final
+  if (!raw.endsWith('/api')) {
+    raw = raw.replace(/\/+$/, '') + '/api';
+  }
+  
+  return raw;
+}
+
+export const API_BASE_URL = buildApiBaseUrl();
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
