@@ -17,12 +17,24 @@ export default function LoginProfessorFixed() {
     setErro("");
     try {
       const { data } = await api.post("/auth/login-teacher", { email, password: senha });
-      if (data?.success && data?.token) {
+      console.log("Login response:", data);
+      
+      // Diferentes formatos possíveis de resposta
+      const token = data?.token || data?.data?.token;
+      const success = data?.success !== false; // assume sucesso se não especificado
+      
+      if (token) {
         localStorage.setItem("role", "teacher");
-        setAuthToken(data.token);
+        setAuthToken(token);
+        console.log("Navegando para:", ROUTES.prof.resumo);
+        navigate(ROUTES.prof.resumo, { replace: true });
+      } else if (success && data?.message?.includes("ok")) {
+        // Caso especial: resposta de sucesso sem token explícito
+        localStorage.setItem("role", "teacher");
+        console.log("Login ok sem token, navegando para:", ROUTES.prof.resumo);
         navigate(ROUTES.prof.resumo, { replace: true });
       } else {
-        setErro(data?.message || "Erro no login");
+        setErro(data?.message || "Erro no login - token não encontrado");
       }
     } catch (error: any) {
       console.error("Login error:", error);
