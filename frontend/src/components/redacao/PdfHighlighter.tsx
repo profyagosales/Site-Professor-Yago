@@ -6,6 +6,7 @@ import React, {
 } from 'react';
 import { HIGHLIGHT_PALETTE } from './palette';
 import type { Highlight } from './types';
+import '@/pdfSetup';
 
 interface Props {
   fileUrl: string;

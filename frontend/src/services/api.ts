@@ -1,33 +1,12 @@
 import axios from "axios";
 
-function pickBaseEnv() {
-  // preferencial
-  let raw =
-    import.meta.env.VITE_API_BASE_URL ??
-    import.meta.env.VITE_API_URL ?? // legado
-    "";
-
-  raw = (raw || "").trim();
-
-  // fallback seguro: usa o origin + /api (caso Vercel rewrites esteja ok)
-  if (!raw) raw = `${window.location.origin}/api`;
-
-  // normaliza para garantir /api no final, sem duplicar
-  const url = new URL(raw, window.location.origin);
-  let pathname = url.pathname.replace(/\/+$/, ""); // remove trailing slash
-
-  if (!/\/api$/.test(pathname)) pathname = `${pathname}/api`;
-
-  url.pathname = pathname;
-
-  return url.toString().replace(/\/+$/, ""); // sem trailing slash
-}
-
-const BASE_URL = pickBaseEnv();
+// Centralizar API_BASE_URL
+export const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') || 'https://api.professoryagosales.com.br/api';
 
 export const api = axios.create({
-  baseURL: BASE_URL,
-  withCredentials: true,
+  baseURL: API_BASE_URL,
+  withCredentials: false,
   headers: {
     "Content-Type": "application/json",
   },
@@ -59,9 +38,20 @@ api.interceptors.response.use(
 export const pickData = (r: any) => r?.data?.data ?? r?.data ?? r;
 export const toArray = (v: any) => (Array.isArray(v) ? v : v ? [v] : []);
 
+// helper para pegar token atual
+export function getAuthToken() {
+  try { return localStorage.getItem('auth_token') || ''; } catch { return ''; }
+}
+
+// helper para header
+export function authHeader() {
+  const t = getAuthToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
+
 // (temporário) logue uma vez o BASE_URL para ver no Console (remover depois)
 if (!window.__API_BASE_LOGGED__) {
   // @ts-expect-error
   window.__API_BASE_LOGGED__ = true;
-  console.info("[API] baseURL:", BASE_URL);
+  console.info("[API] baseURL:", API_BASE_URL);
 }
