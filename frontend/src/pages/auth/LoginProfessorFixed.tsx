@@ -16,25 +16,28 @@ export default function LoginProfessorFixed() {
     e.preventDefault();
     setErro("");
     try {
-      const { data } = await api.post("/auth/login-teacher", { email, password: senha });
-      console.log("Login response:", data);
+      const response = await api.post("/auth/login-teacher", { email, password: senha });
+      console.log("Full response:", response);
+      console.log("Response status:", response.status);
+      console.log("Response data:", response.data);
       
-      // Diferentes formatos possíveis de resposta
-      const token = data?.token || data?.data?.token;
-      const success = data?.success !== false; // assume sucesso se não especificado
-      
-      if (token) {
+      // Se chegou até aqui sem erro e status é 200/204, considerar sucesso
+      if (response.status === 200 || response.status === 204) {
         localStorage.setItem("role", "teacher");
-        setAuthToken(token);
+        
+        // Tentar obter token da resposta
+        const token = response.data?.token || response.data?.data?.token;
+        if (token) {
+          setAuthToken(token);
+          console.log("Token encontrado:", token);
+        } else {
+          console.log("Login sem token - usando apenas role");
+        }
+        
         console.log("Navegando para:", ROUTES.prof.resumo);
         navigate(ROUTES.prof.resumo, { replace: true });
-      } else if (success && data?.message?.includes("ok")) {
-        // Caso especial: resposta de sucesso sem token explícito
-        localStorage.setItem("role", "teacher");
-        console.log("Login ok sem token, navegando para:", ROUTES.prof.resumo);
-        navigate(ROUTES.prof.resumo, { replace: true });
       } else {
-        setErro(data?.message || "Erro no login - token não encontrado");
+        setErro("Erro no login - status inválido");
       }
     } catch (error: any) {
       console.error("Login error:", error);
