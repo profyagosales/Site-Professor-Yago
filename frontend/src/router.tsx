@@ -3,7 +3,7 @@ import PublicLayout from '@/layouts/PublicLayout';
 import AppShellLayout from '@/layouts/AppShellLayout';
 import PrivateRoute from '@/routes/PrivateRoute';
 import Landing from '@/pages/Landing';
-import LoginProfessorDebug from '@/pages/auth/LoginProfessorDebug';
+import LoginProfessorFixed from '@/pages/auth/LoginProfessorFixed';
 import LoginAluno from '@/pages/auth/LoginAluno';
 import DashboardProfessor from '@/pages/DashboardProfessor';
 import DashboardAluno from '@/pages/DashboardAluno';
@@ -29,7 +29,7 @@ export const router = createBrowserRouter([
     element: <PublicLayout />,
     children: [
       { path: ROUTES.home, element: <Landing /> },
-      { path: ROUTES.loginProfessor, element: <LoginProfessorDebug /> },
+      { path: ROUTES.loginProfessor, element: <LoginProfessorFixed /> },
       { path: ROUTES.loginAluno, element: <LoginAluno /> },
     ],
   },
