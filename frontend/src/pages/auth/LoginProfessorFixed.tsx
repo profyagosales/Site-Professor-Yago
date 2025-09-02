@@ -1,7 +1,7 @@
 import AuthShell from "@/components/auth/AuthShell";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, setAuthToken } from "@/services/api";
 import { ROUTES } from "@/routes";
@@ -11,10 +11,6 @@ export default function LoginProfessorFixed() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
-
-  useEffect(() => {
-    if (localStorage.getItem("auth_token")) navigate(ROUTES.prof.resumo, { replace: true });
-  }, [navigate]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
