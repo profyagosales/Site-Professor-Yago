@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles.css';
 import { RouterProvider } from 'react-router-dom';
+import { setAuthToken } from '@/services/api';
 // Feature flags via env
 (() => {
   const yes = (v: any) => typeof v === 'string' && /^(1|true|yes|on)$/i.test(v);
@@ -15,6 +16,9 @@ import { RouterProvider } from 'react-router-dom';
 import { router } from './router';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+
+const t = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+setAuthToken(t || undefined);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

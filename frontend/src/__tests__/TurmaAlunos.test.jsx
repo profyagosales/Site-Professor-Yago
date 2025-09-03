@@ -2,6 +2,11 @@ import { render, screen } from '@testing-library/react';
 import TurmaAlunos from '@/pages/professor/TurmaAlunos';
 import { MemoryRouter } from 'react-router-dom';
 
+jest.mock('react-router-dom', () => ({
+  ...jest.requireActual('react-router-dom'),
+  useParams: () => ({ id: '1' }),
+}));
+
 jest.mock('@/services/students', () => ({
   listStudents: jest.fn(() => Promise.resolve([
     { id: 's1', name: 'João Silva', email: 'joao@ex.com' },
@@ -16,8 +21,6 @@ jest.mock('@/services/classes', () => ({
 
 describe('TurmaAlunosPage', () => {
   test('renders table with students', async () => {
-    // ensure useParams has an id
-    require('react-router-dom').useParams = () => ({ id: '1' });
     render(<MemoryRouter><TurmaAlunos /></MemoryRouter>);
     expect(await screen.findByText('João Silva')).toBeInTheDocument();
     expect(await screen.findByText('joao@ex.com')).toBeInTheDocument();
