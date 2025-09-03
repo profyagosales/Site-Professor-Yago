@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && npm run build:viewer",
+    "build": "vite build && cd apps/pdf-viewer && npm ci --no-audit --no-fund && npm run build",
     "build:viewer": "npm --prefix apps/pdf-viewer ci --legacy-peer-deps && npm --prefix apps/pdf-viewer run build && rm -rf dist/viewer && mkdir -p dist/viewer && cp -r apps/pdf-viewer/dist/* dist/viewer/",
     "vercel-build": "npm ci --legacy-peer-deps || npm install --legacy-peer-deps && npm run build",
     "preview": "vite preview",
