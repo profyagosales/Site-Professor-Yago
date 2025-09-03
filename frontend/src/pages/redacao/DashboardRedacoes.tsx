@@ -27,6 +27,7 @@ function DashboardRedacoes() {
   const [editStudentOptions, setEditStudentOptions] = useState<any[]>([]);
   const [editStudent, setEditStudent] = useState<any | null>(null);
   const [newModalOpen, setNewModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const arrify = (v) => {
     const r = toArray ? toArray(v) : undefined;
@@ -83,18 +84,27 @@ function DashboardRedacoes() {
 
   async function handleUpdateEssay() {
     if (!editEssay) return;
+    setSaving(true);
     try {
-      const fd = new FormData();
-      if (editStudent) {
-        fd.append('studentId', editStudent._id || editStudent.id);
+      const payload: any = {
+        student: editStudent?._id || editStudent?.id || editStudent?.name || undefined,
+        theme: editTheme.id || editTheme.name || undefined,
+        type: editType,
+        bimester: editBimester ? Number(editBimester) : undefined,
+      };
+
+      let updated;
+      if (editFile) {
+        const fd = new FormData();
+        Object.entries(payload).forEach(([k, v]) => {
+          if (v !== undefined) fd.append(k, String(v));
+        });
+        fd.append('file', editFile);
+        ({ data: updated } = await api.put(`/essays/${editEssay._id}`, fd));
+      } else {
+        ({ data: updated } = await api.put(`/essays/${editEssay._id}`, payload));
       }
-      if (editTheme?.id) fd.append('themeId', editTheme.id);
-      else if (editTheme.name) fd.append('customTheme', editTheme.name);
-      if (editBimester) fd.append('bimester', editBimester);
-      if (editType) fd.append('type', editType);
-      if (editFile) fd.append('file', editFile);
-      const res = await api.put(`/essays/${editEssay._id}`, fd);
-      const updated = res.data;
+
       setPendentes((prev) => prev.map((p) => (p._id === editEssay._id ? { ...p, ...updated } : p)));
       setCorrigidas((prev) => prev.map((c) => (c._id === editEssay._id ? { ...c, ...updated } : c)));
       toast.success('Redação atualizada');
@@ -103,6 +113,8 @@ function DashboardRedacoes() {
       console.error('Erro ao atualizar redação', err);
       const message = err.response?.data?.message ?? 'Erro ao atualizar redação';
       toast.error(message);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -423,7 +435,7 @@ function DashboardRedacoes() {
               onChange={(e) => setEditFile(e.target.files?.[0] || null)}
             />
             <div className="flex justify-end gap-md">
-              <button className="ys-btn-primary" onClick={handleUpdateEssay}>
+              <button className="ys-btn-primary" onClick={handleUpdateEssay} disabled={saving}>
                 Salvar
               </button>
               <button className="ys-btn-ghost" onClick={() => setEditEssay(null)}>
