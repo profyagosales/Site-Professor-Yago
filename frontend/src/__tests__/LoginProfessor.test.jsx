@@ -1,6 +1,9 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-jest.mock('@/services/api');
+jest.mock('@/services/api', () => ({
+  api: { post: jest.fn() },
+  setAuthToken: jest.fn(),
+}));
 const { api } = require('@/services/api');
 import LoginProfessor from '@/pages/auth/LoginProfessor';
 import { MemoryRouter } from 'react-router-dom';
@@ -16,7 +19,7 @@ describe('LoginProfessor', () => {
   });
 
   test('submits form and redirects on success', async () => {
-  api.post.mockResolvedValue({ data: { success: true, data: { token: 't' } } });
+  api.post.mockResolvedValue({ data: { token: 't' } });
     const navigate = jest.fn();
     require('react-router-dom').useNavigate.mockReturnValue(navigate);
 

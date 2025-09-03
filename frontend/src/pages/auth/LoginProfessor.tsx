@@ -22,7 +22,8 @@ export default function LoginProfessor() {
     setErro("");
     try {
       const { data } = await api.post("/auth/login-teacher", { email, password: senha });
-      if (data?.success && data?.token) {
+      if (data?.token) {
+        localStorage.setItem("auth_token", data.token);
         localStorage.setItem("role", "teacher");
         setAuthToken(data.token);
         navigate(ROUTES.prof.resumo, { replace: true });

@@ -7,7 +7,7 @@ import type { Highlight } from '@/components/redacao/types';
 import type { Anno } from '@/types/annotations';
 import { toast } from 'react-toastify';
 import Avatar from '@/components/Avatar';
-import { api, authHeader } from '@/services/api';
+import { api } from '@/services/api';
 import '@/pdfSetup';
 
 const useRich =
@@ -240,7 +240,7 @@ export default function GradeWorkspace() {
       try {
         // Pegar token para o arquivo
         const { data } = await api.post(`/essays/${id}/file-token`);
-        const base = import.meta.env.VITE_API_BASE_URL;
+        const base = api.defaults.baseURL;
         const fileUrl = `${base}/essays/${id}/file`;
         setFileBase(fileUrl);
         setFileToken(data.token);
@@ -338,10 +338,8 @@ export default function GradeWorkspace() {
       }
       
       // Fallback: blob
-      const fileBaseUrl = `${import.meta.env.VITE_API_BASE_URL}/essays/${id}/file`;
-      const res = await fetch(fileBaseUrl, { headers: { ...authHeader() } });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
+      const res = await api.get(`/essays/${id}/file`, { responseType: 'blob' });
+      const blob = res.data;
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank', 'noopener,noreferrer');
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
