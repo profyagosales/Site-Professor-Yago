@@ -5,6 +5,7 @@ const Essay = require('../models/Essay');
 const EssayTheme = require('../models/EssayTheme');
 const Student = require('../models/Student');
 const Class = require('../models/Class');
+const Annotations = require('../models/Annotations');
 const { sendEmail } = require('../services/emailService');
 const { recordEssayScore } = require('../services/gradesIntegration');
 const { renderEssayCorrectionPdf } = require('../services/pdfService');
@@ -33,6 +34,21 @@ async function uploadBuffer(buffer, folder) {
     });
     bufferToStream(buffer).pipe(stream);
   });
+}
+
+async function getAnnotations(req, res) {
+  const doc = await Annotations.findOne({ essayId: req.params.id }) || { highlights: [], comments: [] };
+  res.json(doc);
+}
+
+async function upsertAnnotations(req, res) {
+  const { highlights = [], comments = [] } = req.body || {};
+  const updated = await Annotations.findOneAndUpdate(
+    { essayId: req.params.id },
+    { $set: { highlights, comments } },
+    { upsert: true, new: true }
+  );
+  res.json(updated);
 }
 
 const storage = multer.memoryStorage();
@@ -528,6 +544,8 @@ module.exports = {
   renderCorrection,
   sendCorrectionEmail,
   generateFileToken,
+  getAnnotations,
+  upsertAnnotations,
   // Compat: endpoints GET/PUT para { highlights:[], comments:[] }
   async getAnnotationsCompat(req, res) {
     const { id } = req.params;

@@ -7,7 +7,7 @@ import type { Highlight } from '@/components/redacao/types';
 import type { Anno } from '@/types/annotations';
 import { toast } from 'react-toastify';
 import Avatar from '@/components/Avatar';
-import { api, API_BASE_URL, authHeader } from '@/services/api';
+import { api, authHeader } from '@/services/api';
 import '@/pdfSetup';
 
 const useRich =
@@ -239,13 +239,11 @@ export default function GradeWorkspace() {
     (async () => {
       try {
         // Pegar token para o arquivo
-        const resp = await api.post(`/essays/${id}/file-token`);
-        if (!resp.data?.token) throw new Error('token');
-        const { token } = resp.data;
-        
-        const fileUrl = `${API_BASE_URL}/essays/${id}/file`;
+        const { data } = await api.post(`/essays/${id}/file-token`);
+        const base = import.meta.env.VITE_API_BASE_URL;
+        const fileUrl = `${base}/essays/${id}/file`;
         setFileBase(fileUrl);
-        setFileToken(token);
+        setFileToken(data.token);
         setPdfReady(true);
       } catch {
         setIframeError('Falha ao carregar PDF');
@@ -261,7 +259,7 @@ export default function GradeWorkspace() {
         type: 'open',
         payload: { url: fileBase, token: fileToken },
       },
-      window.location.origin,
+      '*',
     );
   }
 
@@ -340,7 +338,7 @@ export default function GradeWorkspace() {
       }
       
       // Fallback: blob
-      const fileBaseUrl = `${API_BASE_URL}/essays/${id}/file`;
+      const fileBaseUrl = `${import.meta.env.VITE_API_BASE_URL}/essays/${id}/file`;
       const res = await fetch(fileBaseUrl, { headers: { ...authHeader() } });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
