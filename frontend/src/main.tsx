@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './styles.css';
 import { RouterProvider } from 'react-router-dom';
 import { bootstrapAuthFromStorage } from '@/services/api';
+import { getToken, scheduleAutoLogout } from '@/auth/token';
 // Feature flags via env
 (() => {
   const yes = (v: any) => typeof v === 'string' && /^(1|true|yes|on)$/i.test(v);
@@ -18,8 +19,19 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from './store/AuthContext';
 
+// Bootstrap da autenticação com auto-logout
+function bootstrapAuth() {
+  bootstrapAuthFromStorage();
+  
+  // Se houver token válido, agenda auto-logout
+  const token = getToken();
+  if (token) {
+    scheduleAutoLogout(token);
+  }
+}
+
 // garantir que roda antes do <App/>
-bootstrapAuthFromStorage();
+bootstrapAuth();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

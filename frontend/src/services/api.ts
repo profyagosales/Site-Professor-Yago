@@ -1,6 +1,7 @@
 import axios from 'axios';
 import type { AxiosResponse } from 'axios';
 import { ROUTES } from '@/routes';
+import { getToken, clearSession, isTokenExpired } from '@/auth/token';
 
 export const STORAGE_TOKEN_KEY = "auth_token";
 
@@ -14,8 +15,16 @@ export function setAuthToken(token?: string) {
 }
 
 export function bootstrapAuthFromStorage() {
-  const t = localStorage.getItem(STORAGE_TOKEN_KEY);
-  if (t) setAuthToken(t);
+  const token = getToken();
+  if (token) {
+    // Verifica se o token não está expirado antes de aplicar
+    if (isTokenExpired(token)) {
+      console.warn('Token expirado encontrado no storage, limpando');
+      clearSession();
+    } else {
+      setAuthToken(token);
+    }
+  }
   if (import.meta.env.DEV) console.log("[API] baseURL:", base);
 }
 
@@ -28,8 +37,8 @@ api.interceptors.response.use(
     if (err.response?.status === 401 && !isRedirecting) {
       isRedirecting = true;
       
-      // Limpa token automaticamente em caso de 401
-      localStorage.removeItem(STORAGE_TOKEN_KEY);
+      // Limpa sessão (token + timers) automaticamente em caso de 401
+      clearSession();
       setAuthToken(undefined);
       
       // Redireciona conforme o contexto da página
@@ -37,7 +46,7 @@ api.interceptors.response.use(
       let redirectPath = ROUTES.home;
       
       if (currentPath.startsWith('/aluno')) {
-        redirectPath = ROUTES.aluno.login;
+        redirectPath = ROUTES.auth.loginAluno;
       } else if (currentPath.startsWith('/professor')) {
         redirectPath = ROUTES.auth.loginProf;
       }

@@ -4,7 +4,8 @@ import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api, setAuthToken, STORAGE_TOKEN_KEY } from "@/services/api";
+import { api, setAuthToken } from "@/services/api";
+import { initializeSession, getToken } from "@/auth/token";
 import { ROUTES } from "@/routes";
 
 export default function LoginProfessor() {
@@ -14,7 +15,7 @@ export default function LoginProfessor() {
   const [erro, setErro] = useState("");
 
   useEffect(() => {
-    if (localStorage.getItem(STORAGE_TOKEN_KEY)) navigate(ROUTES.prof.resumo, { replace: true });
+    if (getToken()) navigate(ROUTES.prof.resumo, { replace: true });
   }, [navigate]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -23,7 +24,8 @@ export default function LoginProfessor() {
     try {
       const { data } = await api.post("/auth/login-teacher", { email, password: senha });
       if (data?.token) {
-        localStorage.setItem(STORAGE_TOKEN_KEY, data.token);
+        // Inicializa sessão com auto-logout
+        initializeSession(data.token);
         localStorage.setItem("role", "teacher");
         setAuthToken(data.token);
         navigate(ROUTES.prof.resumo, { replace: true });

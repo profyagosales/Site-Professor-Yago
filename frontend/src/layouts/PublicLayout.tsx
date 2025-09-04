@@ -2,7 +2,6 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Logo from '@/components/Logo';
 import { Link } from 'react-router-dom';
 import { ROUTES } from '@/routes';
-import { ROUTES } from '@/routes';
 
 export default function PublicLayout() {
   const { pathname } = useLocation();
