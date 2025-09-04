@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { uploadEssay } from '@/services/uploads';
 import { searchStudents } from '@/services/students2';
 import { useToast } from '@/hooks/useToast';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 
 type Props = {
   open: boolean;
@@ -35,6 +36,15 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
   // Constantes de validação
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
   const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+
+  // Verificar se há mudanças não salvas
+  const hasChanges = !!(file || fileUrl.trim() || studentId || topic.trim() || bimester);
+  
+  // Hook para proteção de mudanças não salvas
+  const { clearChanges } = useUnsavedChanges({
+    hasChanges: hasChanges && open,
+    message: 'Você tem alterações não salvas no formulário. Tem certeza que deseja sair?',
+  });
 
   // Função para validar arquivo
   const validateFile = (file: File): string | null => {
@@ -167,6 +177,7 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
       });
       
       toast.success('Redação enviada com sucesso');
+      clearChanges();
       onSuccess(); // fechar modal, inserir item na lista
       onClose();
     } catch (e: any) {

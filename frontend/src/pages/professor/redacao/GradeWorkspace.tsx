@@ -9,6 +9,7 @@ import { toast } from 'react-toastify';
 import Avatar from '@/components/Avatar';
 import { api } from '@/services/api';
 import { ROUTES } from '@/routes';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import '@/pdfSetup';
 
 const useRich =
@@ -82,6 +83,12 @@ export default function GradeWorkspace() {
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
   const [localSaveTimeout, setLocalSaveTimeout] = useState<NodeJS.Timeout | null>(null);
   const [serverSaveTimeout, setServerSaveTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  // Hook para proteção de mudanças não salvas
+  const { clearChanges } = useUnsavedChanges({
+    hasChanges: dirty,
+    message: 'Você tem alterações não salvas na correção. Tem certeza que deseja sair?',
+  });
 
   // Funções para gerenciar rascunho local
   const saveDraftToLocal = () => {
@@ -476,6 +483,8 @@ export default function GradeWorkspace() {
   setSnapshot({ annotations, comments, weight, bimestralPointsValue: bimestralValue, countInBimestral, annulmentReason: effectiveAnnul, c1, c2, c3, c4, c5, NC, NL });
   // Limpa rascunho local após salvar com sucesso
   clearDraft();
+  // Limpa proteção de mudanças não salvas
+  clearChanges();
       navigate(ROUTES.prof.redacao);
     } catch (e:any) {
       toast.error(e?.response?.data?.message || 'Falha ao salvar');
