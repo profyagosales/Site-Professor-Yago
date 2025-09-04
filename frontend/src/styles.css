@@ -1,5 +1,5 @@
 /* Importar tokens de design */
-@import './tokens.css';
+@import './styles/tokens.css';
 
 @tailwind base;
 @tailwind components;

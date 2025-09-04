@@ -1,32 +1,44 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
+import { ROUTES } from '@/routes';
+import { validateAndReportRoutes } from '@/routes/validateRoutes';
+
+// Layouts - carregamento imediato (críticos)
 import PublicLayout from '@/layouts/PublicLayout';
 import AppShellLayout from '@/layouts/AppShellLayout';
 import AlunoShell from '@/layouts/AlunoShell';
 import RequireAuth from '@/routes/RequireAuth';
+
+// Páginas críticas - carregamento imediato
 import Landing from '@/pages/Landing';
 import LoginProfessor from '@/pages/auth/LoginProfessor';
 import LoginAluno from '@/pages/auth/LoginAluno';
-import DashboardProfessor from '@/pages/DashboardProfessor';
-import DashboardAluno from '@/pages/DashboardAluno';
-import { lazy, Suspense } from 'react';
+import NotFound from '@/pages/NotFound';
+
+// Páginas principais - lazy loading
+const DashboardProfessor = lazy(() => import('@/pages/DashboardProfessor'));
+const DashboardAluno = lazy(() => import('@/pages/DashboardAluno'));
+
+// Páginas professor - lazy loading
+const TurmasPage = lazy(() => import('@/pages/professor/Turmas'));
+const NotasDaClasse = lazy(() => import('@/pages/professor/NotasDaClasse'));
+const CadernoProf = lazy(() => import('@/pages/professor/Caderno'));
+const GabaritoProf = lazy(() => import('@/pages/professor/Gabarito'));
+const TurmaAlunosPage = lazy(() => import('@/pages/professor/TurmaAlunos'));
+const ListaAlunos = lazy(() => import('@/pages/professor/alunos/ListaAlunos'));
+const PerfilAluno = lazy(() => import('@/pages/professor/alunos/PerfilAluno'));
+
+// Páginas aluno - lazy loading
+const AlunoRedacoes = lazy(() => import('@/pages/aluno/Redacoes'));
+const AlunoNotas = lazy(() => import('@/pages/aluno/Notas'));
+
+// Páginas pesadas - lazy loading com preload
 const RedacaoProfessorPage = lazy(
   () => import('@/pages/professor/redacao/RedacaoProfessorPage')
 );
 const GradeWorkspace = lazy(
   () => import('@/pages/professor/redacao/GradeWorkspace')
 );
-import NotFound from '@/pages/NotFound';
-import TurmasPage from '@/pages/professor/Turmas';
-import NotasDaClasse from '@/pages/professor/NotasDaClasse';
-import CadernoProf from '@/pages/professor/Caderno';
-import GabaritoProf from '@/pages/professor/Gabarito';
-import TurmaAlunosPage from '@/pages/professor/TurmaAlunos';
-import ListaAlunos from '@/pages/professor/alunos/ListaAlunos';
-import PerfilAluno from '@/pages/professor/alunos/PerfilAluno';
-import AlunoRedacoes from '@/pages/aluno/Redacoes';
-import AlunoNotas from '@/pages/aluno/Notas';
-import { ROUTES } from '@/routes';
-import { validateAndReportRoutes } from '@/routes/validateRoutes';
 
 export const router = createBrowserRouter([
   {
@@ -45,19 +57,68 @@ export const router = createBrowserRouter([
         element: <RequireAuth />,
         children: [
           // /professor → resumo (rota index)
-          { index: true, element: <DashboardProfessor /> },
+          { 
+            index: true, 
+            element: (
+              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando dashboard...</div>}>
+                <DashboardProfessor />
+              </Suspense>
+            )
+          },
 
           // Filhas com caminhos relativos
-          { path: 'resumo', element: <DashboardProfessor /> },
-          { path: 'turmas', element: <TurmasPage /> },
-          { path: 'turmas/:id/alunos', element: <TurmaAlunosPage /> },
-          { path: 'notas-da-classe', element: <NotasDaClasse /> },
-          { path: 'caderno', element: <CadernoProf /> },
-          { path: 'gabarito', element: <GabaritoProf /> },
+          { 
+            path: 'resumo', 
+            element: (
+              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando dashboard...</div>}>
+                <DashboardProfessor />
+              </Suspense>
+            )
+          },
+          { 
+            path: 'turmas', 
+            element: (
+              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando turmas...</div>}>
+                <TurmasPage />
+              </Suspense>
+            )
+          },
+          { 
+            path: 'turmas/:id/alunos', 
+            element: (
+              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando alunos...</div>}>
+                <TurmaAlunosPage />
+              </Suspense>
+            )
+          },
+          { 
+            path: 'notas-da-classe', 
+            element: (
+              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando notas...</div>}>
+                <NotasDaClasse />
+              </Suspense>
+            )
+          },
+          { 
+            path: 'caderno', 
+            element: (
+              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando caderno...</div>}>
+                <CadernoProf />
+              </Suspense>
+            )
+          },
+          { 
+            path: 'gabarito', 
+            element: (
+              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando gabarito...</div>}>
+                <GabaritoProf />
+              </Suspense>
+            )
+          },
           {
             path: 'redacao',
             element: (
-              <Suspense fallback={<div className='p-6'>Carregando…</div>}>
+              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando redações...</div>}>
                 <RedacaoProfessorPage />
               </Suspense>
             ),
@@ -65,13 +126,27 @@ export const router = createBrowserRouter([
           {
             path: 'redacao/:id',
             element: (
-              <Suspense fallback={<div className='p-6'>Carregando…</div>}>
+              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando correção...</div>}>
                 <GradeWorkspace />
               </Suspense>
             ),
           },
-          { path: 'alunos', element: <ListaAlunos /> },
-          { path: 'alunos/:id', element: <PerfilAluno /> },
+          { 
+            path: 'alunos', 
+            element: (
+              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando alunos...</div>}>
+                <ListaAlunos />
+              </Suspense>
+            )
+          },
+          { 
+            path: 'alunos/:id', 
+            element: (
+              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando perfil...</div>}>
+                <PerfilAluno />
+              </Suspense>
+            )
+          },
         ],
       },
     ],
@@ -87,13 +162,34 @@ export const router = createBrowserRouter([
             index: true,
             element: <Navigate to={ROUTES.aluno.resumo} replace />,
           },
-          { path: 'resumo', element: <DashboardAluno /> },
-          { path: 'notas', element: <AlunoNotas /> },
+          { 
+            path: 'resumo', 
+            element: (
+              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando dashboard...</div>}>
+                <DashboardAluno />
+              </Suspense>
+            )
+          },
+          { 
+            path: 'notas', 
+            element: (
+              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando notas...</div>}>
+                <AlunoNotas />
+              </Suspense>
+            )
+          },
           {
             path: 'recados',
             element: <div className='p-6'>Recados - Em desenvolvimento</div>,
           },
-          { path: 'redacao', element: <AlunoRedacoes /> },
+          { 
+            path: 'redacao', 
+            element: (
+              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando redações...</div>}>
+                <AlunoRedacoes />
+              </Suspense>
+            )
+          },
         ],
       },
     ],
