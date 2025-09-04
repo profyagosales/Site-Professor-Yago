@@ -1,12 +1,21 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import DashboardRedacoes from '@/pages/redacao/DashboardRedacoes';
 import { MemoryRouter } from 'react-router-dom';
 import { listarPendentes, listarCorrigidas } from '@/services/redacoes';
 import * as essaysService from '@/services/essays.service';
-import { api } from '@/lib/api';
+import { api } from '@/services/api';
 
-jest.mock('@/lib/api');
+jest.mock('@/services/api', () => {
+  const put = jest.fn();
+  const get = jest.fn();
+  const post = jest.fn();
+  const del = jest.fn();
+  return {
+    api: { get, post, put, delete: del },
+    setAuthToken: jest.fn(),
+  };
+});
 jest.mock('@/services/redacoes');
 jest.mock('@/services/essays.service');
 
@@ -46,9 +55,9 @@ describe('DashboardRedacoes', () => {
     });
     renderPage();
     const btn = await screen.findByText('Corrigir');
-    fireEvent.click(btn);
+    await userEvent.click(btn);
     const enviar = await screen.findByText('Enviar');
-    fireEvent.click(enviar);
+    await userEvent.click(enviar);
     await waitFor(() => expect(essaysService.gradeEssay).toHaveBeenCalled());
   });
 
@@ -66,9 +75,9 @@ describe('DashboardRedacoes', () => {
     });
     renderPage();
     const tab = await screen.findByText('Corrigidas');
-    fireEvent.click(tab);
+    await userEvent.click(tab);
     const emailBtn = await screen.findByText('Enviar por e-mail');
-    fireEvent.click(emailBtn);
+    await userEvent.click(emailBtn);
     await waitFor(() => expect(essaysService.sendCorrectionEmail).toHaveBeenCalledWith('1'));
     expect(await screen.findByText('Enviado')).toBeInTheDocument();
     expect(await screen.findByText('Enviar novamente')).toBeInTheDocument();
@@ -88,25 +97,23 @@ describe('DashboardRedacoes', () => {
         },
       ],
     });
-    api.put.mockResolvedValue({
-      data: {
-        _id: '1',
-        student: { name: 'Aluno' },
-        class: { series: 1, letter: 'A' },
-        submittedAt: new Date().toISOString(),
-        theme: { name: 'Novo Tema' },
-        fileUrl: 'file.pdf',
-      },
-    });
     renderPage();
-    const editBtn = await screen.findByLabelText('Editar');
-    fireEvent.click(editBtn);
+    await userEvent.click(await screen.findByRole('button', { name: /editar/i }));
     const themeInput = await screen.findByPlaceholderText('Buscar tema...');
     await userEvent.clear(themeInput);
     await userEvent.type(themeInput, 'Novo Tema');
-    const saveBtn = await screen.findByText('Salvar');
-    fireEvent.click(saveBtn);
-    await waitFor(() => expect(api.put).toHaveBeenCalled());
+
+    api.put.mockResolvedValueOnce({ data: { _id: '1', theme: { name: 'Novo Tema' } } });
+
+    await userEvent.click(screen.getByRole('button', { name: /salvar/i }));
+
+    await waitFor(() => {
+      expect(api.put).toHaveBeenCalledTimes(1);
+      expect(api.put).toHaveBeenCalledWith('/essays/1', expect.objectContaining({
+        theme: expect.anything(),
+      }));
+    });
+
     expect(await screen.findByText('Novo Tema')).toBeInTheDocument();
   });
 });

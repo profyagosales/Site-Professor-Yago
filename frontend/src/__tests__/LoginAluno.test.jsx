@@ -1,6 +1,9 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-jest.mock('@/services/api');
+jest.mock('@/services/api', () => ({
+  api: { post: jest.fn() },
+  setAuthToken: jest.fn(),
+}));
 const { api } = require('@/services/api');
 import LoginAluno from '@/pages/auth/LoginAluno';
 import { MemoryRouter } from 'react-router-dom';

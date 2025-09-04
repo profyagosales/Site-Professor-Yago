@@ -59,8 +59,6 @@ app.use(cors({
   exposedHeaders: ['Content-Length','Content-Range','Accept-Ranges']
 }));
 
-app.options('*', cors());
-
 app.use(cookieParser());
 app.use(express.json());
 

@@ -36,6 +36,21 @@ async function uploadBuffer(buffer, folder) {
   });
 }
 
+async function getAnnotations(req, res) {
+  const doc = await Annotations.findOne({ essayId: req.params.id }) || { highlights: [], comments: [] };
+  res.json(doc);
+}
+
+async function upsertAnnotations(req, res) {
+  const { highlights = [], comments = [] } = req.body || {};
+  const updated = await Annotations.findOneAndUpdate(
+    { essayId: req.params.id },
+    { $set: { highlights, comments } },
+    { upsert: true, new: true }
+  );
+  res.json(updated);
+}
+
 const storage = multer.memoryStorage();
 function fileFilter(req, file, cb) {
   const allowed = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];

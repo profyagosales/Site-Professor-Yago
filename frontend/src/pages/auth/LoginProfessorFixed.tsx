@@ -16,28 +16,14 @@ export default function LoginProfessorFixed() {
     e.preventDefault();
     setErro("");
     try {
-      const response = await api.post("/auth/login-teacher", { email, password: senha });
-      console.log("Full response:", response);
-      console.log("Response status:", response.status);
-      console.log("Response data:", response.data);
-      
-      // Se chegou até aqui sem erro e status é 200/204, considerar sucesso
-      if (response.status === 200 || response.status === 204) {
+      const { data } = await api.post("/auth/login-teacher", { email, password: senha });
+      if (data?.token) {
+        localStorage.setItem("auth_token", data.token);
         localStorage.setItem("role", "teacher");
-        
-        // Tentar obter token da resposta
-        const token = response.data?.token || response.data?.data?.token;
-        if (token) {
-          setAuthToken(token);
-          console.log("Token encontrado:", token);
-        } else {
-          console.log("Login sem token - usando apenas role");
-        }
-        
-        console.log("Navegando para:", ROUTES.prof.resumo);
+        setAuthToken(data.token);
         navigate(ROUTES.prof.resumo, { replace: true });
       } else {
-        setErro("Erro no login - status inválido");
+        setErro(data?.message || "Erro no login");
       }
     } catch (error: any) {
       console.error("Login error:", error);
