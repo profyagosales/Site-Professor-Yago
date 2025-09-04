@@ -39,9 +39,9 @@ router.post('/:id/annotations', authRequired, putAnnotationsCompat); // create
 router.put('/:id/annotations', authRequired, putAnnotationsCompat);  // update/upsert
 router.post('/:id/render-correction', authRequired, renderCorrection);
 // Token curto para baixar arquivo
-router.post('/:id/file-token', authRequired, files.issueToken);
+router.post('/:id/file-token', authRequired, files.issueShortToken);
 // Arquivo com suporte a Range, HEAD/GET unificado
-router.head('/:id/file', authOptional, files.streamFile);
+router.head('/:id/file', authOptional, files.headFile);
 router.get('/:id/file', authOptional, files.streamFile);
 router.post('/:id/send-email', authRequired, sendCorrectionEmail);
 

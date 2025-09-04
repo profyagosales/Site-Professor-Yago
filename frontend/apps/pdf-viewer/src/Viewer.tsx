@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Document, Page } from 'react-pdf';
-import { pdfjs } from 'react-pdf';
+import { GlobalWorkerOptions } from 'pdfjs-dist/build/pdf';
 
-// Configurar worker com caminho correto para os assets do viewer
-pdfjs.GlobalWorkerOptions.workerSrc = '/viewer/assets/pdf.worker.min.js';
+GlobalWorkerOptions.workerSrc = '/viewer/pdf.worker.mjs';
 
 interface Props {
   fileSource: string | { url: string; httpHeaders?: Record<string, string>; withCredentials?: boolean };
@@ -12,7 +11,22 @@ interface Props {
 
 export default function Viewer({ fileSource }: Props) {
   const [numPages, setNumPages] = useState(0);
+  const [file, setFile] = useState<string | { url: string; httpHeaders?: Record<string, string>; withCredentials?: boolean } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onMsg = (ev: MessageEvent) => {
+      if (!ev?.data || ev.data.type !== 'open') return;
+      const { url, token } = ev.data.payload || {};
+      setFile({
+        url,
+        httpHeaders: token ? { Authorization: `Bearer ${token}` } : undefined,
+        withCredentials: false
+      });
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
 
   function onLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
@@ -25,10 +39,12 @@ export default function Viewer({ fileSource }: Props) {
     window.parent.postMessage({ type: 'height', value: h }, window.location.origin);
   }
 
+  if (!file) return <div className="p-4 text-sm">Aguardando arquivo…</div>;
+
   return (
     <div ref={containerRef} style={{ width: '100%' }}>
       <Document
-        file={fileSource}
+        file={file}
         onLoadSuccess={onLoadSuccess}
         onLoadError={(e) =>
           window.parent.postMessage(

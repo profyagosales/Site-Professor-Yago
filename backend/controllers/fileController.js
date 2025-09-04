@@ -1,19 +1,50 @@
 const jwt = require('jsonwebtoken');
-const { fileTokenSecret, fileTokenTtl } = require('../config');
-const { getEssayFileStream } = require('../services/fileService');
+const { createReadStream, statSync } = require('fs');
+const path = require('path');
+const Essay = require('../models/Essay');
 
-exports.issueFileToken = async (req, res) => {
-  const { id } = req.params;
+function getFilePathForEssay(essay) {
+  // ajuste conforme seu storage (local/cloud). Exemplo local:
+  return path.join(process.cwd(), 'uploads', essay.fileNameOnDisk);
+}
+
+function authorizeFile(req) {
+  const qToken = req.query?.t;
+  const hToken = (req.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+  const token = qToken || hToken || '';
+  if (!token) return false;
+  try {
+    const payload = jwt.verify(token, process.env.FILE_TOKEN_SECRET);
+    // payload: { essayId, scope:'file:read' }
+    if (payload?.scope !== 'file:read') return false;
+    // opcional: garantir que bate com req.params.id
+    if (payload.essayId && payload.essayId !== req.params.id) return false;
+    return true;
+  } catch { return false; }
+}
+
+exports.issueShortToken = (req, res) => {
   const token = jwt.sign(
-    { essayId: id, scope: 'file:read' },
-    fileTokenSecret,
-    { expiresIn: fileTokenTtl }
+    { essayId: req.params.id, scope: 'file:read' },
+    process.env.FILE_TOKEN_SECRET,
+    { expiresIn: '5m' }
   );
-  res.json({ token, expiresIn: fileTokenTtl });
+  res.json({ token });
 };
 
-// Alias para compatibilidade
-exports.issueToken = exports.issueFileToken;
+exports.headFile = async (req, res) => {
+  if (!authorizeFile(req)) return res.status(401).end();
+  const essay = await Essay.findById(req.params.id);
+  if (!essay) return res.status(404).end();
+  const filePath = getFilePathForEssay(essay);
+  const stats = statSync(filePath);
+  res.set({
+    'Accept-Ranges': 'bytes',
+    'Content-Type': 'application/pdf',
+    'Content-Length': stats.size
+  });
+  return res.status(200).end();
+};
 
 function authorizeByHeaderOrQuery(req) {
   const q = req.query.t;
@@ -28,51 +59,30 @@ function authorizeByHeaderOrQuery(req) {
   }
 }
 
-exports.streamFile = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    // autoriza: header OU ?t=
-    const essayId = authorizeByHeaderOrQuery(req);
-    if (!essayId || essayId !== id) return res.sendStatus(401);
+exports.streamFile = async (req, res) => {
+  if (!authorizeFile(req)) return res.status(401).end();
+  const essay = await Essay.findById(req.params.id);
+  if (!essay) return res.status(404).end();
+  const filePath = getFilePathForEssay(essay);
+  const stats = statSync(filePath);
+  const range = req.headers.range;
 
-    const { stream, length, mime } = await getEssayFileStream(id, { 
-      headOnly: req.method === 'HEAD' 
+  res.set('Accept-Ranges', 'bytes');
+  res.set('Content-Type', 'application/pdf');
+
+  if (range) {
+    const [startStr, endStr] = range.replace(/bytes=/, '').split('-');
+    const start = parseInt(startStr, 10);
+    const end = endStr ? parseInt(endStr, 10) : stats.size - 1;
+    const chunkSize = (end - start) + 1;
+    res.status(206);
+    res.set({
+      'Content-Range': `bytes ${start}-${end}/${stats.size}`,
+      'Content-Length': chunkSize
     });
-
-    const commonHeaders = {
-      'Content-Type': mime || 'application/pdf',
-      'Accept-Ranges': 'bytes',
-      'Content-Disposition': `inline; filename="${id}.pdf"`
-    };
-
-    if (req.method === 'HEAD') {
-      res.set({ ...commonHeaders, 'Content-Length': length || 0 }).end();
-      return;
-    }
-
-    const range = req.headers.range;
-    if (length != null && range) {
-      const match = /bytes=(\d+)-(\d*)/.exec(range);
-      if (match) {
-        const start = parseInt(match[1], 10);
-        const end = match[2] ? parseInt(match[2], 10) : (length - 1);
-        const chunkSize = (end - start) + 1;
-
-        res.writeHead(206, {
-          ...commonHeaders,
-          'Content-Range': `bytes ${start}-${end}/${length}`,
-          'Content-Length': chunkSize
-        });
-
-        const rangedStream = await stream({ start, end });
-        return rangedStream.pipe(res);
-      }
-    }
-
-    res.writeHead(200, { ...commonHeaders, 'Content-Length': length || 0 });
-    const fullStream = await stream();
-    return fullStream.pipe(res);
-  } catch (err) {
-    next(err);
+    createReadStream(filePath, { start, end }).pipe(res);
+  } else {
+    res.set('Content-Length', stats.size);
+    createReadStream(filePath).pipe(res);
   }
 };

@@ -26,6 +26,12 @@ export const api = axios.create({
   },
 });
 
+api.interceptors.request.use((cfg) => {
+  const t = localStorage.getItem('auth_token');
+  if (t) cfg.headers.Authorization = `Bearer ${t}`;
+  return cfg;
+});
+
 export function setAuthToken(token?: string) {
   if (token) {
     localStorage.setItem("auth_token", token);
@@ -35,12 +41,6 @@ export function setAuthToken(token?: string) {
     delete api.defaults.headers.common.Authorization;
   }
 }
-
-// reaplica token no boot
-(() => {
-  const t = localStorage.getItem("auth_token");
-  if (t) api.defaults.headers.common.Authorization = `Bearer ${t}`;
-})();
 
 // 401 passivo; o guard decide o que fazer
 api.interceptors.response.use(
@@ -63,9 +63,4 @@ export function authHeader() {
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
-// (temporário) logue uma vez o BASE_URL para ver no Console (remover depois)
-if (!window.__API_BASE_LOGGED__) {
-  // @ts-expect-error
-  window.__API_BASE_LOGGED__ = true;
-  console.info("[API] baseURL:", API_BASE_URL);
-}
+console.log('[API] baseURL:', api.defaults.baseURL);

@@ -46,22 +46,17 @@ const serveFrontend = process.env.SERVE_FRONTEND === 'true';
 const isProd = process.env.NODE_ENV === 'production';
 
 // --- CORS ---
-const allowedOrigins = [
-  'https://professoryagosales.com.br',
-  'https://www.professoryagosales.com.br',
-  'https://site-professor-yago-frontend.vercel.app'
-];
+const ALLOWED_ORIGINS = (process.env.APP_DOMAIN || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
 
 app.use(cors({
-  origin: (origin, cb) => {
-    if (!origin) return cb(null, true);
-    if (allowedOrigins.some(o => origin === o)) return cb(null, true);
-    return cb(null, false);
-  },
+  origin: (origin, cb) => cb(null, !origin || ALLOWED_ORIGINS.length === 0 || ALLOWED_ORIGINS.includes(origin)),
   credentials: true,
-  methods: ['GET','POST','PUT','DELETE','PATCH','HEAD','OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Range'],
-  exposedHeaders: ['Content-Length', 'Accept-Ranges', 'Content-Disposition']
+  methods: ['GET','HEAD','POST','PUT','PATCH','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization','Range'],
+  exposedHeaders: ['Content-Length','Content-Range','Accept-Ranges']
 }));
 
 app.options('*', cors());
