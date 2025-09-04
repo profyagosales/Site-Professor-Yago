@@ -1,6 +1,7 @@
 import { NavLink, Link, useLocation, useNavigate } from "react-router-dom";
 import { ROUTES } from "@/routes";
 import { setAuthToken } from "@/services/api";
+import { usePrefetch } from "@/hooks/usePrefetch";
 
 type NavItem = { label: string; to: string; primary?: boolean };
 
@@ -29,6 +30,7 @@ const NAV_STUDENT: NavItem[] = [
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const loc = useLocation();
   const navigate = useNavigate();
+  const { prefetchRoute } = usePrefetch();
   const role = getRole();
   const nav = role === "teacher" ? NAV_TEACHER : role === "student" ? NAV_STUDENT : [];
   const hideNav = [ROUTES.auth.loginProf, ROUTES.aluno.login].includes(loc.pathname);
@@ -69,6 +71,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <NavLink
                   key={i.to}
                   to={i.to}
+                  onMouseEnter={() => prefetchRoute(i.to)}
                   className={({ isActive }) =>
                     [
                       "px-3 py-2 rounded-xl text-sm font-medium transition-colors",

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Themes } from '@/services/api';
+import { fetchThemes } from '@/services/essays.service';
 
 interface Theme { id?: string; name: string }
 interface Props {
@@ -18,7 +18,7 @@ export default function ThemeCombo({ value, onChange, allowCreate }: Props) {
     if (timer) clearTimeout(timer);
     const t = setTimeout(async () => {
       try {
-        const list = await Themes.list(query);
+        const list = await fetchThemes({ name: query });
         setOptions(Array.isArray(list) ? list : []);
       } catch { setOptions([]); }
     }, 250);
@@ -30,7 +30,9 @@ export default function ThemeCombo({ value, onChange, allowCreate }: Props) {
     if (!allowCreate) return;
     const name = query.trim();
     if (!name) return;
-    const created = await Themes.create(name);
+    // Para criar tema, seria necessário implementar createTheme
+    // Por enquanto, apenas cria um objeto local
+    const created = { name, id: undefined };
     onChange(created);
     setQuery('');
     setOptions([]);
