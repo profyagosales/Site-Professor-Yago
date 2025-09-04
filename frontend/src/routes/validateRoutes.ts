@@ -44,15 +44,17 @@ function validateNestedPaths(routes: RouteNode[], parentPath = ''): string[] {
  */
 function validateDuplicatePaths(
   routes: RouteNode[],
-  pathMap = new Map<string, string[]>()
+  pathMap = new Map<string, string[]>(),
+  parentPath = ''
 ): string[] {
   const errors: string[] = [];
 
   for (const route of routes) {
     if (route.path) {
+      // Construir o path completo considerando o contexto
       const fullPath = route.path.startsWith('/')
         ? route.path
-        : `/${route.path}`;
+        : `${parentPath}/${route.path}`.replace(/\/+/g, '/');
       const existing = pathMap.get(fullPath) || [];
       pathMap.set(fullPath, [...existing, route.path]);
 
@@ -65,7 +67,10 @@ function validateDuplicatePaths(
     }
 
     if (route.children) {
-      errors.push(...validateDuplicatePaths(route.children, pathMap));
+      const childParentPath = route.path
+        ? (route.path.startsWith('/') ? route.path : `${parentPath}/${route.path}`.replace(/\/+/g, '/'))
+        : parentPath;
+      errors.push(...validateDuplicatePaths(route.children, pathMap, childParentPath));
     }
   }
 

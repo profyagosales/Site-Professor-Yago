@@ -149,7 +149,16 @@ export const ROUTES = {
   },
   notFound: (() => {
     const path = '*';
-    assertRoute('notFound', path);
+    // Catch-all routes são especiais e não precisam começar com "/"
+    if (process.env.NODE_ENV === 'development') {
+      if (!path || path.trim() === '') {
+        throw new Error(`Route "notFound" cannot be empty`);
+      }
+      // Catch-all routes podem ser "*" ou "/*"
+      if (path !== '*' && path !== '/*' && !path.startsWith('/')) {
+        throw new Error(`Route "notFound" must be "*", "/*", or start with "/", got: "${path}"`);
+      }
+    }
     return path;
   })(),
 } as const;
