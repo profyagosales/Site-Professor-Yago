@@ -18,7 +18,12 @@ const NAV_TEACHER: NavItem[] = [
 ];
 
 const NAV_STUDENT: NavItem[] = [
-  { label: "Resumo", to: ROUTES.aluno.resumo },
+  { label: "Resumo", to: ROUTES.aluno.resumo, primary: true },
+  { label: "Notas", to: ROUTES.aluno.notas },
+  { label: "Recados", to: ROUTES.aluno.recados },
+  { label: "Redação", to: ROUTES.aluno.redacao },
+  { label: "Caderno", to: ROUTES.aluno.caderno },
+  { label: "Gabaritos", to: ROUTES.aluno.gabaritos },
 ];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {

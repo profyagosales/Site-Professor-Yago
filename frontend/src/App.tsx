@@ -31,7 +31,7 @@ export default function App() {
         <Route
           path={ROUTES.prof.base}
           element={
-            <RequireAuth>
+            <RequireAuth userType="professor">
               <AppShell />
             </RequireAuth>
           }
@@ -45,6 +45,25 @@ export default function App() {
           <Route path="gabarito" element={<div className="p-6">Gabarito</div>} />
           <Route path="redacao" element={<RedacoesProf />} />
           <Route path="redacao/:id" element={<GradeWorkspace />} />
+        </Route>
+
+        {/* área aluno - FILHOS COM PATH RELATIVO */}
+        <Route
+          path={ROUTES.aluno.base}
+          element={
+            <RequireAuth userType="aluno">
+              <AppShell />
+            </RequireAuth>
+          }
+        >
+          <Route index element={<Navigate to="resumo" replace />} />
+          <Route path="resumo" element={<DashboardAluno />} />
+          <Route path="notas" element={<AlunoNotas />} />
+          <Route path="recados" element={<div className="p-6">Recados</div>} />
+          <Route path="redacao" element={<AlunoRedacoes />} />
+          <Route path="caderno" element={<AlunoCaderno />} />
+          <Route path="gabaritos" element={<AlunoGabarito />} />
+          <Route path="redacoes" element={<AlunoRedacoes />} />
         </Route>
 
         {/* fallback por último */}
