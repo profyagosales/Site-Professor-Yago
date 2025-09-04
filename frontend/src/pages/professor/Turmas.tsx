@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { listClasses, createClass } from "@/services/classes";
 import ClassModal from '@/components/ClassModal';
+import { ROUTES } from '@/routes';
 
 export default function TurmasPage() {
   const nav = useNavigate();
@@ -47,7 +48,7 @@ export default function TurmasPage() {
               <CardTitle>{t.name || t.nome || `${t.series || ''} ${t.letter || ''}`}</CardTitle>
               <CardSub>Disciplina: {t.discipline || t.disciplina || '-'}</CardSub>
               <div className="mt-4 flex gap-2">
-                <Button onClick={() => nav(`/professor/turmas/${t._id || t.id}/alunos`)}>Ver alunos</Button>
+                <Button onClick={() => nav(ROUTES.prof.turmaAlunos(t._id || t.id))}>Ver alunos</Button>
                 <Button variant="ghost">Editar</Button>
                 <Button variant="ghost">Excluir</Button>
               </div>

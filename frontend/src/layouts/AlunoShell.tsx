@@ -19,9 +19,11 @@ export default function AlunoShell({ children }: { children: React.ReactNode }) 
   const hideNav = [ROUTES.auth.loginProf, ROUTES.aluno.login].includes(loc.pathname);
 
   function goHomeByRole() {
-    const token = localStorage.getItem(STORAGE_TOKEN_KEY);
-    const isAluno = loc.pathname.startsWith("/aluno");
-    if (token && isAluno) return ROUTES.aluno.resumo;
+    // Se pathname começa com /professor → ROUTES.prof.resumo
+    if (loc.pathname.startsWith("/professor")) return ROUTES.prof.resumo;
+    // Se começa com /aluno → ROUTES.aluno.resumo
+    if (loc.pathname.startsWith("/aluno")) return ROUTES.aluno.resumo;
+    // Senão → /
     return ROUTES.home;
   }
 

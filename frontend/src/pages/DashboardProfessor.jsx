@@ -12,6 +12,7 @@ import { listUpcomingContents } from '@/services/contents'
 import { listUpcomingExams } from '@/services/exams'
 import { listAnnouncements } from '@/services/announcements'
 import { getTeacherWeeklySchedule } from '@/services/schedule'
+import { ROUTES } from '@/routes'
 
 function DashboardProfessor(){
   const [user, setUser] = useState(null)
@@ -57,7 +58,7 @@ function DashboardProfessor(){
     await api.post('/auth/logout')
     localStorage.removeItem('auth_token')
     delete api.defaults.headers.common['Authorization']
-    navigate('/login-professor')
+    navigate(ROUTES.auth.loginProf)
   }
 
   const reloadContents = async () => {
@@ -92,7 +93,7 @@ function DashboardProfessor(){
         <div className="ys-card">
           <div className="flex items-center justify-between mb-sm">
             <h3 className="text-orange font-semibold">Próximos conteúdos</h3>
-            <button className="link-primary" onClick={() => navigate('/conteudos')}>Ver todos</button>
+            <button className="link-primary" onClick={() => navigate(ROUTES.prof.caderno)}>Ver todos</button>
           </div>
           {loading ? <p>Carregando...</p> : contents.length ? (
             <ul className="space-y-1">
@@ -106,7 +107,7 @@ function DashboardProfessor(){
         <div className="ys-card">
           <div className="flex items-center justify-between mb-sm">
             <h3 className="text-orange font-semibold">Próximas Avaliações</h3>
-            <button className="link-primary" onClick={() => navigate('/notas-classe')}>Ver todos</button>
+            <button className="link-primary" onClick={() => navigate(ROUTES.prof.notasClasse)}>Ver todos</button>
           </div>
           {loading ? <p>Carregando...</p> : exams.length ? (
             <ul className="space-y-1">
@@ -120,7 +121,7 @@ function DashboardProfessor(){
         <div className="ys-card">
           <div className="flex items-center justify-between mb-sm">
             <h3 className="text-orange font-semibold">Avisos recentes</h3>
-            <button className="link-primary" onClick={() => navigate('/avisos')}>Ver todos</button>
+            <button className="link-primary" onClick={() => navigate(ROUTES.prof.resumo)}>Ver todos</button>
           </div>
           {loading ? <p>Carregando...</p> : announcements.length ? (
             <ul className="space-y-1">

@@ -1,3 +1,5 @@
+import { ROUTES } from '@/routes';
+
 export function getToken(): string | null {
   try {
     return localStorage.getItem('auth_token');
@@ -12,7 +14,7 @@ export function isAuthenticated(): boolean {
 
 export function ensureAuthOrRedirect(): void {
   if (!isAuthenticated()) {
-    window.location.replace('/login-professor');
+    window.location.replace(ROUTES.auth.loginProf);
   }
 }
 

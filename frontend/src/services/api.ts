@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type { AxiosResponse } from 'axios';
+import { ROUTES } from '@/routes';
 
 export const STORAGE_TOKEN_KEY = "auth_token";
 
@@ -33,12 +34,12 @@ api.interceptors.response.use(
       
       // Redireciona conforme o contexto da página
       const currentPath = window.location.pathname;
-      let redirectPath = '/';
+      let redirectPath = ROUTES.home;
       
       if (currentPath.startsWith('/aluno')) {
-        redirectPath = '/login-aluno';
+        redirectPath = ROUTES.aluno.login;
       } else if (currentPath.startsWith('/professor')) {
-        redirectPath = '/login-professor';
+        redirectPath = ROUTES.auth.loginProf;
       }
       
       // Usa replace para evitar voltar à página anterior

@@ -1,58 +1,77 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
+import LoginProfessor from '@/pages/auth/LoginProfessor';
+
+// Mock da API
 jest.mock('@/services/api', () => ({
   api: { post: jest.fn() },
   setAuthToken: jest.fn(),
+  STORAGE_TOKEN_KEY: 'auth_token',
 }));
-const { api } = require('@/services/api');
-import LoginProfessor from '@/pages/auth/LoginProfessor';
-import { MemoryRouter } from 'react-router-dom';
 
+// Mock do react-router-dom
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: jest.fn(),
 }));
 
+const { api, setAuthToken } = require('@/services/api');
+
 describe('LoginProfessor', () => {
   beforeEach(() => {
     localStorage.clear();
+    jest.clearAllMocks();
   });
 
   test('submits form and redirects on success', async () => {
-  api.post.mockResolvedValue({ data: { token: 't' } });
+    // mock api.post('/auth/login-teacher') → 200 { token:'x' }
+    api.post.mockResolvedValue({ data: { token: 'test-token' } });
     const navigate = jest.fn();
     require('react-router-dom').useNavigate.mockReturnValue(navigate);
 
-  render(<MemoryRouter><LoginProfessor /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <LoginProfessor />
+      </MemoryRouter>
+    );
 
     await userEvent.type(screen.getByLabelText(/E-mail/i), 'prof@example.com');
     await userEvent.type(screen.getByLabelText(/Senha/i), 'secret');
     await userEvent.click(screen.getByRole('button', { name: /Entrar/i }));
 
     await waitFor(() => {
-  expect(api.post).toHaveBeenCalledWith('/auth/login-teacher', {
+      // assert salva token, chama setAuthToken, navega pra resumo certo
+      expect(api.post).toHaveBeenCalledWith('/auth/login-teacher', {
         email: 'prof@example.com',
         password: 'secret',
       });
+      expect(localStorage.getItem('auth_token')).toBe('test-token');
       expect(localStorage.getItem('role')).toBe('teacher');
-  expect(navigate).toHaveBeenCalled();
+      expect(setAuthToken).toHaveBeenCalledWith('test-token');
+      expect(navigate).toHaveBeenCalledWith('/professor/resumo', { replace: true });
     });
   });
 
   test('shows error message on failure', async () => {
-  api.post.mockRejectedValue({ response: { data: { message: 'Falha' } } });
+    api.post.mockRejectedValue({ response: { data: { message: 'Falha no login' } } });
     const navigate = jest.fn();
     require('react-router-dom').useNavigate.mockReturnValue(navigate);
 
-  render(<MemoryRouter><LoginProfessor /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <LoginProfessor />
+      </MemoryRouter>
+    );
 
     await userEvent.type(screen.getByLabelText(/E-mail/i), 'prof@example.com');
-    await userEvent.type(screen.getByLabelText(/Senha/i), 'secret');
+    await userEvent.type(screen.getByLabelText(/Senha/i), 'wrong');
     await userEvent.click(screen.getByRole('button', { name: /Entrar/i }));
 
     await waitFor(() => {
-      expect(screen.getByText('Falha')).toBeInTheDocument();
+      expect(screen.getByText('Falha no login')).toBeInTheDocument();
       expect(navigate).not.toHaveBeenCalled();
+      expect(localStorage.getItem('auth_token')).toBeNull();
     });
   });
 });

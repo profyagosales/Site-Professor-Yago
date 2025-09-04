@@ -62,21 +62,18 @@ export const router = createBrowserRouter([
     element: <AlunoShell />,
     children: [
       {
-        element: <RequireAuth userType="aluno" />,
+        element: <RequireAuth />,
         children: [
           { index: true, element: <Navigate to={ROUTES.aluno.resumo} replace /> },
           { path: "resumo", element: <DashboardAluno /> },
           { path: "notas", element: <AlunoNotas /> },
           { path: "recados", element: <div className="p-6">Recados - Em desenvolvimento</div> },
           { path: "redacao", element: <AlunoRedacoes /> },
-          { path: "caderno", element: <AlunoCaderno /> },
-          { path: "gabaritos", element: <AlunoGabarito /> },
-          { path: "redacoes", element: <AlunoRedacoes /> },
         ],
       },
     ],
   },
-  // Aliases legados úteis (fora do grupo professor)
+  // Aliases legados úteis (fora do grupo professor) - mantidos para compatibilidade
   { path: '/dashboard', element: <Navigate to={ROUTES.prof.resumo} replace /> },
   { path: '/professor/dashboard', element: <Navigate to={ROUTES.prof.resumo} replace /> },
   { path: '/turmas', element: <Navigate to={ROUTES.prof.turmas} replace /> },

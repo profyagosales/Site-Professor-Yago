@@ -7,6 +7,7 @@ import { useParams, Link } from "react-router-dom";
 import { listStudents as listStudentsApi, create as createStudent, update as updateStudent, remove as removeStudent } from "@/services/students";
 import { getClassById } from "@/services/classes";
 import NewStudentModal from "@/components/NewStudentModal";
+import { ROUTES } from "@/routes";
 
 export default function TurmaAlunosPage() {
   const { id: classId } = useParams();
@@ -44,7 +45,7 @@ export default function TurmaAlunosPage() {
     <Page title={titulo} subtitle="Alunos cadastrados">
       <div className="mb-4">
         <div className="mb-2 flex items-center justify-between">
-          <Link to="/professor/turmas" className="text-sm text-ys-ink-2 hover:text-ys-ink">← Voltar para Turmas</Link>
+          <Link to={ROUTES.prof.turmas} className="text-sm text-ys-ink-2 hover:text-ys-ink">← Voltar para Turmas</Link>
         </div>
         <Button disabled={!classId} onClick={() => setModalOpen(true)}>Novo Aluno</Button>
       </div>

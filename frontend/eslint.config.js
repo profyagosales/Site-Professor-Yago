@@ -28,6 +28,21 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': 'off',
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'CallExpression[callee.name="navigate"] > Literal[value^="/"]',
+          message: 'Use ROUTES constants instead of hardcoded paths in navigate() calls'
+        },
+        {
+          selector: 'JSXAttribute[name.name="to"] > Literal[value^="/"]',
+          message: 'Use ROUTES constants instead of hardcoded paths in Link to prop'
+        },
+        {
+          selector: 'JSXAttribute[name.name="href"] > Literal[value^="/"]',
+          message: 'Use ROUTES constants instead of hardcoded paths in href attributes'
+        }
+      ]
     },
   },
 ])

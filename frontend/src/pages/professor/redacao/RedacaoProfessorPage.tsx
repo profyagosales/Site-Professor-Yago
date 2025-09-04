@@ -7,6 +7,7 @@ import NewEssayModal from '@/components/redacao/NewEssayModal';
 import { Page } from '@/components/Page';
 import { listClasses } from '@/services/classes';
 import ThemesManager from '@/components/redacao/ThemesManager';
+import { ROUTES } from '@/routes';
 
 export default function RedacaoProfessorPage() {
   const { status, setStatus, q, setQ, classId, setClassId, page, setPage, pageSize, setPageSize, data, loading, error, reload, extra, setExtra } = useEssays('pending');
@@ -141,7 +142,7 @@ export default function RedacaoProfessorPage() {
                   {status === 'pending' ? (
                     <a
                       className="rounded-lg bg-orange-500 px-3 py-1.5 text-white hover:brightness-110"
-                      href={`/professor/redacao/${e.id}`}
+                      href={ROUTES.prof.redacaoShow(e.id)}
                     >Corrigir</a>
                   ) : (
                     <div className="flex items-center gap-2">

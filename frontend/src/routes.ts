@@ -1,33 +1,155 @@
+/**
+ * Função para validar rotas em desenvolvimento
+ * Lança erro se o path estiver vazio ou não começar com "/"
+ */
+function assertRoute(name: string, path: string): void {
+  if (process.env.NODE_ENV === 'development') {
+    if (!path || path.trim() === '') {
+      throw new Error(`Route "${name}" cannot be empty`);
+    }
+    if (!path.startsWith('/')) {
+      throw new Error(`Route "${name}" must start with "/", got: "${path}"`);
+    }
+  }
+}
+
 export const ROUTES = {
-  home: "/",
+  home: (() => {
+    const path = "/";
+    assertRoute('home', path);
+    return path;
+  })(),
   auth: {
-    loginProf: "/login-professor",
-    loginAluno: "/login-aluno",
+    loginProf: (() => {
+      const path = "/login-professor";
+      assertRoute('auth.loginProf', path);
+      return path;
+    })(),
+    loginAluno: (() => {
+      const path = "/login-aluno";
+      assertRoute('auth.loginAluno', path);
+      return path;
+    })(),
   },
   prof: {
-    base: "/professor",
-    root: "/professor",
-    resumo: "/professor/resumo",
-    turmas: "/professor/turmas",
-    notasClasse: "/professor/notas-da-classe",
-    caderno: "/professor/caderno",
-    gabarito: "/professor/gabarito",
-    redacao: "/professor/redacao",
-    redacaoShow: (id: string) => `/professor/redacao/${id}`,
+    base: (() => {
+      const path = "/professor";
+      assertRoute('prof.base', path);
+      return path;
+    })(),
+    root: (() => {
+      const path = "/professor";
+      assertRoute('prof.root', path);
+      return path;
+    })(),
+    resumo: (() => {
+      const path = "/professor/resumo";
+      assertRoute('prof.resumo', path);
+      return path;
+    })(),
+    turmas: (() => {
+      const path = "/professor/turmas";
+      assertRoute('prof.turmas', path);
+      return path;
+    })(),
+    notasClasse: (() => {
+      const path = "/professor/notas-da-classe";
+      assertRoute('prof.notasClasse', path);
+      return path;
+    })(),
+    caderno: (() => {
+      const path = "/professor/caderno";
+      assertRoute('prof.caderno', path);
+      return path;
+    })(),
+    gabarito: (() => {
+      const path = "/professor/gabarito";
+      assertRoute('prof.gabarito', path);
+      return path;
+    })(),
+    redacao: (() => {
+      const path = "/professor/redacao";
+      assertRoute('prof.redacao', path);
+      return path;
+    })(),
+    redacaoShow: (id: string) => {
+      const path = `/professor/redacao/${id}`;
+      assertRoute('prof.redacaoShow', path);
+      return path;
+    },
+    alunos: (() => {
+      const path = "/professor/alunos";
+      assertRoute('prof.alunos', path);
+      return path;
+    })(),
+    alunoPerfil: (id: string) => {
+      const path = `/professor/alunos/${id}`;
+      assertRoute('prof.alunoPerfil', path);
+      return path;
+    },
+    turmaAlunos: (id: string) => {
+      const path = `/professor/turmas/${id}/alunos`;
+      assertRoute('prof.turmaAlunos', path);
+      return path;
+    },
   },
   aluno: {
-    login: "/login-aluno",
-    base: "/aluno",
-    resumo: "/aluno/resumo",
-    notas: "/aluno/notas",
-    recados: "/aluno/recados",
-    redacao: "/aluno/redacao",
-    caderno: "/aluno/caderno",
-    gabaritos: "/aluno/gabaritos",
-    redacoes: "/aluno/redacoes",
+    login: (() => {
+      const path = "/login-aluno";
+      assertRoute('aluno.login', path);
+      return path;
+    })(),
+    base: (() => {
+      const path = "/aluno";
+      assertRoute('aluno.base', path);
+      return path;
+    })(),
+    resumo: (() => {
+      const path = "/aluno/resumo";
+      assertRoute('aluno.resumo', path);
+      return path;
+    })(),
+    notas: (() => {
+      const path = "/aluno/notas";
+      assertRoute('aluno.notas', path);
+      return path;
+    })(),
+    recados: (() => {
+      const path = "/aluno/recados";
+      assertRoute('aluno.recados', path);
+      return path;
+    })(),
+    redacao: (() => {
+      const path = "/aluno/redacao";
+      assertRoute('aluno.redacao', path);
+      return path;
+    })(),
+    caderno: (() => {
+      const path = "/aluno/caderno";
+      assertRoute('aluno.caderno', path);
+      return path;
+    })(),
+    gabaritos: (() => {
+      const path = "/aluno/gabaritos";
+      assertRoute('aluno.gabaritos', path);
+      return path;
+    })(),
+    redacoes: (() => {
+      const path = "/aluno/redacoes";
+      assertRoute('aluno.redacoes', path);
+      return path;
+    })(),
     // Mantendo compatibilidade com estrutura existente
-    landing: "/aluno/resumo", // landing redireciona para resumo
+    landing: (() => {
+      const path = "/aluno/resumo"; // landing redireciona para resumo
+      assertRoute('aluno.landing', path);
+      return path;
+    })(),
     dashboard: "resumo", // path relativo
   },
-  notFound: "*",
+  notFound: (() => {
+    const path = "*";
+    assertRoute('notFound', path);
+    return path;
+  })(),
 } as const;

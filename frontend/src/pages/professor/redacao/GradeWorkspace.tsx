@@ -8,6 +8,7 @@ import type { Anno } from '@/types/annotations';
 import { toast } from 'react-toastify';
 import Avatar from '@/components/Avatar';
 import { api } from '@/services/api';
+import { ROUTES } from '@/routes';
 import '@/pdfSetup';
 
 const useRich =
@@ -361,7 +362,7 @@ export default function GradeWorkspace() {
   setDirty(false);
   setLastSavedAt(new Date());
   setSnapshot({ annotations, comments, weight, bimestralPointsValue: bimestralValue, countInBimestral, annulmentReason: effectiveAnnul, c1, c2, c3, c4, c5, NC, NL });
-      navigate('/professor/redacao');
+      navigate(ROUTES.prof.redacao);
     } catch (e:any) {
       toast.error(e?.response?.data?.message || 'Falha ao salvar');
     } finally { setLoading(false); }
@@ -442,7 +443,7 @@ export default function GradeWorkspace() {
           {!saveStatus && !dirty && lastSavedAt && (
             <span className="mr-2 text-xs text-ys-ink-2">Salvo às {lastSavedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
           )}
-          <button className="rounded-lg border border-[#E5E7EB] px-3 py-1.5" onClick={()=>navigate('/professor/redacao')}>Voltar</button>
+          <button className="rounded-lg border border-[#E5E7EB] px-3 py-1.5" onClick={()=>navigate(ROUTES.prof.redacao)}>Voltar</button>
           {import.meta.env.DEV && (
             <div className="ml-2 flex items-center gap-1 text-xs text-ys-ink-2">
               <span>Annotator:</span>

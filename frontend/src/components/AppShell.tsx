@@ -34,10 +34,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const hideNav = [ROUTES.auth.loginProf, ROUTES.aluno.login].includes(loc.pathname);
 
   function goHomeByRole() {
-    const token = localStorage.getItem("auth_token");
-    const isProf = loc.pathname.startsWith("/professor");
-    if (token && isProf && role === "teacher") return ROUTES.prof.resumo;
-    if (token && role === "student") return ROUTES.aluno.resumo;
+    // Se pathname começa com /professor → ROUTES.prof.resumo
+    if (loc.pathname.startsWith("/professor")) return ROUTES.prof.resumo;
+    // Se começa com /aluno → ROUTES.aluno.resumo
+    if (loc.pathname.startsWith("/aluno")) return ROUTES.aluno.resumo;
+    // Senão → /
     return ROUTES.home;
   }
 

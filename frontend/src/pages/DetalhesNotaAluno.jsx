@@ -3,10 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getStudentGrades, exportStudentPdf, sendStudentReport } from '@/services/grades';
 import { toast } from 'react-toastify';
 import { toArray } from '@/services/api';
+import { useBackNavigation } from '@/hooks/useBackNavigation';
 
 function DetalhesNotaAluno() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { handleBack } = useBackNavigation();
   const [student, setStudent] = useState(null);
   const [bimesters, setBimesters] = useState({});
   const [loading, setLoading] = useState(true);
@@ -77,7 +79,7 @@ function DetalhesNotaAluno() {
         <>
           <div className="flex justify-between items-center mb-md">
             <h1 className="text-xl text-orange">Notas de {student.name}</h1>
-            <button className="link-primary" onClick={() => navigate(-1)}>
+            <button className="link-primary" onClick={handleBack}>
               Voltar
             </button>
           </div>
