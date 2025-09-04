@@ -18,10 +18,10 @@ const NAV_TEACHER: NavItem[] = [
 ];
 
 const NAV_STUDENT: NavItem[] = [
-  { label: "Minhas Notas", to: "/aluno/notas" },
-  { label: "Caderno", to: "/aluno/caderno" },
-  { label: "Gabarito", to: "/aluno/gabaritos" },
-  { label: "Redação", to: "/aluno/redacoes" },
+  { label: "Minhas Notas", to: ROUTES.aluno.notas },
+  { label: "Caderno", to: ROUTES.aluno.caderno },
+  { label: "Gabarito", to: ROUTES.aluno.gabaritos },
+  { label: "Redação", to: ROUTES.aluno.redacoes },
 ];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -29,12 +29,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const role = getRole();
   const nav = role === "teacher" ? NAV_TEACHER : role === "student" ? NAV_STUDENT : [];
-  const hideNav = [ROUTES.loginProfessor, "/login-aluno"].includes(loc.pathname);
+  const hideNav = [ROUTES.auth.loginProf, ROUTES.auth.loginAluno].includes(loc.pathname);
 
   function goHomeByRole() {
     const token = localStorage.getItem("auth_token");
-    const isInProfArea = window.location.pathname.startsWith("/professor");
-    if (token && isInProfArea && role === "teacher") return ROUTES.prof.resumo;
+    if (token && role === "teacher") return ROUTES.prof.resumo;
     if (token && role === "student") return ROUTES.aluno.landing;
     return ROUTES.home;
   }
@@ -45,7 +44,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       localStorage.removeItem("role");
       setAuthToken(undefined);
     } catch {}
-    const target = role === "teacher" ? ROUTES.loginProfessor : role === "student" ? ROUTES.loginAluno : ROUTES.home;
+    const target = role === "teacher" ? ROUTES.auth.loginProf : role === "student" ? ROUTES.auth.loginAluno : ROUTES.home;
     navigate(target, { replace: true });
   }
 
