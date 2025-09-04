@@ -1,11 +1,15 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { useAuth } from '@/store/AuthContext';
 import { ROUTES } from '@/routes';
+import { STORAGE_TOKEN_KEY } from '@/services/api';
 
-export function RequireAuth() {
-  const token = localStorage.getItem('auth_token');
-  if (!token) return <Navigate to={ROUTES.auth.loginProf} replace />;
+export default function RequireAuth() {
+  const { state } = useAuth();
+  const loc = useLocation();
 
-  // (Opcional) poderíamos validar com /auth/me em um efeito,
-  // mas não bloqueie render com tela branca quando não houver token.
+  if (state.loading) return null; // ou um spinner leve
+  if (!localStorage.getItem(STORAGE_TOKEN_KEY)) {
+    return <Navigate to={ROUTES.auth.loginProf} replace state={{ from: loc }} />;
+  }
   return <Outlet />;
 }

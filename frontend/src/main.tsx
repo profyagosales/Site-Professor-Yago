@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles.css';
 import { RouterProvider } from 'react-router-dom';
-import { setAuthToken } from '@/services/api';
+import { bootstrapAuthFromStorage } from '@/services/api';
 // Feature flags via env
 (() => {
   const yes = (v: any) => typeof v === 'string' && /^(1|true|yes|on)$/i.test(v);
@@ -16,14 +16,17 @@ import { setAuthToken } from '@/services/api';
 import { router } from './router';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { AuthProvider } from './store/AuthContext';
 
-const t = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-setAuthToken(t || undefined);
+// garantir que roda antes do <App/>
+bootstrapAuthFromStorage();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <div className="ys-noise" />
-  <RouterProvider router={router} />
-  <ToastContainer position="top-right" autoClose={3000} hideProgressBar theme="light" />
+    <AuthProvider>
+      <div className="ys-noise" />
+      <RouterProvider router={router} />
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar theme="light" />
+    </AuthProvider>
   </React.StrictMode>
 );

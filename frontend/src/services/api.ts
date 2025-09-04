@@ -1,18 +1,21 @@
 import axios from 'axios';
 import type { AxiosResponse } from 'axios';
 
-const raw = import.meta.env.VITE_API_BASE_URL || '';
-const baseURL = raw.replace(/\/+$/, ''); // remove trailing slash
-if (import.meta.env.DEV) console.log('[API] baseURL:', baseURL);
+export const STORAGE_TOKEN_KEY = "auth_token";
 
-export const api = axios.create({ baseURL });
+const base = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
+export const api = axios.create({ baseURL: base });
 
+// aplica header Authorization dinamicamente
 export function setAuthToken(token?: string) {
-  if (token) {
-    api.defaults.headers.common.Authorization = `Bearer ${token}`;
-  } else {
-    delete api.defaults.headers.common.Authorization;
-  }
+  if (token) api.defaults.headers.common.Authorization = `Bearer ${token}`;
+  else delete api.defaults.headers.common.Authorization;
+}
+
+export function bootstrapAuthFromStorage() {
+  const t = localStorage.getItem(STORAGE_TOKEN_KEY);
+  if (t) setAuthToken(t);
+  if (import.meta.env.DEV) console.log("[API] baseURL:", base);
 }
 
 // Opcional: interceptor 401 passivo (não redireciona aqui)

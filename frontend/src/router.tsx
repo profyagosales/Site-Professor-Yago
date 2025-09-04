@@ -1,7 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import PublicLayout from '@/layouts/PublicLayout';
 import AppShellLayout from '@/layouts/AppShellLayout';
-import { RequireAuth } from '@/routes/RequireAuth';
+import RequireAuth from '@/routes/RequireAuth';
 import Landing from '@/pages/Landing';
 import LoginProfessor from '@/pages/auth/LoginProfessor';
 import LoginAluno from '@/pages/auth/LoginAluno';

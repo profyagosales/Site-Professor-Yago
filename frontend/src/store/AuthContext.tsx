@@ -1,60 +1,75 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
-import { api } from "@/services/api";
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
+import { api, setAuthToken, STORAGE_TOKEN_KEY } from "@/services/api";
 
-type User = { id: string; name: string; role: "teacher" | "student" };
-type AuthCtx = {
-  user: User | null;
-  loading: boolean;
+// meta: evitar fetch sem token e expor helpers simples
+type AuthState = { user?: any; role?: "professor" | "aluno" | null; loading: boolean };
+type AuthCtx = { 
+  state: AuthState; 
+  setToken: (t: string | null) => void;
   loginTeacher(email: string, password: string): Promise<void>;
   logout(): Promise<void>;
 };
 
-const Ctx = createContext<AuthCtx>(null as any);
+const AuthContext = createContext<AuthCtx>({
+  state: { loading: true, role: null },
+  setToken: () => {},
+  loginTeacher: async () => {},
+  logout: async () => {}
+});
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
+  const [state, setState] = useState<AuthState>({ loading: true, role: null });
+
+  const setToken = useCallback((t: string | null) => {
+    if (t) {
+      localStorage.setItem(STORAGE_TOKEN_KEY, t);
+      setAuthToken(t);
+    } else {
+      localStorage.removeItem(STORAGE_TOKEN_KEY);
+      setAuthToken(undefined);
+    }
+    setState(s => ({ ...s })); // força re-render
+  }, []);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const token = localStorage.getItem("auth_token");
-        if (!token) {
-          setUser(null);
-          return;
-        }
-        const { data } = await api.get("/auth/me");
-        setUser(data?.user ?? null);
-      } catch {
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+    const token = localStorage.getItem(STORAGE_TOKEN_KEY);
+    if (!token) { 
+      setState({ loading: false, role: null }); 
+      return; 
+    }
+
+    // valida uma única vez; se 401, limpa
+    api.get("/auth/me")
+      .then(r => setState({ loading: false, user: r.data, role: r.data?.role ?? "professor" }))
+      .catch(() => { 
+        setToken(null); 
+        setState({ loading: false, role: null }); 
+      });
+  }, [setToken]);
 
   async function loginTeacher(email: string, password: string) {
     const { data } = await api.post("/auth/login-teacher", { email, password });
     if (data?.token) {
-      localStorage.setItem("auth_token", data.token);
-      api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
+      setToken(data.token);
+      const me = await api.get("/auth/me");
+      setState({ loading: false, user: me.data, role: me.data?.role ?? "professor" });
     }
-    const me = await api.get("/auth/me");
-    setUser(me.data?.user ?? null);
   }
 
   async function logout() {
     try { await api.post("/auth/logout"); } catch {}
-    localStorage.removeItem("auth_token");
-    delete api.defaults.headers.common["Authorization"];
-    setUser(null);
-    navigate("/login-professor");
+    setToken(null);
+    setState({ loading: false, role: null });
   }
 
-  return <Ctx.Provider value={{ user, loading, loginTeacher, logout }}>{children}</Ctx.Provider>;
+  return (
+    <AuthContext.Provider value={{ state, setToken, loginTeacher, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
-export const useAuth = () => useContext(Ctx);
+export function useAuth() { 
+  return useContext(AuthContext); 
+}
 
