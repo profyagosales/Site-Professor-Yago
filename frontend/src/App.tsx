@@ -22,65 +22,33 @@ export default function App() {
   return (
     <Suspense fallback={<div className="max-w-6xl mx-auto px-4 py-8 text-ys-ink-2">Carregando…</div>}>
       <Routes>
+        {/* públicas */}
         <Route path={ROUTES.home} element={<Landing />} />
-        <Route path={ROUTES.loginProfessor} element={<LoginProf />} />
-        <Route path="/login-aluno" element={<LoginAluno />} />
+        <Route path={ROUTES.auth.loginProf} element={<LoginProf />} />
+        <Route path={ROUTES.auth.loginAluno} element={<LoginAluno />} />
 
-        <Route path={ROUTES.prof.base} element={<RequireAuth />}>
-          <Route index element={<Navigate to={ROUTES.prof.resumo} replace />} />
-          <Route
-            path="resumo"
-            element={<AppShell><Resumo /></AppShell>}
-          />
-          <Route
-            path="turmas"
-            element={<AppShell><Turmas /></AppShell>}
-          />
-          <Route
-            path="turmas/:id/alunos"
-            element={<AppShell><TurmaAlunos /></AppShell>}
-          />
-          <Route
-            path="notas-da-classe"
-            element={<AppShell><RedacoesProf /></AppShell>} // placeholder caso exista outra página
-          />
-          <Route
-            path="caderno"
-            element={<AppShell><div className="p-6">Caderno</div></AppShell>} // manter estrutura
-          />
-          <Route
-            path="gabarito"
-            element={<AppShell><div className="p-6">Gabarito</div></AppShell>}
-          />
-          <Route
-            path="redacao"
-            element={<AppShell><RedacoesProf /></AppShell>}
-          />
-          <Route
-            path="redacao/:id"
-            element={<AppShell><GradeWorkspace /></AppShell>}
-          />
+        {/* área professor - FILHOS COM PATH RELATIVO */}
+        <Route
+          path={ROUTES.prof.base}
+          element={
+            <RequireAuth>
+              <AppShell />
+            </RequireAuth>
+          }
+        >
+          <Route index element={<Navigate to="resumo" replace />} />
+          <Route path="resumo" element={<Resumo />} />
+          <Route path="turmas" element={<Turmas />} />
+          <Route path="turmas/:id/alunos" element={<TurmaAlunos />} />
+          <Route path="notas-da-classe" element={<RedacoesProf />} />
+          <Route path="caderno" element={<div className="p-6">Caderno</div>} />
+          <Route path="gabarito" element={<div className="p-6">Gabarito</div>} />
+          <Route path="redacao" element={<RedacoesProf />} />
+          <Route path="redacao/:id" element={<GradeWorkspace />} />
         </Route>
 
-        {/* Rotas do aluno mantidas */}
-        <Route path="/aluno/dashboard" element={<RequireAuth />}>
-          <Route index element={<AppShell><DashboardAluno /></AppShell>} />
-        </Route>
-        <Route path="/aluno/notas" element={<RequireAuth />}>
-          <Route index element={<AppShell><AlunoNotas /></AppShell>} />
-        </Route>
-        <Route path="/aluno/caderno" element={<RequireAuth />}>
-          <Route index element={<AppShell><AlunoCaderno /></AppShell>} />
-        </Route>
-        <Route path="/aluno/gabarito" element={<RequireAuth />}>
-          <Route index element={<AppShell><AlunoGabarito /></AppShell>} />
-        </Route>
-        <Route path="/aluno/redacoes" element={<RequireAuth />}>
-          <Route index element={<AppShell><AlunoRedacoes /></AppShell>} />
-        </Route>
-
-        {/* fallback SPA */}
-        <Route path="*" element={<Navigate to={ROUTES.home} replace />} />
+        {/* fallback por último */}
+        <Route path={ROUTES.notFound} element={<Navigate to={ROUTES.home} replace />} />
       </Routes>
     </Suspense>
   );
