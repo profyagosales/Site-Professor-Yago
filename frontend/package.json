@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && cd apps/pdf-viewer && npm ci --no-audit --no-fund && npm run build",
+    "build": "vite build && cd apps/pdf-viewer && npm ci --no-audit --no-fund && npm run build && cd .. && npm run postbuild",
+    "postbuild": "node scripts/copy-viewer-assets.cjs",
     "vercel-build": "npm ci --legacy-peer-deps || npm install --legacy-peer-deps && npm run build",
     "preview": "vite preview",
     "test": "jest --runInBand",

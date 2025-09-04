@@ -1,6 +1,6 @@
 {
   "rewrites": [
-    { "source": "/viewer/(.*)", "destination": "/apps/pdf-viewer/dist/$1" },
+    { "source": "/viewer/(.*)", "destination": "/viewer/$1" },
     { "source": "/api/(.*)", "destination": "https://api.professoryagosales.com.br/api/$1" },
     { "source": "/(.*)", "destination": "/" }
   ]
