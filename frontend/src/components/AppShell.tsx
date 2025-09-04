@@ -2,6 +2,7 @@ import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/routes';
 import { setAuthToken } from '@/services/api';
 import { usePrefetch } from '@/hooks/usePrefetch';
+import { useState } from 'react';
 
 type NavItem = { label: string; to: string; primary?: boolean };
 
@@ -31,6 +32,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const loc = useLocation();
   const navigate = useNavigate();
   const { prefetchRoute } = usePrefetch();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const role = getRole();
   const nav =
     role === 'teacher' ? NAV_TEACHER : role === 'student' ? NAV_STUDENT : [];
@@ -57,6 +59,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     navigate(target, { replace: true });
   }
 
+  function toggleMobileMenu() {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  }
+
+  function closeMobileMenu() {
+    setIsMobileMenuOpen(false);
+  }
+
   return (
     <div className='relative min-h-screen text-ys-ink z-10'>
       {!hideNav && (
@@ -69,6 +79,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <span className='font-semibold text-ys-ink'>Professor Yago</span>
             </Link>
 
+            {/* Desktop Navigation */}
             <nav 
               className='hidden sm:flex items-center gap-1 justify-center flex-1'
               role="navigation"
@@ -95,6 +106,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               ))}
             </nav>
 
+            {/* Desktop Actions */}
             <div className='hidden sm:flex items-center'>
               {nav.length > 0 && (
                 <button
@@ -106,7 +118,108 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 </button>
               )}
             </div>
+
+            {/* Mobile Menu Button */}
+            <div className='sm:hidden flex items-center'>
+              {nav.length > 0 && (
+                <>
+                  <button
+                    onClick={toggleMobileMenu}
+                    className='p-2 rounded-xl text-gray-800 hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-ys-amber focus:ring-offset-2'
+                    aria-label="Abrir menu de navegação"
+                    aria-expanded={isMobileMenuOpen}
+                  >
+                    <svg
+                      className='h-6 w-6'
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      stroke='currentColor'
+                    >
+                      {isMobileMenuOpen ? (
+                        <path
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          strokeWidth={2}
+                          d='M6 18L18 6M6 6l12 12'
+                        />
+                      ) : (
+                        <path
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          strokeWidth={2}
+                          d='M4 6h16M4 12h16M4 18h16'
+                        />
+                      )}
+                    </svg>
+                  </button>
+                </>
+              )}
+            </div>
           </div>
+
+          {/* Mobile Menu Drawer */}
+          {isMobileMenuOpen && (
+            <>
+              {/* Backdrop */}
+              <div
+                className='drawer-backdrop open sm:hidden'
+                onClick={closeMobileMenu}
+                aria-hidden='true'
+              />
+              
+              {/* Drawer */}
+              <div className='drawer-mobile open sm:hidden'>
+                <div className='p-4 border-b border-ys-line'>
+                  <div className='flex items-center justify-between'>
+                    <h2 className='text-lg font-semibold text-ys-ink'>Menu</h2>
+                    <button
+                      onClick={closeMobileMenu}
+                      className='p-2 rounded-xl text-gray-800 hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-ys-amber focus:ring-offset-2'
+                      aria-label="Fechar menu"
+                    >
+                      <svg className='h-6 w-6' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                        <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M6 18L18 6M6 6l12 12' />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                <nav className='p-4 space-y-2' role="navigation" aria-label="Menu mobile">
+                  {nav.map(i => (
+                    <NavLink
+                      key={i.to}
+                      to={i.to}
+                      onClick={closeMobileMenu}
+                      className={({ isActive }) =>
+                        [
+                          'block px-4 py-3 rounded-xl text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ys-amber focus:ring-offset-2',
+                          isActive
+                            ? 'bg-orange-100 text-orange-700 font-semibold'
+                            : 'text-gray-800 hover:bg-orange-50',
+                          i.primary && !isActive ? 'font-semibold' : '',
+                        ].join(' ')
+                      }
+                      aria-current={({ isActive }) => isActive ? 'page' : undefined}
+                    >
+                      {i.label}
+                    </NavLink>
+                  ))}
+                  
+                  <div className='pt-4 border-t border-ys-line mt-4'>
+                    <button
+                      onClick={() => {
+                        closeMobileMenu();
+                        handleLogout();
+                      }}
+                      className='w-full px-4 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-ys-amber focus:ring-offset-2'
+                    >
+                      Sair
+                    </button>
+                  </div>
+                </nav>
+              </div>
+            </>
+          )}
         </header>
       )}
 
