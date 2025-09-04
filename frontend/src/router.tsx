@@ -82,7 +82,7 @@ export const router = createBrowserRouter([
   { path: '/turmas', element: <Navigate to={ROUTES.prof.turmas} replace /> },
   { path: '/caderno', element: <Navigate to={ROUTES.prof.caderno} replace /> },
   { path: '/gabarito', element: <Navigate to={ROUTES.prof.gabarito} replace /> },
-  { path: '/notas-da-classe', element: <Navigate to={ROUTES.prof.notasDaClasse} replace /> },
+  { path: '/notas-da-classe', element: <Navigate to={ROUTES.prof.notasClasse} replace /> },
   { path: '/redacao', element: <Navigate to={ROUTES.prof.redacao} replace /> },
   { path: ROUTES.notFound, element: <NotFound /> },
 ]);

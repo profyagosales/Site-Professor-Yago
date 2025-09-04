@@ -40,10 +40,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return; 
     }
 
+    // Configura o token no axios antes de fazer a validação
+    setAuthToken(token);
+
     // valida uma única vez; se 401, limpa
     api.get("/auth/me")
-      .then(r => setState({ loading: false, user: r.data, role: r.data?.role ?? "professor" }))
-      .catch(() => { 
+      .then(r => {
+        const userData = r.data;
+        const role = userData?.role ?? "professor";
+        setState({ loading: false, user: userData, role });
+      })
+      .catch((err) => { 
+        console.warn("Auth validation failed:", err.response?.status);
         setToken(null); 
         setState({ loading: false, role: null }); 
       });
