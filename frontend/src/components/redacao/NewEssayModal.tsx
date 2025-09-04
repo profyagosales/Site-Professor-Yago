@@ -25,10 +25,54 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
   const [fileUrl, setFileUrl] = useState('');
   const [bimester, setBimester] = useState('');
   const [type, setType] = useState<'ENEM'|'PAS'>('PAS');
+  
+  // Estados para upload com progresso
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
+  
+  // Constantes de validação
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+
+  // Função para validar arquivo
+  const validateFile = (file: File): string | null => {
+    if (!file) return null;
+    
+    // Verificar tipo
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return `Tipo de arquivo não suportado. Use PDF ou imagens (JPG, PNG, GIF, WebP).`;
+    }
+    
+    // Verificar tamanho
+    if (file.size > MAX_FILE_SIZE) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      const maxMB = (MAX_FILE_SIZE / (1024 * 1024)).toFixed(0);
+      return `Arquivo muito grande (${sizeMB}MB). Tamanho máximo: ${maxMB}MB.`;
+    }
+    
+    return null;
+  };
+
+  // Função para formatar tamanho de arquivo
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
 
   useEffect(() => {
     if (open) {
       setTimeout(() => dialogRef.current?.querySelector('input')?.focus(), 0);
+    } else {
+      // Reset estados quando modal é fechado
+      setFile(null);
+      setFileError(null);
+      setUploadProgress(0);
+      setIsUploading(false);
+      setError(null);
     }
   }, [open]);
 
@@ -51,6 +95,10 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
   }
 
   async function submit() {
+    // Limpar erros anteriores
+    setError(null);
+    setFileError(null);
+    
     // Validação: arquivo OU URL (um dos dois obrigatório)
     if (!file && !fileUrl.trim()) {
       setError('Campos obrigatórios: arquivo ou URL');
@@ -77,9 +125,21 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
       return;
     }
     
-    setError(null);
+    // Validação de arquivo se não for URL
+    if (!useUrl && file) {
+      const fileValidationError = validateFile(file);
+      if (fileValidationError) {
+        setFileError(fileValidationError);
+        toast.error(fileValidationError);
+        return;
+      }
+    }
+    
     try {
       setLoading(true);
+      setIsUploading(true);
+      setUploadProgress(0);
+      
       const fd = new FormData();
       
       // Se arquivo: fd.append('file', file)
@@ -97,17 +157,34 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
       fd.append('bimester', bimester);
       fd.append('type', type);
       
-      // POST /api/uploads/essay (sem Content-Type; deixe o browser definir o boundary)
-      await uploadEssay(fd);
-      toast.success('Redação enviada');
-      onSuccess(); // fechar modal, inserir item na lista, toast "Redação enviada"
+      // POST /api/uploads/essay com progresso
+      await uploadEssay(fd, (progressEvent) => {
+        if (progressEvent.total) {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(progress);
+        }
+      });
+      
+      toast.success('Redação enviada com sucesso');
+      onSuccess(); // fechar modal, inserir item na lista
       onClose();
     } catch (e: any) {
-      const msg = e?.response?.data?.message || 'Erro ao enviar';
+      const msg = e?.response?.data?.message || 'Erro ao enviar redação';
       setError(msg);
       toast.error(msg);
+      
+      // Alert ARIA para acessibilidade
+      const alertElement = document.createElement('div');
+      alertElement.setAttribute('role', 'alert');
+      alertElement.setAttribute('aria-live', 'assertive');
+      alertElement.textContent = `Erro: ${msg}`;
+      alertElement.className = 'sr-only';
+      document.body.appendChild(alertElement);
+      setTimeout(() => document.body.removeChild(alertElement), 5000);
     } finally {
       setLoading(false);
+      setIsUploading(false);
+      setUploadProgress(0);
     }
   }
 
@@ -134,12 +211,33 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
                 <input 
                   type="file" 
                   accept="application/pdf,image/*" 
-                  onChange={e => setFile(e.target.files?.[0] || null)} 
+                  onChange={e => {
+                    const selectedFile = e.target.files?.[0] || null;
+                    setFile(selectedFile);
+                    setFileError(null);
+                    if (selectedFile) {
+                      const validationError = validateFile(selectedFile);
+                      if (validationError) {
+                        setFileError(validationError);
+                      }
+                    }
+                  }} 
                   className="w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500" 
+                  aria-describedby={fileError ? "file-error" : "file-help"}
                 />
-                {file && (
-                  <p className="mt-1 text-xs text-green-600">✓ Arquivo selecionado: {file.name}</p>
+                {file && !fileError && (
+                  <p className="mt-1 text-xs text-green-600">
+                    ✓ Arquivo selecionado: {file.name} ({formatFileSize(file.size)})
+                  </p>
                 )}
+                {fileError && (
+                  <p id="file-error" className="mt-1 text-xs text-red-600" role="alert">
+                    ⚠ {fileError}
+                  </p>
+                )}
+                <p id="file-help" className="mt-1 text-xs text-ys-ink-2">
+                  Formatos aceitos: PDF, JPG, PNG, GIF, WebP. Tamanho máximo: 10MB.
+                </p>
               </div>
             ) : (
               <div>
@@ -197,10 +295,50 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
               </select>
             </div>
           </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {/* Barra de progresso */}
+          {isUploading && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-ys-ink-2">Enviando arquivo...</span>
+                <span className="font-medium text-orange-600">{uploadProgress}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-orange-500 h-2 rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${uploadProgress}%` }}
+                  role="progressbar"
+                  aria-valuenow={uploadProgress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={`Progresso do upload: ${uploadProgress}%`}
+                />
+              </div>
+            </div>
+          )}
+          
+          {/* Mensagens de erro */}
+          {error && (
+            <div className="rounded-lg bg-red-50 border border-red-200 p-3" role="alert">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+          
           <div className="mt-2 flex justify-end gap-2">
-            <button className="rounded-lg border border-[#E5E7EB] px-4 py-2" onClick={onClose}>Cancelar</button>
-            <button className="rounded-lg bg-orange-500 px-4 py-2 font-semibold text-white hover:brightness-110 disabled:opacity-50" onClick={submit} disabled={loading}>{loading ? 'Enviando…' : 'Enviar'}</button>
+            <button 
+              className="rounded-lg border border-[#E5E7EB] px-4 py-2 hover:bg-gray-50 disabled:opacity-50" 
+              onClick={onClose}
+              disabled={isUploading}
+            >
+              Cancelar
+            </button>
+            <button 
+              className="rounded-lg bg-orange-500 px-4 py-2 font-semibold text-white hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed" 
+              onClick={submit} 
+              disabled={loading || isUploading || !!fileError}
+              aria-describedby={fileError ? "file-error" : undefined}
+            >
+              {isUploading ? `Enviando… ${uploadProgress}%` : loading ? 'Enviando…' : 'Enviar'}
+            </button>
           </div>
         </div>
       </div>
