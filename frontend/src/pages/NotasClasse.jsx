@@ -18,7 +18,7 @@ function NotasClasse() {
   const [success, setSuccess] = useState(null);
   const navigate = useNavigate();
 
-  const arrify = (v) => {
+  const arrify = v => {
     const r = toArray ? toArray(v) : undefined;
     return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
   };
@@ -34,7 +34,8 @@ function NotasClasse() {
         toast.success('Turmas carregadas');
       } catch (err) {
         console.error('Erro ao carregar turmas', err);
-        const message = err.response?.data?.message ?? 'Erro ao carregar turmas';
+        const message =
+          err.response?.data?.message ?? 'Erro ao carregar turmas';
         setErrorClasses(message);
         toast.error(message);
       } finally {
@@ -44,7 +45,7 @@ function NotasClasse() {
     fetchClasses();
   }, []);
 
-  const loadGrades = async (cls) => {
+  const loadGrades = async cls => {
     setSelectedClass(cls);
     setLoadingGrades(true);
     setErrorGrades(null);
@@ -66,13 +67,13 @@ function NotasClasse() {
     }
   };
 
-  const getAssessmentsScore = (grade) => {
+  const getAssessmentsScore = grade => {
     if (grade === '-' || grade === undefined || grade === null) return '-';
     if (typeof grade === 'object') return grade.assessments ?? '-';
     return grade;
   };
 
-  const getTotalScore = (grade) => {
+  const getTotalScore = grade => {
     if (grade === '-' || grade === undefined || grade === null) return '-';
     if (typeof grade === 'object') {
       const assessments = Number(grade.assessments) || 0;
@@ -104,26 +105,26 @@ function NotasClasse() {
   };
 
   return (
-    <div className="pt-20 p-md">
+    <div className='pt-20 p-md'>
       {!selectedClass ? (
         <div>
-          <h1 className="text-2xl text-orange">Notas por Turma</h1>
+          <h1 className='text-2xl text-orange'>Notas por Turma</h1>
           {loadingClasses ? (
             <p>Carregando turmas...</p>
           ) : errorClasses ? (
-            <p className="text-red-500">{errorClasses}</p>
+            <p className='text-red-500'>{errorClasses}</p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
-              {arrify(classes).map((cls) => (
+            <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md'>
+              {arrify(classes).map(cls => (
                 <div
                   key={cls._id}
-                  className="ys-card cursor-pointer"
+                  className='ys-card cursor-pointer'
                   onClick={() => loadGrades(cls)}
                 >
-                  <h3 className="text-orange text-lg font-semibold">
+                  <h3 className='text-orange text-lg font-semibold'>
                     {cls.series}ª{cls.letter}
                   </h3>
-                  <p className="text-black/70">Disciplina: {cls.discipline}</p>
+                  <p className='text-black/70'>Disciplina: {cls.discipline}</p>
                 </div>
               ))}
             </div>
@@ -131,44 +132,50 @@ function NotasClasse() {
         </div>
       ) : (
         <div>
-          <div className="flex justify-between items-center mb-md">
-            <h2 className="text-xl text-orange">
-              {selectedClass.series}ª{selectedClass.letter} - {selectedClass.discipline}
+          <div className='flex justify-between items-center mb-md'>
+            <h2 className='text-xl text-orange'>
+              {selectedClass.series}ª{selectedClass.letter} -{' '}
+              {selectedClass.discipline}
             </h2>
-            <button className="link-primary" onClick={() => setSelectedClass(null)}>
+            <button
+              className='link-primary'
+              onClick={() => setSelectedClass(null)}
+            >
               Voltar
             </button>
           </div>
-          <div className="flex justify-between items-center mb-md">
+          <div className='flex justify-between items-center mb-md'>
             <select
-              className="border p-sm rounded"
+              className='border p-sm rounded'
               value={bimester}
-              onChange={(e) => setBimester(e.target.value)}
+              onChange={e => setBimester(e.target.value)}
             >
-              <option value="0">Todos os bimestres</option>
-              <option value="1">1º Bimestre</option>
-              <option value="2">2º Bimestre</option>
-              <option value="3">3º Bimestre</option>
-              <option value="4">4º Bimestre</option>
+              <option value='0'>Todos os bimestres</option>
+              <option value='1'>1º Bimestre</option>
+              <option value='2'>2º Bimestre</option>
+              <option value='3'>3º Bimestre</option>
+              <option value='4'>4º Bimestre</option>
             </select>
-            <button className="ys-btn-primary" onClick={handleExport}>
+            <button className='ys-btn-primary' onClick={handleExport}>
               Exportar PDF
             </button>
           </div>
           {loadingGrades ? (
             <p>Carregando notas...</p>
           ) : errorGrades ? (
-            <p className="text-red-500">{errorGrades}</p>
+            <p className='text-red-500'>{errorGrades}</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full border">
+            <div className='overflow-x-auto'>
+              <table className='min-w-full border'>
                 <thead>
-                  <tr className="bg-orange-500 text-white text-left">
-                    <th className="p-sm border">Aluno</th>
-                    {displayedBimesters().map((b) => (
+                  <tr className='bg-orange-500 text-white text-left'>
+                    <th className='p-sm border'>Aluno</th>
+                    {displayedBimesters().map(b => (
                       <Fragment key={b}>
-                        <th className="p-sm border text-center">{b + 1}º Bim</th>
-                        <th className="p-sm border text-center">Total</th>
+                        <th className='p-sm border text-center'>
+                          {b + 1}º Bim
+                        </th>
+                        <th className='p-sm border text-center'>Total</th>
                       </Fragment>
                     ))}
                   </tr>
@@ -180,12 +187,12 @@ function NotasClasse() {
                       className={i % 2 === 0 ? 'bg-gray-100' : ''}
                     >
                       <td
-                        className="p-sm border link-primary cursor-pointer"
+                        className='p-sm border link-primary cursor-pointer'
                         onClick={() => navigate(`/alunos/${student._id}/notas`)}
                       >
                         {student.name}
                       </td>
-                      {displayedBimesters().map((b) => {
+                      {displayedBimesters().map(b => {
                         const grade = grades[i] ? grades[i][b] : undefined;
                         const assessment = getAssessmentsScore(grade);
                         const total = getTotalScore(grade);
@@ -197,10 +204,12 @@ function NotasClasse() {
                             : '';
                         return (
                           <Fragment key={b}>
-                            <td className="p-sm border text-center">
+                            <td className='p-sm border text-center'>
                               {assessment !== undefined ? assessment : '-'}
                             </td>
-                            <td className={`p-sm border text-center ${totalClass}`}>
+                            <td
+                              className={`p-sm border text-center ${totalClass}`}
+                            >
                               {total !== '-' ? total : '-'}
                             </td>
                           </Fragment>
@@ -212,7 +221,7 @@ function NotasClasse() {
               </table>
             </div>
           )}
-          {success && <p className="text-green-500 mt-md">{success}</p>}
+          {success && <p className='text-green-500 mt-md'>{success}</p>}
         </div>
       )}
     </div>

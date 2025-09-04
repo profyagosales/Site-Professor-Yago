@@ -1,6 +1,6 @@
 import { api, toArray } from '@/services/api';
 
-const arrify = (v) => {
+const arrify = v => {
   const r = toArray ? toArray(v) : undefined;
   return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
 };
@@ -14,12 +14,15 @@ export async function createContent(payload) {
   return (await api.post('/contents', payload))?.data;
 }
 
-export async function listUpcomingContents({ teacherId, daysAhead = 14, limit = 5 }) {
+export async function listUpcomingContents({
+  teacherId,
+  daysAhead = 14,
+  limit = 5,
+}) {
   if (!teacherId) return [];
-  const { data } = await api.get(
-    `/teachers/${teacherId}/contents/upcoming`,
-    { params: { daysAhead, limit } }
-  );
+  const { data } = await api.get(`/teachers/${teacherId}/contents/upcoming`, {
+    params: { daysAhead, limit },
+  });
   return data;
 }
 

@@ -13,7 +13,7 @@ function SendEmailModal({ isOpen, onClose }) {
   const [message, setMessage] = useState('');
   const [alert, setAlert] = useState(null);
 
-  const arrify = (v) => {
+  const arrify = v => {
     const r = toArray ? toArray(v) : undefined;
     return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
   };
@@ -22,13 +22,15 @@ function SendEmailModal({ isOpen, onClose }) {
     try {
       const [classRes, studentRes] = await Promise.all([
         listClasses(),
-        listStudents().catch(() => [])
+        listStudents().catch(() => []),
       ]);
       setClasses(arrify(classRes));
       setStudents(arrify(studentRes));
     } catch (err) {
       console.error('Erro ao carregar destinatários', err);
-      toast.error(err.response?.data?.message ?? 'Erro ao carregar destinatários');
+      toast.error(
+        err.response?.data?.message ?? 'Erro ao carregar destinatários'
+      );
     }
   };
 
@@ -36,12 +38,12 @@ function SendEmailModal({ isOpen, onClose }) {
     if (isOpen) loadRecipients();
   }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleChange = (e) => {
+  const handleChange = e => {
     const selected = Array.from(e.target.selectedOptions).map(opt => opt.value);
     setRecipients(selected);
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault();
     try {
       await sendEmail({
@@ -57,7 +59,8 @@ function SendEmailModal({ isOpen, onClose }) {
       loadRecipients();
     } catch (err) {
       console.error(err);
-      const messageErr = err.response?.data?.message ?? 'Erro ao enviar e-mail.';
+      const messageErr =
+        err.response?.data?.message ?? 'Erro ao enviar e-mail.';
       setAlert({ type: 'error', text: messageErr });
       toast.error(messageErr);
     }
@@ -66,9 +69,9 @@ function SendEmailModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/50">
-      <div className="ys-card w-full max-w-lg p-md">
-        <h2 className="text-xl">Enviar E-mail</h2>
+    <div className='fixed inset-0 flex items-center justify-center bg-black/50'>
+      <div className='ys-card w-full max-w-lg p-md'>
+        <h2 className='text-xl'>Enviar E-mail</h2>
         {alert && (
           <div
             className={`mb-md p-sm rounded ${
@@ -80,21 +83,22 @@ function SendEmailModal({ isOpen, onClose }) {
             {alert.text}
           </div>
         )}
-        <form onSubmit={handleSubmit} className="space-y-md">
+        <form onSubmit={handleSubmit} className='space-y-md'>
           <div>
-            <label className="block mb-1">Destinatários</label>
+            <label className='block mb-1'>Destinatários</label>
             <select
               multiple
-              className="w-full border p-sm rounded"
+              className='w-full border p-sm rounded'
               value={recipients}
               onChange={handleChange}
             >
-              {arrify(classes).map((cls) => (
+              {arrify(classes).map(cls => (
                 <option key={cls.classId} value={cls.classId}>
-                  Turma {cls.series}{cls.letter} - {cls.discipline}
+                  Turma {cls.series}
+                  {cls.letter} - {cls.discipline}
                 </option>
               ))}
-              {arrify(students).map((st) => (
+              {arrify(students).map(st => (
                 <option key={st._id} value={st.email}>
                   {st.name} ({st.email})
                 </option>
@@ -102,34 +106,31 @@ function SendEmailModal({ isOpen, onClose }) {
             </select>
           </div>
           <div>
-            <label className="block mb-1">Assunto</label>
+            <label className='block mb-1'>Assunto</label>
             <input
-              type="text"
-              className="w-full border p-sm rounded"
+              type='text'
+              className='w-full border p-sm rounded'
               value={subject}
-              onChange={(e) => setSubject(e.target.value)}
+              onChange={e => setSubject(e.target.value)}
             />
           </div>
           <div>
-            <label className="block mb-1">Mensagem (HTML)</label>
+            <label className='block mb-1'>Mensagem (HTML)</label>
             <textarea
-              className="w-full border p-sm rounded h-40"
+              className='w-full border p-sm rounded h-40'
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={e => setMessage(e.target.value)}
             />
           </div>
-          <div className="flex justify-end space-x-sm">
+          <div className='flex justify-end space-x-sm'>
             <button
-              type="button"
+              type='button'
               onClick={onClose}
-              className="px-4 py-2 border rounded"
+              className='px-4 py-2 border rounded'
             >
               Cancelar
             </button>
-            <button
-              type="submit"
-              className="ys-btn-primary"
-            >
+            <button type='submit' className='ys-btn-primary'>
               Enviar
             </button>
           </div>
@@ -140,4 +141,3 @@ function SendEmailModal({ isOpen, onClose }) {
 }
 
 export default SendEmailModal;
-

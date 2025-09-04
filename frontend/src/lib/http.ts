@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const RAW_BASE = (import.meta as any).env?.VITE_API_BASE_URL || (import.meta as any).env?.VITE_API_URL || '';
+const RAW_BASE =
+  (import.meta as any).env?.VITE_API_BASE_URL ||
+  (import.meta as any).env?.VITE_API_URL ||
+  '';
 const RAW_PREFIX = (import.meta as any).env?.VITE_API_PREFIX ?? '/api';
 
 function joinBasePrefix(base: string, prefix: string) {
@@ -13,7 +16,8 @@ function joinBasePrefix(base: string, prefix: string) {
 }
 
 // Preferir caminho relativo em produção (Vercel) para usar rewrites e evitar CORS e bases duplicadas
-const isBrowser = typeof window !== 'undefined' && typeof location !== 'undefined';
+const isBrowser =
+  typeof window !== 'undefined' && typeof location !== 'undefined';
 const onVercel = isBrowser && /vercel\.app$/i.test(location.hostname);
 
 const BASE_URL = onVercel ? '/api' : joinBasePrefix(RAW_BASE, RAW_PREFIX);
@@ -25,7 +29,7 @@ export const api = axios.create({
 });
 
 // Attach Bearer token when available (backend also accepts cookie "session")
-api.interceptors.request.use((cfg) => {
+api.interceptors.request.use(cfg => {
   try {
     const token = localStorage.getItem('auth_token');
     if (token) {

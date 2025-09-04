@@ -11,7 +11,7 @@ function NewContentModal({ isOpen, onClose, onSuccess }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
 
-  const arrify = (v) => {
+  const arrify = v => {
     const r = toArray ? toArray(v) : undefined;
     return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
   };
@@ -19,18 +19,23 @@ function NewContentModal({ isOpen, onClose, onSuccess }) {
   useEffect(() => {
     if (isOpen) {
       listClasses()
-        .then((res) => setClasses(arrify(res)))
-        .catch((err) => {
+        .then(res => setClasses(arrify(res)))
+        .catch(err => {
           console.error('Erro ao carregar turmas', err);
           toast.error(err.response?.data?.message ?? 'Erro ao carregar turmas');
         });
     }
   }, [isOpen]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault();
     try {
-      await createContent({ classId, bimester: Number(bimester), title, description });
+      await createContent({
+        classId,
+        bimester: Number(bimester),
+        title,
+        description,
+      });
       toast.success('Conteúdo criado com sucesso');
       setClassId('');
       setBimester('');
@@ -47,65 +52,66 @@ function NewContentModal({ isOpen, onClose, onSuccess }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/50">
-      <div className="ys-card w-full max-w-lg p-md">
-        <h2 className="text-xl mb-md">Novo Conteúdo</h2>
-        <form onSubmit={handleSubmit} className="space-y-md">
+    <div className='fixed inset-0 flex items-center justify-center bg-black/50'>
+      <div className='ys-card w-full max-w-lg p-md'>
+        <h2 className='text-xl mb-md'>Novo Conteúdo</h2>
+        <form onSubmit={handleSubmit} className='space-y-md'>
           <div>
-            <label className="block mb-1">Turma</label>
+            <label className='block mb-1'>Turma</label>
             <select
-              className="w-full border p-sm rounded"
+              className='w-full border p-sm rounded'
               value={classId}
-              onChange={(e) => setClassId(e.target.value)}
+              onChange={e => setClassId(e.target.value)}
               required
             >
-              <option value="">Selecione</option>
-              {arrify(classes).map((cls) => (
+              <option value=''>Selecione</option>
+              {arrify(classes).map(cls => (
                 <option key={cls.classId} value={cls.classId}>
-                  Turma {cls.series}{cls.letter} - {cls.discipline}
+                  Turma {cls.series}
+                  {cls.letter} - {cls.discipline}
                 </option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block mb-1">Bimestre</label>
+            <label className='block mb-1'>Bimestre</label>
             <input
-              type="number"
-              min="1"
-              max="4"
-              className="w-full border p-sm rounded"
+              type='number'
+              min='1'
+              max='4'
+              className='w-full border p-sm rounded'
               value={bimester}
-              onChange={(e) => setBimester(e.target.value)}
+              onChange={e => setBimester(e.target.value)}
               required
             />
           </div>
           <div>
-            <label className="block mb-1">Título</label>
+            <label className='block mb-1'>Título</label>
             <input
-              type="text"
-              className="w-full border p-sm rounded"
+              type='text'
+              className='w-full border p-sm rounded'
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={e => setTitle(e.target.value)}
               required
             />
           </div>
           <div>
-            <label className="block mb-1">Descrição</label>
+            <label className='block mb-1'>Descrição</label>
             <textarea
-              className="w-full border p-sm rounded"
+              className='w-full border p-sm rounded'
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={e => setDescription(e.target.value)}
             />
           </div>
-          <div className="flex justify-end gap-sm">
+          <div className='flex justify-end gap-sm'>
             <button
-              type="button"
+              type='button'
               onClick={onClose}
-              className="px-4 py-2 border rounded"
+              className='px-4 py-2 border rounded'
             >
               Cancelar
             </button>
-            <button type="submit" className="ys-btn-primary">
+            <button type='submit' className='ys-btn-primary'>
               Salvar
             </button>
           </div>
@@ -116,4 +122,3 @@ function NewContentModal({ isOpen, onClose, onSuccess }) {
 }
 
 export default NewContentModal;
-

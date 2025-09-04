@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { fetchThemes } from '@/services/essays.service';
 
-interface Theme { id?: string; name: string }
+interface Theme {
+  id?: string;
+  name: string;
+}
 interface Props {
   value?: Theme;
   onChange: (v: Theme) => void;
@@ -14,13 +17,18 @@ export default function ThemeCombo({ value, onChange, allowCreate }: Props) {
   const [timer, setTimer] = useState<any>(null);
 
   useEffect(() => {
-    if (!query) { setOptions([]); return; }
+    if (!query) {
+      setOptions([]);
+      return;
+    }
     if (timer) clearTimeout(timer);
     const t = setTimeout(async () => {
       try {
         const list = await fetchThemes({ name: query });
         setOptions(Array.isArray(list) ? list : []);
-      } catch { setOptions([]); }
+      } catch {
+        setOptions([]);
+      }
     }, 250);
     setTimer(t);
     return () => clearTimeout(t);
@@ -39,21 +47,35 @@ export default function ThemeCombo({ value, onChange, allowCreate }: Props) {
   }
 
   return (
-    <div className="space-y-1">
+    <div className='space-y-1'>
       <input
         value={value ? value.name : query}
-        onChange={(e) => { setQuery(e.target.value); if (value) onChange({ name: e.target.value }); }}
-        className="w-full rounded border p-2"
-        placeholder="Buscar tema..."
+        onChange={e => {
+          setQuery(e.target.value);
+          if (value) onChange({ name: e.target.value });
+        }}
+        className='w-full rounded border p-2'
+        placeholder='Buscar tema...'
       />
       {query && options.length === 0 && allowCreate && (
-        <button type="button" className="text-sm text-blue-600" onClick={handleCreate}>
+        <button
+          type='button'
+          className='text-sm text-blue-600'
+          onClick={handleCreate}
+        >
           + Criar tema '{query}'
         </button>
       )}
-      {options.map((o) => (
+      {options.map(o => (
         <div key={o.id}>
-          <button type="button" className="text-left w-full" onClick={() => { onChange(o); setQuery(''); }}>
+          <button
+            type='button'
+            className='text-left w-full'
+            onClick={() => {
+              onChange(o);
+              setQuery('');
+            }}
+          >
             {o.name}
           </button>
         </div>

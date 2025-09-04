@@ -78,7 +78,9 @@ describe('DashboardRedacoes', () => {
     await userEvent.click(tab);
     const emailBtn = await screen.findByText('Enviar por e-mail');
     await userEvent.click(emailBtn);
-    await waitFor(() => expect(essaysService.sendCorrectionEmail).toHaveBeenCalledWith('1'));
+    await waitFor(() =>
+      expect(essaysService.sendCorrectionEmail).toHaveBeenCalledWith('1')
+    );
     expect(await screen.findByText('Enviado')).toBeInTheDocument();
     expect(await screen.findByText('Enviar novamente')).toBeInTheDocument();
   });
@@ -98,20 +100,27 @@ describe('DashboardRedacoes', () => {
       ],
     });
     renderPage();
-    await userEvent.click(await screen.findByRole('button', { name: /editar/i }));
+    await userEvent.click(
+      await screen.findByRole('button', { name: /editar/i })
+    );
     const themeInput = await screen.findByPlaceholderText('Buscar tema...');
     await userEvent.clear(themeInput);
     await userEvent.type(themeInput, 'Novo Tema');
 
-    api.put.mockResolvedValueOnce({ data: { _id: '1', theme: { name: 'Novo Tema' } } });
+    api.put.mockResolvedValueOnce({
+      data: { _id: '1', theme: { name: 'Novo Tema' } },
+    });
 
     await userEvent.click(screen.getByRole('button', { name: /salvar/i }));
 
     await waitFor(() => {
       expect(api.put).toHaveBeenCalledTimes(1);
-      expect(api.put).toHaveBeenCalledWith('/essays/1', expect.objectContaining({
-        theme: expect.anything(),
-      }));
+      expect(api.put).toHaveBeenCalledWith(
+        '/essays/1',
+        expect.objectContaining({
+          theme: expect.anything(),
+        })
+      );
     });
 
     expect(await screen.findByText('Novo Tema')).toBeInTheDocument();

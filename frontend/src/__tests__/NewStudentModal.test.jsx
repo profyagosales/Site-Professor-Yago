@@ -13,7 +13,14 @@ describe('NewStudentModal', () => {
     create.mockResolvedValue({ id: 'abc' });
     const onClose = jest.fn();
     const onCreated = jest.fn();
-    render(<NewStudentModal classId="1" isOpen={true} onClose={onClose} onCreated={onCreated} />);
+    render(
+      <NewStudentModal
+        classId='1'
+        isOpen={true}
+        onClose={onClose}
+        onCreated={onCreated}
+      />
+    );
 
     const number = screen.getByPlaceholderText('Ex.: 12');
     const name = screen.getByPlaceholderText('Nome completo');
@@ -27,7 +34,6 @@ describe('NewStudentModal', () => {
     await userEvent.type(email, 'joao@example.com');
     await userEvent.type(password, 'segredo');
     await userEvent.click(screen.getByRole('button', { name: /salvar/i }));
-
 
     expect(create).toHaveBeenCalledTimes(1);
     const payload = create.mock.calls[0][1];

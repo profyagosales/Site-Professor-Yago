@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { listClasses } from '@/services/classes';
-import { listContents, createContent, updateContent, deleteContent } from '@/services/contents';
+import {
+  listContents,
+  createContent,
+  updateContent,
+  deleteContent,
+} from '@/services/contents';
 import { toArray } from '@/services/api';
 
 function Conteudos() {
@@ -21,7 +26,7 @@ function Conteudos() {
   });
   const [loading, setLoading] = useState(false);
 
-  const arrify = (v) => {
+  const arrify = v => {
     const r = toArray ? toArray(v) : undefined;
     return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
   };
@@ -41,19 +46,28 @@ function Conteudos() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = arrify(contents).filter(
-    (c) =>
+    c =>
       (!selectedClass || c.classId === selectedClass) &&
       (!selectedBimester || String(c.bimester) === String(selectedBimester))
   );
 
   const resetForm = () => {
-    setForm({ classId: '', bimester: '', title: '', description: '', date: '', done: false });
+    setForm({
+      classId: '',
+      bimester: '',
+      title: '',
+      description: '',
+      date: '',
+      done: false,
+    });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = e => {
     e.preventDefault();
     const data = { ...form, bimester: Number(form.bimester) };
-    const action = editing ? updateContent(editing._id, data) : createContent(data);
+    const action = editing
+      ? updateContent(editing._id, data)
+      : createContent(data);
     action
       .then(() => {
         toast.success('Conteúdo salvo com sucesso');
@@ -65,7 +79,7 @@ function Conteudos() {
       .catch(() => toast.error('Erro ao salvar conteúdo'));
   };
 
-  const handleEdit = (item) => {
+  const handleEdit = item => {
     setEditing(item);
     setForm({
       classId: item.classId || '',
@@ -78,7 +92,7 @@ function Conteudos() {
     setShowForm(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = id => {
     if (!window.confirm('Deseja excluir este conteúdo?')) return;
     deleteContent(id)
       .then(() => {
@@ -88,7 +102,7 @@ function Conteudos() {
       .catch(() => toast.error('Erro ao excluir conteúdo'));
   };
 
-  const toggleDone = (item) => {
+  const toggleDone = item => {
     updateContent(item._id, { done: !item.done })
       .then(() => {
         toast.success('Conteúdo atualizado');
@@ -99,18 +113,18 @@ function Conteudos() {
 
   if (loading) {
     return (
-      <div className="pt-20 p-md">
+      <div className='pt-20 p-md'>
         <p>Carregando...</p>
       </div>
     );
   }
 
   return (
-    <div className="pt-20 p-md">
-      <div className="flex justify-between items-center mb-md">
-        <h1 className="text-2xl text-orange">Conteúdos</h1>
+    <div className='pt-20 p-md'>
+      <div className='flex justify-between items-center mb-md'>
+        <h1 className='text-2xl text-orange'>Conteúdos</h1>
         <button
-          className="ys-btn-primary"
+          className='ys-btn-primary'
           onClick={() => {
             setEditing(null);
             resetForm();
@@ -121,26 +135,26 @@ function Conteudos() {
         </button>
       </div>
 
-      <div className="flex gap-md mb-md">
+      <div className='flex gap-md mb-md'>
         <select
-          className="border p-sm rounded"
+          className='border p-sm rounded'
           value={selectedClass}
-          onChange={(e) => setSelectedClass(e.target.value)}
+          onChange={e => setSelectedClass(e.target.value)}
         >
-          <option value="">Todas as turmas</option>
-          {arrify(classes).map((cls) => (
+          <option value=''>Todas as turmas</option>
+          {arrify(classes).map(cls => (
             <option key={cls._id} value={cls._id}>
               {cls.series}ª{cls.letter}
             </option>
           ))}
         </select>
         <select
-          className="border p-sm rounded"
+          className='border p-sm rounded'
           value={selectedBimester}
-          onChange={(e) => setSelectedBimester(e.target.value)}
+          onChange={e => setSelectedBimester(e.target.value)}
         >
-          <option value="">Todos os bimestres</option>
-          {[1, 2, 3, 4].map((b) => (
+          <option value=''>Todos os bimestres</option>
+          {[1, 2, 3, 4].map(b => (
             <option key={b} value={b}>
               {b}º bimestre
             </option>
@@ -148,27 +162,30 @@ function Conteudos() {
         </select>
       </div>
 
-      <div className="space-y-sm">
-        {filtered.map((c) => (
-          <div key={c._id} className="ys-card flex justify-between items-center">
+      <div className='space-y-sm'>
+        {filtered.map(c => (
+          <div
+            key={c._id}
+            className='ys-card flex justify-between items-center'
+          >
             <div>
-              <h3 className="text-lg text-orange">{c.title}</h3>
-              <p className="text-black/70">{c.description}</p>
+              <h3 className='text-lg text-orange'>{c.title}</h3>
+              <p className='text-black/70'>{c.description}</p>
             </div>
-            <div className="flex items-center gap-sm">
+            <div className='flex items-center gap-sm'>
               <input
-                type="checkbox"
+                type='checkbox'
                 checked={Boolean(c.done)}
                 onChange={() => toggleDone(c)}
               />
               <button
-                className="px-3 py-1 border rounded"
+                className='px-3 py-1 border rounded'
                 onClick={() => handleEdit(c)}
               >
                 Editar
               </button>
               <button
-                className="px-3 py-1 border rounded text-red-600"
+                className='px-3 py-1 border rounded text-red-600'
                 onClick={() => handleDelete(c._id)}
               >
                 Excluir
@@ -179,21 +196,21 @@ function Conteudos() {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50">
-          <div className="ys-card w-full max-w-md p-md">
-            <h2 className="text-xl text-orange">
+        <div className='fixed inset-0 flex items-center justify-center bg-black/50'>
+          <div className='ys-card w-full max-w-md p-md'>
+            <h2 className='text-xl text-orange'>
               {editing ? 'Editar Conteúdo' : 'Novo Conteúdo'}
             </h2>
-            <form onSubmit={handleSubmit} className="space-y-md">
+            <form onSubmit={handleSubmit} className='space-y-md'>
               <div>
-                <label className="block mb-1">Turma</label>
+                <label className='block mb-1'>Turma</label>
                 <select
-                  className="w-full border p-sm rounded"
+                  className='w-full border p-sm rounded'
                   value={form.classId}
-                  onChange={(e) => setForm({ ...form, classId: e.target.value })}
+                  onChange={e => setForm({ ...form, classId: e.target.value })}
                 >
-                  <option value="">Selecione</option>
-                  {arrify(classes).map((cls) => (
+                  <option value=''>Selecione</option>
+                  {arrify(classes).map(cls => (
                     <option key={cls._id} value={cls._id}>
                       {cls.series}ª{cls.letter}
                     </option>
@@ -201,14 +218,14 @@ function Conteudos() {
                 </select>
               </div>
               <div>
-                <label className="block mb-1">Bimestre</label>
+                <label className='block mb-1'>Bimestre</label>
                 <select
-                  className="w-full border p-sm rounded"
+                  className='w-full border p-sm rounded'
                   value={form.bimester}
-                  onChange={(e) => setForm({ ...form, bimester: e.target.value })}
+                  onChange={e => setForm({ ...form, bimester: e.target.value })}
                 >
-                  <option value="">Selecione</option>
-                  {[1, 2, 3, 4].map((b) => (
+                  <option value=''>Selecione</option>
+                  {[1, 2, 3, 4].map(b => (
                     <option key={b} value={b}>
                       {b}º bimestre
                     </option>
@@ -216,44 +233,46 @@ function Conteudos() {
                 </select>
               </div>
               <div>
-                <label className="block mb-1">Título</label>
+                <label className='block mb-1'>Título</label>
                 <input
-                  type="text"
-                  className="w-full border p-sm rounded"
+                  type='text'
+                  className='w-full border p-sm rounded'
                   value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  onChange={e => setForm({ ...form, title: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block mb-1">Descrição</label>
+                <label className='block mb-1'>Descrição</label>
                 <textarea
-                  className="w-full border p-sm rounded"
+                  className='w-full border p-sm rounded'
                   value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  onChange={e =>
+                    setForm({ ...form, description: e.target.value })
+                  }
                 />
               </div>
               <div>
-                <label className="block mb-1">Data</label>
+                <label className='block mb-1'>Data</label>
                 <input
-                  type="date"
-                  className="w-full border p-sm rounded"
+                  type='date'
+                  className='w-full border p-sm rounded'
                   value={form.date}
-                  onChange={(e) => setForm({ ...form, date: e.target.value })}
+                  onChange={e => setForm({ ...form, date: e.target.value })}
                 />
               </div>
-              <div className="flex items-center">
+              <div className='flex items-center'>
                 <input
-                  type="checkbox"
-                  className="mr-sm"
+                  type='checkbox'
+                  className='mr-sm'
                   checked={form.done}
-                  onChange={(e) => setForm({ ...form, done: e.target.checked })}
+                  onChange={e => setForm({ ...form, done: e.target.checked })}
                 />
                 <span>Concluído</span>
               </div>
-              <div className="flex justify-end space-x-sm">
+              <div className='flex justify-end space-x-sm'>
                 <button
-                  type="button"
-                  className="px-4 py-2 border rounded"
+                  type='button'
+                  className='px-4 py-2 border rounded'
                   onClick={() => {
                     setShowForm(false);
                     setEditing(null);
@@ -261,7 +280,7 @@ function Conteudos() {
                 >
                   Cancelar
                 </button>
-                <button type="submit" className="ys-btn-primary">
+                <button type='submit' className='ys-btn-primary'>
                   {editing ? 'Salvar' : 'Criar'}
                 </button>
               </div>

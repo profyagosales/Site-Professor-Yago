@@ -41,8 +41,8 @@ function Workspace() {
   const bimesterScore = Number(((enemScore / 1000) * weight).toFixed(2));
 
   useEffect(() => {
-    ANNUL_OPTS.forEach((o) => {
-      if (!(o.key in annul)) setAnnul((prev) => ({ ...prev, [o.key]: false }));
+    ANNUL_OPTS.forEach(o => {
+      if (!(o.key in annul)) setAnnul(prev => ({ ...prev, [o.key]: false }));
     });
   }, []);
 
@@ -57,7 +57,7 @@ function Workspace() {
           try {
             const stRes = await studentsService.list(data.classId);
             const arr: any[] = (stRes as any).data || (stRes as any) || [];
-            const stu = arr.find((s) => (s._id || s.id) === data.studentId);
+            const stu = arr.find(s => (s._id || s.id) === data.studentId);
             if (stu?.name) setStudentName(stu.name);
           } catch {
             /* ignore */
@@ -68,7 +68,7 @@ function Workspace() {
           try {
             const thRes = await listThemes();
             const arr: any[] = (thRes as any).data || (thRes as any) || [];
-            const th = arr.find((t) => (t._id || t.id) === data.themeId);
+            const th = arr.find(t => (t._id || t.id) === data.themeId);
             if (th?.name) setThemeName(th.name);
           } catch {
             /* ignore */
@@ -82,7 +82,7 @@ function Workspace() {
   }, [id]);
 
   const handleScoreChange = (idx: number, value: number) => {
-    setCompetencias((prev) => prev.map((v, i) => (i === idx ? value : v)));
+    setCompetencias(prev => prev.map((v, i) => (i === idx ? value : v)));
   };
 
   const handleSave = async (finalize = false) => {
@@ -111,30 +111,44 @@ function Workspace() {
   };
 
   return (
-    <div className="pt-20 p-md space-y-md">
-      <h1 className="text-2xl font-bold">Correção de Redação</h1>
-      <div className="space-y-xs">
-        <p><strong>Aluno:</strong> {studentName || submission?.studentId || '-'}</p>
-        <p><strong>Modelo:</strong> {submission?.model || '-'}</p>
-        <p><strong>Tema:</strong> {themeName || '-'}</p>
-        <p><strong>Bimestre:</strong> {submission?.bimester ?? '-'}</p>
-        <p><strong>Peso:</strong> {weight}</p>
+    <div className='pt-20 p-md space-y-md'>
+      <h1 className='text-2xl font-bold'>Correção de Redação</h1>
+      <div className='space-y-xs'>
+        <p>
+          <strong>Aluno:</strong> {studentName || submission?.studentId || '-'}
+        </p>
+        <p>
+          <strong>Modelo:</strong> {submission?.model || '-'}
+        </p>
+        <p>
+          <strong>Tema:</strong> {themeName || '-'}
+        </p>
+        <p>
+          <strong>Bimestre:</strong> {submission?.bimester ?? '-'}
+        </p>
+        <p>
+          <strong>Peso:</strong> {weight}
+        </p>
       </div>
       {submission?.fileUrl && (
-        <div className="w-full h-96">
-          <embed src={submission.fileUrl} type="application/pdf" className="w-full h-full" />
+        <div className='w-full h-96'>
+          <embed
+            src={submission.fileUrl}
+            type='application/pdf'
+            className='w-full h-full'
+          />
         </div>
       )}
 
       {submission?.model === 'ENEM' && (
-        <div className="space-y-md">
-          <div className="space-y-sm">
-            <h2 className="font-semibold">Formas elementares de anulação</h2>
-            {ANNUL_OPTS.map((opt) => (
-              <label key={opt.key} className="block">
+        <div className='space-y-md'>
+          <div className='space-y-sm'>
+            <h2 className='font-semibold'>Formas elementares de anulação</h2>
+            {ANNUL_OPTS.map(opt => (
+              <label key={opt.key} className='block'>
                 <input
-                  type="checkbox"
-                  className="mr-2"
+                  type='checkbox'
+                  className='mr-2'
                   checked={annul[opt.key] || false}
                   onChange={() =>
                     setAnnul({ ...annul, [opt.key]: !annul[opt.key] })
@@ -144,18 +158,18 @@ function Workspace() {
               </label>
             ))}
           </div>
-          <div className="space-y-sm">
-            <h2 className="font-semibold">Competências</h2>
+          <div className='space-y-sm'>
+            <h2 className='font-semibold'>Competências</h2>
             {competencias.map((c, idx) => (
-              <div key={idx} className="flex items-center gap-sm">
-                <span className="w-32">Competência {idx + 1}</span>
+              <div key={idx} className='flex items-center gap-sm'>
+                <span className='w-32'>Competência {idx + 1}</span>
                 <select
                   value={c}
                   disabled={annulled}
-                  onChange={(e) => handleScoreChange(idx, Number(e.target.value))}
-                  className="border p-sm rounded"
+                  onChange={e => handleScoreChange(idx, Number(e.target.value))}
+                  className='border p-sm rounded'
                 >
-                  {[0, 40, 80, 120, 160, 200].map((v) => (
+                  {[0, 40, 80, 120, 160, 200].map(v => (
                     <option key={v} value={v}>
                       {v}
                     </option>
@@ -163,22 +177,24 @@ function Workspace() {
                 </select>
               </div>
             ))}
-            <p className="font-medium">Nota final: {enemScore}</p>
-            <p className="font-medium">Peso no bimestre: {weight}</p>
-            <p className="font-medium">Nota convertida: {bimesterScore.toFixed(2)}</p>
+            <p className='font-medium'>Nota final: {enemScore}</p>
+            <p className='font-medium'>Peso no bimestre: {weight}</p>
+            <p className='font-medium'>
+              Nota convertida: {bimesterScore.toFixed(2)}
+            </p>
           </div>
-          <div className="flex gap-sm">
+          <div className='flex gap-sm'>
             <button
-              type="button"
-              className="ys-btn-ghost"
+              type='button'
+              className='ys-btn-ghost'
               disabled={saving}
               onClick={() => handleSave(false)}
             >
               Salvar rascunho
             </button>
             <button
-              type="button"
-              className="ys-btn-primary"
+              type='button'
+              className='ys-btn-primary'
               disabled={saving}
               onClick={() => handleSave(true)}
             >
@@ -192,4 +208,3 @@ function Workspace() {
 }
 
 export default Workspace;
-

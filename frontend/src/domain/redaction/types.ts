@@ -1,7 +1,11 @@
 export type RedactionModel = 'ENEM' | 'PAS';
 export type RedactionStatus = 'uploaded' | 'correcting' | 'graded' | 'returned';
 
-export interface RedactionTheme { id: string; name: string; createdAt: string; }
+export interface RedactionTheme {
+  id: string;
+  name: string;
+  createdAt: string;
+}
 
 export interface RedactionSubmission {
   id: string;
@@ -10,7 +14,7 @@ export interface RedactionSubmission {
   model: RedactionModel;
   themeId: string | null;
   themeText?: string; // quando “tema não está na lista”
-  bimester: 1|2|3|4;
+  bimester: 1 | 2 | 3 | 4;
   fileUrl: string; // PDF
   weightOnBimester: number; // 0..10
   // notas “reais”:

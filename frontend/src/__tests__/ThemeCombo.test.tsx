@@ -21,7 +21,7 @@ describe('ThemeCombo', () => {
     render(<ThemeCombo allowCreate onChange={onChange} />);
     const input = screen.getByPlaceholderText('Buscar tema...');
     await userEvent.type(input, 'Novo');
-    await new Promise((r) => setTimeout(r, 300));
+    await new Promise(r => setTimeout(r, 300));
     const createBtn = await screen.findByText("+ Criar tema 'Novo'");
     await userEvent.click(createBtn);
     await waitFor(() => expect(Themes.create).toHaveBeenCalledWith('Novo'));

@@ -4,9 +4,11 @@ import userEvent from '@testing-library/user-event';
 import AvisosCard from '@/components/AvisosCard';
 
 jest.mock('@/services/classes', () => ({
-  listClasses: jest.fn().mockResolvedValue([
-    { classId: '1', series: '1', letter: 'A', discipline: 'Mat' },
-  ]),
+  listClasses: jest
+    .fn()
+    .mockResolvedValue([
+      { classId: '1', series: '1', letter: 'A', discipline: 'Mat' },
+    ]),
 }));
 
 jest.mock('@/services/notifications', () => ({

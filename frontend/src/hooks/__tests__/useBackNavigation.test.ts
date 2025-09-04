@@ -24,11 +24,11 @@ describe('useBackNavigation', () => {
       search: '',
       hash: '',
       state: null,
-      key: 'test'
+      key: 'test',
     });
 
     const { result } = renderHook(() => useBackNavigation());
-    
+
     expect(result.current.goHomeByRole()).toBe('/professor/resumo');
   });
 
@@ -38,11 +38,11 @@ describe('useBackNavigation', () => {
       search: '',
       hash: '',
       state: null,
-      key: 'test'
+      key: 'test',
     });
 
     const { result } = renderHook(() => useBackNavigation());
-    
+
     expect(result.current.goHomeByRole()).toBe('/aluno/resumo');
   });
 
@@ -52,11 +52,11 @@ describe('useBackNavigation', () => {
       search: '',
       hash: '',
       state: null,
-      key: 'test'
+      key: 'test',
     });
 
     const { result } = renderHook(() => useBackNavigation());
-    
+
     expect(result.current.goHomeByRole()).toBe('/');
   });
 
@@ -64,7 +64,7 @@ describe('useBackNavigation', () => {
     // Mock window.history.length > 1
     Object.defineProperty(window, 'history', {
       value: { length: 2 },
-      writable: true
+      writable: true,
     });
 
     mockUseLocation.mockReturnValue({
@@ -72,13 +72,13 @@ describe('useBackNavigation', () => {
       search: '',
       hash: '',
       state: null,
-      key: 'test'
+      key: 'test',
     });
 
     const { result } = renderHook(() => useBackNavigation());
-    
+
     result.current.handleBack();
-    
+
     expect(mockNavigate).toHaveBeenCalledWith(-1);
   });
 
@@ -86,7 +86,7 @@ describe('useBackNavigation', () => {
     // Mock window.history.length = 1
     Object.defineProperty(window, 'history', {
       value: { length: 1 },
-      writable: true
+      writable: true,
     });
 
     mockUseLocation.mockReturnValue({
@@ -94,13 +94,15 @@ describe('useBackNavigation', () => {
       search: '',
       hash: '',
       state: null,
-      key: 'test'
+      key: 'test',
     });
 
     const { result } = renderHook(() => useBackNavigation());
-    
+
     result.current.handleBack();
-    
-    expect(mockNavigate).toHaveBeenCalledWith('/professor/resumo', { replace: true });
+
+    expect(mockNavigate).toHaveBeenCalledWith('/professor/resumo', {
+      replace: true,
+    });
   });
 });

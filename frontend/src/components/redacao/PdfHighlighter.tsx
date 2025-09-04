@@ -22,29 +22,36 @@ export interface PdfHighlighterHandle {
 
 const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
   (
-    {
-      fileUrl,
-      highlights,
-      onChange,
-      onPageChange,
-      requireComment = true,
-    },
-    ref,
+    { fileUrl, highlights, onChange, onPageChange, requireComment = true },
+    ref
   ) => {
-    const { PdfLoader, PdfHighlighter: RPH, Highlight, Popup } = React.useMemo(() => {
+    const {
+      PdfLoader,
+      PdfHighlighter: RPH,
+      Highlight,
+      Popup,
+    } = React.useMemo(() => {
       const modPromise = import('react-pdf-highlighter');
       return {
-        PdfLoader: React.lazy(async () => ({ default: (await modPromise).PdfLoader })),
-        PdfHighlighter: React.lazy(async () => ({ default: (await modPromise).PdfHighlighter })),
-        Highlight: React.lazy(async () => ({ default: (await modPromise).Highlight })),
+        PdfLoader: React.lazy(async () => ({
+          default: (await modPromise).PdfLoader,
+        })),
+        PdfHighlighter: React.lazy(async () => ({
+          default: (await modPromise).PdfHighlighter,
+        })),
+        Highlight: React.lazy(async () => ({
+          default: (await modPromise).Highlight,
+        })),
         Popup: React.lazy(async () => ({ default: (await modPromise).Popup })),
       };
     }, []);
 
     const COLORS = Object.fromEntries(
-      HIGHLIGHT_PALETTE.map((p) => [p.id, p.fill]),
+      HIGHLIGHT_PALETTE.map(p => [p.id, p.fill])
     ) as Record<string, string>;
-    const [active, setActive] = useState<string>(HIGHLIGHT_PALETTE[0]?.id || '');
+    const [active, setActive] = useState<string>(
+      HIGHLIGHT_PALETTE[0]?.id || ''
+    );
     const scrollRef = useRef<any>(null);
     const viewerRef = useRef<any>(null);
     const [modal, setModal] = useState<{
@@ -59,11 +66,11 @@ const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
       ref,
       () => ({
         jumpToPage(page: number) {
-          const target = highlights.find((h) => h.bbox.page === page);
+          const target = highlights.find(h => h.bbox.page === page);
           if (target && scrollRef.current) scrollRef.current(target);
         },
       }),
-      [highlights],
+      [highlights]
     );
 
     function handleSelection(position: any, content: any, hide: () => void) {
@@ -114,7 +121,7 @@ const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
       hideTip: any,
       _t: any,
       _s: any,
-      isScrolledTo: boolean,
+      isScrolledTo: boolean
     ) {
       const lbl = h.label || '';
       const inner = (
@@ -127,8 +134,8 @@ const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
         />
       );
       const popup = (
-        <div className="p-1 text-xs">
-          {lbl && <div className="font-medium">{lbl}</div>}
+        <div className='p-1 text-xs'>
+          {lbl && <div className='font-medium'>{lbl}</div>}
           <div>{h.comment}</div>
         </div>
       );
@@ -148,13 +155,12 @@ const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
       const container = viewerRef.current?.containerNode;
       if (!container) return;
       const pages = Array.from(
-        container.querySelectorAll('.page'),
+        container.querySelectorAll('.page')
       ) as HTMLElement[];
       const top = container.scrollTop;
       let page = 1;
       for (const p of pages) {
-        if (top >= p.offsetTop - 1)
-          page = Number(p.dataset.pageNumber || 1);
+        if (top >= p.offsetTop - 1) page = Number(p.dataset.pageNumber || 1);
       }
       if (onPageChange) onPageChange(page);
     }
@@ -163,12 +169,12 @@ const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
       <React.Suspense fallback={null}>
         {fileUrl ? (
           <>
-            <div className="h-full flex flex-col">
-              <div className="flex gap-2 p-2 border-b">
-                <div role="radiogroup" className="flex gap-2">
+            <div className='h-full flex flex-col'>
+              <div className='flex gap-2 p-2 border-b'>
+                <div role='radiogroup' className='flex gap-2'>
                   {HIGHLIGHT_PALETTE.map((p, idx) => (
                     <button
-                      role="radio"
+                      role='radio'
                       key={p.id}
                       aria-label={p.label}
                       title={`${p.label} (${idx + 1})`}
@@ -179,10 +185,10 @@ const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
                   ))}
                 </div>
               </div>
-              <div className="flex-1 overflow-hidden">
+              <div className='flex-1 overflow-hidden'>
                 <PdfLoader
                   url={fileUrl as any}
-                  beforeLoad={<div className="p-4 text-sm">Carregando…</div>}
+                  beforeLoad={<div className='p-4 text-sm'>Carregando…</div>}
                 >
                   {(doc: any) => (
                     <RPH
@@ -193,7 +199,11 @@ const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
                       }}
                       onScrollChange={onScroll}
                       enableAreaSelection={() => true}
-                      onSelectionFinished={(position: any, content: any, hide: any) => {
+                      onSelectionFinished={(
+                        position: any,
+                        content: any,
+                        hide: any
+                      ) => {
                         handleSelection(position, content, hide);
                       }}
                       highlightTransform={highlightTransform}
@@ -204,24 +214,24 @@ const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
               </div>
             </div>
             {modal && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                <div className="w-full max-w-sm rounded bg-white p-4 shadow-lg">
-                  <h3 className="mb-2 text-lg font-medium">Novo comentário</h3>
+              <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50'>
+                <div className='w-full max-w-sm rounded bg-white p-4 shadow-lg'>
+                  <h3 className='mb-2 text-lg font-medium'>Novo comentário</h3>
                   <input
-                    className="mb-2 w-full rounded border p-2 text-sm"
-                    placeholder="Título"
+                    className='mb-2 w-full rounded border p-2 text-sm'
+                    placeholder='Título'
                     value={title}
-                    onChange={(e) => setTitle(e.target.value)}
+                    onChange={e => setTitle(e.target.value)}
                   />
                   <textarea
-                    className="mb-2 w-full rounded border p-2 text-sm"
-                    placeholder="Texto"
+                    className='mb-2 w-full rounded border p-2 text-sm'
+                    placeholder='Texto'
                     value={text}
-                    onChange={(e) => setText(e.target.value)}
+                    onChange={e => setText(e.target.value)}
                   />
-                  <div className="mt-2 flex justify-end gap-2">
+                  <div className='mt-2 flex justify-end gap-2'>
                     <button
-                      className="rounded border px-3 py-1 text-sm"
+                      className='rounded border px-3 py-1 text-sm'
                       onClick={() => {
                         modal.hide();
                         setModal(null);
@@ -230,7 +240,7 @@ const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
                       Cancelar
                     </button>
                     <button
-                      className="rounded bg-orange-500 px-3 py-1 text-sm text-white disabled:opacity-60"
+                      className='rounded bg-orange-500 px-3 py-1 text-sm text-white disabled:opacity-60'
                       disabled={requireComment && (!title || !text)}
                       onClick={saveModal}
                     >
@@ -244,8 +254,7 @@ const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
         ) : null}
       </React.Suspense>
     );
-  },
+  }
 );
 
 export default PdfHighlighter;
-

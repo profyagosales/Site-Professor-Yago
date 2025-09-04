@@ -38,7 +38,7 @@ export function useNetworkStatus() {
 
   const retryConnection = useCallback(async (): Promise<boolean> => {
     const isConnected = await checkConnection();
-    
+
     setStatus(prev => ({
       ...prev,
       isOnline: isConnected,
@@ -72,7 +72,9 @@ export function useNetworkStatus() {
         setStatus(prev => ({
           ...prev,
           connectionType: connection.effectiveType,
-          isSlowConnection: connection.effectiveType === 'slow-2g' || connection.effectiveType === '2g',
+          isSlowConnection:
+            connection.effectiveType === 'slow-2g' ||
+            connection.effectiveType === '2g',
         }));
       }
     };
@@ -80,9 +82,12 @@ export function useNetworkStatus() {
     // Event listeners
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    
+
     if ('connection' in navigator) {
-      (navigator as any).connection.addEventListener('change', handleConnectionChange);
+      (navigator as any).connection.addEventListener(
+        'change',
+        handleConnectionChange
+      );
     }
 
     // Verificação inicial
@@ -97,9 +102,12 @@ export function useNetworkStatus() {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      
+
       if ('connection' in navigator) {
-        (navigator as any).connection.removeEventListener('change', handleConnectionChange);
+        (navigator as any).connection.removeEventListener(
+          'change',
+          handleConnectionChange
+        );
       }
     };
   }, [checkConnection]);

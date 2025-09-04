@@ -54,7 +54,9 @@ describe('LoginAluno', () => {
   });
 
   test('shows error message on failure', async () => {
-    api.post.mockRejectedValue({ response: { data: { message: 'Erro no login' } } });
+    api.post.mockRejectedValue({
+      response: { data: { message: 'Erro no login' } },
+    });
     const navigate = jest.fn();
     require('react-router-dom').useNavigate.mockReturnValue(navigate);
 
@@ -75,4 +77,3 @@ describe('LoginAluno', () => {
     });
   });
 });
-

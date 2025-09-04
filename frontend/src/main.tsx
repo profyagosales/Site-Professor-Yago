@@ -10,9 +10,11 @@ import { getToken, scheduleAutoLogout } from '@/auth/token';
   const rich = (import.meta as any)?.env?.VITE_USE_RICH_ANNOS;
   const virt = (import.meta as any)?.env?.VITE_VIRT_PDF;
   const buffer = (import.meta as any)?.env?.VITE_VIRT_BUFFER;
-  (window as any).YS_USE_RICH_ANNOS = yes(rich) || (import.meta.env.DEV && rich == null);
+  (window as any).YS_USE_RICH_ANNOS =
+    yes(rich) || (import.meta.env.DEV && rich == null);
   if (virt != null) (window as any).YS_VIRT_PDF = yes(virt);
-  if (buffer != null && !Number.isNaN(Number(buffer))) (window as any).YS_VIRT_BUFFER = Number(buffer);
+  if (buffer != null && !Number.isNaN(Number(buffer)))
+    (window as any).YS_VIRT_BUFFER = Number(buffer);
 })();
 import { router } from './router';
 import { AuthProvider } from './store/AuthContext';
@@ -21,7 +23,7 @@ import { UIProvider } from './providers/UIProvider';
 // Bootstrap da autenticação com auto-logout
 function bootstrapAuth() {
   bootstrapAuthFromStorage();
-  
+
   // Se houver token válido, agenda auto-logout
   const token = getToken();
   if (token) {
@@ -36,7 +38,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <UIProvider>
       <AuthProvider>
-        <div className="ys-noise" />
+        <div className='ys-noise' />
         <RouterProvider router={router} />
       </AuthProvider>
     </UIProvider>

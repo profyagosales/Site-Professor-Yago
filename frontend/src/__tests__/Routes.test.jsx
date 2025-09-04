@@ -5,31 +5,31 @@ import RequireAuth from '@/routes/RequireAuth';
 // Mock dos componentes
 jest.mock('@/pages/Landing', () => {
   return function Landing() {
-    return <div data-testid="landing">Landing Page</div>;
+    return <div data-testid='landing'>Landing Page</div>;
   };
 });
 
 jest.mock('@/pages/auth/LoginProfessor', () => {
   return function LoginProfessor() {
-    return <div data-testid="login-professor">Login Professor</div>;
+    return <div data-testid='login-professor'>Login Professor</div>;
   };
 });
 
 jest.mock('@/pages/auth/LoginAluno', () => {
   return function LoginAluno() {
-    return <div data-testid="login-aluno">Login Aluno</div>;
+    return <div data-testid='login-aluno'>Login Aluno</div>;
   };
 });
 
 jest.mock('@/pages/DashboardProfessor', () => {
   return function DashboardProfessor() {
-    return <div data-testid="dashboard-professor">Dashboard Professor</div>;
+    return <div data-testid='dashboard-professor'>Dashboard Professor</div>;
   };
 });
 
 jest.mock('@/pages/DashboardAluno', () => {
   return function DashboardAluno() {
-    return <div data-testid="dashboard-aluno">Dashboard Aluno</div>;
+    return <div data-testid='dashboard-aluno'>Dashboard Aluno</div>;
   };
 });
 
@@ -42,7 +42,7 @@ describe('Routes - RequireAuth Component', () => {
     render(
       <MemoryRouter initialEntries={['/professor/resumo']}>
         <RequireAuth>
-          <div data-testid="protected-content">Protected Content</div>
+          <div data-testid='protected-content'>Protected Content</div>
         </RequireAuth>
       </MemoryRouter>
     );
@@ -57,7 +57,7 @@ describe('Routes - RequireAuth Component', () => {
     render(
       <MemoryRouter initialEntries={['/professor/resumo']}>
         <RequireAuth>
-          <div data-testid="protected-content">Protected Content</div>
+          <div data-testid='protected-content'>Protected Content</div>
         </RequireAuth>
       </MemoryRouter>
     );
@@ -71,7 +71,7 @@ describe('Routes - RequireAuth Component', () => {
     render(
       <MemoryRouter initialEntries={['/aluno/resumo']}>
         <RequireAuth>
-          <div data-testid="student-content">Student Content</div>
+          <div data-testid='student-content'>Student Content</div>
         </RequireAuth>
       </MemoryRouter>
     );
@@ -85,7 +85,7 @@ describe('Routes - RequireAuth Component', () => {
     render(
       <MemoryRouter initialEntries={['/aluno/resumo']}>
         <RequireAuth>
-          <div data-testid="student-content">Student Content</div>
+          <div data-testid='student-content'>Student Content</div>
         </RequireAuth>
       </MemoryRouter>
     );

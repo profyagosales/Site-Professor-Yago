@@ -1,7 +1,7 @@
 import { api } from '@/services/api';
 
 export async function uploadEssay(
-  formData: FormData, 
+  formData: FormData,
   onProgress?: (progressEvent: { loaded: number; total: number }) => void
 ) {
   // Espera fields: file, studentId, topic, classId (opcional), fileUrl

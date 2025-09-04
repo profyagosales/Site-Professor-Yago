@@ -13,14 +13,18 @@ jest.mock('@/components/SendEmailModal', () => () => <div />);
 jest.mock('@/components/NewContentModal', () => () => <div />);
 jest.mock('@/components/NewEvaluationModal', () => () => <div />);
 jest.mock('@/services/classes', () => ({
-  listClasses: jest.fn().mockResolvedValue([
-    { classId: '1', series: '1', letter: 'A', discipline: 'Mat' },
-  ]),
+  listClasses: jest
+    .fn()
+    .mockResolvedValue([
+      { classId: '1', series: '1', letter: 'A', discipline: 'Mat' },
+    ]),
 }));
 
 describe('DashboardProfessor', () => {
   test('renders dashboard sections', async () => {
-    api.get.mockResolvedValue({ data: { contentProgress: [{ classId: '1', completion: 30 }] } });
+    api.get.mockResolvedValue({
+      data: { contentProgress: [{ classId: '1', completion: 30 }] },
+    });
     require('react-router-dom').useNavigate.mockReturnValue(jest.fn());
 
     render(

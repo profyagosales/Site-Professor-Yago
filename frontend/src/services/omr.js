@@ -14,4 +14,3 @@ export const uploadPdf = (pdfFile, onUploadProgress) => {
 export default {
   uploadPdf,
 };
-

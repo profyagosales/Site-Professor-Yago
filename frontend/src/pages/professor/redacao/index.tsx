@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { listThemes, createTheme, listSubmissionsByTeacher, createSubmission } from '@/services/redaction';
+import {
+  listThemes,
+  createTheme,
+  listSubmissionsByTeacher,
+  createSubmission,
+} from '@/services/redaction';
 import { listClasses } from '@/services/classes';
 import studentsService from '@/services/students';
 import { toast } from 'react-toastify';
@@ -72,7 +77,7 @@ function RedacaoPage() {
           try {
             const res = await studentsService.list(c._id || c.id);
             const stuArr: any[] = (res as any).data || (res as any) || [];
-            stuArr.forEach((s) => {
+            stuArr.forEach(s => {
               allStudents.push({ ...s, classId: c._id || c.id });
             });
           } catch (err) {
@@ -175,140 +180,147 @@ function RedacaoPage() {
     }
   };
 
-  const studentOptions = students.map((s) => (
+  const studentOptions = students.map(s => (
     <option key={s._id || s.id} value={`${s._id || s.id}|${s.classId}`}>
       {s.name}
     </option>
   ));
 
-  const themeOptions = themes.map((t) => (
+  const themeOptions = themes.map(t => (
     <option key={t._id || t.id} value={t._id || t.id}>
       {t.name}
     </option>
   ));
 
   return (
-    <div className="pt-20 p-md space-y-md">
-      <div className="grid md:grid-cols-2 gap-md">
-        <div className="ys-card space-y-md">
+    <div className='pt-20 p-md space-y-md'>
+      <div className='grid md:grid-cols-2 gap-md'>
+        <div className='ys-card space-y-md'>
           <h2>Cadastrar tema</h2>
-          <button className="ys-btn-primary" onClick={() => setShowThemeModal(true)}>
+          <button
+            className='ys-btn-primary'
+            onClick={() => setShowThemeModal(true)}
+          >
             Novo tema
           </button>
         </div>
 
-        <form className="ys-card space-y-md" onSubmit={handleSubmit}>
+        <form className='ys-card space-y-md' onSubmit={handleSubmit}>
           <h2>Enviar redação</h2>
-          <div className="space-y-sm">
-            <label className="block font-medium">Aluno</label>
+          <div className='space-y-sm'>
+            <label className='block font-medium'>Aluno</label>
             <select
               value={studentId && classId ? `${studentId}|${classId}` : ''}
-              onChange={(e) => {
+              onChange={e => {
                 const [sid, cid] = e.target.value.split('|');
                 setStudentId(sid);
                 setClassId(cid);
               }}
-              className="border p-sm rounded w-full"
+              className='border p-sm rounded w-full'
             >
-              <option value="">Selecione</option>
+              <option value=''>Selecione</option>
               {studentOptions}
             </select>
           </div>
 
-          <div className="space-y-sm">
-            <label className="block font-medium">Modelo</label>
+          <div className='space-y-sm'>
+            <label className='block font-medium'>Modelo</label>
             <select
               value={model}
-              onChange={(e) => setModel(e.target.value as any)}
-              className="border p-sm rounded w-full"
+              onChange={e => setModel(e.target.value as any)}
+              className='border p-sm rounded w-full'
             >
-              <option value="ENEM">ENEM</option>
-              <option value="PAS">PAS</option>
+              <option value='ENEM'>ENEM</option>
+              <option value='PAS'>PAS</option>
             </select>
           </div>
 
-          <div className="space-y-sm">
-            <label className="block font-medium">Tema</label>
+          <div className='space-y-sm'>
+            <label className='block font-medium'>Tema</label>
             <select
               value={themeId}
-              onChange={(e) => setThemeId(e.target.value)}
-              className="border p-sm rounded w-full"
+              onChange={e => setThemeId(e.target.value)}
+              className='border p-sm rounded w-full'
             >
-              <option value="">Selecione</option>
+              <option value=''>Selecione</option>
               {themeOptions}
-              <option value="custom">Tema não está na lista</option>
+              <option value='custom'>Tema não está na lista</option>
             </select>
             {themeId === 'custom' && (
               <input
-                type="text"
+                type='text'
                 value={themeText}
-                onChange={(e) => setThemeText(e.target.value)}
-                placeholder="Digite o tema"
-                className="border p-sm rounded w-full"
+                onChange={e => setThemeText(e.target.value)}
+                placeholder='Digite o tema'
+                className='border p-sm rounded w-full'
               />
             )}
           </div>
 
-          <div className="space-y-sm">
-            <label className="block font-medium">Bimestre</label>
+          <div className='space-y-sm'>
+            <label className='block font-medium'>Bimestre</label>
             <select
               value={bimester}
-              onChange={(e) => setBimester(e.target.value)}
-              className="border p-sm rounded w-full"
+              onChange={e => setBimester(e.target.value)}
+              className='border p-sm rounded w-full'
             >
-              <option value="">Selecione</option>
-              <option value="1">1º</option>
-              <option value="2">2º</option>
-              <option value="3">3º</option>
-              <option value="4">4º</option>
+              <option value=''>Selecione</option>
+              <option value='1'>1º</option>
+              <option value='2'>2º</option>
+              <option value='3'>3º</option>
+              <option value='4'>4º</option>
             </select>
           </div>
 
-          <div className="space-y-sm">
-            <label className="block font-medium">Peso no bimestre</label>
+          <div className='space-y-sm'>
+            <label className='block font-medium'>Peso no bimestre</label>
             <input
-              type="number"
-              step="0.1"
+              type='number'
+              step='0.1'
               value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-              className="border p-sm rounded w-full"
+              onChange={e => setWeight(e.target.value)}
+              className='border p-sm rounded w-full'
             />
           </div>
 
-          <div className="space-y-sm">
-            <label className="block font-medium">Upload PDF</label>
+          <div className='space-y-sm'>
+            <label className='block font-medium'>Upload PDF</label>
             <input
-              type="file"
-              accept="application/pdf"
+              type='file'
+              accept='application/pdf'
               ref={fileRef}
-              onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
-              className="border p-sm rounded w-full"
+              onChange={e => setFile(e.target.files ? e.target.files[0] : null)}
+              className='border p-sm rounded w-full'
             />
           </div>
 
-          <button type="submit" className="ys-btn-primary">
+          <button type='submit' className='ys-btn-primary'>
             Enviar
           </button>
         </form>
       </div>
 
       <div>
-        <h2 className="mb-sm">Minhas redações</h2>
-        <div className="space-y-sm">
-          {submissions.map((s) => {
-            const student = students.find((st) => (st._id || st.id) === s.studentId);
+        <h2 className='mb-sm'>Minhas redações</h2>
+        <div className='space-y-sm'>
+          {submissions.map(s => {
+            const student = students.find(
+              st => (st._id || st.id) === s.studentId
+            );
             const theme =
               s.themeText ||
-              themes.find((t) => (t._id || t.id) === s.themeId)?.name ||
+              themes.find(t => (t._id || t.id) === s.themeId)?.name ||
               '';
             return (
               <div
                 key={s._id || s.id}
-                className="ys-card flex items-center justify-between p-sm"
+                className='ys-card flex items-center justify-between p-sm'
               >
                 <div>
-                  <p className="font-semibold">{student?.name || s.studentId}</p>
-                  <p className="text-sm text-black/70">{theme}</p>
+                  <p className='font-semibold'>
+                    {student?.name || s.studentId}
+                  </p>
+                  <p className='text-sm text-black/70'>{theme}</p>
                 </div>
                 <span
                   className={`px-2 py-1 rounded text-xs ${statusClass(s.status)}`}
@@ -323,26 +335,26 @@ function RedacaoPage() {
 
       {showThemeModal && (
         <div
-          role="dialog"
-          className="fixed inset-0 bg-black/50 flex items-center justify-center"
+          role='dialog'
+          className='fixed inset-0 bg-black/50 flex items-center justify-center'
         >
-          <div className="bg-white p-md space-y-md rounded">
+          <div className='bg-white p-md space-y-md rounded'>
             <h3>Cadastrar tema</h3>
             <input
-              type="text"
+              type='text'
               value={newThemeName}
-              onChange={(e) => setNewThemeName(e.target.value)}
-              placeholder="Nome do tema"
-              className="border p-sm rounded w-full"
+              onChange={e => setNewThemeName(e.target.value)}
+              placeholder='Nome do tema'
+              className='border p-sm rounded w-full'
             />
-            <div className="flex justify-end gap-sm">
+            <div className='flex justify-end gap-sm'>
               <button
-                className="ys-btn-ghost"
+                className='ys-btn-ghost'
                 onClick={() => setShowThemeModal(false)}
               >
                 Cancelar
               </button>
-              <button className="ys-btn-primary" onClick={handleCreateTheme}>
+              <button className='ys-btn-primary' onClick={handleCreateTheme}>
                 Salvar
               </button>
             </div>

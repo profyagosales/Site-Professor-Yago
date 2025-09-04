@@ -6,13 +6,17 @@ import ClassModal from '@/components/ClassModal';
 describe('ClassModal', () => {
   test('submits class data', async () => {
     const onSubmit = jest.fn();
-    render(
-      <ClassModal isOpen={true} onClose={() => {}} onSubmit={onSubmit} />
-    );
+    render(<ClassModal isOpen={true} onClose={() => {}} onSubmit={onSubmit} />);
 
-    const serie = screen.getByText('Série').parentElement.querySelector('select');
-    const letra = screen.getByText('Letra').parentElement.querySelector('input');
-    const disciplina = screen.getByText('Disciplina').parentElement.querySelector('input');
+    const serie = screen
+      .getByText('Série')
+      .parentElement.querySelector('select');
+    const letra = screen
+      .getByText('Letra')
+      .parentElement.querySelector('input');
+    const disciplina = screen
+      .getByText('Disciplina')
+      .parentElement.querySelector('input');
 
     await userEvent.selectOptions(serie, '1');
     await userEvent.type(letra, 'A');

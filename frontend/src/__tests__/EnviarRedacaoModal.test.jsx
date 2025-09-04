@@ -3,8 +3,12 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import EnviarRedacaoModal from '@/components/EnviarRedacaoModal';
 
-jest.mock('react-toastify', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
-jest.mock('@/services/redacoes', () => ({ enviarRedacao: jest.fn().mockResolvedValue({}) }));
+jest.mock('react-toastify', () => ({
+  toast: { success: jest.fn(), error: jest.fn() },
+}));
+jest.mock('@/services/redacoes', () => ({
+  enviarRedacao: jest.fn().mockResolvedValue({}),
+}));
 const { enviarRedacao } = require('@/services/redacoes');
 
 describe('EnviarRedacaoModal', () => {
@@ -14,7 +18,11 @@ describe('EnviarRedacaoModal', () => {
     const file = new File(['hello'], 'hello.png', { type: 'image/png' });
     const onSuccess = jest.fn();
     const { container } = render(
-      <EnviarRedacaoModal isOpen={true} onClose={() => {}} onSuccess={onSuccess} />
+      <EnviarRedacaoModal
+        isOpen={true}
+        onClose={() => {}}
+        onSuccess={onSuccess}
+      />
     );
 
     const input = container.querySelector('input[type="file"]');

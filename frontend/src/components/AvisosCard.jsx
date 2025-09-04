@@ -13,7 +13,7 @@ function AvisosCard() {
   const [mode, setMode] = useState('now');
   const [runAt, setRunAt] = useState('');
 
-  const arrify = (v) => {
+  const arrify = v => {
     const r = toArray ? toArray(v) : undefined;
     return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
   };
@@ -32,12 +32,12 @@ function AvisosCard() {
     loadClasses();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleClassesChange = (e) => {
-    const values = Array.from(e.target.selectedOptions).map((o) => o.value);
+  const handleClassesChange = e => {
+    const values = Array.from(e.target.selectedOptions).map(o => o.value);
     setSelectedClasses(values);
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault();
     try {
       const payload = {
@@ -60,60 +60,67 @@ function AvisosCard() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="ys-card p-md space-y-md">
-      <h2 className="text-orange font-semibold">Avisos</h2>
+    <form onSubmit={handleSubmit} className='ys-card p-md space-y-md'>
+      <h2 className='text-orange font-semibold'>Avisos</h2>
       <div>
-        <label className="block mb-1" htmlFor="notice-message">Mensagem</label>
+        <label className='block mb-1' htmlFor='notice-message'>
+          Mensagem
+        </label>
         <textarea
-          id="notice-message"
-          className="w-full border p-sm rounded"
+          id='notice-message'
+          className='w-full border p-sm rounded'
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={e => setMessage(e.target.value)}
           required
         />
       </div>
       <div>
-        <label className="block mb-1" htmlFor="notice-classes">Turmas</label>
+        <label className='block mb-1' htmlFor='notice-classes'>
+          Turmas
+        </label>
         <select
-          id="notice-classes"
+          id='notice-classes'
           multiple
-          className="w-full border p-sm rounded"
+          className='w-full border p-sm rounded'
           value={selectedClasses}
           onChange={handleClassesChange}
         >
-          {arrify(classes).map((cls) => (
+          {arrify(classes).map(cls => (
             <option key={cls.classId} value={cls.classId}>
-              Turma {cls.series}{cls.letter} - {cls.discipline}
+              Turma {cls.series}
+              {cls.letter} - {cls.discipline}
             </option>
           ))}
         </select>
       </div>
       <div>
-        <label className="block mb-1" htmlFor="notice-extra">Email adicional (opcional)</label>
+        <label className='block mb-1' htmlFor='notice-extra'>
+          Email adicional (opcional)
+        </label>
         <input
-          id="notice-extra"
-          type="email"
-          className="w-full border p-sm rounded"
+          id='notice-extra'
+          type='email'
+          className='w-full border p-sm rounded'
           value={extraEmail}
-          onChange={(e) => setExtraEmail(e.target.value)}
+          onChange={e => setExtraEmail(e.target.value)}
         />
       </div>
-      <div className="flex gap-md items-center">
-        <label className="flex items-center gap-1">
+      <div className='flex gap-md items-center'>
+        <label className='flex items-center gap-1'>
           <input
-            type="radio"
-            name="mode"
-            value="now"
+            type='radio'
+            name='mode'
+            value='now'
             checked={mode === 'now'}
             onChange={() => setMode('now')}
           />
           Enviar agora
         </label>
-        <label className="flex items-center gap-1">
+        <label className='flex items-center gap-1'>
           <input
-            type="radio"
-            name="mode"
-            value="schedule"
+            type='radio'
+            name='mode'
+            value='schedule'
             checked={mode === 'schedule'}
             onChange={() => setMode('schedule')}
           />
@@ -122,20 +129,20 @@ function AvisosCard() {
       </div>
       {mode === 'schedule' && (
         <div>
-          <label className="block mb-1" htmlFor="notice-date">
+          <label className='block mb-1' htmlFor='notice-date'>
             Data e hora
           </label>
           <input
-            id="notice-date"
-            type="datetime-local"
-            className="w-full border p-sm rounded"
+            id='notice-date'
+            type='datetime-local'
+            className='w-full border p-sm rounded'
             value={runAt}
-            onChange={(e) => setRunAt(e.target.value)}
+            onChange={e => setRunAt(e.target.value)}
             required
           />
         </div>
       )}
-      <button type="submit" className="ys-btn-primary">
+      <button type='submit' className='ys-btn-primary'>
         {mode === 'now' ? 'Enviar' : 'Agendar'}
       </button>
     </form>
@@ -143,4 +150,3 @@ function AvisosCard() {
 }
 
 export default AvisosCard;
-

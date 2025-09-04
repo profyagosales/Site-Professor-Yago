@@ -11,9 +11,9 @@ export function useBackNavigation() {
 
   function goHomeByRole() {
     // Se pathname começa com /professor → ROUTES.prof.resumo
-    if (location.pathname.startsWith("/professor")) return ROUTES.prof.resumo;
+    if (location.pathname.startsWith('/professor')) return ROUTES.prof.resumo;
     // Se começa com /aluno → ROUTES.aluno.resumo
-    if (location.pathname.startsWith("/aluno")) return ROUTES.aluno.resumo;
+    if (location.pathname.startsWith('/aluno')) return ROUTES.aluno.resumo;
     // Senão → /
     return ROUTES.home;
   }
@@ -21,7 +21,7 @@ export function useBackNavigation() {
   function handleBack() {
     // Verifica se há histórico válido (não é a primeira página da sessão)
     const hasHistory = window.history.length > 1;
-    
+
     if (hasHistory) {
       // Tenta voltar no histórico
       navigate(-1);
@@ -33,6 +33,6 @@ export function useBackNavigation() {
 
   return {
     handleBack,
-    goHomeByRole
+    goHomeByRole,
   };
 }

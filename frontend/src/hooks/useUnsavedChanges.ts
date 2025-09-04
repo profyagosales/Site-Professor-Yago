@@ -27,11 +27,11 @@ export function useUnsavedChanges({
       if (hasChangesRef.current) {
         event.preventDefault();
         event.returnValue = message;
-        
+
         if (onBeforeUnload) {
           onBeforeUnload();
         }
-        
+
         return message;
       }
     };
@@ -46,7 +46,8 @@ export function useUnsavedChanges({
   // Bloquear navegação entre rotas
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
-      hasChangesRef.current && currentLocation.pathname !== nextLocation.pathname
+      hasChangesRef.current &&
+      currentLocation.pathname !== nextLocation.pathname
   );
 
   // Mostrar modal de confirmação quando bloqueado
@@ -58,7 +59,7 @@ export function useUnsavedChanges({
         type: 'warning',
         confirmText: 'Sair sem salvar',
         cancelText: 'Cancelar',
-      }).then((confirmed) => {
+      }).then(confirmed => {
         if (confirmed) {
           blocker.proceed();
         } else {

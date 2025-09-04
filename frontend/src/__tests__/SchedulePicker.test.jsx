@@ -10,7 +10,7 @@ describe('SchedulePicker', () => {
     return (
       <>
         <SchedulePicker value={value} onChange={setValue} />
-        <div data-testid="value">{JSON.stringify(value)}</div>
+        <div data-testid='value'>{JSON.stringify(value)}</div>
       </>
     );
   }

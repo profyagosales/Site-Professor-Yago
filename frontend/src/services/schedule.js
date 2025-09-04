@@ -8,4 +8,4 @@ export async function getTeacherWeeklySchedule(teacherId) {
 
 export default {
   getTeacherWeeklySchedule,
-}
+};

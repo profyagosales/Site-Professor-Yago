@@ -16,4 +16,4 @@ export async function createAnnouncement(payload) {
 export default {
   listAnnouncements,
   createAnnouncement,
-}
+};

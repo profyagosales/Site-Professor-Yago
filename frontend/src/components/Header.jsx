@@ -22,19 +22,21 @@ export default function Header() {
   const menu = role === 'teacher' ? TEACHER_MENU : [];
   const name = localStorage.getItem('userName') || '';
   const photo = localStorage.getItem('userPhoto') || undefined;
-  
+
   return (
-    <header className="app-nav w-full border-b bg-white">
-      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-        <Link to={ROUTES.home} className="font-bold text-orange-600">Professor Yago</Link>
-        
-        <nav className="hidden sm:flex items-center gap-1 justify-center flex-1">
-          {menu.map((item) => {
+    <header className='app-nav w-full border-b bg-white'>
+      <div className='max-w-6xl mx-auto px-4 py-3 flex items-center justify-between'>
+        <Link to={ROUTES.home} className='font-bold text-orange-600'>
+          Professor Yago
+        </Link>
+
+        <nav className='hidden sm:flex items-center gap-1 justify-center flex-1'>
+          {menu.map(item => {
             const active = isActive(location.pathname, item.to);
             return (
-              <Link 
-                key={item.to} 
-                to={item.to} 
+              <Link
+                key={item.to}
+                to={item.to}
                 className={getNavItemClasses(active)}
               >
                 {item.label}
@@ -42,8 +44,8 @@ export default function Header() {
             );
           })}
         </nav>
-        
-        <div className="hidden sm:flex items-center">
+
+        <div className='hidden sm:flex items-center'>
           <Avatar src={photo} name={name} size={32} />
         </div>
       </div>

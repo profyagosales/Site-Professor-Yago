@@ -49,12 +49,16 @@ describe('LoginProfessor', () => {
       expect(localStorage.getItem('auth_token')).toBe('test-token');
       expect(localStorage.getItem('role')).toBe('teacher');
       expect(setAuthToken).toHaveBeenCalledWith('test-token');
-      expect(navigate).toHaveBeenCalledWith('/professor/resumo', { replace: true });
+      expect(navigate).toHaveBeenCalledWith('/professor/resumo', {
+        replace: true,
+      });
     });
   });
 
   test('shows error message on failure', async () => {
-    api.post.mockRejectedValue({ response: { data: { message: 'Falha no login' } } });
+    api.post.mockRejectedValue({
+      response: { data: { message: 'Falha no login' } },
+    });
     const navigate = jest.fn();
     require('react-router-dom').useNavigate.mockReturnValue(navigate);
 
@@ -75,4 +79,3 @@ describe('LoginProfessor', () => {
     });
   });
 });
-

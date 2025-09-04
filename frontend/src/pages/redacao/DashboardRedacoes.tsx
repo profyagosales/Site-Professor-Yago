@@ -14,12 +14,18 @@ function DashboardRedacoes() {
   const [tab, setTab] = useState('pendentes');
   const [pendentes, setPendentes] = useState([]);
   const [corrigidas, setCorrigidas] = useState([]);
-  const [filters, setFilters] = useState({ bimestre: '', turma: '', aluno: '' });
+  const [filters, setFilters] = useState({
+    bimestre: '',
+    turma: '',
+    aluno: '',
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [modalEssay, setModalEssay] = useState(null);
   const [editEssay, setEditEssay] = useState<any>(null);
-  const [editTheme, setEditTheme] = useState<{ id?: string; name: string }>({ name: '' });
+  const [editTheme, setEditTheme] = useState<{ id?: string; name: string }>({
+    name: '',
+  });
   const [editBimester, setEditBimester] = useState('');
   const [editType, setEditType] = useState<'ENEM' | 'PAS'>('PAS');
   const [editFile, setEditFile] = useState<File | null>(null);
@@ -29,7 +35,7 @@ function DashboardRedacoes() {
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const arrify = (v) => {
+  const arrify = v => {
     const r = toArray ? toArray(v) : undefined;
     return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
   };
@@ -56,7 +62,11 @@ function DashboardRedacoes() {
     let alive = true;
     (async () => {
       try {
-        const r = await searchStudents({ q: editStudentQuery, page: 1, pageSize: 10 });
+        const r = await searchStudents({
+          q: editStudentQuery,
+          page: 1,
+          pageSize: 10,
+        });
         if (!alive) return;
         setEditStudentOptions(Array.isArray(r?.items) ? r.items : []);
       } catch {
@@ -72,8 +82,12 @@ function DashboardRedacoes() {
     try {
       await sendCorrectionEmail(id);
       const sentAt = new Date().toISOString();
-      setPendentes((prev) => prev.map((p) => (p._id === id ? { ...p, lastEmailSentAt: sentAt } : p)));
-      setCorrigidas((prev) => prev.map((c) => (c._id === id ? { ...c, lastEmailSentAt: sentAt } : c)));
+      setPendentes(prev =>
+        prev.map(p => (p._id === id ? { ...p, lastEmailSentAt: sentAt } : p))
+      );
+      setCorrigidas(prev =>
+        prev.map(c => (c._id === id ? { ...c, lastEmailSentAt: sentAt } : c))
+      );
       toast.success('Email enviado');
     } catch (err: any) {
       console.error('Erro ao enviar email', err);
@@ -87,7 +101,8 @@ function DashboardRedacoes() {
     setSaving(true);
     try {
       const payload: any = {
-        student: editStudent?._id || editStudent?.id || editStudent?.name || undefined,
+        student:
+          editStudent?._id || editStudent?.id || editStudent?.name || undefined,
         theme: editTheme.id || editTheme.name || undefined,
         type: editType,
         bimester: editBimester ? Number(editBimester) : undefined,
@@ -102,16 +117,24 @@ function DashboardRedacoes() {
         fd.append('file', editFile);
         ({ data: updated } = await api.put(`/essays/${editEssay._id}`, fd));
       } else {
-        ({ data: updated } = await api.put(`/essays/${editEssay._id}`, payload));
+        ({ data: updated } = await api.put(
+          `/essays/${editEssay._id}`,
+          payload
+        ));
       }
 
-      setPendentes((prev) => prev.map((p) => (p._id === editEssay._id ? { ...p, ...updated } : p)));
-      setCorrigidas((prev) => prev.map((c) => (c._id === editEssay._id ? { ...c, ...updated } : c)));
+      setPendentes(prev =>
+        prev.map(p => (p._id === editEssay._id ? { ...p, ...updated } : p))
+      );
+      setCorrigidas(prev =>
+        prev.map(c => (c._id === editEssay._id ? { ...c, ...updated } : c))
+      );
       toast.success('Redação atualizada');
       setEditEssay(null);
     } catch (err: any) {
       console.error('Erro ao atualizar redação', err);
-      const message = err.response?.data?.message ?? 'Erro ao atualizar redação';
+      const message =
+        err.response?.data?.message ?? 'Erro ao atualizar redação';
       toast.error(message);
     } finally {
       setSaving(false);
@@ -127,7 +150,8 @@ function DashboardRedacoes() {
       toast.success('Dados carregados');
     } catch (err) {
       console.error('Erro ao carregar pendentes', err);
-      const message = err.response?.data?.message ?? 'Erro ao carregar pendentes';
+      const message =
+        err.response?.data?.message ?? 'Erro ao carregar pendentes';
       setError(message);
       toast.error(message);
     } finally {
@@ -145,7 +169,7 @@ function DashboardRedacoes() {
       setLoading(true);
       setError(null);
       try {
-  const params: any = {};
+        const params: any = {};
         if (filters.bimestre) params.bimestre = filters.bimestre;
         if (filters.turma) params.turma = filters.turma;
         if (filters.aluno) params.aluno = filters.aluno;
@@ -154,7 +178,8 @@ function DashboardRedacoes() {
         toast.success('Dados carregados');
       } catch (err) {
         console.error('Erro ao carregar corrigidas', err);
-        const message = err.response?.data?.message ?? 'Erro ao carregar corrigidas';
+        const message =
+          err.response?.data?.message ?? 'Erro ao carregar corrigidas';
         setError(message);
         toast.error(message);
       } finally {
@@ -166,7 +191,7 @@ function DashboardRedacoes() {
 
   if (loading) {
     return (
-      <div className="pt-20 p-md">
+      <div className='pt-20 p-md'>
         <p>Carregando...</p>
       </div>
     );
@@ -174,15 +199,15 @@ function DashboardRedacoes() {
 
   if (error) {
     return (
-      <div className="pt-20 p-md">
-        <p className="text-red-500">{error}</p>
+      <div className='pt-20 p-md'>
+        <p className='text-red-500'>{error}</p>
       </div>
     );
   }
 
   return (
-    <div className="pt-20 p-md">
-      <div className="flex gap-md mb-md">
+    <div className='pt-20 p-md'>
+      <div className='flex gap-md mb-md'>
         <button
           className={`px-4 py-2 rounded ${tab === 'pendentes' ? 'bg-orange text-white' : 'bg-gray-200'}`}
           onClick={() => setTab('pendentes')}
@@ -195,46 +220,53 @@ function DashboardRedacoes() {
         >
           Corrigidas
         </button>
-        <button className="ys-btn-primary ml-auto" onClick={() => setNewModalOpen(true)}>
+        <button
+          className='ys-btn-primary ml-auto'
+          onClick={() => setNewModalOpen(true)}
+        >
           Nova redação
         </button>
       </div>
 
       {tab === 'pendentes' && (
-        <div className="space-y-md">
-          {arrify(pendentes).map((r) => {
+        <div className='space-y-md'>
+          {arrify(pendentes).map(r => {
             return (
               <div
                 key={r._id}
-                className="ys-card flex items-center justify-between"
+                className='ys-card flex items-center justify-between'
               >
-                <div className="flex items-center gap-md">
+                <div className='flex items-center gap-md'>
                   <Avatar
                     src={r.student?.photoUrl}
                     name={r.student?.name}
-                    className="w-12 h-12"
+                    className='w-12 h-12'
                   />
                   <div>
-                    <p className="font-semibold">
-                      {r.student?.rollNumber ? `Nº ${r.student.rollNumber}` : r.student?.name}
+                    <p className='font-semibold'>
+                      {r.student?.rollNumber
+                        ? `Nº ${r.student.rollNumber}`
+                        : r.student?.name}
                     </p>
-                    <p className="text-sm text-black/70">{r.theme?.name || r.customTheme || '-'}</p>
-                    <p className="text-sm text-black/70">
+                    <p className='text-sm text-black/70'>
+                      {r.theme?.name || r.customTheme || '-'}
+                    </p>
+                    <p className='text-sm text-black/70'>
                       {r.class?.series}ª{r.class?.letter} •{' '}
                       {new Date(r.submittedAt).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-md">
+                <div className='flex items-center gap-md'>
                   <button
-                    className="ys-btn-ghost"
+                    className='ys-btn-ghost'
                     onClick={() => setEditEssay(r)}
-                    aria-label="Editar"
+                    aria-label='Editar'
                   >
                     <FaPen />
                   </button>
                   <button
-                    className="ys-btn-primary"
+                    className='ys-btn-primary'
                     onClick={() => setModalEssay(r)}
                   >
                     Corrigir
@@ -243,90 +275,106 @@ function DashboardRedacoes() {
               </div>
             );
           })}
-          </div>
+        </div>
       )}
 
       {tab === 'corrigidas' && (
         <div>
-          <div className="flex gap-md mb-md">
+          <div className='flex gap-md mb-md'>
             <select
               value={filters.bimestre}
-              onChange={(e) => setFilters({ ...filters, bimestre: e.target.value })}
-              className="border rounded px-2 py-1"
+              onChange={e =>
+                setFilters({ ...filters, bimestre: e.target.value })
+              }
+              className='border rounded px-2 py-1'
             >
-              <option value="">Bimestre</option>
-              <option value="1">1º</option>
-              <option value="2">2º</option>
-              <option value="3">3º</option>
-              <option value="4">4º</option>
+              <option value=''>Bimestre</option>
+              <option value='1'>1º</option>
+              <option value='2'>2º</option>
+              <option value='3'>3º</option>
+              <option value='4'>4º</option>
             </select>
             <input
               value={filters.turma}
-              onChange={(e) => setFilters({ ...filters, turma: e.target.value })}
-              placeholder="Turma"
-              className="border rounded px-2 py-1"
+              onChange={e => setFilters({ ...filters, turma: e.target.value })}
+              placeholder='Turma'
+              className='border rounded px-2 py-1'
             />
             <input
               value={filters.aluno}
-              onChange={(e) => setFilters({ ...filters, aluno: e.target.value })}
-              placeholder="Aluno"
-              className="border rounded px-2 py-1"
+              onChange={e => setFilters({ ...filters, aluno: e.target.value })}
+              placeholder='Aluno'
+              className='border rounded px-2 py-1'
             />
           </div>
-          <div className="space-y-md">
-            {arrify(corrigidas).map((r) => {
+          <div className='space-y-md'>
+            {arrify(corrigidas).map(r => {
               return (
                 <div
                   key={r._id}
-                  className="ys-card flex items-center justify-between"
+                  className='ys-card flex items-center justify-between'
                 >
-                  <div className="flex items-center gap-md">
+                  <div className='flex items-center gap-md'>
                     <Avatar
                       src={r.student?.photoUrl}
                       name={r.student?.name}
-                      className="w-12 h-12"
+                      className='w-12 h-12'
                     />
                     <div>
-                      <p className="font-semibold">
-                        {r.student?.rollNumber ? `Nº ${r.student.rollNumber}` : r.student?.name}
+                      <p className='font-semibold'>
+                        {r.student?.rollNumber
+                          ? `Nº ${r.student.rollNumber}`
+                          : r.student?.name}
                       </p>
-                      <p className="text-sm text-black/70">{r.theme?.name || r.customTheme || '-'}</p>
-                      <p className="text-sm text-black/70">
+                      <p className='text-sm text-black/70'>
+                        {r.theme?.name || r.customTheme || '-'}
+                      </p>
+                      <p className='text-sm text-black/70'>
                         {r.class?.series}ª{r.class?.letter} •{' '}
                         {new Date(r.submittedAt).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-md">
+                  <div className='flex items-center gap-md'>
                     {r.lastEmailSentAt ? (
                       <>
-                        <span className="text-green-600">Enviado</span>
-                        <button className="ys-btn-ghost" onClick={() => handleSendEmail(r._id)}>
+                        <span className='text-green-600'>Enviado</span>
+                        <button
+                          className='ys-btn-ghost'
+                          onClick={() => handleSendEmail(r._id)}
+                        >
                           Enviar novamente
                         </button>
                       </>
                     ) : (
-                      <button className="ys-btn-ghost" onClick={() => handleSendEmail(r._id)}>
+                      <button
+                        className='ys-btn-ghost'
+                        onClick={() => handleSendEmail(r._id)}
+                      >
                         Enviar por e-mail
                       </button>
                     )}
                     <a
-                      className="ys-btn-ghost"
+                      className='ys-btn-ghost'
                       href={r.fileUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label="Arquivo"
+                      target='_blank'
+                      rel='noreferrer'
+                      aria-label='Arquivo'
                     >
                       <FaFilePdf />
                     </a>
-                    <button className="ys-btn-ghost" onClick={() => setEditEssay(r)} aria-label="Editar">
+                    <button
+                      className='ys-btn-ghost'
+                      onClick={() => setEditEssay(r)}
+                      aria-label='Editar'
+                    >
                       <FaPen />
                     </button>
                   </div>
                 </div>
               );
             })}
-            </div>
+          </div>
         </div>
       )}
       {newModalOpen && (
@@ -338,11 +386,14 @@ function DashboardRedacoes() {
       )}
 
       {modalEssay && (
-        <div role="dialog" className="fixed inset-0 bg-black/50 flex items-center justify-center">
-          <div className="bg-white p-md space-y-md">
+        <div
+          role='dialog'
+          className='fixed inset-0 bg-black/50 flex items-center justify-center'
+        >
+          <div className='bg-white p-md space-y-md'>
             <p>Corrigir redação</p>
             <button
-              className="ys-btn-primary"
+              className='ys-btn-primary'
               onClick={async () => {
                 const essayType = modalEssay.type === 'ENEM' ? 'ENEM' : 'PAS';
                 if (essayType === 'ENEM') {
@@ -367,7 +418,10 @@ function DashboardRedacoes() {
             >
               Enviar
             </button>
-            <button className="ys-btn-ghost" onClick={() => setModalEssay(null)}>
+            <button
+              className='ys-btn-ghost'
+              onClick={() => setModalEssay(null)}
+            >
               Fechar
             </button>
           </div>
@@ -375,24 +429,28 @@ function DashboardRedacoes() {
       )}
 
       {editEssay && (
-        <div role="dialog" className="fixed inset-0 bg-black/50 flex items-center justify-center">
-          <div className="bg-white p-md space-y-md w-full max-w-md">
-            <p className="font-semibold">Editar redação</p>
+        <div
+          role='dialog'
+          className='fixed inset-0 bg-black/50 flex items-center justify-center'
+        >
+          <div className='bg-white p-md space-y-md w-full max-w-md'>
+            <p className='font-semibold'>Editar redação</p>
             <div>
-              <label className="block text-sm font-medium">Aluno</label>
+              <label className='block text-sm font-medium'>Aluno</label>
               <input
                 value={editStudentQuery}
-                onChange={(e) => setEditStudentQuery(e.target.value)}
-                placeholder="Buscar aluno..."
-                className="w-full border rounded px-2 py-1 mb-1"
+                onChange={e => setEditStudentQuery(e.target.value)}
+                placeholder='Buscar aluno...'
+                className='w-full border rounded px-2 py-1 mb-1'
               />
-              <div className="max-h-40 overflow-auto border rounded">
-                {editStudentOptions.map((s) => (
+              <div className='max-h-40 overflow-auto border rounded'>
+                {editStudentOptions.map(s => (
                   <button
-                    type="button"
+                    type='button'
                     key={s._id || s.id}
                     className={`w-full text-left px-2 py-1 hover:bg-[#F3F4F6] ${
-                      editStudent && (editStudent._id || editStudent.id) === (s._id || s.id)
+                      editStudent &&
+                      (editStudent._id || editStudent.id) === (s._id || s.id)
                         ? 'bg-[#FEF3C7]'
                         : ''
                     }`}
@@ -402,43 +460,56 @@ function DashboardRedacoes() {
                   </button>
                 ))}
                 {editStudentOptions.length === 0 && (
-                  <div className="p-2 text-sm text-ys-ink-2">Digite para buscar alunos…</div>
+                  <div className='p-2 text-sm text-ys-ink-2'>
+                    Digite para buscar alunos…
+                  </div>
                 )}
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium">Tema</label>
-              <ThemeCombo allowCreate value={editTheme} onChange={setEditTheme} />
+              <label className='block text-sm font-medium'>Tema</label>
+              <ThemeCombo
+                allowCreate
+                value={editTheme}
+                onChange={setEditTheme}
+              />
             </div>
             <select
               value={editBimester}
-              onChange={(e) => setEditBimester(e.target.value)}
-              className="w-full border rounded px-2 py-1"
+              onChange={e => setEditBimester(e.target.value)}
+              className='w-full border rounded px-2 py-1'
             >
-              <option value="">Bimestre</option>
-              <option value="1">1º</option>
-              <option value="2">2º</option>
-              <option value="3">3º</option>
-              <option value="4">4º</option>
+              <option value=''>Bimestre</option>
+              <option value='1'>1º</option>
+              <option value='2'>2º</option>
+              <option value='3'>3º</option>
+              <option value='4'>4º</option>
             </select>
             <select
               value={editType}
-              onChange={(e) => setEditType(e.target.value as any)}
-              className="w-full border rounded px-2 py-1"
+              onChange={e => setEditType(e.target.value as any)}
+              className='w-full border rounded px-2 py-1'
             >
-              <option value="ENEM">ENEM</option>
-              <option value="PAS">PAS</option>
+              <option value='ENEM'>ENEM</option>
+              <option value='PAS'>PAS</option>
             </select>
             <input
-              type="file"
-              accept="application/pdf"
-              onChange={(e) => setEditFile(e.target.files?.[0] || null)}
+              type='file'
+              accept='application/pdf'
+              onChange={e => setEditFile(e.target.files?.[0] || null)}
             />
-            <div className="flex justify-end gap-md">
-              <button className="ys-btn-primary" onClick={handleUpdateEssay} disabled={saving}>
+            <div className='flex justify-end gap-md'>
+              <button
+                className='ys-btn-primary'
+                onClick={handleUpdateEssay}
+                disabled={saving}
+              >
                 Salvar
               </button>
-              <button className="ys-btn-ghost" onClick={() => setEditEssay(null)}>
+              <button
+                className='ys-btn-ghost'
+                onClick={() => setEditEssay(null)}
+              >
                 Cancelar
               </button>
             </div>

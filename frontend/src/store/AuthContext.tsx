@@ -1,10 +1,21 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
-import { api, setAuthToken, STORAGE_TOKEN_KEY } from "@/services/api";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+  useCallback,
+} from 'react';
+import { api, setAuthToken, STORAGE_TOKEN_KEY } from '@/services/api';
 
 // meta: evitar fetch sem token e expor helpers simples
-type AuthState = { user?: any; role?: "professor" | "aluno" | null; loading: boolean };
-type AuthCtx = { 
-  state: AuthState; 
+type AuthState = {
+  user?: any;
+  role?: 'professor' | 'aluno' | null;
+  loading: boolean;
+};
+type AuthCtx = {
+  state: AuthState;
   setToken: (t: string | null) => void;
   loginTeacher(email: string, password: string): Promise<void>;
   loginStudent(email: string, password: string): Promise<void>;
@@ -16,7 +27,7 @@ const AuthContext = createContext<AuthCtx>({
   setToken: () => {},
   loginTeacher: async () => {},
   loginStudent: async () => {},
-  logout: async () => {}
+  logout: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -35,60 +46,72 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const token = localStorage.getItem(STORAGE_TOKEN_KEY);
-    if (!token) { 
-      setState({ loading: false, role: null }); 
-      return; 
+    if (!token) {
+      setState({ loading: false, role: null });
+      return;
     }
 
     // Configura o token no axios antes de fazer a validação
     setAuthToken(token);
 
     // valida uma única vez; se 401, limpa
-    api.get("/auth/me")
+    api
+      .get('/auth/me')
       .then(r => {
         const userData = r.data;
-        const role = userData?.role ?? "professor";
+        const role = userData?.role ?? 'professor';
         setState({ loading: false, user: userData, role });
       })
-      .catch((err) => { 
-        console.warn("Auth validation failed:", err.response?.status);
-        setToken(null); 
-        setState({ loading: false, role: null }); 
+      .catch(err => {
+        console.warn('Auth validation failed:', err.response?.status);
+        setToken(null);
+        setState({ loading: false, role: null });
       });
   }, [setToken]);
 
   async function loginTeacher(email: string, password: string) {
-    const { data } = await api.post("/auth/login-teacher", { email, password });
+    const { data } = await api.post('/auth/login-teacher', { email, password });
     if (data?.token) {
       setToken(data.token);
-      const me = await api.get("/auth/me");
-      setState({ loading: false, user: me.data, role: me.data?.role ?? "professor" });
+      const me = await api.get('/auth/me');
+      setState({
+        loading: false,
+        user: me.data,
+        role: me.data?.role ?? 'professor',
+      });
     }
   }
 
   async function loginStudent(email: string, password: string) {
-    const { data } = await api.post("/auth/login-student", { email, password });
+    const { data } = await api.post('/auth/login-student', { email, password });
     if (data?.token) {
       setToken(data.token);
-      const me = await api.get("/auth/me");
-      setState({ loading: false, user: me.data, role: me.data?.role ?? "aluno" });
+      const me = await api.get('/auth/me');
+      setState({
+        loading: false,
+        user: me.data,
+        role: me.data?.role ?? 'aluno',
+      });
     }
   }
 
   async function logout() {
-    try { await api.post("/auth/logout"); } catch {}
+    try {
+      await api.post('/auth/logout');
+    } catch {}
     setToken(null);
     setState({ loading: false, role: null });
   }
 
   return (
-    <AuthContext.Provider value={{ state, setToken, loginTeacher, loginStudent, logout }}>
+    <AuthContext.Provider
+      value={{ state, setToken, loginTeacher, loginStudent, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );
 }
 
-export function useAuth() { 
-  return useContext(AuthContext); 
+export function useAuth() {
+  return useContext(AuthContext);
 }
-

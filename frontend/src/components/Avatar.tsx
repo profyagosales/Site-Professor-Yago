@@ -25,13 +25,18 @@ function hash(str: string) {
   return Math.abs(h);
 }
 
-export default function Avatar({ src, name = '', size = 32, className = '' }: AvatarProps) {
+export default function Avatar({
+  src,
+  name = '',
+  size = 32,
+  className = '',
+}: AvatarProps) {
   const [error, setError] = useState(false);
   const initials = name
     .split(' ')
     .filter(Boolean)
     .slice(0, 2)
-    .map((s) => s[0]?.toUpperCase() || '')
+    .map(s => s[0]?.toUpperCase() || '')
     .join('');
   const color = COLORS[hash(name) % COLORS.length];
 
@@ -56,4 +61,3 @@ export default function Avatar({ src, name = '', size = 32, className = '' }: Av
     </div>
   );
 }
-

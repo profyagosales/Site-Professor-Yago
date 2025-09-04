@@ -43,12 +43,12 @@ function CorrigirRedacao() {
     setPasScore(score);
   }, [nc, ne, nl]);
 
-  const handleChecklistChange = (key) => {
+  const handleChecklistChange = key => {
     setChecklist({ ...checklist, [key]: !checklist[key] });
   };
 
   const handleCompetenciaChange = (idx, field, value) => {
-    setCompetencias((prev) =>
+    setCompetencias(prev =>
       prev.map((c, i) => (i === idx ? { ...c, [field]: value } : c))
     );
   };
@@ -67,16 +67,16 @@ function CorrigirRedacao() {
     } catch {
       // ignore if invalid selection
     }
-    setComments((prev) => [...prev, { text: selection.toString(), comment }]);
+    setComments(prev => [...prev, { text: selection.toString(), comment }]);
     selection.removeAllRanges();
   };
 
-  const handleSave = async (e) => {
+  const handleSave = async e => {
     e.preventDefault();
     const payload = { tipo, comentariosTexto: comments };
     if (tipo === 'ENEM') {
       payload.checklist = checklist;
-      payload.competencias = competencias.map((c) => ({
+      payload.competencias = competencias.map(c => ({
         pontuacao: Number(c.pontuacao),
         comentario: c.comentario,
       }));
@@ -106,39 +106,39 @@ function CorrigirRedacao() {
 
   if (loading) {
     return (
-      <div className="pt-20 p-md">
+      <div className='pt-20 p-md'>
         <p>Carregando...</p>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSave} className="pt-20 p-md space-y-md">
-      <h1 className="text-2xl font-bold">Corrigir Redação</h1>
-      {error && <p className="text-red-500">{error}</p>}
-      {success && <p className="text-green-500">{success}</p>}
+    <form onSubmit={handleSave} className='pt-20 p-md space-y-md'>
+      <h1 className='text-2xl font-bold'>Corrigir Redação</h1>
+      {error && <p className='text-red-500'>{error}</p>}
+      {success && <p className='text-green-500'>{success}</p>}
 
-      <div className="space-y-sm">
-        <label className="block font-medium">Tipo de correção</label>
+      <div className='space-y-sm'>
+        <label className='block font-medium'>Tipo de correção</label>
         <select
-          className="border p-sm rounded"
+          className='border p-sm rounded'
           value={tipo}
-          onChange={(e) => setTipo(e.target.value)}
+          onChange={e => setTipo(e.target.value)}
         >
-          <option value="ENEM">ENEM</option>
-          <option value="PAS/UnB">PAS/UnB</option>
+          <option value='ENEM'>ENEM</option>
+          <option value='PAS/UnB'>PAS/UnB</option>
         </select>
       </div>
 
       {tipo === 'ENEM' && (
-        <div className="space-y-md">
-          <div className="space-y-sm">
-            <h2 className="font-semibold">Condições de anulação</h2>
-            {annulmentOptions.map((opt) => (
-              <label key={opt.key} className="block">
+        <div className='space-y-md'>
+          <div className='space-y-sm'>
+            <h2 className='font-semibold'>Condições de anulação</h2>
+            {annulmentOptions.map(opt => (
+              <label key={opt.key} className='block'>
                 <input
-                  type="checkbox"
-                  className="mr-2"
+                  type='checkbox'
+                  className='mr-2'
                   checked={checklist[opt.key]}
                   onChange={() => handleChecklistChange(opt.key)}
                 />
@@ -147,88 +147,99 @@ function CorrigirRedacao() {
             ))}
           </div>
 
-          <div className="space-y-sm">
-            <h2 className="font-semibold">Competências</h2>
+          <div className='space-y-sm'>
+            <h2 className='font-semibold'>Competências</h2>
             {competencias.map((c, idx) => (
-              <div key={idx} className="flex flex-col sm:flex-row gap-sm items-start sm:items-center">
-                <label className="w-32">Competência {idx + 1}</label>
+              <div
+                key={idx}
+                className='flex flex-col sm:flex-row gap-sm items-start sm:items-center'
+              >
+                <label className='w-32'>Competência {idx + 1}</label>
                 <select
                   value={c.pontuacao}
                   disabled={anulacao}
-                  onChange={(e) =>
-                    handleCompetenciaChange(idx, 'pontuacao', Number(e.target.value))
+                  onChange={e =>
+                    handleCompetenciaChange(
+                      idx,
+                      'pontuacao',
+                      Number(e.target.value)
+                    )
                   }
-                  className="border p-sm rounded"
+                  className='border p-sm rounded'
                 >
-                  {[0, 40, 80, 120, 160, 200].map((v) => (
+                  {[0, 40, 80, 120, 160, 200].map(v => (
                     <option key={v} value={v}>
                       {v}
                     </option>
                   ))}
                 </select>
                 <input
-                  type="text"
-                  placeholder="Comentário"
+                  type='text'
+                  placeholder='Comentário'
                   disabled={anulacao}
                   value={c.comentario}
-                  onChange={(e) =>
+                  onChange={e =>
                     handleCompetenciaChange(idx, 'comentario', e.target.value)
                   }
-                  className="border p-sm rounded flex-1"
+                  className='border p-sm rounded flex-1'
                 />
               </div>
             ))}
-            <p className="font-medium">Nota final: {totalEnem}</p>
+            <p className='font-medium'>Nota final: {totalEnem}</p>
           </div>
         </div>
       )}
 
       {tipo === 'PAS/UnB' && (
-        <div className="space-y-sm">
-          <div className="flex flex-col sm:flex-row gap-sm items-center">
-            <label className="w-24">NC</label>
+        <div className='space-y-sm'>
+          <div className='flex flex-col sm:flex-row gap-sm items-center'>
+            <label className='w-24'>NC</label>
             <input
-              type="number"
-              className="border p-sm rounded flex-1"
+              type='number'
+              className='border p-sm rounded flex-1'
               value={nc}
-              onChange={(e) => setNc(Number(e.target.value))}
+              onChange={e => setNc(Number(e.target.value))}
             />
           </div>
-          <div className="flex flex-col sm:flex-row gap-sm items-center">
-            <label className="w-24">NE</label>
+          <div className='flex flex-col sm:flex-row gap-sm items-center'>
+            <label className='w-24'>NE</label>
             <input
-              type="number"
-              className="border p-sm rounded flex-1"
+              type='number'
+              className='border p-sm rounded flex-1'
               value={ne}
-              onChange={(e) => setNe(Number(e.target.value))}
+              onChange={e => setNe(Number(e.target.value))}
             />
           </div>
-          <div className="flex flex-col sm:flex-row gap-sm items-center">
-            <label className="w-24">NL</label>
+          <div className='flex flex-col sm:flex-row gap-sm items-center'>
+            <label className='w-24'>NL</label>
             <input
-              type="number"
-              className="border p-sm rounded flex-1"
+              type='number'
+              className='border p-sm rounded flex-1'
               value={nl}
-              onChange={(e) => setNl(Number(e.target.value))}
+              onChange={e => setNl(Number(e.target.value))}
             />
           </div>
-          <p className="font-medium">Nota final: {pasScore.toFixed(2)}</p>
+          <p className='font-medium'>Nota final: {pasScore.toFixed(2)}</p>
         </div>
       )}
 
-      <div className="space-y-sm">
-        <h2 className="font-semibold">Texto da redação</h2>
+      <div className='space-y-sm'>
+        <h2 className='font-semibold'>Texto da redação</h2>
         <div
           ref={essayRef}
           contentEditable
           suppressContentEditableWarning={true}
-          className="border p-sm min-h-[200px] rounded"
+          className='border p-sm min-h-[200px] rounded'
         ></div>
-        <button type="button" className="ys-btn-primary" onClick={handleAddComment}>
+        <button
+          type='button'
+          className='ys-btn-primary'
+          onClick={handleAddComment}
+        >
           Adicionar comentário
         </button>
         {comments.length > 0 && (
-          <ul className="list-disc pl-md space-y-xs">
+          <ul className='list-disc pl-md space-y-xs'>
             {comments.map((c, i) => (
               <li key={i}>
                 <strong>{c.text}</strong>: {c.comment}
@@ -239,8 +250,8 @@ function CorrigirRedacao() {
       </div>
 
       <button
-        type="submit"
-        className="ys-btn-primary"
+        type='submit'
+        className='ys-btn-primary'
         disabled={
           tipo === 'ENEM'
             ? !(totalEnem > 0 || anulacao)
@@ -254,4 +265,3 @@ function CorrigirRedacao() {
 }
 
 export default CorrigirRedacao;
-

@@ -6,9 +6,23 @@
     "module": "ESNext",
     "skipLibCheck": true,
     "jsx": "react-jsx",
-    "baseUrl": ".",
+    "baseUrl": "src",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["*"],
+      "@/components/*": ["components/*"],
+      "@/pages/*": ["pages/*"],
+      "@/services/*": ["services/*"],
+      "@/hooks/*": ["hooks/*"],
+      "@/types/*": ["types/*"],
+      "@/utils/*": ["utils/*"],
+      "@/assets/*": ["assets/*"],
+      "@/config/*": ["config/*"],
+      "@/constants/*": ["constants/*"],
+      "@/providers/*": ["providers/*"],
+      "@/layouts/*": ["layouts/*"],
+      "@/routes/*": ["routes/*"],
+      "@/store/*": ["store/*"],
+      "@/auth/*": ["auth/*"]
     },
     "allowJs": true,
     "checkJs": false,
@@ -17,10 +31,29 @@
     "isolatedModules": true,
     "noEmit": true,
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "strict": false,
-    "types": ["vite/client"]
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "strictFunctionTypes": false,
+    "noImplicitReturns": false,
+    "noFallthroughCasesInSwitch": false,
+    "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": false,
+    "types": ["vite/client", "jest", "node"]
   },
-  "include": ["src"],
+  "include": [
+    "src/**/*",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.js",
+    "src/**/*.jsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "apps/pdf-viewer/dist"
+  ],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

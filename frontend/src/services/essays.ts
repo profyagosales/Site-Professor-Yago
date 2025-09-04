@@ -21,11 +21,16 @@ export async function fetchEssays(params: {
         classId,
       },
     });
-    const list: any[] = Array.isArray(r.data) ? r.data : r.data?.items || r.data?.data || [];
+    const list: any[] = Array.isArray(r.data)
+      ? r.data
+      : r.data?.items || r.data?.data || [];
     const items = list.map((e: any) => ({
       id: e._id || e.id,
       studentName: e.student?.name || e.studentName || e.studentId || '-',
-      className: e.class?.name || e.className || `${e.class?.series || ''}${e.class?.letter || ''}`.trim(),
+      className:
+        e.class?.name ||
+        e.className ||
+        `${e.class?.series || ''}${e.class?.letter || ''}`.trim(),
       topic: e.customTheme || e.theme?.name || e.themeName || e.topic || '-',
       submittedAt: e.createdAt || e.submittedAt || new Date().toISOString(),
       fileUrl: e.originalUrl || e.fileUrl || e.file,
@@ -61,7 +66,10 @@ export async function fetchEssays(params: {
   }
 }
 
-export async function gradeEssay(id: string, payload: { score: number; comments?: string }) {
+export async function gradeEssay(
+  id: string,
+  payload: { score: number; comments?: string }
+) {
   // Try new endpoint: expects form-data or json depending on backend. We'll send json for comments-only grading.
   try {
     const res = await api.patch(`/essays/${id}/grade`, {

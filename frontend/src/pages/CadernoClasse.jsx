@@ -20,13 +20,18 @@ function CadernoClasse() {
   const [bimester, setBimester] = useState('1');
   const [showModal, setShowModal] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
-  const [form, setForm] = useState({ title: '', date: '', term: '1', presentStudentIds: [] });
+  const [form, setForm] = useState({
+    title: '',
+    date: '',
+    term: '1',
+    presentStudentIds: [],
+  });
   const [configForm, setConfigForm] = useState({ 1: '', 2: '', 3: '', 4: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
-  const arrify = (v) => {
+  const arrify = v => {
     const r = toArray ? toArray(v) : undefined;
     return Array.isArray(r) ? r : Array.isArray(v) ? v : v ? [v] : [];
   };
@@ -43,7 +48,8 @@ function CadernoClasse() {
         toast.success('Turmas carregadas');
       } catch (err) {
         console.error('Erro ao carregar turmas', err);
-        const message = err.response?.data?.message ?? 'Erro ao carregar turmas';
+        const message =
+          err.response?.data?.message ?? 'Erro ao carregar turmas';
         setError(message);
         toast.error(message);
       } finally {
@@ -62,10 +68,10 @@ function CadernoClasse() {
       const [studRes, chkRes, cfgRes] = await Promise.all([
         listStudents(cls._id).catch(() => []),
         getVistos(cls._id, bim).catch(() => []),
-        getConfig(cls._id).catch(() => ({ totals: {} }))
+        getConfig(cls._id).catch(() => ({ totals: {} })),
       ]);
       const filteredStudents = arrify(studRes).filter(
-        (s) => s.class && (s.class._id || s.class) === cls._id
+        s => s.class && (s.class._id || s.class) === cls._id
       );
       setStudents(filteredStudents);
       const checks = arrify(chkRes);
@@ -89,18 +95,18 @@ function CadernoClasse() {
     }
   };
 
-  const handleClassClick = async (cls) => {
+  const handleClassClick = async cls => {
     setSelectedClass(cls);
     setBimester('1');
     await fetchChecks(cls, '1');
   };
 
   const toggleStudent = async (checkId, studentId) => {
-    const current = arrify(checks).find((c) => c._id === checkId);
+    const current = arrify(checks).find(c => c._id === checkId);
     if (!current) return;
     let present = arrify(current.presentStudentIds);
     if (present.includes(studentId)) {
-      present = present.filter((id) => id !== studentId);
+      present = present.filter(id => id !== studentId);
     } else {
       present.push(studentId);
     }
@@ -142,11 +148,11 @@ function CadernoClasse() {
     }
   };
 
-  const toggleFormStudent = (id) => {
-    setForm((prev) => {
+  const toggleFormStudent = id => {
+    setForm(prev => {
       const arr = arrify(prev.presentStudentIds);
       return arr.includes(id)
-        ? { ...prev, presentStudentIds: arr.filter((s) => s !== id) }
+        ? { ...prev, presentStudentIds: arr.filter(s => s !== id) }
         : { ...prev, presentStudentIds: [...arr, id] };
     });
   };
@@ -170,49 +176,49 @@ function CadernoClasse() {
   const renderModal = () => {
     if (!showModal) return null;
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-black/50">
-        <div className="ys-card w-full max-w-md p-md">
-          <h2 className="text-xl">Novo Visto</h2>
-          <div className="space-y-md">
+      <div className='fixed inset-0 flex items-center justify-center bg-black/50'>
+        <div className='ys-card w-full max-w-md p-md'>
+          <h2 className='text-xl'>Novo Visto</h2>
+          <div className='space-y-md'>
             <div>
-              <label className="block mb-1">Título</label>
+              <label className='block mb-1'>Título</label>
               <input
-                type="text"
-                className="w-full border p-sm rounded"
+                type='text'
+                className='w-full border p-sm rounded'
                 value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                onChange={e => setForm({ ...form, title: e.target.value })}
               />
             </div>
             <div>
-              <label className="block mb-1">Data</label>
+              <label className='block mb-1'>Data</label>
               <input
-                type="date"
-                className="w-full border p-sm rounded"
+                type='date'
+                className='w-full border p-sm rounded'
                 value={form.date}
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
+                onChange={e => setForm({ ...form, date: e.target.value })}
               />
             </div>
             <div>
-              <label className="block mb-1">Bimestre</label>
+              <label className='block mb-1'>Bimestre</label>
               <select
-                className="w-full border p-sm rounded"
+                className='w-full border p-sm rounded'
                 value={form.term}
-                onChange={(e) => setForm({ ...form, term: e.target.value })}
+                onChange={e => setForm({ ...form, term: e.target.value })}
               >
-                <option value="1">1º Bimestre</option>
-                <option value="2">2º Bimestre</option>
-                <option value="3">3º Bimestre</option>
-                <option value="4">4º Bimestre</option>
+                <option value='1'>1º Bimestre</option>
+                <option value='2'>2º Bimestre</option>
+                <option value='3'>3º Bimestre</option>
+                <option value='4'>4º Bimestre</option>
               </select>
             </div>
             <div>
-              <label className="block mb-1">Alunos presentes</label>
-              <ul className="space-y-sm max-h-40 overflow-y-auto">
-                {arrify(students).map((st) => (
-                  <li key={st._id} className="flex items-center">
+              <label className='block mb-1'>Alunos presentes</label>
+              <ul className='space-y-sm max-h-40 overflow-y-auto'>
+                {arrify(students).map(st => (
+                  <li key={st._id} className='flex items-center'>
                     <input
-                      type="checkbox"
-                      className="mr-2"
+                      type='checkbox'
+                      className='mr-2'
                       checked={arrify(form.presentStudentIds).includes(st._id)}
                       onChange={() => toggleFormStudent(st._id)}
                     />
@@ -221,15 +227,19 @@ function CadernoClasse() {
                 ))}
               </ul>
             </div>
-            <div className="flex justify-end space-x-sm">
+            <div className='flex justify-end space-x-sm'>
               <button
-                type="button"
-                className="px-4 py-2 border rounded"
+                type='button'
+                className='px-4 py-2 border rounded'
                 onClick={() => setShowModal(false)}
               >
                 Cancelar
               </button>
-              <button type="button" className="ys-btn-primary" onClick={handleCreate}>
+              <button
+                type='button'
+                className='ys-btn-primary'
+                onClick={handleCreate}
+              >
                 Salvar
               </button>
             </div>
@@ -242,30 +252,36 @@ function CadernoClasse() {
   const renderConfigModal = () => {
     if (!showConfigModal) return null;
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-black/50">
-        <div className="ys-card w-full max-w-md p-md">
-          <h2 className="text-xl">Configurar Totais</h2>
-          <div className="space-y-md">
-            {[1, 2, 3, 4].map((b) => (
+      <div className='fixed inset-0 flex items-center justify-center bg-black/50'>
+        <div className='ys-card w-full max-w-md p-md'>
+          <h2 className='text-xl'>Configurar Totais</h2>
+          <div className='space-y-md'>
+            {[1, 2, 3, 4].map(b => (
               <div key={b}>
-                <label className="block mb-1">{b}º Bimestre</label>
+                <label className='block mb-1'>{b}º Bimestre</label>
                 <input
-                  type="number"
-                  className="w-full border p-sm rounded"
+                  type='number'
+                  className='w-full border p-sm rounded'
                   value={configForm[b]}
-                  onChange={(e) => setConfigForm({ ...configForm, [b]: e.target.value })}
+                  onChange={e =>
+                    setConfigForm({ ...configForm, [b]: e.target.value })
+                  }
                 />
               </div>
             ))}
-            <div className="flex justify-end space-x-sm">
+            <div className='flex justify-end space-x-sm'>
               <button
-                type="button"
-                className="px-4 py-2 border rounded"
+                type='button'
+                className='px-4 py-2 border rounded'
                 onClick={() => setShowConfigModal(false)}
               >
                 Cancelar
               </button>
-              <button type="button" className="ys-btn-primary" onClick={handleSaveConfig}>
+              <button
+                type='button'
+                className='ys-btn-primary'
+                onClick={handleSaveConfig}
+              >
                 Salvar
               </button>
             </div>
@@ -276,7 +292,7 @@ function CadernoClasse() {
   };
   if (loading) {
     return (
-      <div className="pt-20 p-md">
+      <div className='pt-20 p-md'>
         <p>Carregando...</p>
       </div>
     );
@@ -284,120 +300,121 @@ function CadernoClasse() {
 
   if (error) {
     return (
-      <div className="pt-20 p-md">
-        <p className="text-red-500">{error}</p>
+      <div className='pt-20 p-md'>
+        <p className='text-red-500'>{error}</p>
       </div>
     );
   }
 
   if (!selectedClass) {
     return (
-      <div className="pt-20 p-md">
-        <h1 className="text-2xl text-orange">Caderno por Turma</h1>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
-            {arrify(classes).map((cls) => (
-              <div
-                key={cls._id}
-                className="ys-card flex items-center border border-orange-500 cursor-pointer"
-                onClick={() => handleClassClick(cls)}
-              >
-                <FiBook className="w-6 h-6 text-orange mr-3" />
-                <div>
-                  <h3 className="text-orange text-lg font-semibold">
-                    {cls.series}ª{cls.letter}
-                  </h3>
-                  <p className="text-black/70">Disciplina: {cls.discipline}</p>
-                </div>
+      <div className='pt-20 p-md'>
+        <h1 className='text-2xl text-orange'>Caderno por Turma</h1>
+        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md'>
+          {arrify(classes).map(cls => (
+            <div
+              key={cls._id}
+              className='ys-card flex items-center border border-orange-500 cursor-pointer'
+              onClick={() => handleClassClick(cls)}
+            >
+              <FiBook className='w-6 h-6 text-orange mr-3' />
+              <div>
+                <h3 className='text-orange text-lg font-semibold'>
+                  {cls.series}ª{cls.letter}
+                </h3>
+                <p className='text-black/70'>Disciplina: {cls.discipline}</p>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
-      );
-    }
+      </div>
+    );
+  }
 
   return (
-    <div className="pt-20 p-md">
-      <div className="flex justify-between items-center mb-md">
-        <h2 className="text-xl text-orange">
-          {selectedClass.series}ª{selectedClass.letter} - {selectedClass.discipline}
+    <div className='pt-20 p-md'>
+      <div className='flex justify-between items-center mb-md'>
+        <h2 className='text-xl text-orange'>
+          {selectedClass.series}ª{selectedClass.letter} -{' '}
+          {selectedClass.discipline}
         </h2>
-        <button className="link-primary" onClick={() => setSelectedClass(null)}>
+        <button className='link-primary' onClick={() => setSelectedClass(null)}>
           Voltar
         </button>
       </div>
-      <div className="flex justify-between items-center mb-md">
+      <div className='flex justify-between items-center mb-md'>
         <select
-          className="border p-sm rounded"
+          className='border p-sm rounded'
           value={bimester}
-          onChange={(e) => {
+          onChange={e => {
             setBimester(e.target.value);
             fetchChecks(selectedClass, e.target.value);
           }}
         >
-          <option value="1">1º Bimestre</option>
-          <option value="2">2º Bimestre</option>
-          <option value="3">3º Bimestre</option>
-          <option value="4">4º Bimestre</option>
+          <option value='1'>1º Bimestre</option>
+          <option value='2'>2º Bimestre</option>
+          <option value='3'>3º Bimestre</option>
+          <option value='4'>4º Bimestre</option>
         </select>
-        <div className="space-x-sm">
-          <button className="ys-btn-primary" onClick={() => setShowConfigModal(true)}>
+        <div className='space-x-sm'>
+          <button
+            className='ys-btn-primary'
+            onClick={() => setShowConfigModal(true)}
+          >
             Config Totais
           </button>
-          <button className="ys-btn-primary" onClick={() => setShowModal(true)}>
+          <button className='ys-btn-primary' onClick={() => setShowModal(true)}>
             Novo Visto
           </button>
         </div>
       </div>
 
-        {arrify(checks).map((chk) => (
-          <div
-            key={chk._id}
-            className="mb-md p-md rounded-lg bg-white/30 backdrop-blur-md border border-orange-500 shadow-sm"
-          >
-            <div className="flex justify-between items-center mb-sm">
-              <div>
-                <h3 className="font-semibold">{chk.title}</h3>
-                <p className="text-sm text-black/70">
-                  {chk.date && !isNaN(new Date(chk.date))
-                    ? new Date(chk.date).toLocaleDateString()
-                    : '—'}
-                </p>
-              </div>
-              <div className="w-40 bg-lightGray rounded-full h-2">
-                <div
-                  className="bg-orange h-2 rounded-full"
-                  style={{ width: `${chk.percentual}%` }}
-                ></div>
-              </div>
+      {arrify(checks).map(chk => (
+        <div
+          key={chk._id}
+          className='mb-md p-md rounded-lg bg-white/30 backdrop-blur-md border border-orange-500 shadow-sm'
+        >
+          <div className='flex justify-between items-center mb-sm'>
+            <div>
+              <h3 className='font-semibold'>{chk.title}</h3>
+              <p className='text-sm text-black/70'>
+                {chk.date && !isNaN(new Date(chk.date))
+                  ? new Date(chk.date).toLocaleDateString()
+                  : '—'}
+              </p>
             </div>
-            <ul className="space-y-sm">
-              {arrify(students).map((st) => {
-                const checked = arrify(chk.presentStudentIds).includes(st._id);
-                return (
-                  <li
-                    key={st._id}
-                    className="flex items-center bg-white/30 border border-orange-500 rounded p-sm shadow-sm"
-                  >
-                    <input
-                      type="checkbox"
-                      className="mr-2"
-                      checked={checked}
-                      onChange={() => toggleStudent(chk._id, st._id)}
-                    />
-                    {st.name}
-                  </li>
-                );
-              })}
-            </ul>
+            <div className='w-40 bg-lightGray rounded-full h-2'>
+              <div
+                className='bg-orange h-2 rounded-full'
+                style={{ width: `${chk.percentual}%` }}
+              ></div>
+            </div>
           </div>
-        ))}
-        {renderModal()}
-        {renderConfigModal()}
-      </div>
-    );
-  }
+          <ul className='space-y-sm'>
+            {arrify(students).map(st => {
+              const checked = arrify(chk.presentStudentIds).includes(st._id);
+              return (
+                <li
+                  key={st._id}
+                  className='flex items-center bg-white/30 border border-orange-500 rounded p-sm shadow-sm'
+                >
+                  <input
+                    type='checkbox'
+                    className='mr-2'
+                    checked={checked}
+                    onChange={() => toggleStudent(chk._id, st._id)}
+                  />
+                  {st.name}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+      {renderModal()}
+      {renderConfigModal()}
+    </div>
+  );
+}
 
 export default CadernoClasse;
-
-
-

@@ -2,7 +2,12 @@ export type Size = { w: number; h: number };
 export type BBox = { x: number; y: number; w: number; h: number };
 
 // Converte de espaço original do PDF (pontos) para pixels renderizados
-export function toRendered(bbox: BBox, orig: Size, effectiveWidth: number, renderedHeight: number): BBox {
+export function toRendered(
+  bbox: BBox,
+  orig: Size,
+  effectiveWidth: number,
+  renderedHeight: number
+): BBox {
   const scaleX = effectiveWidth / orig.w;
   const scaleY = renderedHeight / orig.h;
   return {
@@ -14,7 +19,12 @@ export function toRendered(bbox: BBox, orig: Size, effectiveWidth: number, rende
 }
 
 // Converte de pixels renderizados para espaço original do PDF (pontos)
-export function toPdfSpace(rect: BBox, orig: Size, effectiveWidth: number, renderedHeight: number): BBox {
+export function toPdfSpace(
+  rect: BBox,
+  orig: Size,
+  effectiveWidth: number,
+  renderedHeight: number
+): BBox {
   const scaleX = orig.w / effectiveWidth;
   const scaleY = orig.h / renderedHeight;
   return {

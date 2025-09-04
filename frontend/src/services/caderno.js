@@ -1,6 +1,6 @@
 import { api, pickData } from '@/services/api';
 
-export const createVisto = (data) => api.post('/caderno', data).then(pickData);
+export const createVisto = data => api.post('/caderno', data).then(pickData);
 
 export const updateVisto = (id, presentStudentIds) =>
   api.put(`/caderno/${id}`, { presentStudentIds }).then(pickData);
@@ -8,7 +8,7 @@ export const updateVisto = (id, presentStudentIds) =>
 export const getVistos = (classId, term) =>
   api.get(`/caderno/${classId}/${term}`).then(pickData);
 
-export const getConfig = (classId) =>
+export const getConfig = classId =>
   api.get(`/caderno/config/${classId}`).then(pickData);
 
 export const updateConfig = (classId, totals) =>
@@ -21,4 +21,3 @@ export default {
   getConfig,
   updateConfig,
 };
-

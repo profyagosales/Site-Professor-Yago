@@ -1,7 +1,7 @@
 import { toast } from 'react-toastify';
 import { ROUTES } from '@/routes';
 
-export const STORAGE_TOKEN_KEY = "auth_token";
+export const STORAGE_TOKEN_KEY = 'auth_token';
 
 // Timer para auto-logout
 let autoLogoutTimer: NodeJS.Timeout | null = null;
@@ -14,12 +14,12 @@ function decodeJWT(token: string): any | null {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
-    
+
     const payload = parts[1];
     // Adiciona padding se necessário
-    const paddedPayload = payload + '='.repeat((4 - payload.length % 4) % 4);
+    const paddedPayload = payload + '='.repeat((4 - (payload.length % 4)) % 4);
     const decoded = atob(paddedPayload.replace(/-/g, '+').replace(/_/g, '/'));
-    
+
     return JSON.parse(decoded);
   } catch (error) {
     console.warn('Erro ao decodificar JWT:', error);
@@ -34,7 +34,7 @@ function decodeJWT(token: string): any | null {
 export function getExp(token: string): number | null {
   const payload = decodeJWT(token);
   if (!payload || typeof payload.exp !== 'number') return null;
-  
+
   // JWT exp está em segundos, convertemos para milissegundos
   return payload.exp * 1000;
 }
@@ -45,9 +45,9 @@ export function getExp(token: string): number | null {
 export function isTokenExpired(token: string): boolean {
   const exp = getExp(token);
   if (!exp) return true;
-  
+
   // Considera expirado se faltam menos de 1 minuto
-  return Date.now() >= (exp - 60000);
+  return Date.now() >= exp - 60000;
 }
 
 /**
@@ -87,27 +87,29 @@ function cancelAutoLogout(): void {
 export function scheduleAutoLogout(token: string): void {
   // Cancela timer anterior se existir
   cancelAutoLogout();
-  
+
   const exp = getExp(token);
   if (!exp) {
     console.warn('Token sem expiração válida, não agendando auto-logout');
     return;
   }
-  
+
   // Agenda para 1 minuto antes da expiração
   const logoutTime = exp - 60000;
   const now = Date.now();
-  
+
   if (logoutTime <= now) {
     // Token já expirado ou vai expirar em menos de 1 minuto
     console.warn('Token próximo da expiração, fazendo logout imediato');
     performAutoLogout();
     return;
   }
-  
+
   const delay = logoutTime - now;
-  console.log(`Auto-logout agendado para ${new Date(logoutTime).toLocaleString()}`);
-  
+  console.log(
+    `Auto-logout agendado para ${new Date(logoutTime).toLocaleString()}`
+  );
+
   autoLogoutTimer = setTimeout(() => {
     performAutoLogout();
   }, delay);
@@ -118,26 +120,26 @@ export function scheduleAutoLogout(token: string): void {
  */
 function performAutoLogout(): void {
   console.log('Executando auto-logout por expiração do token');
-  
+
   // Limpa token
   clearToken();
-  
+
   // Mostra toast informativo
   toast.info('Sessão expirada. Faça login novamente.', {
     autoClose: 5000,
-    position: 'top-right'
+    position: 'top-right',
   });
-  
+
   // Redireciona conforme contexto
   const currentPath = window.location.pathname;
   let redirectPath = ROUTES.home;
-  
+
   if (currentPath.startsWith('/aluno')) {
     redirectPath = ROUTES.auth.loginAluno;
   } else if (currentPath.startsWith('/professor')) {
     redirectPath = ROUTES.auth.loginProf;
   }
-  
+
   // Usa replace para evitar voltar à página anterior
   window.location.replace(redirectPath);
 }
@@ -151,7 +153,7 @@ export function initializeSession(token: string): void {
     clearToken();
     return;
   }
-  
+
   setToken(token);
   scheduleAutoLogout(token);
 }

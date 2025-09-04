@@ -12,7 +12,7 @@ export async function getCurrentUser() {
   return data;
 }
 
-export const loginTeacher = async (payload) => {
+export const loginTeacher = async payload => {
   const { data } = await api.post('/auth/login-teacher', payload);
   if (data?.success) {
     const t = data?.data?.token;
@@ -52,4 +52,3 @@ export default {
   loginStudent,
   logout,
 };
-

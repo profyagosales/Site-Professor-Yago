@@ -14,7 +14,8 @@ export function usePrefetch() {
     const routeImports: Record<string, () => Promise<any>> = {
       '/professor/resumo': () => import('@/pages/DashboardProfessor'),
       '/professor/turmas': () => import('@/pages/professor/Turmas'),
-      '/professor/notas-da-classe': () => import('@/pages/redacao/DashboardRedacoes'),
+      '/professor/notas-da-classe': () =>
+        import('@/pages/redacao/DashboardRedacoes'),
       '/professor/redacao': () => import('@/pages/redacao/DashboardRedacoes'),
       '/aluno/resumo': () => import('@/pages/DashboardAluno'),
       '/aluno/notas': () => import('@/pages/aluno/Notas'),
@@ -26,9 +27,9 @@ export function usePrefetch() {
     const importFn = routeImports[routePath];
     if (importFn) {
       prefetchedRoutes.add(routePath);
-      
+
       // Prefetch com baixa prioridade
-      importFn().catch((error) => {
+      importFn().catch(error => {
         console.warn(`Failed to prefetch route ${routePath}:`, error);
         // Remove do cache em caso de erro para permitir retry
         prefetchedRoutes.delete(routePath);

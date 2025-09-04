@@ -8,7 +8,9 @@ jest.mock('react-router-dom', () => ({
 }));
 
 jest.mock('@/services/student', () => ({
-  getStudentProfile: jest.fn().mockResolvedValue({ id: 1, name: 'Aluno', className: '1A' }),
+  getStudentProfile: jest
+    .fn()
+    .mockResolvedValue({ id: 1, name: 'Aluno', className: '1A' }),
   getStudentWeeklySchedule: jest.fn().mockResolvedValue([]),
   listStudentUpcomingExams: jest.fn().mockResolvedValue([]),
   listStudentUpcomingContents: jest.fn().mockResolvedValue([]),
@@ -18,7 +20,11 @@ jest.mock('@/services/student', () => ({
 }));
 
 jest.mock('@/components/EnviarRedacaoModal', () => () => <div />);
-jest.mock('@/services/redacoes', () => ({ listarRedacoesAluno: jest.fn().mockResolvedValue([{ id:1, date:'2024-01-01', status:'Enviado' }]) }));
+jest.mock('@/services/redacoes', () => ({
+  listarRedacoesAluno: jest
+    .fn()
+    .mockResolvedValue([{ id: 1, date: '2024-01-01', status: 'Enviado' }]),
+}));
 
 describe('DashboardAluno', () => {
   test('shows dashboard sections', async () => {

@@ -16,7 +16,7 @@ export function useConfirm() {
   const [loading, setLoading] = useState(false);
 
   const confirm = (options: ConfirmOptions): Promise<boolean> => {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const modalId = showModal(
         <ConfirmModal
           isOpen={true}

@@ -11,13 +11,15 @@ describe('CorrigirRedacao', () => {
     render(
       <MemoryRouter initialEntries={['/redacoes/1/corrigir']}>
         <Routes>
-          <Route path="/redacoes/:id/corrigir" element={<CorrigirRedacao />} />
+          <Route path='/redacoes/:id/corrigir' element={<CorrigirRedacao />} />
         </Routes>
       </MemoryRouter>
     );
 
     expect(screen.getByText('Condições de anulação')).toBeInTheDocument();
-    const tipoSelect = screen.getByText('Tipo de correção').parentElement.querySelector('select');
+    const tipoSelect = screen
+      .getByText('Tipo de correção')
+      .parentElement.querySelector('select');
     await userEvent.selectOptions(tipoSelect, 'PAS/UnB');
     const ncInput = screen.getByText('NC').parentElement.querySelector('input');
     expect(ncInput).toBeInTheDocument();

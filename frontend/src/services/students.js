@@ -45,7 +45,9 @@ export async function update(classId, studentId, payload) {
   } else {
     data = { number, name, phone, email, password };
   }
-  return (await api.put(`/classes/${classId}/students/${studentId}`, data, config))?.data;
+  return (
+    await api.put(`/classes/${classId}/students/${studentId}`, data, config)
+  )?.data;
 }
 
 export async function remove(classId, studentId) {

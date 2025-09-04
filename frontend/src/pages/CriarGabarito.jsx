@@ -21,7 +21,7 @@ function CriarGabarito() {
       try {
         const res = await api.get('/classes');
         const list = Array.isArray(res?.data?.data || res?.data)
-          ? (res.data.data || res.data)
+          ? res.data.data || res.data
           : [];
         setClasses(list);
       } catch (err) {
@@ -31,12 +31,12 @@ function CriarGabarito() {
     loadClasses();
   }, []);
 
-  const handleChange = (e) => {
+  const handleChange = e => {
     const { name, value, files } = e.target;
     if (files && files[0]) {
-      setForm((f) => ({ ...f, [name]: files[0] }));
+      setForm(f => ({ ...f, [name]: files[0] }));
     } else {
-      setForm((f) => ({ ...f, [name]: value }));
+      setForm(f => ({ ...f, [name]: value }));
     }
   };
 
@@ -52,7 +52,7 @@ function CriarGabarito() {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault();
     setLoading(true);
     try {
@@ -127,40 +127,50 @@ function CriarGabarito() {
   };
 
   return (
-    <div className="pt-20 p-md">
-      <h1 className="text-2xl text-orange mb-md">Criar Gabarito</h1>
-      <form onSubmit={handleSubmit} className="space-y-md">
-        <div className="flex gap-md">
-          <input type="file" name="logoLeft" accept="image/png,image/jpeg" onChange={handleChange} />
-          <input type="file" name="logoRight" accept="image/png,image/jpeg" onChange={handleChange} />
+    <div className='pt-20 p-md'>
+      <h1 className='text-2xl text-orange mb-md'>Criar Gabarito</h1>
+      <form onSubmit={handleSubmit} className='space-y-md'>
+        <div className='flex gap-md'>
+          <input
+            type='file'
+            name='logoLeft'
+            accept='image/png,image/jpeg'
+            onChange={handleChange}
+          />
+          <input
+            type='file'
+            name='logoRight'
+            accept='image/png,image/jpeg'
+            onChange={handleChange}
+          />
         </div>
         <input
-          name="schoolName"
-          className="border p-sm rounded w-full"
-          placeholder="Nome da Escola"
+          name='schoolName'
+          className='border p-sm rounded w-full'
+          placeholder='Nome da Escola'
           value={form.schoolName}
           onChange={handleChange}
         />
         <input
-          name="discipline"
-          className="border p-sm rounded w-full"
-          placeholder="Disciplina"
+          name='discipline'
+          className='border p-sm rounded w-full'
+          placeholder='Disciplina'
           value={form.discipline}
           onChange={handleChange}
         />
         <input
-          name="teacher"
-          className="border p-sm rounded w-full"
-          placeholder="Professor"
+          name='teacher'
+          className='border p-sm rounded w-full'
+          placeholder='Professor'
           value={form.teacher}
           onChange={handleChange}
         />
-        <button type="submit" className="ys-btn-primary" disabled={loading}>
+        <button type='submit' className='ys-btn-primary' disabled={loading}>
           {loading ? 'Gerando...' : 'Gerar PDF'}
         </button>
       </form>
       {previewUrl && (
-        <iframe title="Prévia" src={previewUrl} className="w-full h-96 mt-md" />
+        <iframe title='Prévia' src={previewUrl} className='w-full h-96 mt-md' />
       )}
     </div>
   );

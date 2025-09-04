@@ -7,4 +7,3 @@ export async function sendEmail(payload) {
 export default {
   sendEmail,
 };
-

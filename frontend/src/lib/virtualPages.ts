@@ -13,7 +13,10 @@ export function computeVisibleRange(params: {
   const buffer = params.buffer ?? viewportH; // padrão: 1 viewport
   const unit = pageHeight + pageGap;
   const first = Math.max(1, Math.floor((scrollTop - buffer) / unit) + 1);
-  const last = Math.min(numPages, Math.ceil((scrollTop + viewportH + buffer) / unit) + 1);
+  const last = Math.min(
+    numPages,
+    Math.ceil((scrollTop + viewportH + buffer) / unit) + 1
+  );
   const topPad = (first - 1) * unit;
   return { first, last, topPad };
 }
