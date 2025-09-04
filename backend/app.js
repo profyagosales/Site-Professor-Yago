@@ -127,6 +127,17 @@ if (isProd && serveFrontend) {
   app.get('/', (_req, res) => res.send('API running'));
 }
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    version: process.env.npm_package_version || '1.0.0'
+  });
+});
+
 // ---------- ERROS ----------
 app.use((err, req, res, next) => {
   console.error(err);

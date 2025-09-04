@@ -7,6 +7,9 @@ import { ROUTES } from "./routes";
 import PageSkeleton from "@/components/skeletons/PageSkeleton";
 import TableSkeleton from "@/components/skeletons/TableSkeleton";
 import FormSkeleton from "@/components/skeletons/FormSkeleton";
+import AppErrorBoundary from "@/components/AppErrorBoundary";
+import NetworkBanner from "@/components/NetworkBanner";
+import ErrorTestButton from "@/components/ErrorTestButton";
 
 // Rotas públicas - carregamento imediato
 const Landing = lazy(() => import("@/pages/Landing"));
@@ -29,11 +32,14 @@ const AlunoRedacoes = lazy(() => import("@/pages/aluno/Redacoes"));
 
 export default function App() {
   return (
-    <Routes>
-      {/* Rotas públicas - sem Suspense para carregamento imediato */}
-      <Route path={ROUTES.home} element={<Landing />} />
-      <Route path={ROUTES.auth.loginProf} element={<LoginProf />} />
-      <Route path={ROUTES.aluno.login} element={<LoginAluno />} />
+    <AppErrorBoundary>
+      <NetworkBanner />
+      <ErrorTestButton />
+      <Routes>
+        {/* Rotas públicas - sem Suspense para carregamento imediato */}
+        <Route path={ROUTES.home} element={<Landing />} />
+        <Route path={ROUTES.auth.loginProf} element={<LoginProf />} />
+        <Route path={ROUTES.aluno.login} element={<LoginAluno />} />
 
       {/* área professor - com Suspense e skeletons específicos */}
       <Route
@@ -158,8 +164,9 @@ export default function App() {
         />
       </Route>
 
-      {/* fallback por último */}
-      <Route path={ROUTES.notFound} element={<Navigate to={ROUTES.home} replace />} />
-    </Routes>
+        {/* fallback por último */}
+        <Route path={ROUTES.notFound} element={<Navigate to={ROUTES.home} replace />} />
+      </Routes>
+    </AppErrorBoundary>
   );
 }
