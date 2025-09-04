@@ -15,9 +15,8 @@ import { getToken, scheduleAutoLogout } from '@/auth/token';
   if (buffer != null && !Number.isNaN(Number(buffer))) (window as any).YS_VIRT_BUFFER = Number(buffer);
 })();
 import { router } from './router';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from './store/AuthContext';
+import { UIProvider } from './providers/UIProvider';
 
 // Bootstrap da autenticação com auto-logout
 function bootstrapAuth() {
@@ -35,10 +34,11 @@ bootstrapAuth();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <AuthProvider>
-      <div className="ys-noise" />
-      <RouterProvider router={router} />
-      <ToastContainer position="top-right" autoClose={3000} hideProgressBar theme="light" />
-    </AuthProvider>
+    <UIProvider>
+      <AuthProvider>
+        <div className="ys-noise" />
+        <RouterProvider router={router} />
+      </AuthProvider>
+    </UIProvider>
   </React.StrictMode>
 );

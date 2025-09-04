@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { listClasses } from '@/services/classes';
 import { createNotification } from '@/services/notifications';
 import { toArray } from '@/services/api';
-import { toast } from 'react-toastify';
+import { useToast } from '@/hooks/useToast';
 
 function AvisosCard() {
+  const toast = useToast();
   const [classes, setClasses] = useState([]);
   const [message, setMessage] = useState('');
   const [selectedClasses, setSelectedClasses] = useState([]);

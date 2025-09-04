@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { toast } from 'react-toastify';
 import { uploadEssay } from '@/services/uploads';
 import { searchStudents } from '@/services/students2';
+import { useToast } from '@/hooks/useToast';
 
 type Props = {
   open: boolean;
@@ -13,6 +13,7 @@ type Props = {
 
 export default function NewEssayModal({ open, onClose, defaultStudentId, defaultClassId, onSuccess }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const toast = useToast();
   const [file, setFile] = useState<File | null>(null);
   const [studentId, setStudentId] = useState<string | undefined>(defaultStudentId);
   const [classId, setClassId] = useState<string | undefined>(defaultClassId);
