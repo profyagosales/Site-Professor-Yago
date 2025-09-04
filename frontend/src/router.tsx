@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import PublicLayout from '@/layouts/PublicLayout';
 import AppShellLayout from '@/layouts/AppShellLayout';
+import AlunoShell from '@/layouts/AlunoShell';
 import RequireAuth from '@/routes/RequireAuth';
 import Landing from '@/pages/Landing';
 import LoginProfessor from '@/pages/auth/LoginProfessor';
@@ -18,8 +19,6 @@ import GabaritoProf from '@/pages/professor/Gabarito';
 import TurmaAlunosPage from '@/pages/professor/TurmaAlunos';
 import ListaAlunos from '@/pages/professor/alunos/ListaAlunos';
 import PerfilAluno from '@/pages/professor/alunos/PerfilAluno';
-import AlunoCaderno from '@/pages/aluno/Caderno';
-import AlunoGabarito from '@/pages/aluno/Gabarito';
 import AlunoRedacoes from '@/pages/aluno/Redacoes';
 import AlunoNotas from '@/pages/aluno/Notas';
 import { ROUTES } from '@/routes';
@@ -60,14 +59,18 @@ export const router = createBrowserRouter([
   },
   {
     path: ROUTES.aluno.base,
-    element: <AppShellLayout />,
+    element: <AlunoShell />,
     children: [
-      { path: ROUTES.aluno.base, element: <Navigate to={ROUTES.aluno.landing} replace /> },
-      { path: ROUTES.aluno.dashboard, element: <DashboardAluno /> },
-      { path: ROUTES.aluno.caderno, element: <AlunoCaderno /> },
-      { path: ROUTES.aluno.gabaritos, element: <AlunoGabarito /> },
-      { path: ROUTES.aluno.redacoes, element: <AlunoRedacoes /> },
-      { path: ROUTES.aluno.notas, element: <AlunoNotas /> },
+      {
+        element: <RequireAuth />,
+        children: [
+          { index: true, element: <Navigate to={ROUTES.aluno.resumo} replace /> },
+          { path: "resumo", element: <DashboardAluno /> },
+          { path: "notas", element: <AlunoNotas /> },
+          { path: "recados", element: <div className="p-6">Recados - Em desenvolvimento</div> },
+          { path: "redacao", element: <AlunoRedacoes /> },
+        ],
+      },
     ],
   },
   // Aliases legados úteis (fora do grupo professor)
@@ -78,7 +81,5 @@ export const router = createBrowserRouter([
   { path: '/gabarito', element: <Navigate to={ROUTES.prof.gabarito} replace /> },
   { path: '/notas-da-classe', element: <Navigate to={ROUTES.prof.notasDaClasse} replace /> },
   { path: '/redacao', element: <Navigate to={ROUTES.prof.redacao} replace /> },
-  // Alias legado explícito
-  { path: ROUTES.legacy.dashboardAluno, element: <Navigate to={ROUTES.aluno.dashboard} replace /> },
   { path: ROUTES.notFound, element: <NotFound /> },
 ]);

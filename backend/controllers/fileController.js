@@ -52,7 +52,7 @@ function authorizeByHeaderOrQuery(req) {
   const raw = hdr?.startsWith('Bearer ') ? hdr.slice(7) : q;
   if (!raw) return null;
   try {
-    const payload = jwt.verify(raw, fileTokenSecret);
+    const payload = jwt.verify(raw, process.env.FILE_TOKEN_SECRET);
     return payload?.essayId || null;
   } catch {
     return null;

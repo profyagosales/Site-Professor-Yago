@@ -17,6 +17,9 @@ export const ROUTES = {
   aluno: {
     base: "/aluno",
     resumo: "/aluno/resumo",
+    notas: "/aluno/notas",
+    recados: "/aluno/recados",
+    redacao: "/aluno/redacao",
   },
   notFound: "*",
 } as const;

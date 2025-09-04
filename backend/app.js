@@ -51,13 +51,16 @@ const ALLOWED_ORIGINS = (process.env.APP_DOMAIN || '')
   .map(s => s.trim())
   .filter(Boolean);
 
-app.use(cors({
-  origin: (origin, cb) => cb(null, !origin || ALLOWED_ORIGINS.length === 0 || ALLOWED_ORIGINS.includes(origin)),
-  credentials: true,
-  methods: ['GET','HEAD','POST','PUT','PATCH','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization','Range'],
-  exposedHeaders: ['Content-Length','Content-Range','Accept-Ranges']
-}));
+// CORS (express) - configuração específica para anotações e Range
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "https://professoryagosales.com.br");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Headers", "Authorization, Content-Type, Range");
+  res.header("Access-Control-Expose-Headers", "Content-Length, Content-Range, Accept-Ranges");
+  res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+  next();
+});
 
 app.use(cookieParser());
 app.use(express.json());

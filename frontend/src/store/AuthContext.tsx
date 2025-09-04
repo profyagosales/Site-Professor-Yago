@@ -7,6 +7,7 @@ type AuthCtx = {
   state: AuthState; 
   setToken: (t: string | null) => void;
   loginTeacher(email: string, password: string): Promise<void>;
+  loginStudent(email: string, password: string): Promise<void>;
   logout(): Promise<void>;
 };
 
@@ -14,6 +15,7 @@ const AuthContext = createContext<AuthCtx>({
   state: { loading: true, role: null },
   setToken: () => {},
   loginTeacher: async () => {},
+  loginStudent: async () => {},
   logout: async () => {}
 });
 
@@ -56,6 +58,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function loginStudent(email: string, password: string) {
+    const { data } = await api.post("/auth/login-student", { email, password });
+    if (data?.token) {
+      setToken(data.token);
+      const me = await api.get("/auth/me");
+      setState({ loading: false, user: me.data, role: me.data?.role ?? "aluno" });
+    }
+  }
+
   async function logout() {
     try { await api.post("/auth/logout"); } catch {}
     setToken(null);
@@ -63,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ state, setToken, loginTeacher, logout }}>
+    <AuthContext.Provider value={{ state, setToken, loginTeacher, loginStudent, logout }}>
       {children}
     </AuthContext.Provider>
   );

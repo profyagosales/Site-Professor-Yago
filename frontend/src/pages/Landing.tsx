@@ -33,7 +33,7 @@ export default function Landing() {
             </Button>
             <Button
               data-testid="cta-aluno"
-              onClick={() => nav(ROUTES.auth.loginAluno)}
+              onClick={() => nav(ROUTES.aluno.login)}
             >
               Sou Aluno
             </Button>

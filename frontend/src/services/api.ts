@@ -18,10 +18,25 @@ export function bootstrapAuthFromStorage() {
   if (import.meta.env.DEV) console.log("[API] baseURL:", base);
 }
 
-// Opcional: interceptor 401 passivo (não redireciona aqui)
+// Interceptor 401 - limpa token e redireciona conforme contexto
 api.interceptors.response.use(
   (r) => r,
-  (err) => Promise.reject(err)
+  (err) => {
+    if (err.response?.status === 401) {
+      // Limpa token automaticamente em caso de 401
+      localStorage.removeItem(STORAGE_TOKEN_KEY);
+      setAuthToken(undefined);
+      
+      // Redireciona conforme o contexto da página
+      const currentPath = window.location.pathname;
+      if (currentPath.startsWith('/aluno')) {
+        window.location.href = '/login-aluno';
+      } else if (currentPath.startsWith('/professor')) {
+        window.location.href = '/login-professor';
+      }
+    }
+    return Promise.reject(err);
+  }
 );
 
 /**

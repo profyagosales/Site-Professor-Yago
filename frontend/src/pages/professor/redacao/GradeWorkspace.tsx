@@ -241,11 +241,36 @@ export default function GradeWorkspace() {
         // 1) buscar token curto
         const { data: tok } = await api.get(`/essays/${id}/file-token`);
         const fileUrl = `${api.defaults.baseURL}/essays/${id}/file`;
+        
+        // 2) validar com HEAD request
+        try {
+          await api.head(`/essays/${id}/file`, {
+            headers: { Authorization: `Bearer ${tok.token}` }
+          });
+        } catch (headError: any) {
+          if (headError.response?.status === 401) {
+            setIframeError('Acesso negado ao arquivo PDF');
+            return;
+          } else if (headError.response?.status === 404) {
+            setIframeError('Arquivo PDF não encontrado');
+            return;
+          } else {
+            setIframeError('Erro ao validar arquivo PDF');
+            return;
+          }
+        }
+        
         setFileBase(fileUrl);
         setFileToken(tok?.token);
         setPdfReady(true);
-      } catch {
-        setIframeError('Falha ao carregar PDF');
+      } catch (error: any) {
+        if (error.response?.status === 401) {
+          setIframeError('Acesso negado - faça login novamente');
+        } else if (error.response?.status === 404) {
+          setIframeError('Redação não encontrada');
+        } else {
+          setIframeError('Falha ao carregar PDF');
+        }
       }
     })();
   }, [id, useIframe]);
