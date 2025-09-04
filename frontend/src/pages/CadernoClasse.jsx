@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { toArray } from '@/lib/api';
+import { toArray } from '@/services/api';
 import { FiBook } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { listClasses } from '@/services/classes'
 import { createAnnouncement } from '@/services/announcements'
-import { toArray } from '@/lib/api'
+import { toArray } from '@/services/api'
 import { toast } from 'react-toastify'
 
 export default function AnnouncementModal({ open, onClose, onSaved }) {

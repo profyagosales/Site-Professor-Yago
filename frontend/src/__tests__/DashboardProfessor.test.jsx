@@ -6,7 +6,7 @@ jest.mock('react-router-dom', () => ({
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import DashboardProfessor from '@/pages/DashboardProfessor';
-import { api, pickData, toArray } from '@/lib/api';
+import { api, pickData, toArray } from '@/services/api';
 
 jest.mock('@/components/AvisosCard', () => () => <div />);
 jest.mock('@/components/SendEmailModal', () => () => <div />);

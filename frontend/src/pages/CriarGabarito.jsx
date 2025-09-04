@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from '@/lib/api';
+import { api } from '@/services/api';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { createGabarito } from '@/services/gabaritos';
 import { toast } from 'react-toastify';

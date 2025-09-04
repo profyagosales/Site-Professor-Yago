@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'react-toastify';
-import { toArray } from '@/lib/api';
+import { toArray } from '@/services/api';
 import { formatPhoneBR } from '@/utils/format';
 
 function PerfilAlunoProfessor() {
