@@ -2,6 +2,7 @@ import axios from 'axios';
 import type { AxiosResponse, AxiosRequestConfig, AxiosError } from 'axios';
 import { ROUTES } from '@/routes';
 import { getToken, clearSession, isTokenExpired } from '@/auth/token';
+import { logger } from '@/lib/logger';
 
 export const STORAGE_TOKEN_KEY = 'auth_token';
 
@@ -15,8 +16,19 @@ export const api = axios.create({
 
 // aplica header Authorization dinamicamente
 export function setAuthToken(token?: string) {
-  if (token) api.defaults.headers.common.Authorization = `Bearer ${token}`;
-  else delete api.defaults.headers.common.Authorization;
+  if (token) {
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+    logger.auth('Auth token set', true, {
+      action: 'auth',
+      component: 'setAuthToken',
+    });
+  } else {
+    delete api.defaults.headers.common.Authorization;
+    logger.auth('Auth token cleared', true, {
+      action: 'auth',
+      component: 'setAuthToken',
+    });
+  }
 }
 
 /**
@@ -86,25 +98,48 @@ export function bootstrapAuthFromStorage() {
   if (token) {
     // Verifica se o token não está expirado antes de aplicar
     if (isTokenExpired(token)) {
-      console.warn('Token expirado encontrado no storage, limpando');
+      logger.warn('Expired token found in storage, clearing session', {
+        action: 'auth',
+        component: 'bootstrapAuth',
+      });
       clearSession();
     } else {
       setAuthToken(token);
+      logger.auth('Token loaded from storage', true, {
+        action: 'auth',
+        component: 'bootstrapAuth',
+      });
     }
+  } else {
+    logger.info('No token found in storage', {
+      action: 'auth',
+      component: 'bootstrapAuth',
+    });
   }
-  // Log da baseURL apenas em DEV
-  if (import.meta.env.DEV) {
-    console.log('[API] baseURL:', base);
-    console.log('[API] timeout:', api.defaults.timeout, 'ms');
-  }
+  
+  // Log da configuração da API
+  logger.info('API configuration loaded', {
+    action: 'api',
+    component: 'bootstrapAuth',
+    baseURL: base,
+    timeout: api.defaults.timeout,
+  });
 }
 
-// Interceptor de request para adicionar metadata de retry
+// Interceptor de request para adicionar metadata de retry e logging
 api.interceptors.request.use(config => {
   // Adiciona metadata para controle de retry
   if (!config.metadata) {
-    config.metadata = { retryCount: 0 };
+    config.metadata = { retryCount: 0, startTime: Date.now() };
   }
+  
+  // Log da requisição (apenas método, URL e timestamp)
+  logger.info(`API Request: ${config.method?.toUpperCase()} ${config.url}`, {
+    action: 'api',
+    method: config.method?.toUpperCase(),
+    url: config.url,
+  });
+  
   return config;
 });
 
@@ -112,15 +147,47 @@ api.interceptors.request.use(config => {
 let isRedirecting = false; // Evita múltiplos redirecionamentos
 
 api.interceptors.response.use(
-  response => response,
+  response => {
+    // Log da resposta bem-sucedida
+    const config = response.config as AxiosRequestConfig & {
+      metadata?: { retryCount: number; startTime: number };
+    };
+    const duration = config.metadata?.startTime ? Date.now() - config.metadata.startTime : 0;
+    const payloadSize = JSON.stringify(response.data).length;
+    
+    logger.api(
+      config.method?.toUpperCase() || 'UNKNOWN',
+      config.url || 'UNKNOWN',
+      response.status,
+      duration,
+      payloadSize
+    );
+    
+    return response;
+  },
   async (error: AxiosError) => {
     const config = error.config as AxiosRequestConfig & {
-      metadata?: { retryCount: number };
+      metadata?: { retryCount: number; startTime: number };
     };
+
+    // Log do erro de API
+    const duration = config.metadata?.startTime ? Date.now() - config.metadata.startTime : 0;
+    logger.apiError(
+      config.method?.toUpperCase() || 'UNKNOWN',
+      config.url || 'UNKNOWN',
+      error,
+      duration
+    );
 
     // Tratamento de 401 - limpa token e redireciona
     if (error.response?.status === 401 && !isRedirecting) {
       isRedirecting = true;
+
+      logger.authError('Token expired or invalid', error, {
+        action: 'api',
+        method: config.method?.toUpperCase(),
+        url: config.url,
+      });
 
       // Limpa sessão (token + timers) automaticamente em caso de 401
       clearSession();
@@ -135,6 +202,12 @@ api.interceptors.response.use(
       } else if (currentPath.startsWith('/professor')) {
         redirectPath = ROUTES.auth.loginProf;
       }
+
+      logger.info('Redirecting to login after 401', {
+        action: 'auth',
+        from: currentPath,
+        to: redirectPath,
+      });
 
       // Usa replace para evitar voltar à página anterior
       window.location.replace(redirectPath);
@@ -152,11 +225,14 @@ api.interceptors.response.use(
         // Backoff: 300ms, 800ms
         const delay = retryCount === 0 ? 300 : 800;
 
-        if (import.meta.env.DEV) {
-          console.log(
-            `[API] Retry ${retryCount + 1}/${maxRetries} para ${config.url} em ${delay}ms`
-          );
-        }
+        logger.warn(`API retry ${retryCount + 1}/${maxRetries} for ${config.url}`, {
+          action: 'api',
+          method: config.method?.toUpperCase(),
+          url: config.url,
+          retryCount: retryCount + 1,
+          maxRetries,
+          delay,
+        });
 
         await new Promise(resolve => setTimeout(resolve, delay));
         return api(config);

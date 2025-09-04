@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { useToast } from '@/hooks/useToast';
+import { logger } from '@/lib/logger';
 
 interface Props {
   children: ReactNode;
@@ -23,10 +24,14 @@ class AppErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log apenas em DEV
-    if (import.meta.env.DEV) {
-      console.error('ErrorBoundary caught an error:', error, errorInfo);
-    }
+    // Log usando o sistema de logger
+    logger.error('ErrorBoundary caught an error', {
+      component: 'AppErrorBoundary',
+      action: 'componentDidCatch',
+      errorMessage: error.message,
+      errorStack: error.stack,
+      componentStack: errorInfo.componentStack,
+    }, error);
 
     this.setState({
       error,
@@ -48,16 +53,28 @@ class AppErrorBoundary extends Component<Props, State> {
           window.dispatchEvent(event);
         } catch (e) {
           // Fallback silencioso se não conseguir mostrar toast
+          logger.warn('Failed to show error toast', {
+            component: 'AppErrorBoundary',
+            action: 'showToast',
+          });
         }
       }, 100);
     }
   }
 
   handleRetry = () => {
+    logger.info('User retried after error', {
+      component: 'AppErrorBoundary',
+      action: 'retry',
+    });
     this.setState({ hasError: false, error: undefined, errorInfo: undefined });
   };
 
   handleReload = () => {
+    logger.info('User reloaded page after error', {
+      component: 'AppErrorBoundary',
+      action: 'reload',
+    });
     window.location.reload();
   };
 

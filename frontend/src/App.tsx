@@ -10,6 +10,7 @@ import FormSkeleton from '@/components/skeletons/FormSkeleton';
 import AppErrorBoundary from '@/components/AppErrorBoundary';
 import NetworkBanner from '@/components/NetworkBanner';
 import ErrorTestButton from '@/components/ErrorTestButton';
+import { LoggerDebug } from '@/components/LoggerDebug';
 
 // Rotas públicas - carregamento imediato
 const Landing = lazy(() => import('@/pages/Landing'));
@@ -37,6 +38,7 @@ export default function App() {
     <AppErrorBoundary>
       <NetworkBanner />
       <ErrorTestButton />
+      <LoggerDebug />
       <Routes>
         {/* Rotas públicas - sem Suspense para carregamento imediato */}
         <Route path={ROUTES.home} element={<Landing />} />
