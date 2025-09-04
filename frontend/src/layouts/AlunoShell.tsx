@@ -9,8 +9,6 @@ const NAV_ALUNO: NavItem[] = [
   { label: 'Resumo', to: ROUTES.aluno.resumo, primary: true },
   { label: 'Notas', to: ROUTES.aluno.notas },
   { label: 'Recados', to: ROUTES.aluno.recados },
-  { label: 'Redação', to: ROUTES.aluno.redacao },
-  { label: 'Caderno', to: ROUTES.aluno.caderno },
   { label: 'Gabaritos', to: ROUTES.aluno.gabaritos },
 ];
 

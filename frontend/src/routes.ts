@@ -119,6 +119,11 @@ export const ROUTES = {
       assertRoute('aluno.recados', path);
       return path;
     })(),
+    gabaritos: (() => {
+      const path = '/aluno/gabaritos';
+      assertRoute('aluno.gabaritos', path);
+      return path;
+    })(),
     redacao: (() => {
       const path = '/aluno/redacao';
       assertRoute('aluno.redacao', path);
@@ -127,11 +132,6 @@ export const ROUTES = {
     caderno: (() => {
       const path = '/aluno/caderno';
       assertRoute('aluno.caderno', path);
-      return path;
-    })(),
-    gabaritos: (() => {
-      const path = '/aluno/gabaritos';
-      assertRoute('aluno.gabaritos', path);
       return path;
     })(),
     redacoes: (() => {
