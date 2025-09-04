@@ -19,6 +19,7 @@ import { getToken, scheduleAutoLogout } from '@/auth/token';
 import { router } from './router';
 import { AuthProvider } from './store/AuthContext';
 import { UIProvider } from './providers/UIProvider';
+import { ToastProvider } from './components/ui/ToastProvider';
 
 // Bootstrap da autenticação com auto-logout
 function bootstrapAuth() {
@@ -40,6 +41,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <AuthProvider>
         <div className='ys-noise' />
         <RouterProvider router={router} />
+        <ToastProvider />
       </AuthProvider>
     </UIProvider>
   </React.StrictMode>

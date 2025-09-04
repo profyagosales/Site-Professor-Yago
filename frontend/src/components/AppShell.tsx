@@ -69,7 +69,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <span className='font-semibold text-ys-ink'>Professor Yago</span>
             </Link>
 
-            <nav className='hidden sm:flex items-center gap-1 justify-center flex-1'>
+            <nav 
+              className='hidden sm:flex items-center gap-1 justify-center flex-1'
+              role="navigation"
+              aria-label="Menu principal"
+            >
               {nav.map(i => (
                 <NavLink
                   key={i.to}
@@ -77,13 +81,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   onMouseEnter={() => prefetchRoute(i.to)}
                   className={({ isActive }) =>
                     [
-                      'px-3 py-2 rounded-xl text-sm font-medium transition-colors',
+                      'px-3 py-2 rounded-xl text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ys-amber focus:ring-offset-2',
                       isActive
                         ? 'bg-orange-100 text-orange-700 font-semibold'
                         : 'text-gray-800 hover:bg-orange-50',
                       i.primary && !isActive ? 'font-semibold' : '',
                     ].join(' ')
                   }
+                  aria-current={({ isActive }) => isActive ? 'page' : undefined}
                 >
                   {i.label}
                 </NavLink>
@@ -94,7 +99,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               {nav.length > 0 && (
                 <button
                   onClick={handleLogout}
-                  className='ml-3 px-3 py-2 rounded-xl text-sm font-medium text-gray-800 hover:bg-orange-50'
+                  className='ml-3 px-3 py-2 rounded-xl text-sm font-medium text-gray-800 hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-ys-amber focus:ring-offset-2'
+                  aria-label="Fazer logout da conta"
                 >
                   Sair
                 </button>

@@ -3,6 +3,7 @@ import { Card, CardBody } from '@/components/ui/Card';
 import { Link } from 'react-router-dom';
 import { ROUTES } from '@/routes';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
+import { useFocusManagement } from '@/hooks/useFocusManagement';
 
 type Props = {
   roleLabel: string;
@@ -22,14 +23,21 @@ export default function AuthShell({
   showBack = true,
 }: Props) {
   const { handleBack } = useBackNavigation();
+  const modalRef = useFocusManagement(true);
 
   return (
-    <section className='relative z-10 max-w-5xl mx-auto px-4 py-10'>
+    <section 
+      ref={modalRef}
+      className='relative z-10 max-w-5xl mx-auto px-4 py-10'
+      role="main"
+      aria-labelledby="auth-heading"
+    >
       {showBack && (
         <div className='mb-6'>
           <button
             onClick={handleBack}
             className='inline-flex items-center text-ys-ink-2 hover:text-ys-ink transition-colors text-sm'
+            aria-label="Voltar para página anterior"
           >
             <svg
               width='18'
@@ -106,7 +114,7 @@ export default function AuthShell({
               <p className='tracking-[0.25em] text-xs text-ys-ink-3 mb-2'>
                 {roleLabel.toUpperCase()}
               </p>
-              <h2 className='text-2xl font-extrabold text-ys-ink'>{heading}</h2>
+              <h2 id="auth-heading" className='text-2xl font-extrabold text-ys-ink'>{heading}</h2>
               {subheading && (
                 <p className='text-ys-ink-2 mt-1 text-sm'>{subheading}</p>
               )}

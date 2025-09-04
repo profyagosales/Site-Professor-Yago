@@ -11,8 +11,9 @@ export default {
   theme: {
     extend: {
       colors: {
-        // laranja de marca
-        "ys-amber": "#FF7A00",
+        // laranja de marca - ajustado para melhor contraste
+        "ys-amber": "#E66A00", // escurecido 5% para melhor contraste
+        "ys-amber-light": "#FF7A00", // cor original para elementos não-texto
         // cinzas claros com contraste alto para textos
         "ys-bg":    "#F2F4F7",
         "ys-card":  "#FFFFFF",
@@ -20,6 +21,9 @@ export default {
         "ys-ink-2": "#334155",   // texto secundário
         "ys-ink-3": "#475569",   // legendas
         "ys-line":  "#E5E7EB",   // linhas/bordas leves
+        // Cores de contraste melhorado
+        "ys-amber-text": "#B45309", // para texto sobre fundo claro
+        "ys-amber-bg": "#FEF3C7", // fundo para texto laranja
         ys: { orange1: "#FFB082", orange2: "#FF7E6D" },
       },
       boxShadow: {

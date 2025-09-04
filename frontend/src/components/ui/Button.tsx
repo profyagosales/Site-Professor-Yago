@@ -18,5 +18,12 @@ export function Button({
       'bg-white text-ys-ink hover:bg-ys-bg border border-ys-line px-4 py-2',
   }[variant];
 
-  return <button className={`${base} ${styles} ${className}`} {...props} />;
+  return (
+    <button 
+      className={`${base} ${styles} ${className}`} 
+      {...props}
+      // Garantir que botões tenham foco visível
+      tabIndex={props.disabled ? -1 : 0}
+    />
+  );
 }
