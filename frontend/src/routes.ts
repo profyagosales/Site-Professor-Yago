@@ -7,19 +7,22 @@ export const ROUTES = {
   prof: {
     base: '/professor',
     root: '/professor',
-    resumo: '/professor/resumo',      // usamos explicitamente nos links
+    resumo: '/professor/resumo',
     turmas: '/professor/turmas',
+    notasClasse: '/professor/notas-da-classe',
     notas: '/professor/notas-da-classe',
     notasDaClasse: '/professor/notas-da-classe',
     caderno: '/professor/caderno',
     gabarito: '/professor/gabarito',
     redacao: '/professor/redacao',
+    redacaoShow: (id: string) => `/professor/redacao/${id}`,
     redacaoItem: (id: string) => `/professor/redacao/${id}`,
     alunos: '/professor/alunos',
     alunoPerfil: (id: string) => `/professor/alunos/${id}`,
   },
   aluno: {
     base: '/aluno',
+    resumo: '/aluno/resumo',
     landing: '/aluno/caderno',
     dashboard: '/aluno/dashboard',
     caderno: '/aluno/caderno',
@@ -30,4 +33,5 @@ export const ROUTES = {
   legacy: {
     dashboardAluno: '/dashboard-aluno',
   },
+  notFound: '*',
 } as const;

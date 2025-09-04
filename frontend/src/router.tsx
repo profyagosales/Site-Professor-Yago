@@ -29,8 +29,8 @@ export const router = createBrowserRouter([
     element: <PublicLayout />,
     children: [
       { path: ROUTES.home, element: <Landing /> },
-      { path: ROUTES.loginProfessor, element: <LoginProfessor /> },
-      { path: ROUTES.loginAluno, element: <LoginAluno /> },
+      { path: ROUTES.auth.loginProf, element: <LoginProfessor /> },
+      { path: ROUTES.auth.loginAluno, element: <LoginAluno /> },
     ],
   },
   {
@@ -80,5 +80,5 @@ export const router = createBrowserRouter([
   { path: '/redacao', element: <Navigate to={ROUTES.prof.redacao} replace /> },
   // Alias legado explícito
   { path: ROUTES.legacy.dashboardAluno, element: <Navigate to={ROUTES.aluno.dashboard} replace /> },
-  { path: '*', element: <NotFound /> },
+  { path: ROUTES.notFound, element: <NotFound /> },
 ]);
