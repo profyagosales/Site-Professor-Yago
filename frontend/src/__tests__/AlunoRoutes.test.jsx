@@ -98,7 +98,7 @@ describe('AlunoRoutes', () => {
       }));
 
       render(<TestRouter />);
-      
+
       await waitFor(() => {
         expect(mockNavigate).toHaveBeenCalledWith(ROUTES.aluno.login, {
           replace: true,
@@ -129,7 +129,7 @@ describe('AlunoRoutes', () => {
       }));
 
       render(<TestRouter mockState={mockState} />);
-      
+
       await waitFor(() => {
         expect(mockNavigate).toHaveBeenCalledWith(ROUTES.aluno.login, {
           replace: true,
@@ -154,7 +154,9 @@ describe('AlunoRoutes', () => {
       };
 
       render(<TestRouter mockState={mockState} />);
-      expect(screen.getByText('Verificando autenticação...')).toBeInTheDocument();
+      expect(
+        screen.getByText('Verificando autenticação...')
+      ).toBeInTheDocument();
     });
   });
 });

@@ -26,6 +26,7 @@ import PerfilAluno from '@/pages/professor/alunos/PerfilAluno';
 import AlunoRedacoes from '@/pages/aluno/Redacoes';
 import AlunoNotas from '@/pages/aluno/Notas';
 import { ROUTES } from '@/routes';
+import { validateAndReportRoutes } from '@/routes/validateRoutes';
 
 export const router = createBrowserRouter([
   {
@@ -116,3 +117,8 @@ export const router = createBrowserRouter([
   { path: '/redacao', element: <Navigate to={ROUTES.prof.redacao} replace /> },
   { path: ROUTES.notFound, element: <NotFound /> },
 ]);
+
+// Validar rotas em desenvolvimento
+if (process.env.NODE_ENV === 'development') {
+  validateAndReportRoutes(router.routes);
+}
