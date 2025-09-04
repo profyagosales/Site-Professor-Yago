@@ -1,33 +1,11 @@
-import { useEffect, useState } from "react";
-import { Navigate, Outlet } from "react-router-dom";
-import { api } from "@/services/api";
-import { ROUTES } from "@/routes";
-import { setAuthToken } from "@/services/api";
+import { Navigate, Outlet } from 'react-router-dom';
+import { ROUTES } from '@/routes';
 
-export default function RequireAuth() {
-  const [status, setStatus] = useState<"idle"|"checking"|"ok"|"fail">("idle");
+export function RequireAuth() {
+  const token = localStorage.getItem('auth_token');
+  if (!token) return <Navigate to={ROUTES.auth.loginProf} replace />;
 
-  useEffect(() => {
-    const t = localStorage.getItem("auth_token");
-    if (!t) {
-      setStatus("fail");
-      return;
-    }
-    let mounted = true;
-    (async () => {
-      setStatus("checking");
-      try {
-        await api.get("/auth/me");
-        if (mounted) setStatus("ok");
-      } catch {
-        setAuthToken(undefined);
-        if (mounted) setStatus("fail");
-      }
-    })();
-    return () => { mounted = false; };
-  }, []);
-
-  if (status === "idle" || status === "checking") return <div>Carregando…</div>;
-  if (status === "fail") return <Navigate to={ROUTES.auth.loginProf} replace />;
+  // (Opcional) poderíamos validar com /auth/me em um efeito,
+  // mas não bloqueie render com tela branca quando não houver token.
   return <Outlet />;
 }

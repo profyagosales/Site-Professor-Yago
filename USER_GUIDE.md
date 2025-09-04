@@ -5,7 +5,7 @@ Este guia descreve os principais fluxos do sistema: login de professor e aluno, 
 ## Login do Professor
 1. Acesse `/login-professor`.
 2. Insira e-mail e senha cadastrados e clique em **Entrar**.
-3. Em caso de sucesso, o sistema redireciona para `/dashboard-professor`.
+3. Em caso de sucesso, o sistema redireciona para `/professor/resumo`.
 4. Exemplo de requisição:
    ```
    POST /api/auth/login-teacher

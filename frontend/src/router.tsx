@@ -1,9 +1,9 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import PublicLayout from '@/layouts/PublicLayout';
 import AppShellLayout from '@/layouts/AppShellLayout';
-import PrivateRoute from '@/routes/PrivateRoute';
+import { RequireAuth } from '@/routes/RequireAuth';
 import Landing from '@/pages/Landing';
-import LoginProfessorFixed from '@/pages/auth/LoginProfessorFixed';
+import LoginProfessor from '@/pages/auth/LoginProfessor';
 import LoginAluno from '@/pages/auth/LoginAluno';
 import DashboardProfessor from '@/pages/DashboardProfessor';
 import DashboardAluno from '@/pages/DashboardAluno';
@@ -29,15 +29,16 @@ export const router = createBrowserRouter([
     element: <PublicLayout />,
     children: [
       { path: ROUTES.home, element: <Landing /> },
-      { path: ROUTES.loginProfessor, element: <LoginProfessorFixed /> },
+      { path: ROUTES.loginProfessor, element: <LoginProfessor /> },
       { path: ROUTES.loginAluno, element: <LoginAluno /> },
     ],
   },
   {
-    element: <PrivateRoute />,
+    path: ROUTES.prof.root,
+    element: <AppShellLayout />,
     children: [
       {
-        element: <AppShellLayout />,
+        element: <RequireAuth />,
         children: [
           { path: ROUTES.prof.base, element: <Navigate to={ROUTES.prof.resumo} replace /> },
           { path: ROUTES.prof.resumo, element: <DashboardProfessor /> },
@@ -60,17 +61,18 @@ export const router = createBrowserRouter([
           { path: '/professor/alunos/:id', element: <PerfilAluno /> },
         ],
       },
-      {
-        element: <AppShellLayout />,
-        children: [
-          { path: ROUTES.aluno.base, element: <Navigate to={ROUTES.aluno.landing} replace /> },
-          { path: ROUTES.aluno.dashboard, element: <DashboardAluno /> },
-          { path: ROUTES.aluno.caderno, element: <AlunoCaderno /> },
-          { path: ROUTES.aluno.gabaritos, element: <AlunoGabarito /> },
-          { path: ROUTES.aluno.redacoes, element: <AlunoRedacoes /> },
-          { path: ROUTES.aluno.notas, element: <AlunoNotas /> },
-        ],
-      },
+    ],
+  },
+  {
+    path: ROUTES.aluno.base,
+    element: <AppShellLayout />,
+    children: [
+      { path: ROUTES.aluno.base, element: <Navigate to={ROUTES.aluno.landing} replace /> },
+      { path: ROUTES.aluno.dashboard, element: <DashboardAluno /> },
+      { path: ROUTES.aluno.caderno, element: <AlunoCaderno /> },
+      { path: ROUTES.aluno.gabaritos, element: <AlunoGabarito /> },
+      { path: ROUTES.aluno.redacoes, element: <AlunoRedacoes /> },
+      { path: ROUTES.aluno.notas, element: <AlunoNotas /> },
     ],
   },
   // Alias legado explícito

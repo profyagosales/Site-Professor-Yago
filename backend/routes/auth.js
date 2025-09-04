@@ -46,7 +46,7 @@ router.post('/login-teacher', async (req, res, next) => {
     if (!ok) return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
 
     const token = setSessionCookie(res, { role: 'teacher', email: user.email, id: String(user._id) });
-    res.json({ success: true, message: 'Login ok (teacher)', data: { token } });
+    res.json({ success: true, data: { token } });
   } catch (err) {
     next(err);
   }
@@ -71,7 +71,6 @@ router.post('/login-student', async (req, res, next) => {
     const token = setSessionCookie(res, { role: 'student', email: student.email, id: String(student._id) });
     res.json({
       success: true,
-      message: 'Login ok (student)',
       data: { token, student: { email: student.email } },
     });
   } catch (err) {
