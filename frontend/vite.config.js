@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
 export default defineConfig({
+  base: '/',
   plugins: [react()],
   resolve: {
     dedupe: ['react', 'react-dom'],
@@ -16,6 +17,8 @@ export default defineConfig({
     exclude: ['react-pdf', 'react-pdf-highlighter', 'pdfjs-dist'],
   },
   build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
     rollupOptions: {
       output: {
         manualChunks(id) {
