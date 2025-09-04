@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchEssayById, gradeEssay, saveAnnotations, renderCorrection } from '@/services/essays.service';
+import { fetchEssayById, gradeEssay, getAnnotations, saveAnnotations, renderCorrection } from '@/services/essays.service';
 import AnnotationEditor from '@/components/redacao/AnnotationEditor';
 import AnnotationEditorRich from '@/components/redacao/AnnotationEditorRich';
 import type { Highlight } from '@/components/redacao/types';
@@ -42,6 +42,7 @@ export default function GradeWorkspace() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [autosaving, setAutosaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error' | null>(null);
   const [undoStack, setUndoStack] = useState<Array<{ idx: number; ann: Highlight }>>([]);
   const [redoStack, setRedoStack] = useState<Array<{ idx: number; ann: Highlight }>>([]);
   const [dirty, setDirty] = useState(false);
@@ -208,25 +209,46 @@ export default function GradeWorkspace() {
     return () => window.removeEventListener('keydown', onKey);
   }, [undoStack, redoStack, annotations.length]);
 
-  // Autosave: debounce rápido e timer de segurança
+  // Autosave: debounce de 500ms e timer de segurança
   useEffect(() => {
     if (!dirty || !essay) return;
+    
     const debounce = setTimeout(async () => {
       try {
         setAutosaving(true);
-    await saveAnnotations(essay._id || essay.id, annotations as any, { annos: useNewAnnotator ? richAnnos : undefined });
+        setSaveStatus('saving');
+        await saveAnnotations(essay._id || essay.id, annotations as any, { annos: useNewAnnotator ? richAnnos : undefined });
         setLastSavedAt(new Date());
-      } catch {}
-      finally { setAutosaving(false); }
-    }, 1200);
+        setSaveStatus('saved');
+        // Limpa status após 2 segundos
+        setTimeout(() => setSaveStatus(null), 2000);
+      } catch (error: any) {
+        console.error('Erro ao salvar anotações:', error);
+        setSaveStatus('error');
+        // Limpa status de erro após 5 segundos
+        setTimeout(() => setSaveStatus(null), 5000);
+      } finally { 
+        setAutosaving(false); 
+      }
+    }, 500);
+    
     const safety = setTimeout(async () => {
       try {
         setAutosaving(true);
-    await saveAnnotations(essay._id || essay.id, annotations as any, { annos: useNewAnnotator ? richAnnos : undefined });
+        setSaveStatus('saving');
+        await saveAnnotations(essay._id || essay.id, annotations as any, { annos: useNewAnnotator ? richAnnos : undefined });
         setLastSavedAt(new Date());
-      } catch {}
-      finally { setAutosaving(false); }
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus(null), 2000);
+      } catch (error: any) {
+        console.error('Erro ao salvar anotações (timer de segurança):', error);
+        setSaveStatus('error');
+        setTimeout(() => setSaveStatus(null), 5000);
+      } finally { 
+        setAutosaving(false); 
+      }
     }, 15000);
+    
     return () => { clearTimeout(debounce); clearTimeout(safety); };
   }, [dirty, essay, annotations, richAnnos, useNewAnnotator]);
 
@@ -399,13 +421,25 @@ export default function GradeWorkspace() {
               Não salvo
             </span>
           )}
-          {!dirty && autosaving && (
-            <span className="mr-2 inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-[#374151]">
-              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-[#9CA3AF] border-t-transparent" />
+          {saveStatus === 'saving' && (
+            <span className="mr-2 inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700">
+              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
               Salvando…
             </span>
           )}
-          {!dirty && lastSavedAt && (
+          {saveStatus === 'saved' && (
+            <span className="mr-2 inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
+              <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
+              Salvo
+            </span>
+          )}
+          {saveStatus === 'error' && (
+            <span className="mr-2 inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-700">
+              <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
+              Erro ao salvar
+            </span>
+          )}
+          {!saveStatus && !dirty && lastSavedAt && (
             <span className="mr-2 text-xs text-ys-ink-2">Salvo às {lastSavedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
           )}
           <button className="rounded-lg border border-[#E5E7EB] px-3 py-1.5" onClick={()=>navigate('/professor/redacao')}>Voltar</button>

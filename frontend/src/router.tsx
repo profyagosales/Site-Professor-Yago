@@ -29,7 +29,7 @@ export const router = createBrowserRouter([
     children: [
       { path: ROUTES.home, element: <Landing /> },
       { path: ROUTES.auth.loginProf, element: <LoginProfessor /> },
-      { path: ROUTES.auth.loginAluno, element: <LoginAluno /> },
+      { path: ROUTES.aluno.login, element: <LoginAluno /> },
     ],
   },
   {
@@ -62,13 +62,16 @@ export const router = createBrowserRouter([
     element: <AlunoShell />,
     children: [
       {
-        element: <RequireAuth />,
+        element: <RequireAuth userType="aluno" />,
         children: [
           { index: true, element: <Navigate to={ROUTES.aluno.resumo} replace /> },
           { path: "resumo", element: <DashboardAluno /> },
           { path: "notas", element: <AlunoNotas /> },
           { path: "recados", element: <div className="p-6">Recados - Em desenvolvimento</div> },
           { path: "redacao", element: <AlunoRedacoes /> },
+          { path: "caderno", element: <AlunoCaderno /> },
+          { path: "gabaritos", element: <AlunoGabarito /> },
+          { path: "redacoes", element: <AlunoRedacoes /> },
         ],
       },
     ],

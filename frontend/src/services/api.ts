@@ -19,21 +19,30 @@ export function bootstrapAuthFromStorage() {
 }
 
 // Interceptor 401 - limpa token e redireciona conforme contexto
+let isRedirecting = false; // Evita múltiplos redirecionamentos
+
 api.interceptors.response.use(
   (r) => r,
   (err) => {
-    if (err.response?.status === 401) {
+    if (err.response?.status === 401 && !isRedirecting) {
+      isRedirecting = true;
+      
       // Limpa token automaticamente em caso de 401
       localStorage.removeItem(STORAGE_TOKEN_KEY);
       setAuthToken(undefined);
       
       // Redireciona conforme o contexto da página
       const currentPath = window.location.pathname;
+      let redirectPath = '/';
+      
       if (currentPath.startsWith('/aluno')) {
-        window.location.href = '/login-aluno';
+        redirectPath = '/login-aluno';
       } else if (currentPath.startsWith('/professor')) {
-        window.location.href = '/login-professor';
+        redirectPath = '/login-professor';
       }
+      
+      // Usa replace para evitar voltar à página anterior
+      window.location.replace(redirectPath);
     }
     return Promise.reject(err);
   }

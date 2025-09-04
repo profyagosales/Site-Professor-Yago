@@ -31,7 +31,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const role = getRole();
   const nav = role === "teacher" ? NAV_TEACHER : role === "student" ? NAV_STUDENT : [];
-  const hideNav = [ROUTES.auth.loginProf, ROUTES.auth.loginAluno].includes(loc.pathname);
+  const hideNav = [ROUTES.auth.loginProf, ROUTES.aluno.login].includes(loc.pathname);
 
   function goHomeByRole() {
     const token = localStorage.getItem("auth_token");

@@ -9,12 +9,14 @@ const NAV_ALUNO: NavItem[] = [
   { label: "Notas", to: ROUTES.aluno.notas },
   { label: "Recados", to: ROUTES.aluno.recados },
   { label: "Redação", to: ROUTES.aluno.redacao },
+  { label: "Caderno", to: ROUTES.aluno.caderno },
+  { label: "Gabaritos", to: ROUTES.aluno.gabaritos },
 ];
 
 export default function AlunoShell({ children }: { children: React.ReactNode }) {
   const loc = useLocation();
   const navigate = useNavigate();
-  const hideNav = [ROUTES.auth.loginProf, ROUTES.auth.loginAluno].includes(loc.pathname);
+  const hideNav = [ROUTES.auth.loginProf, ROUTES.aluno.login].includes(loc.pathname);
 
   function goHomeByRole() {
     const token = localStorage.getItem(STORAGE_TOKEN_KEY);
@@ -29,7 +31,7 @@ export default function AlunoShell({ children }: { children: React.ReactNode }) 
       localStorage.removeItem("role");
       setAuthToken(undefined);
     } catch {}
-    navigate(ROUTES.auth.loginAluno, { replace: true });
+    navigate(ROUTES.aluno.login, { replace: true });
   }
 
   return (

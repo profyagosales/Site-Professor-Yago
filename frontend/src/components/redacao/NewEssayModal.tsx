@@ -51,32 +51,61 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
   }
 
   async function submit() {
-  if (!file && !fileUrl) { setError('Selecione um arquivo ou informe uma URL'); return; }
-    if (!studentId) { setError('Selecione um aluno'); return; }
-    if (!topic.trim()) { setError('Informe um tema'); return; }
-  if (!bimester) { setError('Selecione o bimestre'); return; }
+    // Validação: arquivo OU URL (um dos dois obrigatório)
+    if (!file && !fileUrl.trim()) {
+      setError('Campos obrigatórios: arquivo ou URL');
+      return;
+    }
+    if (useUrl && !fileUrl.trim()) {
+      setError('Informe a URL do arquivo');
+      return;
+    }
+    if (!useUrl && !file) {
+      setError('Selecione um arquivo');
+      return;
+    }
+    if (!studentId) {
+      setError('Selecione um aluno');
+      return;
+    }
+    if (!topic.trim()) {
+      setError('Informe um tema');
+      return;
+    }
+    if (!bimester) {
+      setError('Selecione o bimestre');
+      return;
+    }
+    
     setError(null);
     try {
       setLoading(true);
       const fd = new FormData();
+      
+      // Se arquivo: fd.append('file', file)
       if (file && !useUrl) {
         fd.append('file', file);
-      } else if (fileUrl) {
-        fd.append('fileUrl', fileUrl);
       }
+      // Se URL: fd.append('fileUrl', url)
+      if (useUrl && fileUrl.trim()) {
+        fd.append('fileUrl', fileUrl.trim());
+      }
+      
       fd.append('studentId', studentId);
       fd.append('topic', topic);
       if (classId) fd.append('classId', classId);
-  fd.append('bimester', bimester);
-  fd.append('type', type);
-  await uploadEssay(fd);
-  toast.success('Redação enviada com sucesso');
-      onSuccess();
+      fd.append('bimester', bimester);
+      fd.append('type', type);
+      
+      // POST /api/uploads/essay (sem Content-Type; deixe o browser definir o boundary)
+      await uploadEssay(fd);
+      toast.success('Redação enviada');
+      onSuccess(); // fechar modal, inserir item na lista, toast "Redação enviada"
       onClose();
     } catch (e: any) {
-  const msg = e?.response?.data?.message || 'Erro ao enviar';
-  setError(msg);
-  toast.error(msg);
+      const msg = e?.response?.data?.message || 'Erro ao enviar';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -94,14 +123,38 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
         <div className="space-y-3">
           <div>
             <div className="flex items-center justify-between">
-              <label className="block text-sm font-medium text-[#111827]">Arquivo (PDF/Imagem)</label>
-              <label className="flex items-center gap-2 text-xs text-ys-ink-2"><input type="checkbox" checked={useUrl} onChange={e=> setUseUrl(e.target.checked)} /> Usar URL</label>
+              <label className="block text-sm font-medium text-[#111827]">Arquivo (PDF/Imagem) ou URL</label>
+              <label className="flex items-center gap-2 text-xs text-ys-ink-2">
+                <input type="checkbox" checked={useUrl} onChange={e=> setUseUrl(e.target.checked)} /> 
+                Usar URL
+              </label>
             </div>
             {!useUrl ? (
-              <input type="file" accept="application/pdf,image/*" onChange={e => setFile(e.target.files?.[0] || null)} className="w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+              <div>
+                <input 
+                  type="file" 
+                  accept="application/pdf,image/*" 
+                  onChange={e => setFile(e.target.files?.[0] || null)} 
+                  className="w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500" 
+                />
+                {file && (
+                  <p className="mt-1 text-xs text-green-600">✓ Arquivo selecionado: {file.name}</p>
+                )}
+              </div>
             ) : (
-              <input placeholder="https://…" value={fileUrl} onChange={e=> setFileUrl(e.target.value)} className="w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+              <div>
+                <input 
+                  placeholder="https://exemplo.com/redacao.pdf" 
+                  value={fileUrl} 
+                  onChange={e=> setFileUrl(e.target.value)} 
+                  className="w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500" 
+                />
+                {fileUrl.trim() && (
+                  <p className="mt-1 text-xs text-green-600">✓ URL informada</p>
+                )}
+              </div>
             )}
+            <p className="mt-1 text-xs text-ys-ink-2">* Obrigatório: selecione um arquivo OU informe uma URL</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-[#111827]">Aluno</label>

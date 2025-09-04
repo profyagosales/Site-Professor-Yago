@@ -144,12 +144,28 @@ export async function gradeEssay(id: string, payload: {
   }
 }
 
+export async function getAnnotations(id: string) {
+  const res = await api.get(`/essays/${id}/annotations`);
+  return res.data;
+}
+
 export async function saveAnnotations(id: string, annotations: Annotation[], rich?: { annos?: Anno[] }) {
   const body: any = { annotations };
   // behind flag: enviar anotações ricas sem quebrar o contrato existente
   if (rich?.annos && (window as any).YS_USE_RICH_ANNOS) body.richAnnotations = rich.annos;
-  const res = await api.put(`/essays/${id}/annotations`, body);
-  return res.data;
+  
+  try {
+    const res = await api.put(`/essays/${id}/annotations`, body);
+    return res.data;
+  } catch (error: any) {
+    // Log específico para erros CORS sem travar a UI
+    if (error.code === 'ERR_NETWORK' || error.message?.includes('CORS') || error.message?.includes('preflight')) {
+      console.warn('Erro CORS detectado no saveAnnotations - verificar configuração do servidor:', error.message);
+    } else {
+      console.error('Erro ao salvar anotações:', error);
+    }
+    throw error; // Re-throw para que o componente possa tratar
+  }
 }
 
 export async function renderCorrection(id: string, opts?: { sendEmail?: boolean; thumbnailsCount?: number }) {
@@ -162,4 +178,4 @@ export async function sendCorrectionEmail(id: string) {
   return res.data;
 }
 
-export default { fetchEssays, gradeEssay, saveAnnotations, renderCorrection, sendCorrectionEmail };
+export default { fetchEssays, gradeEssay, getAnnotations, saveAnnotations, renderCorrection, sendCorrectionEmail };

@@ -15,15 +15,16 @@ import {
 import { logout } from '@/services/auth'
 import { FaPen, FaStar, FaFilePdf, FaBook } from 'react-icons/fa'
 import flags from '@/config/features'
+import { ROUTES } from '@/routes'
 
 function ShortcutCards() {
   const shortcuts = [
     ...(flags.redaction
-      ? [{ path: '/aluno/redacoes', title: 'Redações', subtitle: 'Minhas redações', icon: <FaPen className="text-orange w-6 h-6" /> }]
+      ? [{ path: ROUTES.aluno.redacoes, title: 'Redações', subtitle: 'Minhas redações', icon: <FaPen className="text-orange w-6 h-6" /> }]
       : []),
-    { path: '/aluno/notas', title: 'Notas', subtitle: 'Resumo por bimestre', icon: <FaStar className="text-orange w-6 h-6" /> },
-    { path: '/aluno/gabaritos', title: 'Gabaritos', subtitle: 'PDFs corrigidos', icon: <FaFilePdf className="text-orange w-6 h-6" /> },
-    { path: '/aluno/caderno', title: 'Caderno', subtitle: 'Vistos do bimestre', icon: <FaBook className="text-orange w-6 h-6" /> },
+    { path: ROUTES.aluno.notas, title: 'Notas', subtitle: 'Resumo por bimestre', icon: <FaStar className="text-orange w-6 h-6" /> },
+    { path: ROUTES.aluno.gabaritos, title: 'Gabaritos', subtitle: 'PDFs corrigidos', icon: <FaFilePdf className="text-orange w-6 h-6" /> },
+    { path: ROUTES.aluno.caderno, title: 'Caderno', subtitle: 'Vistos do bimestre', icon: <FaBook className="text-orange w-6 h-6" /> },
   ]
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-md mt-md">
@@ -47,7 +48,7 @@ function ExamsCard({ exams = [] }) {
     <div className="ys-card p-md">
       <div className="flex justify-between items-center mb-sm">
         <h3 className="font-semibold">Próximas avaliações</h3>
-        <Link to="/aluno/notas" className="text-orange text-sm">Ver todos</Link>
+        <Link to={ROUTES.aluno.notas} className="text-orange text-sm">Ver todos</Link>
       </div>
       <ul className="space-y-1 text-sm">
         {exams.length === 0 && <li className="text-black/60">Nenhuma avaliação</li>}
@@ -115,7 +116,7 @@ function GradesBox({ grades }) {
     <div className="ys-card p-md">
       <div className="flex justify-between items-center mb-sm">
         <h3 className="font-semibold">Notas do bimestre</h3>
-        <Link to="/aluno/notas" className="text-orange text-sm">Ver detalhes</Link>
+        <Link to={ROUTES.aluno.notas} className="text-orange text-sm">Ver detalhes</Link>
       </div>
       <div className="mb-md">
         <span className={`text-white px-2 py-1 rounded ${badgeColor}`}>{totalTerm.toFixed(1)}</span>
@@ -157,7 +158,7 @@ function NotebookBox({ nb }) {
     <div className="ys-card p-md">
       <div className="flex justify-between items-center mb-sm">
         <h3 className="font-semibold">Caderno — Bimestre atual</h3>
-        <Link to="/aluno/caderno" className="text-orange text-sm">Ver detalhes</Link>
+        <Link to={ROUTES.aluno.caderno} className="text-orange text-sm">Ver detalhes</Link>
       </div>
       <p className="text-sm mb-sm">Valor do caderno: {total}</p>
       <p className="text-sm mb-md">Vistos: {seen}/{totalItems}</p>
@@ -222,13 +223,13 @@ export default function DashboardAluno() {
     const token = localStorage.getItem('auth_token')
     const role = localStorage.getItem('role')
     if (!token || role !== 'student') {
-      navigate('/login-aluno')
+      navigate(ROUTES.aluno.login)
     }
   }, [navigate])
 
   const handleLogout = async () => {
     await logout()
-    navigate('/login-aluno')
+    navigate(ROUTES.aluno.login)
   }
 
   return (

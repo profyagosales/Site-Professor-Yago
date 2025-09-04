@@ -6,6 +6,7 @@ export const ROUTES = {
   },
   prof: {
     base: "/professor",
+    root: "/professor",
     resumo: "/professor/resumo",
     turmas: "/professor/turmas",
     notasClasse: "/professor/notas-da-classe",

@@ -25,7 +25,7 @@ export default function App() {
         {/* públicas */}
         <Route path={ROUTES.home} element={<Landing />} />
         <Route path={ROUTES.auth.loginProf} element={<LoginProf />} />
-        <Route path={ROUTES.auth.loginAluno} element={<LoginAluno />} />
+        <Route path={ROUTES.aluno.login} element={<LoginAluno />} />
 
         {/* área professor - FILHOS COM PATH RELATIVO */}
         <Route
