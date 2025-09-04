@@ -238,12 +238,11 @@ export default function GradeWorkspace() {
     
     (async () => {
       try {
-        // Pegar token para o arquivo
-        const { data } = await api.post(`/essays/${id}/file-token`);
-        const base = api.defaults.baseURL;
-        const fileUrl = `${base}/essays/${id}/file`;
+        // 1) buscar token curto
+        const { data: tok } = await api.get(`/essays/${id}/file-token`);
+        const fileUrl = `${api.defaults.baseURL}/essays/${id}/file`;
         setFileBase(fileUrl);
-        setFileToken(data.token);
+        setFileToken(tok?.token);
         setPdfReady(true);
       } catch {
         setIframeError('Falha ao carregar PDF');
@@ -254,13 +253,11 @@ export default function GradeWorkspace() {
 
   function sendFileToIframe() {
     if (!iframeRef.current || !fileBase || !fileToken) return;
-    iframeRef.current.contentWindow?.postMessage(
-      {
-        type: 'open',
-        payload: { url: fileBase, token: fileToken },
-      },
-      '*',
-    );
+    // 2) mandar pro iframe
+    iframeRef.current.contentWindow?.postMessage({
+      type: "open",
+      payload: { url: fileBase, token: fileToken }
+    }, "*");
   }
 
   useEffect(() => {
@@ -330,10 +327,9 @@ export default function GradeWorkspace() {
   async function openPdfInNewTab() {
     if (!id) return;
     try {
-      // Preferência: URL com token curto na query
+      // 3) "Abrir em nova aba" (fallback)
       if (fileToken && fileBase) {
-        const urlWithToken = `${fileBase}?t=${fileToken}`;
-        window.open(urlWithToken, '_blank', 'noopener');
+        window.open(`${fileBase}?t=${fileToken}`, "_blank", "noopener");
         return;
       }
       
