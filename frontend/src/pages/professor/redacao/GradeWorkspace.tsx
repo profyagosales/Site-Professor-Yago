@@ -66,6 +66,96 @@ export default function GradeWorkspace() {
   const [fileToken, setFileToken] = useState('');
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [draft, setDraft] = useState<null | {
+    annotations: Highlight[];
+    richAnnos: Anno[];
+    comments: string;
+    weight: string;
+    bimestralValue: string;
+    countInBimestral: boolean;
+    annulReason: string;
+    annulOther: string;
+    c1: string; c2: string; c3: string; c4: string; c5: string;
+    NC: string; NL: string;
+    timestamp: number;
+  }>(null);
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false);
+  const [localSaveTimeout, setLocalSaveTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [serverSaveTimeout, setServerSaveTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  // Funções para gerenciar rascunho local
+  const saveDraftToLocal = () => {
+    if (!id) return;
+    const draftData = {
+      annotations,
+      richAnnos,
+      comments,
+      weight,
+      bimestralValue,
+      countInBimestral,
+      annulReason,
+      annulOther,
+      c1, c2, c3, c4, c5,
+      NC, NL,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(`essay:${id}:draft`, JSON.stringify(draftData));
+    setDraft(draftData);
+  };
+
+  const loadDraftFromLocal = () => {
+    if (!id) return;
+    try {
+      const stored = localStorage.getItem(`essay:${id}:draft`);
+      if (stored) {
+        const draftData = JSON.parse(stored);
+        // Verifica se o rascunho é mais recente que 5 minutos
+        const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+        if (draftData.timestamp > fiveMinutesAgo) {
+          setDraft(draftData);
+          setShowRestoreDialog(true);
+        } else {
+          // Remove rascunho antigo
+          localStorage.removeItem(`essay:${id}:draft`);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao carregar rascunho:', error);
+    }
+  };
+
+  const clearDraft = () => {
+    if (!id) return;
+    localStorage.removeItem(`essay:${id}:draft`);
+    setDraft(null);
+  };
+
+  const restoreDraft = () => {
+    if (!draft) return;
+    setAnnotations(draft.annotations);
+    setRichAnnos(draft.richAnnos);
+    setComments(draft.comments);
+    setWeight(draft.weight);
+    setBimestralValue(draft.bimestralValue);
+    setCountInBimestral(draft.countInBimestral);
+    setAnnulReason(draft.annulReason);
+    setAnnulOther(draft.annulOther);
+    setC1(draft.c1);
+    setC2(draft.c2);
+    setC3(draft.c3);
+    setC4(draft.c4);
+    setC5(draft.c5);
+    setNC(draft.NC);
+    setNL(draft.NL);
+    setDirty(true);
+    setShowRestoreDialog(false);
+    clearDraft();
+  };
+
+  const discardDraft = () => {
+    setShowRestoreDialog(false);
+    clearDraft();
+  };
 
   useEffect(() => {
     let alive = true;
@@ -113,11 +203,19 @@ export default function GradeWorkspace() {
         setSnapshot(snap);
         setDirty(false);
         setSuppressDirty(false);
+        
+        // Carregar rascunho local após carregar dados do servidor
+        loadDraftFromLocal();
       } catch (e:any) {
         setErr(e?.response?.data?.message || 'Erro ao carregar redação');
       } finally { setLoading(false); }
     })();
-    return () => { alive = false };
+    return () => { 
+      alive = false;
+      // Limpa timeouts ao desmontar
+      if (localSaveTimeout) clearTimeout(localSaveTimeout);
+      if (serverSaveTimeout) clearTimeout(serverSaveTimeout);
+    };
   }, [id]);
 
   const effectiveAnnul = annulReason === 'Outros' ? annulOther.trim() : annulReason;
@@ -210,11 +308,38 @@ export default function GradeWorkspace() {
     return () => window.removeEventListener('keydown', onKey);
   }, [undoStack, redoStack, annotations.length]);
 
-  // Autosave: debounce de 500ms e timer de segurança
+  // Autosave local: debounce de 800ms para salvar rascunho
   useEffect(() => {
     if (!dirty || !essay) return;
     
-    const debounce = setTimeout(async () => {
+    // Limpa timeout anterior
+    if (localSaveTimeout) {
+      clearTimeout(localSaveTimeout);
+    }
+    
+    // Salva rascunho local com debounce de 800ms
+    const timeout = setTimeout(() => {
+      saveDraftToLocal();
+    }, 800);
+    
+    setLocalSaveTimeout(timeout);
+    
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [dirty, essay, annotations, richAnnos, comments, weight, bimestralValue, countInBimestral, annulReason, annulOther, c1, c2, c3, c4, c5, NC, NL]);
+
+  // Autosave servidor: debounce de 800ms separado para salvar no servidor
+  useEffect(() => {
+    if (!dirty || !essay) return;
+    
+    // Limpa timeout anterior
+    if (serverSaveTimeout) {
+      clearTimeout(serverSaveTimeout);
+    }
+    
+    // Salva no servidor com debounce de 800ms
+    const timeout = setTimeout(async () => {
       try {
         setAutosaving(true);
         setSaveStatus('saving');
@@ -231,26 +356,13 @@ export default function GradeWorkspace() {
       } finally { 
         setAutosaving(false); 
       }
-    }, 500);
+    }, 800);
     
-    const safety = setTimeout(async () => {
-      try {
-        setAutosaving(true);
-        setSaveStatus('saving');
-        await saveAnnotations(essay._id || essay.id, annotations as any, { annos: useNewAnnotator ? richAnnos : undefined });
-        setLastSavedAt(new Date());
-        setSaveStatus('saved');
-        setTimeout(() => setSaveStatus(null), 2000);
-      } catch (error: any) {
-        console.error('Erro ao salvar anotações (timer de segurança):', error);
-        setSaveStatus('error');
-        setTimeout(() => setSaveStatus(null), 5000);
-      } finally { 
-        setAutosaving(false); 
-      }
-    }, 15000);
+    setServerSaveTimeout(timeout);
     
-    return () => { clearTimeout(debounce); clearTimeout(safety); };
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
   }, [dirty, essay, annotations, richAnnos, useNewAnnotator]);
 
   // carregar PDF via iframe viewer
@@ -362,6 +474,8 @@ export default function GradeWorkspace() {
   setDirty(false);
   setLastSavedAt(new Date());
   setSnapshot({ annotations, comments, weight, bimestralPointsValue: bimestralValue, countInBimestral, annulmentReason: effectiveAnnul, c1, c2, c3, c4, c5, NC, NL });
+  // Limpa rascunho local após salvar com sucesso
+  clearDraft();
       navigate(ROUTES.prof.redacao);
     } catch (e:any) {
       toast.error(e?.response?.data?.message || 'Falha ao salvar');
@@ -397,6 +511,34 @@ export default function GradeWorkspace() {
     <div className="p-4 md:p-6 space-y-4">
       {import.meta.env.DEV && (
         <div className="text-xs text-ys-ink-2">Flag rich: {String((window as any).YS_USE_RICH_ANNOS)} • mime: {essay.originalMimeType || '-'}</div>
+      )}
+      
+      {/* Diálogo de restauração de rascunho */}
+      {showRestoreDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg p-6 max-w-md mx-4 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Restaurar rascunho?
+            </h3>
+            <p className="text-sm text-gray-600 mb-6">
+              Foi encontrado um rascunho salvo localmente. Deseja restaurar as alterações não salvas?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={discardDraft}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                Descartar
+              </button>
+              <button
+                onClick={restoreDraft}
+                className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors"
+              >
+                Restaurar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
   <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -442,6 +584,12 @@ export default function GradeWorkspace() {
           )}
           {!saveStatus && !dirty && lastSavedAt && (
             <span className="mr-2 text-xs text-ys-ink-2">Salvo às {lastSavedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+          )}
+          {draft && (
+            <span className="mr-2 inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700">
+              <span className="inline-block h-2 w-2 rounded-full bg-blue-500" />
+              Rascunho salvo
+            </span>
           )}
           <button className="rounded-lg border border-[#E5E7EB] px-3 py-1.5" onClick={()=>navigate(ROUTES.prof.redacao)}>Voltar</button>
           {import.meta.env.DEV && (
