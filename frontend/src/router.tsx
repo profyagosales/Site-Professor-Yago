@@ -31,6 +31,9 @@ const PerfilAluno = lazy(() => import('@/pages/professor/alunos/PerfilAluno'));
 // Páginas aluno - lazy loading
 const AlunoRedacoes = lazy(() => import('@/pages/aluno/Redacoes'));
 const AlunoNotas = lazy(() => import('@/pages/aluno/Notas'));
+const AlunoCaderno = lazy(() => import('@/pages/aluno/Caderno'));
+const RecadosAluno = lazy(() => import('@/pages/aluno/RecadosAluno'));
+const AlunoGabarito = lazy(() => import('@/pages/aluno/Gabarito'));
 
 // Páginas pesadas - lazy loading com preload
 const RedacaoProfessorPage = lazy(
@@ -108,6 +111,18 @@ export const router = createBrowserRouter([
                 }
               >
                 <TurmaAlunosPage />
+              </Suspense>
+            ),
+          },
+          {
+            path: 'turmas/:id/caderno',
+            element: (
+              <Suspense
+                fallback={
+                  <div className='p-6 animate-pulse'>Carregando caderno...</div>
+                }
+              >
+                <CadernoProf />
               </Suspense>
             ),
           },
@@ -244,7 +259,39 @@ export const router = createBrowserRouter([
           },
           {
             path: 'recados',
-            element: <div className='p-6'>Recados - Em desenvolvimento</div>,
+            element: (
+              <Suspense
+                fallback={
+                  <div className='p-6 animate-pulse'>Carregando recados...</div>
+                }
+              >
+                <RecadosAluno />
+              </Suspense>
+            ),
+          },
+          {
+            path: 'caderno',
+            element: (
+              <Suspense
+                fallback={
+                  <div className='p-6 animate-pulse'>Carregando caderno...</div>
+                }
+              >
+                <AlunoCaderno />
+              </Suspense>
+            ),
+          },
+          {
+            path: 'gabaritos',
+            element: (
+              <Suspense
+                fallback={
+                  <div className='p-6 animate-pulse'>Carregando gabaritos...</div>
+                }
+              >
+                <AlunoGabarito />
+              </Suspense>
+            ),
           },
           {
             path: 'redacao',

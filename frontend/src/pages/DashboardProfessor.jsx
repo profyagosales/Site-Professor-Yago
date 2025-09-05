@@ -290,7 +290,11 @@ function DashboardProfessor() {
             <h3 className='text-orange font-semibold'>Próximos conteúdos</h3>
             <button
               className='link-primary'
-              onClick={() => navigate(ROUTES.prof.caderno)}
+              onClick={() => {
+                // Por enquanto, vai para o caderno geral
+                // TODO: Implementar modal de seleção de turma
+                navigate(ROUTES.prof.caderno);
+              }}
             >
               Ver todos
             </button>

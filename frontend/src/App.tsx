@@ -28,6 +28,11 @@ const Resumo = lazy(() => import('@/pages/DashboardProfessor'));
 const GradeWorkspace = lazy(
   () => import('@/pages/professor/redacao/GradeWorkspace')
 );
+const NotasDaClasse = lazy(() => import('@/pages/professor/NotasDaClasse'));
+const CadernoProf = lazy(() => import('@/pages/professor/Caderno'));
+const GabaritoProf = lazy(() => import('@/pages/professor/Gabarito'));
+const ListaAlunos = lazy(() => import('@/pages/professor/alunos/ListaAlunos'));
+const PerfilAluno = lazy(() => import('@/pages/professor/alunos/PerfilAluno'));
 
 // Rotas aluno - code-splitting
 const DashboardAluno = lazy(() => import('@/pages/DashboardAluno'));
@@ -35,6 +40,7 @@ const AlunoNotas = lazy(() => import('@/pages/aluno/Notas'));
 const AlunoCaderno = lazy(() => import('@/pages/aluno/Caderno'));
 const AlunoGabarito = lazy(() => import('@/pages/aluno/Gabarito'));
 const AlunoRedacoes = lazy(() => import('@/pages/aluno/Redacoes'));
+const RecadosAluno = lazy(() => import('@/pages/aluno/RecadosAluno'));
 
 export default function App() {
   const { isOpen, open, close } = useFlagsDebug();
@@ -100,14 +106,25 @@ export default function App() {
             path='notas-da-classe'
             element={
               <Suspense fallback={<TableSkeleton />}>
-                <RedacoesProf />
+                <NotasDaClasse />
               </Suspense>
             }
           />
-          <Route path='caderno' element={<div className='p-6'>Caderno</div>} />
+          <Route
+            path='caderno'
+            element={
+              <Suspense fallback={<PageSkeleton />}>
+                <CadernoProf />
+              </Suspense>
+            }
+          />
           <Route
             path='gabarito'
-            element={<div className='p-6'>Gabarito</div>}
+            element={
+              <Suspense fallback={<PageSkeleton />}>
+                <GabaritoProf />
+              </Suspense>
+            }
           />
           <Route
             path='redacao'
@@ -122,6 +139,22 @@ export default function App() {
             element={
               <Suspense fallback={<FormSkeleton />}>
                 <GradeWorkspace />
+              </Suspense>
+            }
+          />
+          <Route
+            path='alunos'
+            element={
+              <Suspense fallback={<TableSkeleton />}>
+                <ListaAlunos />
+              </Suspense>
+            }
+          />
+          <Route
+            path='alunos/:id'
+            element={
+              <Suspense fallback={<PageSkeleton />}>
+                <PerfilAluno />
               </Suspense>
             }
           />
@@ -153,7 +186,14 @@ export default function App() {
               </Suspense>
             }
           />
-          <Route path='recados' element={<div className='p-6'>Recados</div>} />
+          <Route
+            path='recados'
+            element={
+              <Suspense fallback={<PageSkeleton />}>
+                <RecadosAluno />
+              </Suspense>
+            }
+          />
           <Route
             path='redacao'
             element={

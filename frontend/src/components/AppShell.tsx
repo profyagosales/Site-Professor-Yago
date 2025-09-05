@@ -16,6 +16,7 @@ function getRole(): 'teacher' | 'student' | 'guest' {
 const NAV_TEACHER: NavItem[] = [
   { label: 'Resumo', to: ROUTES.prof.resumo, primary: true },
   { label: 'Turmas', to: ROUTES.prof.turmas },
+  { label: 'Alunos', to: ROUTES.prof.alunos },
   { label: 'Notas da Classe', to: ROUTES.prof.notasClasse },
   { label: 'Caderno', to: ROUTES.prof.caderno },
   { label: 'Gabarito', to: ROUTES.prof.gabarito },
