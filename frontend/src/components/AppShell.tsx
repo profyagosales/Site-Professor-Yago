@@ -77,7 +77,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {!hideNav && (
         <header className='sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-ys-line'>
           <div className='max-w-6xl mx-auto px-4 h-14 flex items-center justify-between'>
-            <Link to={goHomeByRole()} className='flex items-center gap-2'>
+            <Link to={goHomeByRole()} className='flex items-center gap-2' data-testid="logo-link">
               <span className='inline-flex h-8 w-8 items-center justify-center rounded-xl bg-ys-amber text-white font-black'>
                 YS
               </span>
@@ -95,6 +95,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   key={i.to}
                   to={i.to}
                   onMouseEnter={() => prefetchRoute(i.to)}
+                  data-testid={`nav-${i.label.toLowerCase().replace(/\s+/g, '-')}`}
                   className={({ isActive }) =>
                     [
                       newMenuStyles
@@ -124,6 +125,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               {nav.length > 0 && (
                 <button
                   onClick={handleLogout}
+                  data-testid="logout-button"
                   className={`ml-3 text-sm font-medium focus:outline-none ${
                     newMenuStyles
                       ? 'px-3 py-2 rounded-xl text-gray-800 hover:bg-orange-50 focus:ring-2 focus:ring-ys-amber focus:ring-offset-2'

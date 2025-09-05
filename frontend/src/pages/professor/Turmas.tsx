@@ -134,6 +134,13 @@ export default function TurmasPage() {
                   )}
                   <div className='mt-4 flex gap-2 flex-wrap'>
                     <Button
+                      onClick={() => nav(ROUTES.prof.turmaDetalhes(t._id || t.id))}
+                      disabled={isProcessing}
+                      variant='primary'
+                    >
+                      Ver detalhes
+                    </Button>
+                    <Button
                       onClick={() => nav(ROUTES.prof.turmaAlunos(t._id || t.id))}
                       disabled={isProcessing}
                     >

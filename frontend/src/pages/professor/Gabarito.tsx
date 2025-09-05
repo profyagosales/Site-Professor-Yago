@@ -33,12 +33,13 @@ export default function GabaritoProf() {
     <Page title="Centro de Gabaritos" subtitle="Criação, aplicação e processamento de provas objetivas">
       <div className="space-y-6">
         {/* Navegação por abas */}
-        <Card className="p-1">
+        <Card className="p-1" data-testid="gabarito-tabs">
           <div className="flex space-x-1">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
+                data-testid={`tab-${tab.id}`}
                 className={`flex-1 px-4 py-3 text-sm font-medium rounded-md transition-colors ${
                   activeTab === tab.id
                     ? 'bg-orange-500 text-white'

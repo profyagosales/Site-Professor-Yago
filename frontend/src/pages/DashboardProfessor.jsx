@@ -17,6 +17,7 @@ import { listClasses } from '@/services/classes';
 import { ROUTES } from '@/routes';
 import { useProfessorDashboard } from '@/hooks/useProfessorDashboard';
 import { logger } from '@/lib/logger';
+import ProximasAulasWidget from '@/components/schedule/ProximasAulasWidget';
 
 function DashboardProfessor() {
   const [user, setUser] = useState(null);
@@ -301,6 +302,11 @@ function DashboardProfessor() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Widget de Próximas Aulas */}
+      <div className="mb-md">
+        <ProximasAulasWidget />
       </div>
 
       {/* Indicador de refresh em background */}

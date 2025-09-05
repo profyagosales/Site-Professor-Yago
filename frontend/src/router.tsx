@@ -25,6 +25,7 @@ const NotasDaClasse = lazy(() => import('@/pages/professor/NotasDaClasse'));
 const CadernoProf = lazy(() => import('@/pages/professor/Caderno'));
 const GabaritoProf = lazy(() => import('@/pages/professor/Gabarito'));
 const TurmaAlunosPage = lazy(() => import('@/pages/professor/TurmaAlunos'));
+const TurmaDetalhes = lazy(() => import('@/pages/professor/TurmaDetalhes'));
 const ListaAlunos = lazy(() => import('@/pages/professor/alunos/ListaAlunos'));
 const PerfilAluno = lazy(() => import('@/pages/professor/alunos/PerfilAluno'));
 
@@ -102,6 +103,18 @@ export const router = createBrowserRouter([
                 }
               >
                 <TurmasPage />
+              </Suspense>
+            ),
+          },
+          {
+            path: 'turmas/:id',
+            element: (
+              <Suspense
+                fallback={
+                  <div className='p-6 animate-pulse'>Carregando detalhes da turma...</div>
+                }
+              >
+                <TurmaDetalhes />
               </Suspense>
             ),
           },

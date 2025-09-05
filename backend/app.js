@@ -13,6 +13,7 @@ const evaluationRoutes = require('./routes/evaluations');
 const gradesRoutes = require('./routes/grades');
 const cadernoRoutes = require('./routes/caderno');
 const gabaritoRoutes = require('./routes/gabaritos');
+const scheduleRoutes = require('./routes/schedules');
 const omrRoutes = require('./routes/omr');
 // Compatível com a especificação de Redações: usar o router compat
 const redactionsRoutes = require('./routes/redactions');
@@ -82,6 +83,7 @@ api.use('/evaluations', evaluationRoutes);
 api.use('/grades', gradesRoutes);
 api.use('/caderno', cadernoRoutes);
 api.use('/gabaritos', gabaritoRoutes);
+api.use('/schedules', scheduleRoutes);
 api.use('/omr', omrRoutes);
 // Monta o router compat sob ambos os caminhos (pt-BR e en)
 api.use('/redacoes', redactionsRoutes);

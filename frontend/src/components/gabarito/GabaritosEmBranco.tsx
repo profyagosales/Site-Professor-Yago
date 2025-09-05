@@ -151,7 +151,7 @@ export default function GabaritosEmBranco() {
           <h2 className="text-xl font-semibold text-gray-900">Gabaritos em Branco</h2>
           <p className="text-gray-600">Crie e gerencie modelos de gabaritos para provas objetivas</p>
         </div>
-        <Button onClick={handleCreate} variant="primary">
+        <Button onClick={handleCreate} variant="primary" data-testid="create-gabarito-button">
           Criar Gabarito
         </Button>
       </div>
@@ -201,7 +201,7 @@ export default function GabaritosEmBranco() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {gabaritos.map((gabarito) => (
-            <Card key={gabarito.id} className="p-6 hover:shadow-md transition-shadow">
+            <Card key={gabarito.id} className="p-6 hover:shadow-md transition-shadow" data-testid={`gabarito-card-${gabarito.id}`}>
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">
