@@ -20,6 +20,7 @@ import { router } from './router';
 import { AuthProvider } from './store/AuthContext';
 import { UIProvider } from './providers/UIProvider';
 import { ToastProvider } from './components/ui/ToastProvider';
+import { loadAnalyticsOnce } from './lib/analytics-singleton';
 
 // Bootstrap da autenticação com novo sistema de sessão
 function bootstrapAuth() {
@@ -27,8 +28,21 @@ function bootstrapAuth() {
   initializeSession();
 }
 
+// Bootstrap do analytics (apenas uma vez)
+function bootstrapAnalytics() {
+  // Carregar analytics apenas em produção ou quando explicitamente habilitado
+  const shouldLoadAnalytics = import.meta.env.PROD || import.meta.env.VITE_ANALYTICS_ENABLED === 'true';
+  
+  if (shouldLoadAnalytics) {
+    loadAnalyticsOnce().catch(error => {
+      console.warn('[analytics] Falha ao carregar analytics:', error);
+    });
+  }
+}
+
 // garantir que roda antes do <App/>
 bootstrapAuth();
+bootstrapAnalytics();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
