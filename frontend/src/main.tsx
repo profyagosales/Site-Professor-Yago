@@ -21,7 +21,7 @@ import { AuthProvider } from './store/AuthContext';
 import { UIProvider } from './providers/UIProvider';
 import { ToastProvider } from './components/ui/ToastProvider';
 import { loadAnalyticsOnce } from './lib/analytics-singleton';
-import { registerServiceWorkerOnce, startUpdateChecker } from './sw/register';
+import { registerSWOnce } from './sw/register';
 import { DataProvider } from './providers/DataProvider';
 
 // Bootstrap da autenticação com novo sistema de sessão
@@ -42,23 +42,14 @@ function bootstrapAnalytics() {
   }
 }
 
-// Bootstrap do Service Worker (apenas uma vez)
+// Bootstrap do Service Worker (apenas uma vez) - Patch 3
 function bootstrapServiceWorker() {
   // Registrar Service Worker apenas em produção ou quando explicitamente habilitado
   const shouldRegisterSW = import.meta.env.PROD || import.meta.env.VITE_SW_ENABLED === 'true';
   
   if (shouldRegisterSW) {
-    registerServiceWorkerOnce().then(registered => {
-      if (registered) {
-        console.info('[SW] Service Worker registrado com sucesso');
-        // Iniciar verificação periódica de atualizações
-        startUpdateChecker();
-      } else {
-        console.warn('[SW] Falha ao registrar Service Worker');
-      }
-    }).catch(error => {
-      console.warn('[SW] Erro ao registrar Service Worker:', error);
-    });
+    registerSWOnce(); // chame só uma vez - sem reload automático
+    console.info('[SW] Service Worker registrado (sem reload automático)');
   }
 }
 

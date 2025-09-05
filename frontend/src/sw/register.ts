@@ -14,6 +14,34 @@
 
 import { toast } from '@/components/ui/ToastProvider';
 
+/**
+ * Registra o Service Worker uma única vez (Patch 3)
+ * Remove o reload automático que causa recarregamentos constantes
+ */
+export function registerSWOnce() {
+  if (!('serviceWorker' in navigator)) return;
+  
+  // evita múltiplos registros
+  if ((navigator as any).__SW_REGISTERED__) return;
+  (navigator as any).__SW_REGISTERED__ = true;
+  
+  navigator.serviceWorker.register('/sw.js').then(reg => {
+    // NÃO dê reload automático; ofereça UI de atualização se quiser
+    reg.addEventListener('updatefound', () => {
+      const installing = reg.installing;
+      if (!installing) return;
+      installing.addEventListener('statechange', () => {
+        // estados: installing -> installed -> activated
+        // aqui não fazemos reload; opcional: emitir evento global p/ toast
+        if (installing.state === 'installed') {
+          // Emitir evento global para toast de atualização (opcional)
+          window.dispatchEvent(new CustomEvent('sw-update-available'));
+        }
+      });
+    });
+  }).catch(() => {});
+}
+
 // Estado do Service Worker
 let isRegistered = false;
 let registration: ServiceWorkerRegistration | null = null;
@@ -184,11 +212,9 @@ async function handleManualUpdate() {
       registration.waiting.postMessage({ type: 'SKIP_WAITING' });
     }
 
-    // Aguardar um pouco e recarregar
-    setTimeout(() => {
-      log('Recarregando página após atualização');
-      window.location.reload();
-    }, 1000);
+    // NÃO recarregar automaticamente (Patch 3)
+    // O usuário pode recarregar manualmente se desejar
+    log('Atualização manual concluída - sem reload automático');
 
   } catch (error) {
     log('Erro durante atualização manual:', error);
