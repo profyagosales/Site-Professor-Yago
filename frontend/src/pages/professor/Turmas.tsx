@@ -139,6 +139,13 @@ export default function TurmasPage() {
                     >
                       Ver alunos
                     </Button>
+                    <Button
+                      onClick={() => nav(ROUTES.prof.turmaCaderno(t._id || t.id))}
+                      disabled={isProcessing}
+                      variant='outline'
+                    >
+                      Caderno
+                    </Button>
                     <Button 
                       variant='ghost' 
                       onClick={() => handleEdit(t)}

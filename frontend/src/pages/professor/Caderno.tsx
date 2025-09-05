@@ -1,20 +1,27 @@
 import { Page } from '@/components/Page';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import { useState, useEffect } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useDiary } from '@/hooks/useDiary';
 import DiaryEntry from '@/components/DiaryEntry';
 import DiaryHistoryDrawer from '@/components/DiaryHistoryDrawer';
 import ExportButton from '@/components/ExportButton';
-import { getClassById } from '@/services/classes';
+import { getClassById, listClasses } from '@/services/classes';
+import { getCurrentUser } from '@/services/auth';
 import { formatDiaryDate, getTodayDate } from '@/services/diary';
 import { ROUTES } from '@/routes';
+import { generateClassName } from '@/services/classes';
 
 export default function CadernoProf() {
   const { id: classId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [classeInfo, setClasseInfo] = useState<any | null>(null);
   const [selectedDate, setSelectedDate] = useState(searchParams.get('date') || getTodayDate());
   const [showHistory, setShowHistory] = useState(false);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [loadingClasses, setLoadingClasses] = useState(false);
 
   // Hook do diário
   const {
@@ -56,6 +63,28 @@ export default function CadernoProf() {
     loadClassInfo();
   }, [classId]);
 
+  // Carregar turmas quando não há classId
+  useEffect(() => {
+    if (classId) return;
+    
+    const loadClasses = async () => {
+      try {
+        setLoadingClasses(true);
+        const user = await getCurrentUser();
+        if (!user?.id) return;
+
+        const classesData = await listClasses({ teacherId: user.id });
+        setClasses(classesData);
+      } catch (error) {
+        console.error('Erro ao carregar turmas:', error);
+      } finally {
+        setLoadingClasses(false);
+      }
+    };
+    
+    loadClasses();
+  }, [classId]);
+
   // Atualizar URL quando data muda
   useEffect(() => {
     if (classId) {
@@ -87,11 +116,91 @@ export default function CadernoProf() {
     await saveDiary();
   };
 
+  const handleClassSelect = (selectedClassId: string) => {
+    navigate(ROUTES.prof.turmaCaderno(selectedClassId));
+  };
+
   if (!classId) {
     return (
       <Page title="Caderno (Professor)" subtitle="Selecione uma turma para acessar o diário.">
-        <div className="text-center py-8">
-          <p className="text-ys-ink-2">Turma não encontrada.</p>
+        <div className="space-y-6">
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Selecionar Turma
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Escolha uma turma para acessar o caderno de presença e atividades:
+            </p>
+            
+            {loadingClasses ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div>
+                <span className="ml-2 text-gray-600">Carregando turmas...</span>
+              </div>
+            ) : classes.length === 0 ? (
+              <div className="text-center py-8">
+                <svg
+                  className="mx-auto h-12 w-12 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                  />
+                </svg>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">
+                  Nenhuma turma encontrada
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Você precisa criar uma turma primeiro.
+                </p>
+                <div className="mt-4">
+                  <Button
+                    onClick={() => navigate(ROUTES.prof.turmas)}
+                    variant="outline"
+                  >
+                    Ir para Turmas
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {classes.map((cls) => {
+                  const className = cls.name || generateClassName(cls.series, cls.letter);
+                  return (
+                    <Card
+                      key={cls.id || cls._id}
+                      className="p-4 hover:shadow-md transition-shadow cursor-pointer border-2 hover:border-orange-300"
+                      onClick={() => handleClassSelect(cls.id || cls._id)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-medium text-gray-900">{className}</h3>
+                          <p className="text-sm text-gray-600">
+                            {cls.discipline || cls.disciplina || 'Disciplina não definida'}
+                          </p>
+                          {cls.studentCount !== undefined && (
+                            <p className="text-sm text-gray-500">
+                              {cls.studentCount} {cls.studentCount === 1 ? 'aluno' : 'alunos'}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-orange-500">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
         </div>
       </Page>
     );

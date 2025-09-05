@@ -6,12 +6,14 @@ import ScheduleTable from '@/components/ScheduleTable';
 import SendEmailModal from '@/components/SendEmailModal';
 import QuickContentModal from '@/components/QuickContentModal';
 import AnnouncementModal from '@/components/AnnouncementModal';
+import ClassSelectorModal from '@/components/ClassSelectorModal';
 import { getCurrentUser } from '@/services/auth';
 import { api } from '@/services/api';
 import { listUpcomingContents } from '@/services/contents';
 import { listUpcomingExams } from '@/services/exams';
 import { listAnnouncements } from '@/services/announcements';
 import { getTeacherWeeklySchedule } from '@/services/schedule';
+import { listClasses } from '@/services/classes';
 import { ROUTES } from '@/routes';
 import { useProfessorDashboard } from '@/hooks/useProfessorDashboard';
 import { logger } from '@/lib/logger';
@@ -26,6 +28,8 @@ function DashboardProfessor() {
   const [showEmail, setShowEmail] = useState(false);
   const [contentOpen, setContentOpen] = useState(false);
   const [announcementOpen, setAnnouncementOpen] = useState(false);
+  const [classSelectorOpen, setClassSelectorOpen] = useState(false);
+  const [classes, setClasses] = useState([]);
   const navigate = useNavigate();
 
   // Hook do dashboard com cache
@@ -65,7 +69,7 @@ function DashboardProfessor() {
             timestamp: new Date().toISOString(),
           });
         }
-        const [c, e, a, s] = await Promise.all([
+        const [c, e, a, s, classesData] = await Promise.all([
           listUpcomingContents({ teacherId: u.id }).catch(() => {
             toast.error('Não foi possível carregar conteúdos');
             return [];
@@ -82,12 +86,17 @@ function DashboardProfessor() {
             toast.error('Não foi possível carregar horário');
             return [];
           }),
+          listClasses({ teacherId: u.id }).catch(() => {
+            console.warn('Não foi possível carregar turmas');
+            return [];
+          }),
         ]);
         if (abort) return;
         setContents(c);
         setExams(e);
         setAnnouncements(a);
         setSchedule(s);
+        setClasses(classesData);
       } catch {
         if (!abort) toast.error('Não foi possível carregar usuário');
       } finally {
@@ -104,6 +113,25 @@ function DashboardProfessor() {
     localStorage.removeItem('auth_token');
     delete api.defaults.headers.common['Authorization'];
     navigate(ROUTES.auth.loginProf);
+  };
+
+  const handleViewContents = () => {
+    if (classes.length === 0) {
+      toast.error('Nenhuma turma encontrada');
+      return;
+    }
+    
+    if (classes.length === 1) {
+      // Se há apenas uma turma, vai direto para o caderno
+      navigate(ROUTES.prof.turmaCaderno(classes[0].id || classes[0]._id));
+    } else {
+      // Se há múltiplas turmas, abre o modal de seleção
+      setClassSelectorOpen(true);
+    }
+  };
+
+  const handleClassSelect = (classId) => {
+    navigate(ROUTES.prof.turmaCaderno(classId));
   };
 
   const reloadContents = async () => {
@@ -290,11 +318,7 @@ function DashboardProfessor() {
             <h3 className='text-orange font-semibold'>Próximos conteúdos</h3>
             <button
               className='link-primary'
-              onClick={() => {
-                // Por enquanto, vai para o caderno geral
-                // TODO: Implementar modal de seleção de turma
-                navigate(ROUTES.prof.caderno);
-              }}
+              onClick={handleViewContents}
             >
               Ver todos
             </button>
@@ -380,6 +404,14 @@ function DashboardProfessor() {
         open={announcementOpen}
         onClose={() => setAnnouncementOpen(false)}
         onSaved={reloadAnnouncements}
+      />
+      <ClassSelectorModal
+        isOpen={classSelectorOpen}
+        onClose={() => setClassSelectorOpen(false)}
+        onClassSelect={handleClassSelect}
+        title="Selecionar Turma"
+        description="Escolha uma turma para visualizar o caderno:"
+        actionText="Abrir Caderno"
       />
     </div>
   );
