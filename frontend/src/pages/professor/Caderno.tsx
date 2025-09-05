@@ -6,12 +6,13 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useDiary } from '@/hooks/useDiary';
 import DiaryEntry from '@/components/DiaryEntry';
 import DiaryHistoryDrawer from '@/components/DiaryHistoryDrawer';
-import ExportButton from '@/components/ExportButton';
+import { NotebookExport, showExportFormatSelector } from '@/utils/export';
 import { getClassById, listClasses } from '@/services/classes';
 import { getCurrentUser } from '@/services/auth';
 import { formatDiaryDate, getTodayDate } from '@/services/diary';
 import { ROUTES } from '@/routes';
 import { generateClassName } from '@/services/classes';
+import { toast } from 'react-toastify';
 
 export default function CadernoProf() {
   const { id: classId } = useParams();
@@ -118,6 +119,34 @@ export default function CadernoProf() {
 
   const handleClassSelect = (selectedClassId: string) => {
     navigate(ROUTES.prof.turmaCaderno(selectedClassId));
+  };
+
+  const handleExport = () => {
+    if (!students || !entries) return;
+    
+    // Preparar dados para exportação
+    const exportData = students.map(student => {
+      const entry = entries.find(e => e.studentId === student.id);
+      const studentAttendance = entry?.attendance || 'Não informado';
+      const classAttendance = entry?.classAttendance || 'Não informado';
+      
+      return {
+        date: formatDiaryDate(selectedDate),
+        content: entry?.content || 'Sem conteúdo registrado',
+        studentAttendance,
+        classAttendance
+      };
+    });
+    
+    showExportFormatSelector((format) => {
+      try {
+        NotebookExport.exportClassDiary(exportData, format);
+        toast.success(`Diário exportado para ${format.toUpperCase()}`);
+      } catch (error) {
+        console.error('Erro ao exportar diário:', error);
+        toast.error('Erro ao exportar diário');
+      }
+    });
   };
 
   if (!classId) {
@@ -236,17 +265,14 @@ export default function CadernoProf() {
                         >
                           Histórico
                         </button>
-                        <ExportButton
-                          type="attendance"
-                          data={{ students, entries }}
-                          filename={`Presenca_${classeInfo?.series || ''}${classeInfo?.letter || ''}_${selectedDate}`}
-                          className={classeInfo ? `${classeInfo.series}${classeInfo.letter}` : ''}
-                          date={selectedDate}
+                        <Button
+                          onClick={handleExport}
+                          disabled={!students || !entries || isLoading}
                           variant="outline"
                           size="sm"
                         >
-                          Exportar CSV
-                        </ExportButton>
+                          Exportar CSV/XLSX
+                        </Button>
                         <button
                           onClick={handleSaveNow}
                           disabled={!hasUnsavedChanges || isSaving}

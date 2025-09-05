@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useEssays } from '@/hooks/useEssays';
 // import GradeModal from '@/components/redacao/GradeModal';
 import { reenviarPdf } from '@/services/redacoes';
+import { EssaysExport, showExportFormatSelector } from '@/utils/export';
 import { toast } from 'react-toastify';
 import NewEssayModal from '@/components/redacao/NewEssayModal';
 import { Page } from '@/components/Page';
@@ -52,10 +53,43 @@ export default function RedacaoProfessorPage() {
     [data?.total, pageSize]
   );
 
+  const handleExportEssays = () => {
+    if (!data?.items || data.items.length === 0) {
+      toast.error('Nenhuma redação para exportar');
+      return;
+    }
+    
+    // Preparar dados para exportação
+    const exportData = data.items.map(essay => ({
+      studentName: essay.studentName,
+      topic: essay.topic,
+      status: essay.status === 'GRADED' ? 'Corrigida' : 'Pendente',
+      score: essay.score || '-',
+      pdfUrl: essay.fileUrl || ''
+    }));
+    
+    showExportFormatSelector((format) => {
+      try {
+        EssaysExport.exportEssays(exportData, format);
+        toast.success(`Redações exportadas para ${format.toUpperCase()}`);
+      } catch (error) {
+        console.error('Erro ao exportar redações:', error);
+        toast.error('Erro ao exportar redações');
+      }
+    });
+  };
+
   return (
     <Page title='Redação' subtitle='Gerencie as redações dos alunos'>
       {/* Ações topo direito */}
       <div className='mb-2 flex items-center justify-end gap-2'>
+        <button
+          className='rounded-lg border border-[#E5E7EB] px-4 py-2 font-semibold hover:bg-[#F3F4F6]'
+          onClick={handleExportEssays}
+          disabled={!data?.items || data.items.length === 0}
+        >
+          Exportar CSV/XLSX
+        </button>
         <button
           className='rounded-lg border border-[#E5E7EB] px-4 py-2 font-semibold hover:bg-[#F3F4F6]'
           onClick={() => setThemesOpen(true)}

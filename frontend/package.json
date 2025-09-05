@@ -35,6 +35,7 @@
   "dependencies": {
     "axios": "^1.11.0",
     "framer-motion": "^12.23.12",
+    "papaparse": "^5.5.3",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "4.7.76",
     "react": "18.2.0",
@@ -59,6 +60,7 @@
     "@testing-library/react": "^14.0.0",
     "@testing-library/user-event": "^14.6.1",
     "@types/jest": "^30.0.0",
+    "@types/papaparse": "^5.3.16",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@typescript-eslint/eslint-plugin": "^8.42.0",

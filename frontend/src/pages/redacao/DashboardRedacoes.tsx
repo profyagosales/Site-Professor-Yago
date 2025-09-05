@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { listarPendentes, listarCorrigidas } from '@/services/redacoes';
 import { gradeEssay, sendCorrectionEmail } from '@/services/essays.service';
+import { EssaysExport, showExportFormatSelector } from '@/utils/export';
 import { toast } from 'react-toastify';
 import { toArray, api } from '@/services/api';
 import { FaPen } from 'react-icons/fa';
@@ -171,6 +172,33 @@ function DashboardRedacoes() {
     }
   }
 
+  const handleExportEssays = () => {
+    const essaysToExport = [...essays];
+    if (essaysToExport.length === 0) {
+      toast.error('Nenhuma redação para exportar');
+      return;
+    }
+    
+    // Preparar dados para exportação
+    const exportData = essaysToExport.map(essay => ({
+      studentName: essay.studentName || essay.student?.name || '-',
+      topic: essay.topic || essay.customTheme || essay.theme?.name || '-',
+      status: essay.status === 'GRADED' ? 'Corrigida' : 'Pendente',
+      score: essay.score || essay.rawScore || '-',
+      pdfUrl: essay.fileUrl || essay.originalUrl || ''
+    }));
+    
+    showExportFormatSelector((format) => {
+      try {
+        EssaysExport.exportEssays(exportData, format);
+        toast.success(`Redações exportadas para ${format.toUpperCase()}`);
+      } catch (error) {
+        console.error('Erro ao exportar redações:', error);
+        toast.error('Erro ao exportar redações');
+      }
+    });
+  };
+
   async function handleUpdateEssay() {
     if (!editEssay) return;
     setSaving(true);
@@ -264,17 +292,13 @@ function DashboardRedacoes() {
         >
           Corrigidas
         </button>
-        <ExportButton
-          type="essays"
-          data={{ essays: essays || [] }}
-          filename={`Redacoes_${filters.status || 'Todas'}`}
-          status={filters.status}
-          variant="outline"
-          size="sm"
-          className="mr-2"
+        <button
+          className='ys-btn-outline mr-2'
+          onClick={handleExportEssays}
+          disabled={essays.length === 0}
         >
-          Exportar CSV
-        </ExportButton>
+          Exportar CSV/XLSX
+        </button>
         <button
           className='ys-btn-primary ml-auto'
           onClick={() => setNewModalOpen(true)}

@@ -10,10 +10,9 @@ import {
   listClassGrades, 
   computeTermTotals, 
   computeTermAverages,
-  exportGradesToCSV,
-  exportGradesToXLSX,
   type ClassGradesMatrix 
 } from '@/services/grades';
+import { GradesExport, showExportFormatSelector } from '@/utils/export';
 import { ROUTES } from '@/routes';
 import { toast } from 'react-toastify';
 
@@ -74,28 +73,36 @@ export default function NotasDaClasse() {
     ? `${classeInfo.series || ''}º ${classeInfo.letter || ''} — ${classeInfo.discipline || ''}`.trim()
     : 'Notas da Classe';
 
-  const handleExportCSV = () => {
+  const handleExport = () => {
     if (!gradesMatrix) return;
     
-    const csv = exportGradesToCSV(gradesMatrix, parseInt(term));
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `notas_${classeInfo?.series || ''}${classeInfo?.letter || ''}_${term}bim.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success('Notas exportadas para CSV');
-  };
-
-  const handleExportXLSX = () => {
-    if (!gradesMatrix) return;
+    // Preparar dados para exportação
+    const exportData = [];
     
-    const xlsxData = exportGradesToXLSX(gradesMatrix, parseInt(term));
-    // Aqui você implementaria a exportação XLSX real com a biblioteca xlsx
-    toast.success('Funcionalidade XLSX em desenvolvimento');
+    gradesMatrix.students.forEach(student => {
+      gradesMatrix.evaluations.forEach(evaluation => {
+        const grade = gradesMatrix.grades.find(
+          g => g.studentId === student.id && g.evaluationId === evaluation.id
+        );
+        
+        exportData.push({
+          studentName: student.name,
+          evaluationName: evaluation.name,
+          score: grade?.score || '-',
+          bimester: term
+        });
+      });
+    });
+    
+    showExportFormatSelector((format) => {
+      try {
+        GradesExport.exportClassGrades(exportData, format);
+        toast.success(`Notas exportadas para ${format.toUpperCase()}`);
+      } catch (error) {
+        console.error('Erro ao exportar notas:', error);
+        toast.error('Erro ao exportar notas');
+      }
+    });
   };
 
   const handleRefresh = () => {
@@ -168,20 +175,12 @@ export default function NotasDaClasse() {
               {loading ? 'Carregando...' : 'Atualizar'}
             </Button>
             <Button
-              onClick={handleExportCSV}
-              disabled={!gradesMatrix || loading}
-              variant="outline"
-              size="sm"
-            >
-              Exportar CSV
-            </Button>
-            <Button
-              onClick={handleExportXLSX}
+              onClick={handleExport}
               disabled={!gradesMatrix || loading}
               variant="primary"
               size="sm"
             >
-              Exportar XLSX
+              Exportar CSV/XLSX
             </Button>
           </div>
         </div>
