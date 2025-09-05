@@ -255,5 +255,4 @@ export function useRouteDebug(pathname: string, token: string | null, userType?:
   return debugInfo;
 }
 
-// Exportar constantes para uso externo
-export { PUBLIC_ROUTES, PRIVATE_ROUTES, GUARD_CONFIG };
+// Constantes já exportadas individualmente acima

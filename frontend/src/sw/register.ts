@@ -332,8 +332,6 @@ export {
   checkForUpdates,
   forceUpdate,
   getServiceWorkerInfo,
-  startUpdateChecker,
-  stopUpdateChecker,
   showUpdateToast,
   handleManualUpdate,
 };

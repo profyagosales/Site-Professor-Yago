@@ -71,10 +71,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const token = localStorage.getItem(STORAGE_TOKEN_KEY);
     
-    // Se não tem token, não carregar
-    if (!token) {
-      setState({ loading: false, role: null });
-      return;
+    // NÃO chame /auth/me sem token; e nunca navegue em páginas públicas.
+    if (!token) { 
+      setState({ loading: false, role: null }); 
+      return; 
     }
 
     // Verificar se deve chamar /auth/me baseado na rota atual

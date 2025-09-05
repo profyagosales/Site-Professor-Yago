@@ -7,9 +7,9 @@ import {
   cancelSchedule,
   getAnnouncementStatus,
   canEditAnnouncement,
-  formatPublishDate,
-  type Announcement 
+  formatPublishDate
 } from '@/services/announcements';
+import type { Announcement } from '@/services/announcements';
 import { toast } from 'react-toastify';
 
 export default function AnnouncementList({ 

@@ -167,7 +167,7 @@ function DashboardRedacoes() {
       toast.success(result.message || 'E-mail enviado com sucesso');
     } catch (err: any) {
       console.error('Erro ao enviar email', err);
-      const message = err.message || err.response?.data?.message ?? 'Erro ao enviar email';
+      const message = err.message || (err.response?.data?.message ?? 'Erro ao enviar email');
       toast.error(message);
     }
   }
