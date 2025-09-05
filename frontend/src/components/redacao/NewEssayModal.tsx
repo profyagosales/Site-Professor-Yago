@@ -6,6 +6,8 @@ import { useUpload } from '@/hooks/useUpload';
 import { useEssayHighlight } from '@/hooks/useEssayHighlight';
 import { formatFileSize } from '@/services/uploads';
 import { useUploadErrorHandler } from '@/hooks/useErrorHandler';
+import ThemeSelector from '@/components/ThemeSelector';
+import { type EssayTheme } from '@/services/essayThemes';
 
 type Props = {
   open: boolean;
@@ -38,6 +40,7 @@ export default function NewEssayModal({
   const [fileUrl, setFileUrl] = useState('');
   const [bimester, setBimester] = useState('');
   const [type, setType] = useState<'ENEM' | 'PAS'>('PAS');
+  const [selectedTheme, setSelectedTheme] = useState<EssayTheme | null>(null);
 
   // Estados para validação de arquivo
   const [fileError, setFileError] = useState<string | null>(null);
@@ -112,6 +115,7 @@ export default function NewEssayModal({
       setFileError(null);
       setUrlError(null);
       setError(null);
+      setSelectedTheme(null);
       clearUploadError();
     }
   }, [open, clearUploadError]);
@@ -376,11 +380,43 @@ export default function NewEssayModal({
             <label className='block text-sm font-medium text-[#111827]'>
               Tema
             </label>
-            <input
+            <ThemeSelector
               value={topic}
-              onChange={e => setTopic(e.target.value)}
-              className='w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500'
+              onChange={setTopic}
+              onThemeSelect={(theme) => {
+                setSelectedTheme(theme);
+                setType(theme.type === 'ENEM' ? 'ENEM' : 'PAS');
+              }}
+              placeholder="Digite o tema da redação..."
+              disabled={isUploading}
+              data-testid="theme-selector"
             />
+            {selectedTheme && (
+              <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-blue-900">
+                      Tema selecionado: {selectedTheme.name}
+                    </p>
+                    <p className="text-xs text-blue-700">
+                      Tipo: {selectedTheme.type}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTheme(null);
+                      setTopic('');
+                    }}
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           <div className='grid gap-3 md:grid-cols-2'>
             <div>
