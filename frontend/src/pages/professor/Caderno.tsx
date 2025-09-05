@@ -4,6 +4,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { useDiary } from '@/hooks/useDiary';
 import DiaryEntry from '@/components/DiaryEntry';
 import DiaryHistoryDrawer from '@/components/DiaryHistoryDrawer';
+import ExportButton from '@/components/ExportButton';
 import { getClassById } from '@/services/classes';
 import { formatDiaryDate, getTodayDate } from '@/services/diary';
 import { ROUTES } from '@/routes';
@@ -118,22 +119,33 @@ export default function CadernoProf() {
             </span>
           </div>
 
-          {/* Botões de ação */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowHistory(true)}
-              className="px-4 py-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
-            >
-              Histórico
-            </button>
-            <button
-              onClick={handleSaveNow}
-              disabled={!hasUnsavedChanges || isSaving}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {isSaving ? 'Salvando...' : 'Salvar Agora'}
-            </button>
-          </div>
+                                {/* Botões de ação */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setShowHistory(true)}
+                          className="px-4 py-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
+                        >
+                          Histórico
+                        </button>
+                        <ExportButton
+                          type="attendance"
+                          data={{ students, entries }}
+                          filename={`Presenca_${classeInfo?.series || ''}${classeInfo?.letter || ''}_${selectedDate}`}
+                          className={classeInfo ? `${classeInfo.series}${classeInfo.letter}` : ''}
+                          date={selectedDate}
+                          variant="outline"
+                          size="sm"
+                        >
+                          Exportar CSV
+                        </ExportButton>
+                        <button
+                          onClick={handleSaveNow}
+                          disabled={!hasUnsavedChanges || isSaving}
+                          className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {isSaving ? 'Salvando...' : 'Salvar Agora'}
+                        </button>
+                      </div>
         </div>
 
         {/* Status de salvamento */}

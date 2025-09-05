@@ -2,6 +2,7 @@ import { Page } from '@/components/Page';
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import GradeMatrix from '@/components/GradeMatrix';
+import ExportButton from '@/components/ExportButton';
 import { getClassById } from '@/services/classes';
 import { ROUTES } from '@/routes';
 
@@ -44,22 +45,51 @@ export default function NotasDaClasse() {
   return (
     <Page title={titulo} subtitle="Matriz de notas editável">
       <div className="space-y-6">
-        {/* Seletor de bimestre */}
-        <div className="flex items-center gap-4">
-          <label htmlFor="term-select" className="text-sm font-medium text-gray-700">
-            Bimestre:
-          </label>
-          <select
-            id="term-select"
-            value={term}
-            onChange={(e) => setTerm(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="1">1º Bimestre</option>
-            <option value="2">2º Bimestre</option>
-            <option value="3">3º Bimestre</option>
-            <option value="4">4º Bimestre</option>
-          </select>
+        {/* Cabeçalho com controles */}
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          {/* Seletor de bimestre */}
+          <div className="flex items-center gap-4">
+            <label htmlFor="term-select" className="text-sm font-medium text-gray-700">
+              Bimestre:
+            </label>
+            <select
+              id="term-select"
+              value={term}
+              onChange={(e) => setTerm(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="1">1º Bimestre</option>
+              <option value="2">2º Bimestre</option>
+              <option value="3">3º Bimestre</option>
+              <option value="4">4º Bimestre</option>
+            </select>
+          </div>
+          
+          {/* Botões de exportação */}
+          <div className="flex gap-2">
+            <ExportButton
+              type="grades"
+              data={{ students: [], assessments: [], grades: [] }}
+              filename={`Notas_${classeInfo?.series || ''}${classeInfo?.letter || ''}_${term}Bimestre`}
+              className={classeInfo ? `${classeInfo.series}${classeInfo.letter}` : ''}
+              term={term}
+              variant="outline"
+              size="sm"
+            >
+              Exportar CSV
+            </ExportButton>
+            <ExportButton
+              type="grades"
+              data={{ students: [], assessments: [], grades: [] }}
+              filename={`Notas_${classeInfo?.series || ''}${classeInfo?.letter || ''}_${term}Bimestre`}
+              className={classeInfo ? `${classeInfo.series}${classeInfo.letter}` : ''}
+              term={term}
+              variant="primary"
+              size="sm"
+            >
+              Exportar XLSX
+            </ExportButton>
+          </div>
         </div>
 
         {/* Matriz de notas */}

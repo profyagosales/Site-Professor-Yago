@@ -14,6 +14,7 @@ import Pagination from '@/components/Pagination';
 import EmptyEssaysState from '@/components/EmptyState';
 import { useEssayHighlight } from '@/hooks/useEssayHighlight';
 import { listClasses } from '@/services/classes';
+import ExportButton from '@/components/ExportButton';
 
 function DashboardRedacoes() {
   // Estados locais para modais e edição
@@ -264,6 +265,17 @@ function DashboardRedacoes() {
         >
           Corrigidas
         </button>
+        <ExportButton
+          type="essays"
+          data={{ essays: essays || [] }}
+          filename={`Redacoes_${filters.status || 'Todas'}`}
+          status={filters.status}
+          variant="outline"
+          size="sm"
+          className="mr-2"
+        >
+          Exportar CSV
+        </ExportButton>
         <button
           className='ys-btn-primary ml-auto'
           onClick={() => setNewModalOpen(true)}
