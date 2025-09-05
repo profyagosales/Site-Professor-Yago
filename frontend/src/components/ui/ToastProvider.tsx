@@ -18,7 +18,7 @@ export function ToastProvider() {
 
   return (
     <ToastContainer
-      position="top-right"
+      position='top-right'
       autoClose={5000}
       hideProgressBar={false}
       newestOnTop={false}
@@ -27,16 +27,16 @@ export function ToastProvider() {
       pauseOnFocusLoss
       draggable
       pauseOnHover
-      theme="light"
-      toastClassName="toast-accessible"
-      bodyClassName="toast-body-accessible"
+      theme='light'
+      toastClassName='toast-accessible'
+      bodyClassName='toast-body-accessible'
       // Configurações de acessibilidade
       closeButton={({ closeToast }) => (
         <button
           onClick={closeToast}
-          className="Toastify__close-button"
-          aria-label="Fechar notificação"
-          type="button"
+          className='Toastify__close-button'
+          aria-label='Fechar notificação'
+          type='button'
         >
           ×
         </button>

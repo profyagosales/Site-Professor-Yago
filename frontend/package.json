@@ -24,7 +24,9 @@
     "prepare": "husky install",
     "postinstall": "node scripts/copy-pdf-worker.cjs || true",
     "check:pdf-imports": "grep -R 'react-pdf\\|pdfjs-dist\\|react-pdf-highlighter' src | grep -v 'PdfHighlighter.tsx' && (echo '\n❌ Encontrado import estático de PDF' && exit 1) || echo 'OK'",
-    "vercel:preflight": "node -e \"const fs=require('fs'); if(fs.existsSync('../vercel.json')){console.error('❌ Remova vercel.json da raiz: use apenas frontend/vercel.json'); process.exit(1);} console.log('✅ vercel.json OK apenas no frontend');\""
+    "vercel:preflight": "node -e \"const fs=require('fs'); if(fs.existsSync('../vercel.json')){console.error('❌ Remova vercel.json da raiz: use apenas frontend/vercel.json'); process.exit(1);} console.log('✅ vercel.json OK apenas no frontend');\"",
+    "validate-routes": "node scripts/validate-routes.cjs",
+    "check-all": "npm run lint && npm test && npm run e2e && npm run validate-routes && npm run check:pdf-imports && npm run vercel:preflight"
   },
   "dependencies": {
     "axios": "^1.11.0",
@@ -38,7 +40,8 @@
     "react-pdf": "7.7.3",
     "react-pdf-highlighter": "7.0.0",
     "react-router-dom": "^7.8.1",
-    "react-toastify": "^11.0.5"
+    "react-toastify": "^11.0.5",
+    "web-vitals": "^5.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.28.3",

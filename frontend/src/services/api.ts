@@ -2,11 +2,28 @@ import axios from 'axios';
 import type { AxiosResponse, AxiosRequestConfig, AxiosError } from 'axios';
 import { ROUTES } from '@/routes';
 import { getToken, clearSession, isTokenExpired } from '@/auth/token';
+import {
+  getSessionToken,
+  performLogout,
+  LOGIN_ROUTES,
+} from '@/services/session';
 import { logger } from '@/lib/logger';
+import { toast } from 'react-toastify';
+import {
+  getErrorInfo,
+  getNetworkErrorInfo,
+  shouldLogError,
+  shouldShowToast,
+  getToastType,
+  formatErrorForLogging,
+  DEFAULT_ERROR_MAP_CONFIG,
+} from '@/services/errorMap';
 
 export const STORAGE_TOKEN_KEY = 'auth_token';
 
-const base = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+import { API_BASE_URL } from '@/config/api';
+
+const base = API_BASE_URL;
 
 // Cliente API robusto com timeout de 15s
 export const api = axios.create({
@@ -94,29 +111,40 @@ export const apiWithAbort = {
 };
 
 export function bootstrapAuthFromStorage() {
-  const token = getToken();
-  if (token) {
-    // Verifica se o token não está expirado antes de aplicar
-    if (isTokenExpired(token)) {
-      logger.warn('Expired token found in storage, clearing session', {
-        action: 'auth',
-        component: 'bootstrapAuth',
-      });
-      clearSession();
+  // Tenta usar o novo sistema de sessão primeiro
+  const sessionToken = getSessionToken();
+  if (sessionToken) {
+    setAuthToken(sessionToken);
+    logger.auth('Session token loaded from storage', true, {
+      action: 'auth',
+      component: 'bootstrapAuth',
+    });
+  } else {
+    // Fallback para sistema antigo
+    const token = getToken();
+    if (token) {
+      // Verifica se o token não está expirado antes de aplicar
+      if (isTokenExpired(token)) {
+        logger.warn('Expired token found in storage, clearing session', {
+          action: 'auth',
+          component: 'bootstrapAuth',
+        });
+        clearSession();
+      } else {
+        setAuthToken(token);
+        logger.auth('Legacy token loaded from storage', true, {
+          action: 'auth',
+          component: 'bootstrapAuth',
+        });
+      }
     } else {
-      setAuthToken(token);
-      logger.auth('Token loaded from storage', true, {
+      logger.info('No token found in storage', {
         action: 'auth',
         component: 'bootstrapAuth',
       });
     }
-  } else {
-    logger.info('No token found in storage', {
-      action: 'auth',
-      component: 'bootstrapAuth',
-    });
   }
-  
+
   // Log da configuração da API
   logger.info('API configuration loaded', {
     action: 'api',
@@ -132,14 +160,14 @@ api.interceptors.request.use(config => {
   if (!config.metadata) {
     config.metadata = { retryCount: 0, startTime: Date.now() };
   }
-  
+
   // Log da requisição (apenas método, URL e timestamp)
   logger.info(`API Request: ${config.method?.toUpperCase()} ${config.url}`, {
     action: 'api',
     method: config.method?.toUpperCase(),
     url: config.url,
   });
-  
+
   return config;
 });
 
@@ -152,9 +180,11 @@ api.interceptors.response.use(
     const config = response.config as AxiosRequestConfig & {
       metadata?: { retryCount: number; startTime: number };
     };
-    const duration = config.metadata?.startTime ? Date.now() - config.metadata.startTime : 0;
+    const duration = config.metadata?.startTime
+      ? Date.now() - config.metadata.startTime
+      : 0;
     const payloadSize = JSON.stringify(response.data).length;
-    
+
     logger.api(
       config.method?.toUpperCase() || 'UNKNOWN',
       config.url || 'UNKNOWN',
@@ -162,7 +192,7 @@ api.interceptors.response.use(
       duration,
       payloadSize
     );
-    
+
     return response;
   },
   async (error: AxiosError) => {
@@ -171,7 +201,9 @@ api.interceptors.response.use(
     };
 
     // Log do erro de API
-    const duration = config.metadata?.startTime ? Date.now() - config.metadata.startTime : 0;
+    const duration = config.metadata?.startTime
+      ? Date.now() - config.metadata.startTime
+      : 0;
     logger.apiError(
       config.method?.toUpperCase() || 'UNKNOWN',
       config.url || 'UNKNOWN',
@@ -189,30 +221,13 @@ api.interceptors.response.use(
         url: config.url,
       });
 
-      // Limpa sessão (token + timers) automaticamente em caso de 401
-      clearSession();
-      setAuthToken(undefined);
-
-      // Redireciona conforme o contexto da página
-      const currentPath = window.location.pathname;
-      let redirectPath = ROUTES.home;
-
-      if (currentPath.startsWith('/aluno')) {
-        redirectPath = ROUTES.auth.loginAluno;
-      } else if (currentPath.startsWith('/professor')) {
-        redirectPath = ROUTES.auth.loginProf;
-      }
-
-      logger.info('Redirecting to login after 401', {
-        action: 'auth',
-        from: currentPath,
-        to: redirectPath,
-      });
-
-      // Usa replace para evitar voltar à página anterior
-      window.location.replace(redirectPath);
+      // Usa o novo sistema de sessão para logout
+      performLogout('UNAUTHORIZED');
       return Promise.reject(error);
     }
+
+    // Processa erro com mapa de erros
+    const processedError = processApiError(error, config);
 
     // Retry apenas para GET requests com erros de rede
     if (shouldRetry(error, config)) {
@@ -225,23 +240,124 @@ api.interceptors.response.use(
         // Backoff: 300ms, 800ms
         const delay = retryCount === 0 ? 300 : 800;
 
-        logger.warn(`API retry ${retryCount + 1}/${maxRetries} for ${config.url}`, {
-          action: 'api',
-          method: config.method?.toUpperCase(),
-          url: config.url,
-          retryCount: retryCount + 1,
-          maxRetries,
-          delay,
-        });
+        logger.warn(
+          `API retry ${retryCount + 1}/${maxRetries} for ${config.url}`,
+          {
+            action: 'api',
+            method: config.method?.toUpperCase(),
+            url: config.url,
+            retryCount: retryCount + 1,
+            maxRetries,
+            delay,
+          }
+        );
 
         await new Promise(resolve => setTimeout(resolve, delay));
         return api(config);
       }
     }
 
-    return Promise.reject(error);
+    return Promise.reject(processedError);
   }
 );
+
+/**
+ * Processa erro da API usando o mapa de erros
+ */
+function processApiError(
+  error: AxiosError,
+  config?: AxiosRequestConfig
+): AxiosError {
+  const status = error.response?.status;
+  const url = config?.url;
+  const method = config?.method?.toUpperCase();
+
+  // Determina o tipo de erro
+  let errorInfo;
+  if (status) {
+    // Erro HTTP com status
+    errorInfo = getErrorInfo(status, url, DEFAULT_ERROR_MAP_CONFIG);
+  } else if (
+    error.code === 'ECONNABORTED' ||
+    error.message?.includes('timeout')
+  ) {
+    // Timeout
+    errorInfo = getNetworkErrorInfo('TIMEOUT');
+  } else if (
+    error.code === 'ERR_NETWORK' ||
+    error.message?.includes('Network Error')
+  ) {
+    // Erro de rede
+    errorInfo = getNetworkErrorInfo('NETWORK_ERROR');
+  } else if (
+    error.code === 'ERR_CANCELED' ||
+    error.message?.includes('cancelled')
+  ) {
+    // Request cancelado
+    errorInfo = getNetworkErrorInfo('CANCELED');
+  } else {
+    // Erro desconhecido
+    errorInfo = getNetworkErrorInfo('UNKNOWN');
+  }
+
+  // Log do erro se necessário
+  if (shouldLogError(status || 0, DEFAULT_ERROR_MAP_CONFIG)) {
+    const logMessage = formatErrorForLogging(error, url, method);
+
+    if (errorInfo.logLevel === 'error') {
+      logger.error('API Error', {
+        action: 'api',
+        method,
+        url,
+        status,
+        error: logMessage,
+        userMessage: errorInfo.message,
+      });
+    } else if (errorInfo.logLevel === 'warn') {
+      logger.warn('API Warning', {
+        action: 'api',
+        method,
+        url,
+        status,
+        error: logMessage,
+        userMessage: errorInfo.message,
+      });
+    } else {
+      logger.info('API Info', {
+        action: 'api',
+        method,
+        url,
+        status,
+        error: logMessage,
+        userMessage: errorInfo.message,
+      });
+    }
+  }
+
+  // Mostra toast se necessário
+  if (
+    errorInfo.showToast &&
+    shouldShowToast(status || 0, DEFAULT_ERROR_MAP_CONFIG)
+  ) {
+    const toastType = getToastType(status || 0);
+
+    if (toastType === 'error') {
+      toast.error(errorInfo.message);
+    } else if (toastType === 'warning') {
+      toast.warning(errorInfo.message);
+    } else {
+      toast.info(errorInfo.message);
+    }
+  }
+
+  // Adiciona informações processadas ao erro
+  const processedError = { ...error };
+  processedError.userMessage = errorInfo.message;
+  processedError.errorType = errorInfo.type;
+  processedError.shouldShowToast = errorInfo.showToast;
+
+  return processedError;
+}
 
 /**
  * Determina se uma request deve ser retentada

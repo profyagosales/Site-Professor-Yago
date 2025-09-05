@@ -5,7 +5,10 @@ import { useEffect, useRef } from 'react';
  * - Ao abrir: foca no primeiro elemento interativo
  * - Ao fechar: devolve foco ao elemento que abriu o modal
  */
-export function useFocusManagement(isOpen: boolean, focusableSelector = 'input, button, select, textarea, [tabindex]:not([tabindex="-1"])') {
+export function useFocusManagement(
+  isOpen: boolean,
+  focusableSelector = 'input, button, select, textarea, [tabindex]:not([tabindex="-1"])'
+) {
   const previousActiveElement = useRef<HTMLElement | null>(null);
   const modalRef = useRef<HTMLElement>(null);
 
@@ -13,9 +16,11 @@ export function useFocusManagement(isOpen: boolean, focusableSelector = 'input, 
     if (isOpen) {
       // Salvar elemento ativo antes de abrir o modal
       previousActiveElement.current = document.activeElement as HTMLElement;
-      
+
       // Focar no primeiro elemento interativo do modal
-      const focusableElement = modalRef.current?.querySelector(focusableSelector) as HTMLElement;
+      const focusableElement = modalRef.current?.querySelector(
+        focusableSelector
+      ) as HTMLElement;
       if (focusableElement) {
         // Usar setTimeout para garantir que o modal esteja renderizado
         setTimeout(() => {

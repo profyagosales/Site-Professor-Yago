@@ -43,7 +43,7 @@ function Conteudos() {
   };
   useEffect(() => {
     loadData();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const filtered = arrify(contents).filter(
     c =>

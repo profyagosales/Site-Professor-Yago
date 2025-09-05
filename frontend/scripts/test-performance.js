@@ -77,3 +77,5 @@ export function testPerformance() {
 if (import.meta.url === `file://${process.argv[1]}`) {
   testPerformance();
 }
+
+

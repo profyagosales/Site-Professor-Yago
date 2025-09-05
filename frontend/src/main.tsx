@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './styles.css';
 import { RouterProvider } from 'react-router-dom';
 import { bootstrapAuthFromStorage } from '@/services/api';
-import { getToken, scheduleAutoLogout } from '@/auth/token';
+import { initializeSession } from '@/services/session';
 // Feature flags via env
 (() => {
   const yes = (v: any) => typeof v === 'string' && /^(1|true|yes|on)$/i.test(v);
@@ -21,15 +21,10 @@ import { AuthProvider } from './store/AuthContext';
 import { UIProvider } from './providers/UIProvider';
 import { ToastProvider } from './components/ui/ToastProvider';
 
-// Bootstrap da autenticação com auto-logout
+// Bootstrap da autenticação com novo sistema de sessão
 function bootstrapAuth() {
   bootstrapAuthFromStorage();
-
-  // Se houver token válido, agenda auto-logout
-  const token = getToken();
-  if (token) {
-    scheduleAutoLogout(token);
-  }
+  initializeSession();
 }
 
 // garantir que roda antes do <App/>

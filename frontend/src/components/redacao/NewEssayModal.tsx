@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { uploadEssay } from '@/services/uploads';
 import { searchStudents } from '@/services/students2';
 import { useToast } from '@/hooks/useToast';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { useUpload } from '@/hooks/useUpload';
+import { useEssayHighlight } from '@/hooks/useEssayHighlight';
+import { formatFileSize } from '@/services/uploads';
+import { useUploadErrorHandler } from '@/hooks/useErrorHandler';
 
 type Props = {
   open: boolean;
@@ -36,21 +39,53 @@ export default function NewEssayModal({
   const [bimester, setBimester] = useState('');
   const [type, setType] = useState<'ENEM' | 'PAS'>('PAS');
 
-  // Estados para upload com progresso
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [isUploading, setIsUploading] = useState(false);
+  // Estados para validação de arquivo
   const [fileError, setFileError] = useState<string | null>(null);
+  const [urlError, setUrlError] = useState<string | null>(null);
 
-  // Constantes de validação
-  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-  const ALLOWED_TYPES = [
-    'application/pdf',
-    'image/jpeg',
-    'image/jpg',
-    'image/png',
-    'image/gif',
-    'image/webp',
-  ];
+  // Hook de highlight
+  const { addHighlight } = useEssayHighlight();
+
+  // Hook de tratamento de erros
+  const { handleUploadFormError, showToast } = useUploadErrorHandler();
+
+  // Hook de upload
+  const {
+    isUploading,
+    progress,
+    error: uploadError,
+    upload,
+    cancel,
+    clearError: clearUploadError,
+    validateFile,
+    validateFileUrl,
+  } = useUpload({
+    onSuccess: result => {
+      const studentName = result.studentName || 'Aluno';
+      const topicName = result.topic || 'redação';
+      const essayId = result.essayId;
+
+      // Adiciona highlight se tiver ID da redação
+      if (essayId) {
+        addHighlight(essayId, studentName, topicName);
+      }
+
+      showToast(
+        `${studentName} - ${topicName} enviada com sucesso!`,
+        'success'
+      );
+      clearChanges();
+      onSuccess();
+      onClose();
+    },
+    onError: error => {
+      handleUploadFormError(error);
+      setError(error);
+    },
+    onCancel: () => {
+      showToast('Upload cancelado', 'info');
+    },
+  });
 
   // Verificar se há mudanças não salvas
   const hasChanges = !!(
@@ -68,34 +103,6 @@ export default function NewEssayModal({
       'Você tem alterações não salvas no formulário. Tem certeza que deseja sair?',
   });
 
-  // Função para validar arquivo
-  const validateFile = (file: File): string | null => {
-    if (!file) return null;
-
-    // Verificar tipo
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return `Tipo de arquivo não suportado. Use PDF ou imagens (JPG, PNG, GIF, WebP).`;
-    }
-
-    // Verificar tamanho
-    if (file.size > MAX_FILE_SIZE) {
-      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-      const maxMB = (MAX_FILE_SIZE / (1024 * 1024)).toFixed(0);
-      return `Arquivo muito grande (${sizeMB}MB). Tamanho máximo: ${maxMB}MB.`;
-    }
-
-    return null;
-  };
-
-  // Função para formatar tamanho de arquivo
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
   useEffect(() => {
     if (open) {
       setTimeout(() => dialogRef.current?.querySelector('input')?.focus(), 0);
@@ -103,11 +110,11 @@ export default function NewEssayModal({
       // Reset estados quando modal é fechado
       setFile(null);
       setFileError(null);
-      setUploadProgress(0);
-      setIsUploading(false);
+      setUrlError(null);
       setError(null);
+      clearUploadError();
     }
-  }, [open]);
+  }, [open, clearUploadError]);
 
   useEffect(() => {
     let alive = true;
@@ -138,6 +145,8 @@ export default function NewEssayModal({
     // Limpar erros anteriores
     setError(null);
     setFileError(null);
+    setUrlError(null);
+    clearUploadError();
 
     // Validação: arquivo OU URL (um dos dois obrigatório)
     if (!file && !fileUrl.trim()) {
@@ -167,18 +176,26 @@ export default function NewEssayModal({
 
     // Validação de arquivo se não for URL
     if (!useUrl && file) {
-      const fileValidationError = validateFile(file);
-      if (fileValidationError) {
-        setFileError(fileValidationError);
-        toast.error(fileValidationError);
+      const validation = validateFile(file);
+      if (!validation.valid) {
+        setFileError(validation.error || 'Arquivo inválido');
+        showToast(validation.error || 'Arquivo inválido', 'error');
+        return;
+      }
+    }
+
+    // Validação de URL se for URL
+    if (useUrl && fileUrl.trim()) {
+      const validation = validateFileUrl(fileUrl.trim());
+      if (!validation.valid) {
+        setUrlError(validation.error || 'URL inválida');
+        showToast(validation.error || 'URL inválida', 'error');
         return;
       }
     }
 
     try {
       setLoading(true);
-      setIsUploading(true);
-      setUploadProgress(0);
 
       const fd = new FormData();
 
@@ -197,37 +214,22 @@ export default function NewEssayModal({
       fd.append('bimester', bimester);
       fd.append('type', type);
 
-      // POST /api/uploads/essay com progresso
-      await uploadEssay(fd, progressEvent => {
-        if (progressEvent.total) {
-          const progress = Math.round(
-            (progressEvent.loaded * 100) / progressEvent.total
-          );
-          setUploadProgress(progress);
-        }
-      });
-
-      toast.success('Redação enviada com sucesso');
-      clearChanges();
-      onSuccess(); // fechar modal, inserir item na lista
-      onClose();
+      // Usar o hook de upload
+      await upload(fd);
     } catch (e: any) {
-      const msg = e?.response?.data?.message || 'Erro ao enviar redação';
-      setError(msg);
-      toast.error(msg);
+      handleUploadFormError(e);
+      setError(e?.message || 'Erro ao enviar redação');
 
       // Alert ARIA para acessibilidade
       const alertElement = document.createElement('div');
       alertElement.setAttribute('role', 'alert');
       alertElement.setAttribute('aria-live', 'assertive');
-      alertElement.textContent = `Erro: ${msg}`;
+      alertElement.textContent = `Erro: ${e?.message || 'Erro ao enviar redação'}`;
       alertElement.className = 'sr-only';
       document.body.appendChild(alertElement);
       setTimeout(() => document.body.removeChild(alertElement), 5000);
     } finally {
       setLoading(false);
-      setIsUploading(false);
-      setUploadProgress(0);
     }
   }
 
@@ -273,14 +275,15 @@ export default function NewEssayModal({
                     setFile(selectedFile);
                     setFileError(null);
                     if (selectedFile) {
-                      const validationError = validateFile(selectedFile);
-                      if (validationError) {
-                        setFileError(validationError);
+                      const validation = validateFile(selectedFile);
+                      if (!validation.valid) {
+                        setFileError(validation.error || 'Arquivo inválido');
                       }
                     }
                   }}
                   className='w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500'
                   aria-describedby={fileError ? 'file-error' : 'file-help'}
+                  disabled={isUploading}
                 />
                 {file && !fileError && (
                   <p className='mt-1 text-xs text-green-600'>
@@ -307,11 +310,30 @@ export default function NewEssayModal({
                 <input
                   placeholder='https://exemplo.com/redacao.pdf'
                   value={fileUrl}
-                  onChange={e => setFileUrl(e.target.value)}
+                  onChange={e => {
+                    setFileUrl(e.target.value);
+                    setUrlError(null);
+                    if (e.target.value.trim()) {
+                      const validation = validateFileUrl(e.target.value.trim());
+                      if (!validation.valid) {
+                        setUrlError(validation.error || 'URL inválida');
+                      }
+                    }
+                  }}
                   className='w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500'
+                  disabled={isUploading}
                 />
-                {fileUrl.trim() && (
+                {fileUrl.trim() && !urlError && (
                   <p className='mt-1 text-xs text-green-600'>✓ URL informada</p>
+                )}
+                {urlError && (
+                  <p
+                    id='url-error'
+                    className='mt-1 text-xs text-red-600'
+                    role='alert'
+                  >
+                    ⚠ {urlError}
+                  </p>
                 )}
               </div>
             )}
@@ -396,19 +418,17 @@ export default function NewEssayModal({
             <div className='space-y-2'>
               <div className='flex items-center justify-between text-sm'>
                 <span className='text-ys-ink-2'>Enviando arquivo...</span>
-                <span className='font-medium text-orange-600'>
-                  {uploadProgress}%
-                </span>
+                <span className='font-medium text-orange-600'>{progress}%</span>
               </div>
               <div className='w-full bg-gray-200 rounded-full h-2'>
                 <div
                   className='bg-orange-500 h-2 rounded-full transition-all duration-300 ease-out'
-                  style={{ width: `${uploadProgress}%` }}
+                  style={{ width: `${progress}%` }}
                   role='progressbar'
-                  aria-valuenow={uploadProgress}
+                  aria-valuenow={progress}
                   aria-valuemin={0}
                   aria-valuemax={100}
-                  aria-label={`Progresso do upload: ${uploadProgress}%`}
+                  aria-label={`Progresso do upload: ${progress}%`}
                 />
               </div>
             </div>
@@ -425,21 +445,32 @@ export default function NewEssayModal({
           )}
 
           <div className='mt-2 flex justify-end gap-2'>
-            <button
-              className='rounded-lg border border-[#E5E7EB] px-4 py-2 hover:bg-gray-50 disabled:opacity-50'
-              onClick={onClose}
-              disabled={isUploading}
-            >
-              Cancelar
-            </button>
+            {isUploading ? (
+              <button
+                className='rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-red-700 hover:bg-red-100'
+                onClick={cancel}
+              >
+                Cancelar Upload
+              </button>
+            ) : (
+              <button
+                className='rounded-lg border border-[#E5E7EB] px-4 py-2 hover:bg-gray-50 disabled:opacity-50'
+                onClick={onClose}
+                disabled={isUploading}
+              >
+                Cancelar
+              </button>
+            )}
             <button
               className='rounded-lg bg-orange-500 px-4 py-2 font-semibold text-white hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed'
               onClick={submit}
-              disabled={loading || isUploading || !!fileError}
-              aria-describedby={fileError ? 'file-error' : undefined}
+              disabled={loading || isUploading || !!fileError || !!urlError}
+              aria-describedby={
+                fileError ? 'file-error' : urlError ? 'url-error' : undefined
+              }
             >
               {isUploading
-                ? `Enviando… ${uploadProgress}%`
+                ? `Enviando… ${progress}%`
                 : loading
                   ? 'Enviando…'
                   : 'Enviar'}

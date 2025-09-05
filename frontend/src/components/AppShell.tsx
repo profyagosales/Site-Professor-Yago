@@ -2,7 +2,10 @@ import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/routes';
 import { setAuthToken } from '@/services/api';
 import { usePrefetch } from '@/hooks/usePrefetch';
+import { useFlag } from '@/flags';
 import { useState } from 'react';
+import CacheDebug from './CacheDebug';
+import VitalsDebug from './VitalsDebug';
 
 type NavItem = { label: string; to: string; primary?: boolean };
 
@@ -33,6 +36,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const { prefetchRoute } = usePrefetch();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [newMenuStyles] = useFlag('new_menu_styles', true);
   const role = getRole();
   const nav =
     role === 'teacher' ? NAV_TEACHER : role === 'student' ? NAV_STUDENT : [];
@@ -80,10 +84,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
 
             {/* Desktop Navigation */}
-            <nav 
+            <nav
               className='hidden sm:flex items-center gap-1 justify-center flex-1'
-              role="navigation"
-              aria-label="Menu principal"
+              role='navigation'
+              aria-label='Menu principal'
             >
               {nav.map(i => (
                 <NavLink
@@ -92,14 +96,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   onMouseEnter={() => prefetchRoute(i.to)}
                   className={({ isActive }) =>
                     [
-                      'px-3 py-2 rounded-xl text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ys-amber focus:ring-offset-2',
+                      newMenuStyles
+                        ? 'px-3 py-2 rounded-xl text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ys-amber focus:ring-offset-2'
+                        : 'px-2 py-1 text-sm font-medium transition-colors focus:outline-none',
                       isActive
-                        ? 'bg-orange-100 text-orange-700 font-semibold'
-                        : 'text-gray-800 hover:bg-orange-50',
+                        ? newMenuStyles
+                          ? 'bg-orange-100 text-orange-700 font-semibold'
+                          : 'text-orange-600 font-semibold'
+                        : newMenuStyles
+                          ? 'text-gray-800 hover:bg-orange-50'
+                          : 'text-gray-600 hover:text-gray-900',
                       i.primary && !isActive ? 'font-semibold' : '',
                     ].join(' ')
                   }
-                  aria-current={({ isActive }) => isActive ? 'page' : undefined}
+                  aria-current={({ isActive }) =>
+                    isActive ? 'page' : undefined
+                  }
                 >
                   {i.label}
                 </NavLink>
@@ -111,8 +123,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               {nav.length > 0 && (
                 <button
                   onClick={handleLogout}
-                  className='ml-3 px-3 py-2 rounded-xl text-sm font-medium text-gray-800 hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-ys-amber focus:ring-offset-2'
-                  aria-label="Fazer logout da conta"
+                  className={`ml-3 text-sm font-medium focus:outline-none ${
+                    newMenuStyles
+                      ? 'px-3 py-2 rounded-xl text-gray-800 hover:bg-orange-50 focus:ring-2 focus:ring-ys-amber focus:ring-offset-2'
+                      : 'px-2 py-1 text-gray-600 hover:text-gray-900'
+                  }`}
+                  aria-label='Fazer logout da conta'
                 >
                   Sair
                 </button>
@@ -126,7 +142,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   <button
                     onClick={toggleMobileMenu}
                     className='p-2 rounded-xl text-gray-800 hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-ys-amber focus:ring-offset-2'
-                    aria-label="Abrir menu de navegação"
+                    aria-label='Abrir menu de navegação'
                     aria-expanded={isMobileMenuOpen}
                   >
                     <svg
@@ -166,7 +182,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 onClick={closeMobileMenu}
                 aria-hidden='true'
               />
-              
+
               {/* Drawer */}
               <div className='drawer-mobile open sm:hidden'>
                 <div className='p-4 border-b border-ys-line'>
@@ -175,16 +191,30 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     <button
                       onClick={closeMobileMenu}
                       className='p-2 rounded-xl text-gray-800 hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-ys-amber focus:ring-offset-2'
-                      aria-label="Fechar menu"
+                      aria-label='Fechar menu'
                     >
-                      <svg className='h-6 w-6' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
-                        <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M6 18L18 6M6 6l12 12' />
+                      <svg
+                        className='h-6 w-6'
+                        fill='none'
+                        viewBox='0 0 24 24'
+                        stroke='currentColor'
+                      >
+                        <path
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          strokeWidth={2}
+                          d='M6 18L18 6M6 6l12 12'
+                        />
                       </svg>
                     </button>
                   </div>
                 </div>
-                
-                <nav className='p-4 space-y-2' role="navigation" aria-label="Menu mobile">
+
+                <nav
+                  className='p-4 space-y-2'
+                  role='navigation'
+                  aria-label='Menu mobile'
+                >
                   {nav.map(i => (
                     <NavLink
                       key={i.to}
@@ -192,26 +222,38 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       onClick={closeMobileMenu}
                       className={({ isActive }) =>
                         [
-                          'block px-4 py-3 rounded-xl text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ys-amber focus:ring-offset-2',
+                          newMenuStyles
+                            ? 'block px-4 py-3 rounded-xl text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ys-amber focus:ring-offset-2'
+                            : 'block px-3 py-2 text-sm font-medium transition-colors focus:outline-none',
                           isActive
-                            ? 'bg-orange-100 text-orange-700 font-semibold'
-                            : 'text-gray-800 hover:bg-orange-50',
+                            ? newMenuStyles
+                              ? 'bg-orange-100 text-orange-700 font-semibold'
+                              : 'text-orange-600 font-semibold'
+                            : newMenuStyles
+                              ? 'text-gray-800 hover:bg-orange-50'
+                              : 'text-gray-600 hover:text-gray-900',
                           i.primary && !isActive ? 'font-semibold' : '',
                         ].join(' ')
                       }
-                      aria-current={({ isActive }) => isActive ? 'page' : undefined}
+                      aria-current={({ isActive }) =>
+                        isActive ? 'page' : undefined
+                      }
                     >
                       {i.label}
                     </NavLink>
                   ))}
-                  
+
                   <div className='pt-4 border-t border-ys-line mt-4'>
                     <button
                       onClick={() => {
                         closeMobileMenu();
                         handleLogout();
                       }}
-                      className='w-full px-4 py-3 rounded-xl text-sm font-medium text-gray-800 hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-ys-amber focus:ring-offset-2'
+                      className={`w-full text-sm font-medium focus:outline-none ${
+                        newMenuStyles
+                          ? 'px-4 py-3 rounded-xl text-gray-800 hover:bg-orange-50 focus:ring-2 focus:ring-ys-amber focus:ring-offset-2'
+                          : 'px-3 py-2 text-gray-600 hover:text-gray-900'
+                      }`}
                     >
                       Sair
                     </button>
@@ -224,6 +266,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       )}
 
       <main className='relative z-10'>{children}</main>
+
+      {/* Debug Components */}
+      <CacheDebug />
+      <VitalsDebug />
     </div>
   );
 }

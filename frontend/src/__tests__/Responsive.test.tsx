@@ -39,7 +39,7 @@ function resizeWindow(width: number, height: number) {
     configurable: true,
     value: height,
   });
-  
+
   // Disparar evento resize
   window.dispatchEvent(new Event('resize'));
 }
@@ -53,7 +53,7 @@ describe('Responsividade - Componentes', () => {
   describe('AppShell - Menu Responsivo', () => {
     it('deve mostrar menu desktop em telas grandes', () => {
       resizeWindow(1024, 768);
-      
+
       render(
         <BrowserRouter>
           <AppShell>
@@ -63,7 +63,9 @@ describe('Responsividade - Componentes', () => {
       );
 
       // Menu desktop deve estar visível
-      const desktopNav = screen.getByRole('navigation', { name: 'Menu principal' });
+      const desktopNav = screen.getByRole('navigation', {
+        name: 'Menu principal',
+      });
       expect(desktopNav).toBeInTheDocument();
       expect(desktopNav).toHaveClass('hidden', 'sm:flex');
 
@@ -74,7 +76,7 @@ describe('Responsividade - Componentes', () => {
 
     it('deve mostrar botão mobile em telas pequenas', () => {
       resizeWindow(375, 667); // iPhone SE
-      
+
       render(
         <BrowserRouter>
           <AppShell>
@@ -84,7 +86,9 @@ describe('Responsividade - Componentes', () => {
       );
 
       // Menu desktop deve estar oculto
-      const desktopNav = screen.getByRole('navigation', { name: 'Menu principal' });
+      const desktopNav = screen.getByRole('navigation', {
+        name: 'Menu principal',
+      });
       expect(desktopNav).toHaveClass('hidden', 'sm:flex');
 
       // Botão mobile deve estar visível
@@ -95,7 +99,7 @@ describe('Responsividade - Componentes', () => {
 
     it('deve abrir e fechar drawer mobile', () => {
       resizeWindow(375, 667);
-      
+
       render(
         <BrowserRouter>
           <AppShell>
@@ -105,10 +109,10 @@ describe('Responsividade - Componentes', () => {
       );
 
       const mobileButton = screen.getByLabelText('Abrir menu de navegação');
-      
+
       // Abrir drawer
       fireEvent.click(mobileButton);
-      
+
       // Verificar se drawer está aberto
       const drawer = screen.getByRole('navigation', { name: 'Menu mobile' });
       expect(drawer).toBeInTheDocument();
@@ -117,14 +121,14 @@ describe('Responsividade - Componentes', () => {
       // Fechar drawer
       const closeButton = screen.getByLabelText('Fechar menu');
       fireEvent.click(closeButton);
-      
+
       // Drawer deve estar fechado
       expect(drawer).not.toBeInTheDocument();
     });
 
     it('deve fechar drawer ao clicar no backdrop', () => {
       resizeWindow(375, 667);
-      
+
       render(
         <BrowserRouter>
           <AppShell>
@@ -135,17 +139,19 @@ describe('Responsividade - Componentes', () => {
 
       const mobileButton = screen.getByLabelText('Abrir menu de navegação');
       fireEvent.click(mobileButton);
-      
+
       // Verificar se drawer está aberto
       const drawer = screen.getByRole('navigation', { name: 'Menu mobile' });
       expect(drawer).toBeInTheDocument();
-      
+
       // Fechar drawer clicando no botão de fechar
       const closeButton = screen.getByLabelText('Fechar menu');
       fireEvent.click(closeButton);
-      
+
       // Drawer deve estar fechado
-      expect(screen.queryByRole('navigation', { name: 'Menu mobile' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('navigation', { name: 'Menu mobile' })
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -176,7 +182,7 @@ describe('Responsividade - Componentes', () => {
 
     it('deve ter largura mínima configurável', () => {
       render(
-        <Table minWidth="800px">
+        <Table minWidth='800px'>
           <thead>
             <tr>
               <Th>Nome</Th>
@@ -227,18 +233,18 @@ describe('Responsividade - Componentes', () => {
 
     const mobileCards = (
       <TableCard
-        title="João Silva"
-        subtitle="Aluno"
+        title='João Silva'
+        subtitle='Aluno'
         data={[
           { label: 'Email', value: 'joao@email.com' },
-          { label: 'Status', value: 'Ativo' }
+          { label: 'Status', value: 'Ativo' },
         ]}
       />
     );
 
     it('deve mostrar tabela em desktop', () => {
       resizeWindow(1024, 768);
-      
+
       render(
         <ResponsiveTable mobileCardComponent={mobileCards}>
           {tableContent}
@@ -248,7 +254,7 @@ describe('Responsividade - Componentes', () => {
       // Tabela deve estar visível
       const table = screen.getByRole('table');
       expect(table).toBeInTheDocument();
-      
+
       // Container da tabela deve ter classe hidden md:block
       const tableContainer = table.closest('div')?.parentElement;
       expect(tableContainer).toHaveClass('hidden', 'md:block');
@@ -256,7 +262,7 @@ describe('Responsividade - Componentes', () => {
 
     it('deve mostrar cards em mobile', () => {
       resizeWindow(375, 667);
-      
+
       render(
         <ResponsiveTable mobileCardComponent={mobileCards}>
           {tableContent}
@@ -266,9 +272,10 @@ describe('Responsividade - Componentes', () => {
       // Cards devem estar visíveis
       const cardTitle = screen.getAllByText('João Silva')[1]; // Pegar o segundo (do card)
       expect(cardTitle).toBeInTheDocument();
-      
+
       // Container dos cards deve ter classe md:hidden
-      const cardsContainer = cardTitle.closest('div')?.parentElement?.parentElement;
+      const cardsContainer =
+        cardTitle.closest('div')?.parentElement?.parentElement;
       expect(cardsContainer).toHaveClass('md:hidden');
     });
   });
@@ -277,11 +284,11 @@ describe('Responsividade - Componentes', () => {
     it('deve renderizar TableCard com dados', () => {
       render(
         <TableCard
-          title="João Silva"
-          subtitle="Aluno"
+          title='João Silva'
+          subtitle='Aluno'
           data={[
             { label: 'Email', value: 'joao@email.com' },
-            { label: 'Idade', value: '18 anos' }
+            { label: 'Idade', value: '18 anos' },
           ]}
         />
       );
@@ -298,7 +305,7 @@ describe('Responsividade - Componentes', () => {
   describe('Breakpoints - Validação', () => {
     it('deve funcionar em 360px (mínimo)', () => {
       resizeWindow(360, 640);
-      
+
       render(
         <BrowserRouter>
           <AppShell>
@@ -314,7 +321,7 @@ describe('Responsividade - Componentes', () => {
 
     it('deve funcionar em 414px (iPhone Plus)', () => {
       resizeWindow(414, 736);
-      
+
       render(
         <BrowserRouter>
           <AppShell>
@@ -330,7 +337,7 @@ describe('Responsividade - Componentes', () => {
 
     it('deve funcionar em 768px (tablet)', () => {
       resizeWindow(768, 1024);
-      
+
       render(
         <BrowserRouter>
           <AppShell>
@@ -340,7 +347,9 @@ describe('Responsividade - Componentes', () => {
       );
 
       // Deve mostrar menu desktop
-      const desktopNav = screen.getByRole('navigation', { name: 'Menu principal' });
+      const desktopNav = screen.getByRole('navigation', {
+        name: 'Menu principal',
+      });
       expect(desktopNav).toBeInTheDocument();
       expect(desktopNav).toHaveClass('hidden', 'sm:flex');
     });

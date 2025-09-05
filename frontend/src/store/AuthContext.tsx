@@ -7,6 +7,12 @@ import {
   useCallback,
 } from 'react';
 import { api, setAuthToken, STORAGE_TOKEN_KEY } from '@/services/api';
+import {
+  createSession,
+  getSessionRole,
+  performLogout,
+} from '@/services/session';
+import { useSession } from '@/hooks/useSession';
 
 // meta: evitar fetch sem token e expor helpers simples
 type AuthState = {
@@ -32,6 +38,18 @@ const AuthContext = createContext<AuthCtx>({
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ loading: true, role: null });
+
+  // Hook de sessão para gerenciar TTL, idle e sincronização
+  const { sessionInfo, updateActivity } = useSession({
+    onSessionChange: hasSession => {
+      if (!hasSession) {
+        setState({ loading: false, role: null });
+      }
+    },
+    onLogout: reason => {
+      setState({ loading: false, role: null });
+    },
+  });
 
   const setToken = useCallback((t: string | null) => {
     if (t) {
@@ -60,6 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then(r => {
         const userData = r.data;
         const role = userData?.role ?? 'professor';
+
+        // Cria sessão no novo sistema
+        createSession(token, role);
+
         setState({ loading: false, user: userData, role });
       })
       .catch(err => {
@@ -73,6 +95,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data } = await api.post('/auth/login-teacher', { email, password });
     if (data?.token) {
       setToken(data.token);
+
+      // Cria sessão no novo sistema
+      createSession(data.token, 'professor');
+
       const me = await api.get('/auth/me');
       setState({
         loading: false,
@@ -86,6 +112,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data } = await api.post('/auth/login-student', { email, password });
     if (data?.token) {
       setToken(data.token);
+
+      // Cria sessão no novo sistema
+      createSession(data.token, 'aluno');
+
       const me = await api.get('/auth/me');
       setState({
         loading: false,
@@ -99,6 +129,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await api.post('/auth/logout');
     } catch {}
+
+    // Usa o novo sistema de sessão para logout
+    performLogout('MANUAL');
     setToken(null);
     setState({ loading: false, role: null });
   }

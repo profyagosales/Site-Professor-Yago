@@ -30,10 +30,19 @@ class Logger {
 
   constructor() {
     // Ativar logging em DEV ou se localStorage.debug='1'
-    this.isEnabled = import.meta.env.DEV || localStorage.getItem('debug') === '1';
-    
+    // Compatível com Jest (teste de ambiente)
+    const isDev =
+      typeof import.meta !== 'undefined' && import.meta.env?.DEV === true;
+    const isTest = process.env.NODE_ENV === 'test';
+    this.isEnabled =
+      isDev ||
+      (!isTest &&
+        typeof window !== 'undefined' &&
+        localStorage.getItem('debug') === '1');
+
     // Verificar se Sentry está disponível (sem importar)
-    this.sentryAvailable = typeof window !== 'undefined' && 
+    this.sentryAvailable =
+      typeof window !== 'undefined' &&
       typeof (window as any).__SENTRY__?.captureException === 'function';
   }
 
@@ -41,17 +50,26 @@ class Logger {
     return this.isEnabled;
   }
 
-  private formatMessage(level: LogLevel, message: string, context?: LogContext): string {
+  private formatMessage(
+    level: LogLevel,
+    message: string,
+    context?: LogContext
+  ): string {
     const timestamp = new Date().toISOString();
     const contextStr = context ? ` [${JSON.stringify(context)}]` : '';
     return `[${timestamp}] ${level.toUpperCase()}: ${message}${contextStr}`;
   }
 
-  private logToConsole(level: LogLevel, message: string, context?: LogContext, error?: Error) {
+  private logToConsole(
+    level: LogLevel,
+    message: string,
+    context?: LogContext,
+    error?: Error
+  ) {
     if (!this.shouldLog(level)) return;
 
     const formattedMessage = this.formatMessage(level, message, context);
-    
+
     switch (level) {
       case 'info':
         console.info(formattedMessage);
@@ -65,7 +83,12 @@ class Logger {
     }
   }
 
-  private logToSentry(level: LogLevel, message: string, context?: LogContext, error?: Error) {
+  private logToSentry(
+    level: LogLevel,
+    message: string,
+    context?: LogContext,
+    error?: Error
+  ) {
     if (!this.sentryAvailable || level !== 'error') return;
 
     try {
@@ -100,7 +123,12 @@ class Logger {
     }
   }
 
-  private createLogEntry(level: LogLevel, message: string, context?: LogContext, error?: Error): LogEntry {
+  private createLogEntry(
+    level: LogLevel,
+    message: string,
+    context?: LogContext,
+    error?: Error
+  ): LogEntry {
     return {
       level,
       message,
@@ -165,7 +193,13 @@ class Logger {
   /**
    * Log de API (usado pelos interceptores)
    */
-  api(method: string, url: string, status: number, duration: number, payloadSize?: number): void {
+  api(
+    method: string,
+    url: string,
+    status: number,
+    duration: number,
+    payloadSize?: number
+  ): void {
     this.info(`API: ${method} ${url}`, {
       action: 'api',
       method,
@@ -180,12 +214,16 @@ class Logger {
    * Log de erro de API
    */
   apiError(method: string, url: string, error: Error, duration?: number): void {
-    this.error(`API Error: ${method} ${url}`, {
-      action: 'api',
-      method,
-      url,
-      duration,
-    }, error);
+    this.error(
+      `API Error: ${method} ${url}`,
+      {
+        action: 'api',
+        method,
+        url,
+        duration,
+      },
+      error
+    );
   }
 
   /**
@@ -203,10 +241,14 @@ class Logger {
    * Log de erro de autenticação
    */
   authError(action: string, error: Error, context?: LogContext): void {
-    this.error(`Auth Error: ${action}`, {
-      ...context,
-      action: 'auth',
-    }, error);
+    this.error(
+      `Auth Error: ${action}`,
+      {
+        ...context,
+        action: 'auth',
+      },
+      error
+    );
   }
 
   /**

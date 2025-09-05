@@ -3,6 +3,31 @@ import { Document, Page, pdfjs } from "react-pdf";
 
 pdfjs.GlobalWorkerOptions.workerSrc = "/viewer/pdf.worker.mjs";
 
+// Funções de performance para o viewer
+const markPerformance = (name: string, detail?: any) => {
+  if (typeof performance !== 'undefined') {
+    performance.mark(name, { detail });
+    console.log(`📍 Performance mark: ${name}`, detail);
+  }
+};
+
+const measurePerformance = (name: string, startMark: string, endMark?: string) => {
+  if (typeof performance !== 'undefined') {
+    const duration = endMark ? 
+      performance.measure(name, startMark, endMark).duration :
+      performance.measure(name, startMark).duration;
+    
+    console.log(`⏱️ Performance measure: ${name}`, {
+      duration: `${duration.toFixed(2)}ms`,
+      startMark,
+      endMark: endMark || 'now',
+    });
+    
+    return duration;
+  }
+  return 0;
+};
+
 export default function Viewer() {
   const [src, setSrc] = useState<{ url: string; httpHeaders?: any } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -10,6 +35,9 @@ export default function Viewer() {
 
   useEffect(() => {
     const onOpen = (e: any) => {
+      // Marca início da abertura do PDF
+      markPerformance('pdf_open_start', { url: e.detail.url });
+      
       setError(null);
       setLoading(true);
       setSrc({ url: e.detail.url, httpHeaders: e.detail.headers });
@@ -19,11 +47,19 @@ export default function Viewer() {
   }, []);
 
   const onDocumentLoadSuccess = () => {
+    // Marca fim da abertura do PDF
+    markPerformance('pdf_open_end');
+    measurePerformance('pdf_open_duration', 'pdf_open_start', 'pdf_open_end');
+    
     setLoading(false);
     setError(null);
   };
 
   const onDocumentLoadError = (error: any) => {
+    // Marca erro na abertura do PDF
+    markPerformance('pdf_open_error', { error: error.message });
+    measurePerformance('pdf_open_duration', 'pdf_open_start', 'pdf_open_error');
+    
     setLoading(false);
     console.error('PDF load error:', error);
     if (error.message?.includes('401')) {

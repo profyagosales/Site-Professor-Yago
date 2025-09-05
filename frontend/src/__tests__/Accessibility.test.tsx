@@ -51,9 +51,9 @@ describe('Acessibilidade - Componentes Críticos', () => {
       const { container } = render(
         <BrowserRouter>
           <AuthShell
-            roleLabel="Professor"
-            heading="Entrar na plataforma"
-            subheading="Use seu e-mail institucional"
+            roleLabel='Professor'
+            heading='Entrar na plataforma'
+            subheading='Use seu e-mail institucional'
             bullets={['Acesse suas turmas', 'Lance notas']}
           >
             <div>Conteúdo do formulário</div>
@@ -63,7 +63,9 @@ describe('Acessibilidade - Componentes Críticos', () => {
 
       // Verificar elementos semânticos
       expect(screen.getByRole('main')).toBeInTheDocument();
-      expect(screen.getByLabelText('Voltar para página anterior')).toBeInTheDocument();
+      expect(
+        screen.getByLabelText('Voltar para página anterior')
+      ).toBeInTheDocument();
       expect(screen.getByText('PROFESSOR')).toBeInTheDocument();
       expect(screen.getByText('Entrar na plataforma')).toBeInTheDocument();
 
@@ -77,10 +79,10 @@ describe('Acessibilidade - Componentes Críticos', () => {
     it('deve ter labels associados corretamente', async () => {
       const { container } = render(
         <Field
-          label="E-mail"
-          type="email"
+          label='E-mail'
+          type='email'
           required
-          placeholder="seu@email.com"
+          placeholder='seu@email.com'
         />
       );
 
@@ -100,17 +102,13 @@ describe('Acessibilidade - Componentes Críticos', () => {
 
     it('deve mostrar erros de forma acessível', async () => {
       const { container } = render(
-        <Field
-          label="Senha"
-          type="password"
-          error="Senha muito curta"
-        />
+        <Field label='Senha' type='password' error='Senha muito curta' />
       );
 
       // Verificar estado de erro
       const input = screen.getByLabelText(/Senha/);
       expect(input).toHaveAttribute('aria-invalid', 'true');
-      
+
       const errorMessage = screen.getByRole('alert');
       expect(errorMessage).toHaveTextContent('Senha muito curta');
 
@@ -123,7 +121,7 @@ describe('Acessibilidade - Componentes Críticos', () => {
   describe('Button', () => {
     it('deve ter foco visível e ser navegável por teclado', async () => {
       const { container } = render(
-        <Button variant="primary" onClick={jest.fn()}>
+        <Button variant='primary' onClick={jest.fn()}>
           Entrar
         </Button>
       );
@@ -139,7 +137,7 @@ describe('Acessibilidade - Componentes Críticos', () => {
 
     it('deve ser desabilitado corretamente', async () => {
       const { container } = render(
-        <Button variant="primary" disabled>
+        <Button variant='primary' disabled>
           Carregando...
         </Button>
       );
@@ -187,24 +185,24 @@ describe('Acessibilidade - Componentes Críticos', () => {
       const { container } = render(
         <BrowserRouter>
           <AuthShell
-            roleLabel="Professor"
-            heading="Entrar na plataforma"
-            subheading="Use seu e-mail institucional"
+            roleLabel='Professor'
+            heading='Entrar na plataforma'
+            subheading='Use seu e-mail institucional'
           >
             <form>
               <Field
-                label="E-mail"
-                type="email"
+                label='E-mail'
+                type='email'
                 required
-                placeholder="seu@email.com"
+                placeholder='seu@email.com'
               />
               <Field
-                label="Senha"
-                type="password"
+                label='Senha'
+                type='password'
                 required
-                placeholder="Sua senha"
+                placeholder='Sua senha'
               />
-              <Button type="submit">Entrar</Button>
+              <Button type='submit'>Entrar</Button>
             </form>
           </AuthShell>
         </BrowserRouter>

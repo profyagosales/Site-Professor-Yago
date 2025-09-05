@@ -26,18 +26,18 @@ export default function AuthShell({
   const modalRef = useFocusManagement(true);
 
   return (
-    <section 
+    <section
       ref={modalRef}
       className='relative z-10 max-w-5xl mx-auto px-4 py-10'
-      role="main"
-      aria-labelledby="auth-heading"
+      role='main'
+      aria-labelledby='auth-heading'
     >
       {showBack && (
         <div className='mb-6'>
           <button
             onClick={handleBack}
             className='inline-flex items-center text-ys-ink-2 hover:text-ys-ink transition-colors text-sm'
-            aria-label="Voltar para página anterior"
+            aria-label='Voltar para página anterior'
           >
             <svg
               width='18'
@@ -114,7 +114,12 @@ export default function AuthShell({
               <p className='tracking-[0.25em] text-xs text-ys-ink-3 mb-2'>
                 {roleLabel.toUpperCase()}
               </p>
-              <h2 id="auth-heading" className='text-2xl font-extrabold text-ys-ink'>{heading}</h2>
+              <h2
+                id='auth-heading'
+                className='text-2xl font-extrabold text-ys-ink'
+              >
+                {heading}
+              </h2>
               {subheading && (
                 <p className='text-ys-ink-2 mt-1 text-sm'>{subheading}</p>
               )}

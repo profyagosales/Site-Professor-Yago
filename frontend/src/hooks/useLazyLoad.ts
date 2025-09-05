@@ -69,7 +69,10 @@ export function useLazyLoadOnInteraction<T>(
 export function useLazyLoadOnVisible<T>(
   loader: () => Promise<T>,
   deps: any[] = []
-): LazyLoadState<T> & { load: () => void; ref: (node: HTMLElement | null) => void } {
+): LazyLoadState<T> & {
+  load: () => void;
+  ref: (node: HTMLElement | null) => void;
+} {
   const [isVisible, setIsVisible] = useState(false);
   const lazyState = useLazyLoad(loader, deps);
 

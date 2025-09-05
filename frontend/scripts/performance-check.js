@@ -57,3 +57,5 @@ export function performanceCheck() {
 if (import.meta.url === `file://${process.argv[1]}`) {
   performanceCheck();
 }
+
+

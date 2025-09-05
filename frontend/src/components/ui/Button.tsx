@@ -19,8 +19,8 @@ export function Button({
   }[variant];
 
   return (
-    <button 
-      className={`${base} ${styles} ${className}`} 
+    <button
+      className={`${base} ${styles} ${className}`}
       {...props}
       // Garantir que botões tenham foco visível
       tabIndex={props.disabled ? -1 : 0}

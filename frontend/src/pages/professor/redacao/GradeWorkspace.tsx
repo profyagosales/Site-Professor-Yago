@@ -3,10 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   fetchEssayById,
   gradeEssay,
-  getAnnotations,
-  saveAnnotations,
   renderCorrection,
 } from '@/services/essays.service';
+import { useOptimisticAnnotations } from '@/services/annotations';
 import AnnotationEditor from '@/components/redacao/AnnotationEditor';
 import AnnotationEditorRich from '@/components/redacao/AnnotationEditorRich';
 import type { Highlight } from '@/components/redacao/types';
@@ -16,21 +15,48 @@ import Avatar from '@/components/Avatar';
 import { api } from '@/services/api';
 import { ROUTES } from '@/routes';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { useFlag } from '@/flags';
+import { useOfflineMode } from '@/hooks/useOfflineMode';
+import {
+  buildPdfUrl,
+  determinePdfStrategy,
+  logPdfOpen,
+  handlePdfError,
+} from '@/features/viewer/pdfContract';
 import '@/pdfSetup';
 
-const useRich =
-  import.meta.env.VITE_USE_RICH_ANNOS === '1' ||
-  import.meta.env.VITE_USE_RICH_ANNOS === 'true';
-const useIframe = import.meta.env.VITE_PDF_IFRAME !== '0';
+import { useRich, useIframe } from '@/config/env';
 
 export default function GradeWorkspace() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+
+  // Feature flags
+  const [pdfInlineViewer] = useFlag('pdf_inline_viewer', true);
+  const [annotationsEnabled] = useFlag('annotations_enabled', true);
+
+  // PDF loading states
+  const [pdfStrategy, setPdfStrategy] = useState<
+    'inline' | 'fallback' | 'loading'
+  >('loading');
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
   const [err, setErr] = useState<string | null>(null);
   const [essay, setEssay] = useState<any | null>(null);
-  const [annotations, setAnnotations] = useState<Highlight[]>([]);
-  const [richAnnos, setRichAnnos] = useState<Anno[]>([]);
+  // Hook otimista para anotações
+  const {
+    annotations,
+    richAnnotations: richAnnos,
+    isOptimistic,
+    error: annotationsError,
+    updateOptimistic,
+    forceSave,
+  } = useOptimisticAnnotations(id || '');
+
+  // Hook para degradação offline
+  const { getDisabledProps, shouldBlockAction } = useOfflineMode();
+
   const [comments, setComments] = useState('');
   const [weight, setWeight] = useState('1');
   const [annulReason, setAnnulReason] = useState('');
@@ -83,7 +109,6 @@ export default function GradeWorkspace() {
   const [fileBase, setFileBase] = useState('');
   const [fileToken, setFileToken] = useState('');
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
-  const [pdfError, setPdfError] = useState<string | null>(null);
   const [draft, setDraft] = useState<null | {
     annotations: Highlight[];
     richAnnos: Anno[];
@@ -170,7 +195,7 @@ export default function GradeWorkspace() {
   const restoreDraft = () => {
     if (!draft) return;
     setAnnotations(draft.annotations);
-    setRichAnnos(draft.richAnnos);
+    // richAnnos é gerenciado pelo hook otimista
     setComments(draft.comments);
     setWeight(draft.weight);
     setBimestralValue(draft.bimestralValue);
@@ -204,7 +229,7 @@ export default function GradeWorkspace() {
         if (!alive) return;
         setEssay(data);
         if (data?.annotations) setAnnotations(data.annotations as any);
-        if (data?.richAnnotations) setRichAnnos(data.richAnnotations);
+        // richAnnotations é gerenciado pelo hook otimista
         if (data?.comments) setComments(data.comments);
         if (data?.bimestreWeight) setWeight(String(data.bimestreWeight));
         if (data?.bimestralPointsValue != null)
@@ -428,48 +453,17 @@ export default function GradeWorkspace() {
   ]);
 
   // Autosave servidor: debounce de 800ms separado para salvar no servidor
-  useEffect(() => {
-    if (!dirty || !essay) return;
-
-    // Limpa timeout anterior
-    if (serverSaveTimeout) {
-      clearTimeout(serverSaveTimeout);
-    }
-
-    // Salva no servidor com debounce de 800ms
-    const timeout = setTimeout(async () => {
-      try {
-        setAutosaving(true);
-        setSaveStatus('saving');
-        await saveAnnotations(essay._id || essay.id, annotations as any, {
-          annos: useNewAnnotator ? richAnnos : undefined,
-        });
-        setLastSavedAt(new Date());
-        setSaveStatus('saved');
-        // Limpa status após 2 segundos
-        setTimeout(() => setSaveStatus(null), 2000);
-      } catch (error: any) {
-        console.error('Erro ao salvar anotações:', error);
-        setSaveStatus('error');
-        // Limpa status de erro após 5 segundos
-        setTimeout(() => setSaveStatus(null), 5000);
-      } finally {
-        setAutosaving(false);
-      }
-    }, 800);
-
-    setServerSaveTimeout(timeout);
-
-    return () => {
-      if (timeout) clearTimeout(timeout);
-    };
-  }, [dirty, essay, annotations, richAnnos, useNewAnnotator]);
+  // Autosave é gerenciado pelo hook otimista
 
   // carregar PDF via iframe viewer
   useEffect(() => {
     if (!id || !useIframe) return;
+
+    let alive = true;
     setPdfReady(false);
     setIframeError(null);
+    setPdfStrategy('loading');
+    setPdfError(null);
 
     (async () => {
       try {
@@ -477,37 +471,57 @@ export default function GradeWorkspace() {
         const { data: tok } = await api.get(`/essays/${id}/file-token`);
         const fileUrl = `${api.defaults.baseURL}/essays/${id}/file`;
 
-        // 2) validar com HEAD request
-        try {
-          await api.head(`/essays/${id}/file`, {
-            headers: { Authorization: `Bearer ${tok.token}` },
-          });
-        } catch (headError: any) {
-          if (headError.response?.status === 401) {
-            setIframeError('Acesso negado ao arquivo PDF');
-            return;
-          } else if (headError.response?.status === 404) {
-            setIframeError('Arquivo PDF não encontrado');
-            return;
-          } else {
-            setIframeError('Erro ao validar arquivo PDF');
-            return;
-          }
-        }
+        if (!alive) return;
 
-        setFileBase(fileUrl);
-        setFileToken(tok?.token);
-        setPdfReady(true);
-      } catch (error: any) {
-        if (error.response?.status === 401) {
-          setIframeError('Acesso negado - faça login novamente');
-        } else if (error.response?.status === 404) {
-          setIframeError('Redação não encontrada');
+        // 2) determinar estratégia de carregamento
+        const strategy = await determinePdfStrategy(id, tok?.token);
+
+        if (!alive) return;
+
+        setPdfStrategy(strategy);
+
+        if (strategy === 'inline') {
+          // 3) validar com HEAD request para inline
+          try {
+            await api.head(`/essays/${id}/file`, {
+              headers: { Authorization: `Bearer ${tok.token}` },
+            });
+
+            if (!alive) return;
+
+            setFileBase(fileUrl);
+            setFileToken(tok?.token);
+            setPdfReady(true);
+
+            // Log de abertura
+            logPdfOpen(id, true, !!tok?.token);
+          } catch (headError: any) {
+            if (!alive) return;
+
+            const errorMessage = handlePdfError(headError, id);
+            setPdfError(errorMessage);
+            setPdfStrategy('fallback');
+          }
         } else {
-          setIframeError('Falha ao carregar PDF');
+          // Fallback: apenas preparar para abrir em nova aba
+          setFileBase(fileUrl);
+          setFileToken(tok?.token);
+
+          // Log de abertura
+          logPdfOpen(id, false, !!tok?.token);
         }
+      } catch (error: any) {
+        if (!alive) return;
+
+        const errorMessage = handlePdfError(error, id);
+        setPdfError(errorMessage);
+        setPdfStrategy('fallback');
       }
     })();
+
+    return () => {
+      alive = false;
+    };
   }, [id, useIframe]);
 
   function sendFileToIframe() {
@@ -546,9 +560,8 @@ export default function GradeWorkspace() {
     if (!essay) return;
     try {
       setLoading(true);
-      await saveAnnotations(essay._id || essay.id, annotations as any, {
-        annos: useNewAnnotator ? richAnnos : undefined,
-      });
+      // Força salvamento das anotações antes de corrigir
+      await forceSave();
       if (essay.type === 'ENEM') {
         await gradeEssay(essay._id || essay.id, {
           essayType: 'ENEM',
@@ -616,27 +629,24 @@ export default function GradeWorkspace() {
   async function openPdfInNewTab() {
     if (!id) return;
     try {
-      // 3) "Abrir em nova aba" (fallback)
-      if (fileToken && fileBase) {
-        window.open(`${fileBase}?t=${fileToken}`, '_blank', 'noopener');
-        return;
-      }
+      // Usar contrato para construir URL
+      const pdfUrl = buildPdfUrl(id, fileToken);
 
-      // Fallback: blob
-      const res = await api.get(`/essays/${id}/file`, { responseType: 'blob' });
-      const blob = res.data;
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank', 'noopener,noreferrer');
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      // Abrir em nova aba com segurança
+      window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+
+      // Log de abertura em nova aba
+      logPdfOpen(id, false, !!fileToken);
     } catch (e) {
       console.error('openPdfInNewTab error', e);
-      alert('Não foi possível abrir o arquivo.');
+      const errorMessage = handlePdfError(e, id);
+      alert(errorMessage);
     }
   }
 
   return (
     <div className='p-4 md:p-6 space-y-4'>
-      {import.meta.env.DEV && (
+      {process.env.NODE_ENV === 'development' && (
         <div className='text-xs text-ys-ink-2'>
           Flag rich: {String((window as any).YS_USE_RICH_ANNOS)} • mime:{' '}
           {essay.originalMimeType || '-'}
@@ -742,7 +752,7 @@ export default function GradeWorkspace() {
           >
             Voltar
           </button>
-          {import.meta.env.DEV && (
+          {process.env.NODE_ENV === 'development' && (
             <div className='ml-2 flex items-center gap-1 text-xs text-ys-ink-2'>
               <span>Annotator:</span>
               <select
@@ -758,8 +768,16 @@ export default function GradeWorkspace() {
           )}
           <button
             className='inline-flex items-center gap-2 rounded-lg border border-[#E5E7EB] px-3 py-1.5 disabled:opacity-60'
-            disabled={loading}
-            onClick={() => submit(false)}
+            disabled={loading || shouldBlockAction('save_essay')}
+            title={
+              shouldBlockAction('save_essay')
+                ? 'Serviço temporariamente indisponível'
+                : undefined
+            }
+            onClick={() => {
+              if (shouldBlockAction('save_essay')) return;
+              submit(false);
+            }}
           >
             {loading && (
               <span className='inline-block h-4 w-4 animate-spin rounded-full border-2 border-[#9CA3AF] border-t-transparent' />
@@ -768,8 +786,16 @@ export default function GradeWorkspace() {
           </button>
           <button
             className='inline-flex items-center gap-2 rounded-lg bg-orange-500 px-3 py-1.5 text-white disabled:opacity-60'
-            disabled={loading}
-            onClick={() => submit(true)}
+            disabled={loading || shouldBlockAction('save_and_generate_pdf')}
+            title={
+              shouldBlockAction('save_and_generate_pdf')
+                ? 'Serviço temporariamente indisponível'
+                : undefined
+            }
+            onClick={() => {
+              if (shouldBlockAction('save_and_generate_pdf')) return;
+              submit(true);
+            }}
           >
             {loading && (
               <span className='inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/80 border-t-transparent' />
@@ -782,19 +808,38 @@ export default function GradeWorkspace() {
       <div className='grid gap-4 md:grid-cols-[minmax(0,1fr)_260px]'>
         <div className='min-h-[420px] overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#F9FAFB]'>
           {/* Status */}
-          {useIframe ? (
-            pdfReady && !iframeError ? (
+          {useIframe && pdfInlineViewer ? (
+            pdfStrategy === 'inline' && pdfReady && !iframeError ? (
               <iframe
                 ref={iframeRef}
                 src='/viewer/index.html'
                 className='w-full border-0'
                 onLoad={sendFileToIframe}
               />
+            ) : pdfStrategy === 'loading' ? (
+              <div className='p-4 text-sm text-ys-ink-2 text-center'>
+                <div className='flex items-center justify-center gap-2'>
+                  <div className='inline-block h-4 w-4 animate-spin rounded-full border-2 border-ys-amber border-t-transparent' />
+                  <span>Verificando compatibilidade do PDF...</span>
+                </div>
+              </div>
             ) : (
               <div className='p-4 text-sm text-ys-ink-2'>
                 {iframeError || pdfError || 'Carregando PDF…'}
                 {id && (
-                  <button className='ml-2 underline' onClick={openPdfInNewTab}>
+                  <button
+                    className='ml-2 underline disabled:opacity-50 disabled:cursor-not-allowed'
+                    disabled={shouldBlockAction('open_pdf')}
+                    title={
+                      shouldBlockAction('open_pdf')
+                        ? 'Serviço temporariamente indisponível'
+                        : undefined
+                    }
+                    onClick={() => {
+                      if (shouldBlockAction('open_pdf')) return;
+                      openPdfInNewTab();
+                    }}
+                  >
                     Abrir em nova aba
                   </button>
                 )}
@@ -802,7 +847,62 @@ export default function GradeWorkspace() {
             )
           ) : (
             <div className='p-4 text-sm text-ys-ink-2'>
-              Visualização de PDF desativada
+              {!pdfInlineViewer ? (
+                <div className='text-center'>
+                  <div className='mb-4 text-lg font-medium text-ys-ink'>
+                    Visualização inline desabilitada
+                  </div>
+                  <div className='mb-4 text-sm text-ys-ink-2'>
+                    O PDF viewer inline foi desabilitado via feature flag.
+                  </div>
+                  {id && (
+                    <button
+                      className='px-4 py-2 bg-ys-amber text-white rounded-lg hover:bg-ys-amber-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+                      disabled={shouldBlockAction('open_pdf')}
+                      title={
+                        shouldBlockAction('open_pdf')
+                          ? 'Serviço temporariamente indisponível'
+                          : undefined
+                      }
+                      onClick={() => {
+                        if (shouldBlockAction('open_pdf')) return;
+                        openPdfInNewTab();
+                      }}
+                    >
+                      Abrir PDF em nova aba
+                    </button>
+                  )}
+                </div>
+              ) : pdfStrategy === 'fallback' ? (
+                <div className='text-center'>
+                  <div className='mb-4 text-lg font-medium text-ys-ink'>
+                    Visualização inline não disponível
+                  </div>
+                  <div className='mb-4 text-sm text-ys-ink-2'>
+                    {pdfError ||
+                      'O PDF não pode ser exibido inline neste dispositivo.'}
+                  </div>
+                  {id && (
+                    <button
+                      className='px-4 py-2 bg-ys-amber text-white rounded-lg hover:bg-ys-amber-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+                      disabled={shouldBlockAction('open_pdf')}
+                      title={
+                        shouldBlockAction('open_pdf')
+                          ? 'Serviço temporariamente indisponível'
+                          : undefined
+                      }
+                      onClick={() => {
+                        if (shouldBlockAction('open_pdf')) return;
+                        openPdfInNewTab();
+                      }}
+                    >
+                      Abrir PDF em nova aba
+                    </button>
+                  )}
+                </div>
+              ) : (
+                'Visualização de PDF desativada'
+              )}
             </div>
           )}
         </div>
@@ -980,76 +1080,6 @@ export default function GradeWorkspace() {
             className='h-28 w-full rounded border p-2'
             placeholder='Feedback opcional'
           />
-
-          {useNewAnnotator ? (
-            <AnnotationEditorRich
-              value={richAnnos}
-              onChange={setRichAnnos}
-              currentPage={currentPage}
-              onSelect={id => {
-                if (!id) {
-                  setSelectedIndex(null);
-                  return;
-                }
-                const idx = richAnnos.findIndex(a => a.id === id);
-                if (idx >= 0) {
-                  setSelectedIndex(idx);
-                  const p = richAnnos[idx]?.page;
-                  if (typeof p === 'number') setCurrentPage(p);
-                }
-              }}
-              selectedId={
-                selectedIndex != null
-                  ? richAnnos[selectedIndex]?.id || null
-                  : null
-              }
-              onJump={p => setCurrentPage(p)}
-            />
-          ) : (
-            <AnnotationEditor
-              value={annotations}
-              onChange={setAnnotations}
-              focusIndex={lastAddedIndex}
-              selectedIndex={selectedIndex}
-              currentPage={currentPage}
-              onSelect={i => {
-                setSelectedIndex(i);
-                const p = (annotations[i] as any)?.bbox?.page;
-                if (typeof p === 'number') setCurrentPage(p + 1);
-              }}
-              onRemove={idx => {
-                setAnnotations(prev => {
-                  const ann = prev[idx];
-                  setUndoStack(s => [{ idx, ann }, ...s].slice(0, 20));
-                  return prev.filter((_, i) => i !== idx);
-                });
-                if (selectedIndex === idx) setSelectedIndex(null);
-              }}
-            />
-          )}
-          {undoStack.length > 0 && (
-            <div className='text-xs text-ys-ink-2'>
-              Anotação removida.{' '}
-              <button
-                className='underline'
-                onClick={() => {
-                  const last = undoStack[0];
-                  setUndoStack(s => s.slice(1));
-                  setAnnotations(prev => {
-                    const next = prev.slice();
-                    const insertAt = Math.min(last.idx, next.length);
-                    next.splice(insertAt, 0, last.ann);
-                    return next;
-                  });
-                  setSelectedIndex(prevSel =>
-                    Math.min(last.idx, annotations.length)
-                  );
-                }}
-              >
-                Desfazer
-              </button>
-            </div>
-          )}
         </div>
       </div>
     </div>

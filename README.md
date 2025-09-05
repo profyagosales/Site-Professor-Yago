@@ -1,6 +1,32 @@
 # Site-Professor-Yago
 
-Consulte o [Guia do Usuário](./USER_GUIDE.md) para entender os fluxos de login, envio de redação, correção e visualização de notas.
+Sistema completo de gestão de redações para professores e alunos, com correção online, anotações em PDF e dashboard de notas.
+
+## 🏗️ Arquitetura
+
+### Frontend (Vite + React)
+- **Framework**: React 18.2.0 com TypeScript
+- **Build Tool**: Vite 7.1.2
+- **Roteamento**: React Router DOM 7.8.1
+- **UI**: Tailwind CSS + Framer Motion
+- **PDF**: react-pdf + react-pdf-highlighter
+- **Estado**: Context API + Hooks customizados
+- **Cache**: Sistema stale-while-revalidate customizado
+- **Performance**: Web Vitals + marcadores de performance
+
+### Backend (Node.js + Express)
+- **Runtime**: Node.js com Express
+- **Banco**: MongoDB com Mongoose
+- **Autenticação**: JWT
+- **Upload**: Multer + Cloudinary
+- **Email**: SMTP
+- **Deploy**: Render (produção)
+
+### PDF Viewer (Aplicação separada)
+- **Localização**: `apps/pdf-viewer/`
+- **Build**: Vite independente
+- **Worker**: PDF.js worker isolado
+- **Integração**: Via iframe + postMessage
 
 ## Required Environment Variables
 
@@ -43,54 +69,173 @@ VITE_VIRT_PDF=true
 VITE_VIRT_BUFFER=2
 ```
 
-## Local Setup
+## 🚀 Como Rodar
 
-1. Install dependencies for both the frontend and backend:
-   ```bash
-   npm install --prefix frontend
-   npm install --prefix backend
-   ```
-2. Run the development servers from the project root:
-   ```bash
-   npm run dev
-   ```
-   The backend will be available on http://localhost:5050 and the frontend on http://localhost:5173.
-   Ensure your `.env` sets `VITE_API_URL=http://localhost:5050` and `APP_DOMAIN=http://localhost:5173` for local development.
+### Pré-requisitos
+- Node.js 18+
+- MongoDB (local ou Atlas)
+- Conta Cloudinary (opcional)
 
-   Optionally enable the new annotator and virtualization in local dev:
-
-   ```env
-   VITE_USE_RICH_ANNOS=true
-   VITE_VIRT_PDF=true
-   VITE_VIRT_BUFFER=2
-   ```
-
-## Lint, Testes e Build
-
-Para verificar o estilo de código (quando configurado):
-
+### 1. Instalação
 ```bash
-npm run lint --prefix frontend
+# Instalar dependências
+npm install --prefix frontend
+npm install --prefix backend
+
+# Instalar dependências do PDF viewer
+cd frontend/apps/pdf-viewer && npm install && cd ../..
 ```
 
-Execute todos os testes do projeto:
+### 2. Configuração
+Crie `.env` na raiz do projeto:
+```env
+# Backend
+MONGODB_URI=mongodb://localhost:27017/site-professor-yago
+JWT_SECRET=sua_chave_secreta_aqui
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=seu_email@gmail.com
+SMTP_PASS=sua_senha_app
+SMTP_FROM=no-reply@seudominio.com
+APP_DOMAIN=http://localhost:5173
 
-```bash
-npm test --prefix backend
-npm test --prefix frontend
+# Frontend
+VITE_API_BASE_URL=http://localhost:5050
+VITE_API_PREFIX=/api
+VITE_USE_RICH_ANNOS=true
+VITE_VIRT_PDF=true
+VITE_VIRT_BUFFER=2
 ```
 
-Ou use os scripts de cada pacote dentro de suas pastas:
-
+### 3. Execução
 ```bash
-cd backend && npm test
-cd ../frontend && npm test
+# Desenvolvimento (raiz do projeto)
+npm run dev
+
+# Ou individualmente:
+# Backend: cd backend && npm run dev
+# Frontend: cd frontend && npm run dev
 ```
 
-Gere os artefatos de produção:
+**URLs de desenvolvimento:**
+- Frontend: http://localhost:5173
+- Backend: http://localhost:5050
+- PDF Viewer: http://localhost:5173/viewer/
 
+## 🔄 Fluxos Principais
+
+### Fluxo Professor
+1. **Login**: `/login-professor` → Autenticação JWT
+2. **Dashboard**: `/professor/resumo` → Visão geral das turmas
+3. **Turmas**: `/professor/turmas` → Gerenciar turmas e alunos
+4. **Redações**: `/professor/redacao` → Lista de redações pendentes
+5. **Correção**: `/professor/redacao/:id` → Workspace de correção com PDF
+6. **Notas**: `/professor/notas-da-classe` → Visualizar notas da turma
+
+### Fluxo Aluno
+1. **Login**: `/login-aluno` → Autenticação JWT
+2. **Dashboard**: `/aluno/resumo` → Visão geral das notas
+3. **Redações**: `/aluno/redacoes` → Enviar redações
+4. **Notas**: `/aluno/notas` → Ver notas e correções
+5. **Caderno**: `/aluno/caderno` → Conteúdo didático
+6. **Gabaritos**: `/aluno/gabaritos` → Acessar gabaritos
+
+### Guardas de Rota
+- **RequireAuth**: Verifica JWT e redireciona para login
+- **RequireStudentAuth**: Verifica se é aluno
+- **ProtectedRoute**: Rota protegida com fallback
+
+## 🗺️ Tabela de Rotas
+
+### Rotas Públicas
+| Rota | Path | Descrição |
+|------|------|-----------|
+| `ROUTES.home` | `/` | Landing page |
+| `ROUTES.auth.loginProf` | `/login-professor` | Login professor |
+| `ROUTES.auth.loginAluno` | `/login-aluno` | Login aluno |
+
+### Rotas Professor (`/professor`)
+| Rota | Path | Descrição |
+|------|------|-----------|
+| `ROUTES.prof.base` | `/professor` | Base professor (redirect para resumo) |
+| `ROUTES.prof.resumo` | `/professor/resumo` | Dashboard professor |
+| `ROUTES.prof.turmas` | `/professor/turmas` | Lista de turmas |
+| `ROUTES.prof.turmaAlunos(id)` | `/professor/turmas/:id/alunos` | Alunos da turma |
+| `ROUTES.prof.notasClasse` | `/professor/notas-da-classe` | Notas da classe |
+| `ROUTES.prof.caderno` | `/professor/caderno` | Caderno professor |
+| `ROUTES.prof.gabarito` | `/professor/gabarito` | Gabaritos |
+| `ROUTES.prof.redacao` | `/professor/redacao` | Lista de redações |
+| `ROUTES.prof.redacaoShow(id)` | `/professor/redacao/:id` | Correção de redação |
+| `ROUTES.prof.alunos` | `/professor/alunos` | Lista de alunos |
+| `ROUTES.prof.alunoPerfil(id)` | `/professor/alunos/:id` | Perfil do aluno |
+
+### Rotas Aluno (`/aluno`)
+| Rota | Path | Descrição |
+|------|------|-----------|
+| `ROUTES.aluno.base` | `/aluno` | Base aluno (redirect para resumo) |
+| `ROUTES.aluno.resumo` | `/aluno/resumo` | Dashboard aluno |
+| `ROUTES.aluno.notas` | `/aluno/notas` | Notas do aluno |
+| `ROUTES.aluno.recados` | `/aluno/recados` | Recados |
+| `ROUTES.aluno.redacao` | `/aluno/redacao` | Enviar redação |
+| `ROUTES.aluno.redacoes` | `/aluno/redacoes` | Lista de redações |
+| `ROUTES.aluno.caderno` | `/aluno/caderno` | Caderno aluno |
+| `ROUTES.aluno.gabaritos` | `/aluno/gabaritos` | Gabaritos |
+
+### Rotas Especiais
+| Rota | Path | Descrição |
+|------|------|-----------|
+| `ROUTES.notFound` | `*` | 404 - Catch-all |
+
+## 🛠️ Scripts e Comandos
+
+### Desenvolvimento
 ```bash
+# Desenvolvimento completo (raiz)
+npm run dev
+
+# Apenas frontend
+cd frontend && npm run dev
+
+# Apenas backend
+cd backend && npm run dev
+```
+
+### Build e Deploy
+```bash
+# Build completo (frontend + PDF viewer)
 npm run build
+
+# Build apenas frontend
+cd frontend && npm run build
+
+# Build PDF viewer separadamente
+cd frontend/apps/pdf-viewer && npm run build
+```
+
+### Qualidade de Código
+```bash
+# Lint
+npm run lint --prefix frontend
+
+# Testes
+npm test --prefix frontend
+npm test --prefix backend
+
+# Verificação completa (lint + test + e2e)
+npm run check-all --prefix frontend
+```
+
+### Scripts Específicos
+```bash
+# Verificar imports de PDF
+npm run check:pdf-imports --prefix frontend
+
+# Verificar configuração Vercel
+npm run vercel:preflight --prefix frontend
+
+# E2E tests
+npm run e2e --prefix frontend
+npm run e2e:headed --prefix frontend
 ```
 
 ## Production

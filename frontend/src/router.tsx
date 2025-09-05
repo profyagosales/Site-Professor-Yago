@@ -57,68 +57,108 @@ export const router = createBrowserRouter([
         element: <RequireAuth />,
         children: [
           // /professor → resumo (rota index)
-          { 
-            index: true, 
+          {
+            index: true,
             element: (
-              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando dashboard...</div>}>
+              <Suspense
+                fallback={
+                  <div className='p-6 animate-pulse'>
+                    Carregando dashboard...
+                  </div>
+                }
+              >
                 <DashboardProfessor />
               </Suspense>
-            )
+            ),
           },
 
           // Filhas com caminhos relativos
-          { 
-            path: 'resumo', 
+          {
+            path: 'resumo',
             element: (
-              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando dashboard...</div>}>
+              <Suspense
+                fallback={
+                  <div className='p-6 animate-pulse'>
+                    Carregando dashboard...
+                  </div>
+                }
+              >
                 <DashboardProfessor />
               </Suspense>
-            )
+            ),
           },
-          { 
-            path: 'turmas', 
+          {
+            path: 'turmas',
             element: (
-              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando turmas...</div>}>
+              <Suspense
+                fallback={
+                  <div className='p-6 animate-pulse'>Carregando turmas...</div>
+                }
+              >
                 <TurmasPage />
               </Suspense>
-            )
+            ),
           },
-          { 
-            path: 'turmas/:id/alunos', 
+          {
+            path: 'turmas/:id/alunos',
             element: (
-              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando alunos...</div>}>
+              <Suspense
+                fallback={
+                  <div className='p-6 animate-pulse'>Carregando alunos...</div>
+                }
+              >
                 <TurmaAlunosPage />
               </Suspense>
-            )
+            ),
           },
-          { 
-            path: 'notas-da-classe', 
+          {
+            path: 'notas-da-classe',
             element: (
-              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando notas...</div>}>
+              <Suspense
+                fallback={
+                  <div className='p-6 animate-pulse'>Carregando notas...</div>
+                }
+              >
                 <NotasDaClasse />
               </Suspense>
-            )
+            ),
           },
-          { 
-            path: 'caderno', 
+          {
+            path: 'caderno',
             element: (
-              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando caderno...</div>}>
+              <Suspense
+                fallback={
+                  <div className='p-6 animate-pulse'>Carregando caderno...</div>
+                }
+              >
                 <CadernoProf />
               </Suspense>
-            )
+            ),
           },
-          { 
-            path: 'gabarito', 
+          {
+            path: 'gabarito',
             element: (
-              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando gabarito...</div>}>
+              <Suspense
+                fallback={
+                  <div className='p-6 animate-pulse'>
+                    Carregando gabarito...
+                  </div>
+                }
+              >
                 <GabaritoProf />
               </Suspense>
-            )
+            ),
           },
           {
             path: 'redacao',
             element: (
-              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando redações...</div>}>
+              <Suspense
+                fallback={
+                  <div className='p-6 animate-pulse'>
+                    Carregando redações...
+                  </div>
+                }
+              >
                 <RedacaoProfessorPage />
               </Suspense>
             ),
@@ -126,26 +166,40 @@ export const router = createBrowserRouter([
           {
             path: 'redacao/:id',
             element: (
-              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando correção...</div>}>
+              <Suspense
+                fallback={
+                  <div className='p-6 animate-pulse'>
+                    Carregando correção...
+                  </div>
+                }
+              >
                 <GradeWorkspace />
               </Suspense>
             ),
           },
-          { 
-            path: 'alunos', 
+          {
+            path: 'alunos',
             element: (
-              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando alunos...</div>}>
+              <Suspense
+                fallback={
+                  <div className='p-6 animate-pulse'>Carregando alunos...</div>
+                }
+              >
                 <ListaAlunos />
               </Suspense>
-            )
+            ),
           },
-          { 
-            path: 'alunos/:id', 
+          {
+            path: 'alunos/:id',
             element: (
-              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando perfil...</div>}>
+              <Suspense
+                fallback={
+                  <div className='p-6 animate-pulse'>Carregando perfil...</div>
+                }
+              >
                 <PerfilAluno />
               </Suspense>
-            )
+            ),
           },
         ],
       },
@@ -162,33 +216,49 @@ export const router = createBrowserRouter([
             index: true,
             element: <Navigate to={ROUTES.aluno.resumo} replace />,
           },
-          { 
-            path: 'resumo', 
+          {
+            path: 'resumo',
             element: (
-              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando dashboard...</div>}>
+              <Suspense
+                fallback={
+                  <div className='p-6 animate-pulse'>
+                    Carregando dashboard...
+                  </div>
+                }
+              >
                 <DashboardAluno />
               </Suspense>
-            )
+            ),
           },
-          { 
-            path: 'notas', 
+          {
+            path: 'notas',
             element: (
-              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando notas...</div>}>
+              <Suspense
+                fallback={
+                  <div className='p-6 animate-pulse'>Carregando notas...</div>
+                }
+              >
                 <AlunoNotas />
               </Suspense>
-            )
+            ),
           },
           {
             path: 'recados',
             element: <div className='p-6'>Recados - Em desenvolvimento</div>,
           },
-          { 
-            path: 'redacao', 
+          {
+            path: 'redacao',
             element: (
-              <Suspense fallback={<div className='p-6 animate-pulse'>Carregando redações...</div>}>
+              <Suspense
+                fallback={
+                  <div className='p-6 animate-pulse'>
+                    Carregando redações...
+                  </div>
+                }
+              >
                 <AlunoRedacoes />
               </Suspense>
-            )
+            ),
           },
         ],
       },

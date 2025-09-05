@@ -12,10 +12,12 @@ type LazyMotionProps = {
  * Só carrega quando o usuário interage com o componente
  */
 export function LazyMotion({ children, fallback, className }: LazyMotionProps) {
-  const { data: motion, loading, error, load } = useLazyLoadOnInteraction(
-    () => import('framer-motion'),
-    []
-  );
+  const {
+    data: motion,
+    loading,
+    error,
+    load,
+  } = useLazyLoadOnInteraction(() => import('framer-motion'), []);
 
   if (error) {
     console.warn('Failed to load Framer Motion:', error);
@@ -28,8 +30,8 @@ export function LazyMotion({ children, fallback, className }: LazyMotionProps) {
 
   if (!motion) {
     return (
-      <div 
-        className={className} 
+      <div
+        className={className}
         onMouseEnter={load}
         onFocus={load}
         onTouchStart={load}
@@ -39,11 +41,7 @@ export function LazyMotion({ children, fallback, className }: LazyMotionProps) {
     );
   }
 
-  return (
-    <Suspense fallback={fallback}>
-      {children(motion)}
-    </Suspense>
-  );
+  return <Suspense fallback={fallback}>{children(motion)}</Suspense>;
 }
 
 /**

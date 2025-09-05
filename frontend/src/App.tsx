@@ -11,6 +11,9 @@ import AppErrorBoundary from '@/components/AppErrorBoundary';
 import NetworkBanner from '@/components/NetworkBanner';
 import ErrorTestButton from '@/components/ErrorTestButton';
 import { LoggerDebug } from '@/components/LoggerDebug';
+import { FlagsDebug, useFlagsDebug } from '@/components/FlagsDebug';
+import { useFlagsShortcut } from '@/hooks/useFlagsShortcut';
+import { useVitals } from '@/hooks/useVitals';
 
 // Rotas públicas - carregamento imediato
 const Landing = lazy(() => import('@/pages/Landing'));
@@ -34,11 +37,25 @@ const AlunoGabarito = lazy(() => import('@/pages/aluno/Gabarito'));
 const AlunoRedacoes = lazy(() => import('@/pages/aluno/Redacoes'));
 
 export default function App() {
+  const { isOpen, open, close } = useFlagsDebug();
+
+  // Atalho Ctrl+Alt+F para abrir painel de flags
+  useFlagsShortcut({ onToggle: open });
+
+  // Sistema de Web Vitals (apenas em DEV ou com debug=1)
+  useVitals({
+    debug: process.env.NODE_ENV === 'development',
+    consoleLog: true,
+    showReportOnInit: process.env.NODE_ENV === 'development',
+    analytics: false, // Desabilitado por enquanto
+  });
+
   return (
     <AppErrorBoundary>
       <NetworkBanner />
       <ErrorTestButton />
       <LoggerDebug />
+      <FlagsDebug isOpen={isOpen} onClose={close} />
       <Routes>
         {/* Rotas públicas - sem Suspense para carregamento imediato */}
         <Route path={ROUTES.home} element={<Landing />} />

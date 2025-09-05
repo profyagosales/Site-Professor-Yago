@@ -96,7 +96,9 @@ describe('NotFound Page', () => {
       </BrowserRouter>
     );
 
-    const profDashboardLink = screen.getByText('Dashboard Professor').closest('a');
+    const profDashboardLink = screen
+      .getByText('Dashboard Professor')
+      .closest('a');
     const alunoDashboardLink = screen.getByText('Dashboard Aluno').closest('a');
     const turmasLink = screen.getByText('Turmas').closest('a');
     const redacoesLink = screen.getByText('Redações').closest('a');
@@ -142,10 +144,14 @@ describe('NotFound Page', () => {
       </BrowserRouter>
     );
 
-    const buttonContainer = screen.getByText('🏠 Página inicial').closest('div');
+    const buttonContainer = screen
+      .getByText('🏠 Página inicial')
+      .closest('div');
     expect(buttonContainer).toHaveClass('flex-col', 'sm:flex-row');
 
-    const linksContainer = screen.getByText('Dashboard Professor').closest('div');
+    const linksContainer = screen
+      .getByText('Dashboard Professor')
+      .closest('div');
     expect(linksContainer).toHaveClass('flex-wrap', 'gap-2', 'justify-center');
   });
 });

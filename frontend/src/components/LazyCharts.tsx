@@ -12,7 +12,12 @@ type LazyChartsProps = {
  * Só carrega quando o componente fica visível na tela
  */
 export function LazyCharts({ children, fallback, className }: LazyChartsProps) {
-  const { data: chartLib, loading, error, ref } = useLazyLoadOnVisible(
+  const {
+    data: chartLib,
+    loading,
+    error,
+    ref,
+  } = useLazyLoadOnVisible(
     () => import('chart.js'), // Exemplo - pode ser trocado por outra lib
     []
   );
@@ -34,11 +39,7 @@ export function LazyCharts({ children, fallback, className }: LazyChartsProps) {
     );
   }
 
-  return (
-    <Suspense fallback={fallback}>
-      {children(chartLib)}
-    </Suspense>
-  );
+  return <Suspense fallback={fallback}>{children(chartLib)}</Suspense>;
 }
 
 /**

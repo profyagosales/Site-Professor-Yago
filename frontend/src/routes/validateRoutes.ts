@@ -26,7 +26,7 @@ function validateNestedPaths(routes: RouteNode[], parentPath = ''): string[] {
     if (route.path && route.path.startsWith('/') && parentPath) {
       errors.push(
         `Route with path "${route.path}" is nested under "${parentPath.replace(/\/+/g, '/')}" but starts with "/". ` +
-        `Nested routes should use relative paths.`
+          `Nested routes should use relative paths.`
       );
     }
 
@@ -68,9 +68,13 @@ function validateDuplicatePaths(
 
     if (route.children) {
       const childParentPath = route.path
-        ? (route.path.startsWith('/') ? route.path : `${parentPath}/${route.path}`.replace(/\/+/g, '/'))
+        ? route.path.startsWith('/')
+          ? route.path
+          : `${parentPath}/${route.path}`.replace(/\/+/g, '/')
         : parentPath;
-      errors.push(...validateDuplicatePaths(route.children, pathMap, childParentPath));
+      errors.push(
+        ...validateDuplicatePaths(route.children, pathMap, childParentPath)
+      );
     }
   }
 

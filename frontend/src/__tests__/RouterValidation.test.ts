@@ -1,4 +1,8 @@
-import { validateRoutes, validateAndReportRoutes, RouteNode } from '@/routes/validateRoutes';
+import {
+  validateRoutes,
+  validateAndReportRoutes,
+  RouteNode,
+} from '@/routes/validateRoutes';
 import React from 'react';
 
 describe('Router Validation', () => {

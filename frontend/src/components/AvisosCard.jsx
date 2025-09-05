@@ -30,7 +30,7 @@ function AvisosCard() {
 
   useEffect(() => {
     loadClasses();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleClassesChange = e => {
     const values = Array.from(e.target.selectedOptions).map(o => o.value);

@@ -20,7 +20,7 @@ function hash(str: string) {
   let h = 0;
   for (let i = 0; i < str.length; i += 1) {
     h = (h << 5) - h + str.charCodeAt(i);
-    h |= 0; // eslint-disable-line no-bitwise
+    h |= 0;
   }
   return Math.abs(h);
 }

@@ -9,18 +9,14 @@ import Avatar from '@/components/Avatar';
 import ThemeCombo from '@/components/redacao/ThemeCombo';
 import { FaFilePdf } from 'react-icons/fa';
 import { searchStudents } from '@/services/students2';
+import { useDashboardEssaysWithCache } from '@/hooks/useDashboardEssaysWithCache';
+import Pagination from '@/components/Pagination';
+import EmptyEssaysState from '@/components/EmptyState';
+import { useEssayHighlight } from '@/hooks/useEssayHighlight';
+import { listClasses } from '@/services/classes';
 
 function DashboardRedacoes() {
-  const [tab, setTab] = useState('pendentes');
-  const [pendentes, setPendentes] = useState([]);
-  const [corrigidas, setCorrigidas] = useState([]);
-  const [filters, setFilters] = useState({
-    bimestre: '',
-    turma: '',
-    aluno: '',
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  // Estados locais para modais e edição
   const [modalEssay, setModalEssay] = useState(null);
   const [editEssay, setEditEssay] = useState<any>(null);
   const [editTheme, setEditTheme] = useState<{ id?: string; name: string }>({
@@ -34,6 +30,89 @@ function DashboardRedacoes() {
   const [editStudent, setEditStudent] = useState<any | null>(null);
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [classes, setClasses] = useState<any[]>([]);
+
+  // Hook de highlight
+  const { isHighlighted } = useEssayHighlight();
+
+  // Função para carregar dados
+  const loadData = async (filters: any) => {
+    try {
+      const params: any = {
+        page: filters.page,
+        pageSize: filters.pageSize,
+      };
+
+      if (filters.q) params.aluno = filters.q;
+      if (filters.classId) params.turma = filters.classId;
+      if (filters.bimester) params.bimestre = filters.bimester;
+      if (filters.type) params.type = filters.type;
+
+      let result;
+      if (filters.status === 'pendentes') {
+        result = await listarPendentes(params);
+      } else {
+        result = await listarCorrigidas(params);
+      }
+
+      const items = Array.isArray(result?.redacoes) ? result.redacoes : [];
+      const total = result?.total || items.length;
+      const totalPages = Math.ceil(total / filters.pageSize);
+
+      return {
+        items,
+        total,
+        page: filters.page,
+        pageSize: filters.pageSize,
+        totalPages,
+        hasNextPage: filters.page < totalPages,
+        hasPreviousPage: filters.page > 1,
+      };
+    } catch (error) {
+      throw new Error('Erro ao carregar redações');
+    }
+  };
+
+  // Hook principal do dashboard com cache
+  const {
+    filters,
+    data,
+    loading,
+    isRefreshing,
+    error,
+    setStatus,
+    setQuery,
+    setClassId,
+    setBimester,
+    setType,
+    setPage,
+    setPageSize,
+    goToPage,
+    goToNextPage,
+    goToPreviousPage,
+    reload,
+    clearFilters,
+    isUrlLoading,
+    isStale,
+    isFresh,
+  } = useDashboardEssaysWithCache({ cacheTtlMs: 30000 });
+
+  // Carrega classes para filtros
+  useEffect(() => {
+    const loadClasses = async () => {
+      try {
+        const res = await listClasses();
+        const arr = Array.isArray(res?.data)
+          ? res.data
+          : res?.data?.data || res || [];
+        setClasses(arr);
+      } catch (error) {
+        console.error('Erro ao carregar classes', error);
+      }
+    };
+
+    loadClasses();
+  }, []);
 
   const arrify = v => {
     const r = toArray ? toArray(v) : undefined;
@@ -82,12 +161,8 @@ function DashboardRedacoes() {
     try {
       await sendCorrectionEmail(id);
       const sentAt = new Date().toISOString();
-      setPendentes(prev =>
-        prev.map(p => (p._id === id ? { ...p, lastEmailSentAt: sentAt } : p))
-      );
-      setCorrigidas(prev =>
-        prev.map(c => (c._id === id ? { ...c, lastEmailSentAt: sentAt } : c))
-      );
+      // Recarrega os dados após enviar email
+      reload();
       toast.success('Email enviado');
     } catch (err: any) {
       console.error('Erro ao enviar email', err);
@@ -123,12 +198,8 @@ function DashboardRedacoes() {
         ));
       }
 
-      setPendentes(prev =>
-        prev.map(p => (p._id === editEssay._id ? { ...p, ...updated } : p))
-      );
-      setCorrigidas(prev =>
-        prev.map(c => (c._id === editEssay._id ? { ...c, ...updated } : c))
-      );
+      // Recarrega os dados após atualizar redação
+      reload();
       toast.success('Redação atualizada');
       setEditEssay(null);
     } catch (err: any) {
@@ -141,58 +212,18 @@ function DashboardRedacoes() {
     }
   }
 
-  const loadPendentes = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await listarPendentes();
-      setPendentes(arrify(data.redacoes));
-      toast.success('Dados carregados');
-    } catch (err) {
-      console.error('Erro ao carregar pendentes', err);
-      const message =
-        err.response?.data?.message ?? 'Erro ao carregar pendentes';
-      setError(message);
-      toast.error(message);
-    } finally {
-      setLoading(false);
-    }
+  // Função para recarregar dados após operações
+  const handleReload = () => {
+    reload();
   };
 
-  useEffect(() => {
-    loadPendentes();
-  }, []);
-
-  useEffect(() => {
-    if (tab !== 'corrigidas') return;
-    const loadCorrigidas = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const params: any = {};
-        if (filters.bimestre) params.bimestre = filters.bimestre;
-        if (filters.turma) params.turma = filters.turma;
-        if (filters.aluno) params.aluno = filters.aluno;
-        const data = await listarCorrigidas(params);
-        setCorrigidas(arrify(data.redacoes));
-        toast.success('Dados carregados');
-      } catch (err) {
-        console.error('Erro ao carregar corrigidas', err);
-        const message =
-          err.response?.data?.message ?? 'Erro ao carregar corrigidas';
-        setError(message);
-        toast.error(message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadCorrigidas();
-  }, [tab, filters]);
-
-  if (loading) {
+  if (loading || isUrlLoading) {
     return (
       <div className='pt-20 p-md'>
-        <p>Carregando...</p>
+        <div className='flex items-center justify-center'>
+          <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500'></div>
+          <span className='ml-2'>Carregando...</span>
+        </div>
       </div>
     );
   }
@@ -200,23 +231,36 @@ function DashboardRedacoes() {
   if (error) {
     return (
       <div className='pt-20 p-md'>
-        <p className='text-red-500'>{error}</p>
+        <div className='bg-red-50 border border-red-200 rounded-lg p-4'>
+          <p className='text-red-600'>{error}</p>
+          <button
+            onClick={handleReload}
+            className='mt-2 text-sm text-red-600 hover:text-red-800 underline'
+          >
+            Tentar novamente
+          </button>
+        </div>
       </div>
     );
   }
 
+  const currentData = data?.items || [];
+  const totalItems = data?.total || 0;
+  const totalPages = data?.totalPages || 1;
+
   return (
     <div className='pt-20 p-md'>
+      {/* Cabeçalho com abas e botão nova redação */}
       <div className='flex gap-md mb-md'>
         <button
-          className={`px-4 py-2 rounded ${tab === 'pendentes' ? 'bg-orange text-white' : 'bg-gray-200'}`}
-          onClick={() => setTab('pendentes')}
+          className={`px-4 py-2 rounded ${filters.status === 'pendentes' ? 'bg-orange text-white' : 'bg-gray-200'}`}
+          onClick={() => setStatus('pendentes')}
         >
           Pendentes
         </button>
         <button
-          className={`px-4 py-2 rounded ${tab === 'corrigidas' ? 'bg-orange text-white' : 'bg-gray-200'}`}
-          onClick={() => setTab('corrigidas')}
+          className={`px-4 py-2 rounded ${filters.status === 'corrigidas' ? 'bg-orange text-white' : 'bg-gray-200'}`}
+          onClick={() => setStatus('corrigidas')}
         >
           Corrigidas
         </button>
@@ -228,91 +272,88 @@ function DashboardRedacoes() {
         </button>
       </div>
 
-      {tab === 'pendentes' && (
-        <div className='space-y-md'>
-          {arrify(pendentes).map(r => {
-            return (
-              <div
-                key={r._id}
-                className='ys-card flex items-center justify-between'
-              >
-                <div className='flex items-center gap-md'>
-                  <Avatar
-                    src={r.student?.photoUrl}
-                    name={r.student?.name}
-                    className='w-12 h-12'
-                  />
-                  <div>
-                    <p className='font-semibold'>
-                      {r.student?.rollNumber
-                        ? `Nº ${r.student.rollNumber}`
-                        : r.student?.name}
-                    </p>
-                    <p className='text-sm text-black/70'>
-                      {r.theme?.name || r.customTheme || '-'}
-                    </p>
-                    <p className='text-sm text-black/70'>
-                      {r.class?.series}ª{r.class?.letter} •{' '}
-                      {new Date(r.submittedAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-                <div className='flex items-center gap-md'>
-                  <button
-                    className='ys-btn-ghost'
-                    onClick={() => setEditEssay(r)}
-                    aria-label='Editar'
-                  >
-                    <FaPen />
-                  </button>
-                  <button
-                    className='ys-btn-primary'
-                    onClick={() => setModalEssay(r)}
-                  >
-                    Corrigir
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+      {/* Indicador de refresh em background */}
+      {isRefreshing && (
+        <div className='mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center'>
+          <div className='animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2'></div>
+          <span className='text-sm text-blue-700'>
+            Atualizando dados em background...
+          </span>
         </div>
       )}
 
-      {tab === 'corrigidas' && (
-        <div>
-          <div className='flex gap-md mb-md'>
-            <select
-              value={filters.bimestre}
-              onChange={e =>
-                setFilters({ ...filters, bimestre: e.target.value })
-              }
-              className='border rounded px-2 py-1'
-            >
-              <option value=''>Bimestre</option>
-              <option value='1'>1º</option>
-              <option value='2'>2º</option>
-              <option value='3'>3º</option>
-              <option value='4'>4º</option>
-            </select>
-            <input
-              value={filters.turma}
-              onChange={e => setFilters({ ...filters, turma: e.target.value })}
-              placeholder='Turma'
-              className='border rounded px-2 py-1'
-            />
-            <input
-              value={filters.aluno}
-              onChange={e => setFilters({ ...filters, aluno: e.target.value })}
-              placeholder='Aluno'
-              className='border rounded px-2 py-1'
-            />
-          </div>
+      {/* Filtros */}
+      <div className='flex gap-md mb-md flex-wrap'>
+        <select
+          value={filters.bimester}
+          onChange={e => setBimester(e.target.value)}
+          className='border rounded px-2 py-1'
+        >
+          <option value=''>Bimestre</option>
+          <option value='1'>1º</option>
+          <option value='2'>2º</option>
+          <option value='3'>3º</option>
+          <option value='4'>4º</option>
+        </select>
+
+        <select
+          value={filters.classId}
+          onChange={e => setClassId(e.target.value)}
+          className='border rounded px-2 py-1'
+        >
+          <option value=''>Turma</option>
+          {classes.map(c => (
+            <option key={c._id || c.id} value={c._id || c.id}>
+              {`${c.series || ''}${c.letter || ''}`}{' '}
+              {c.discipline ? `— ${c.discipline}` : ''}
+            </option>
+          ))}
+        </select>
+
+        <input
+          value={filters.q}
+          onChange={e => setQuery(e.target.value)}
+          placeholder='Buscar aluno...'
+          className='border rounded px-2 py-1'
+        />
+
+        <select
+          value={filters.type}
+          onChange={e => setType(e.target.value)}
+          className='border rounded px-2 py-1'
+        >
+          <option value=''>Tipo</option>
+          <option value='ENEM'>ENEM</option>
+          <option value='PAS'>PAS</option>
+        </select>
+
+        <button
+          onClick={clearFilters}
+          className='px-3 py-1 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded hover:bg-gray-50'
+        >
+          Limpar filtros
+        </button>
+      </div>
+
+      {/* Lista de redações */}
+      {currentData.length === 0 ? (
+        <EmptyEssaysState
+          status={filters.status}
+          onNewEssay={() => setNewModalOpen(true)}
+        />
+      ) : (
+        <>
           <div className='space-y-md'>
-            {arrify(corrigidas).map(r => {
+            {currentData.map(r => {
+              const isHighlightedNow = isHighlighted(r._id);
               return (
                 <div
                   key={r._id}
-                  className='ys-card flex items-center justify-between'
+                  className={`ys-card flex items-center justify-between ${
+                    isHighlightedNow
+                      ? 'ring-2 ring-green-400 ring-opacity-50 bg-green-50'
+                      : ''
+                  }`}
                 >
                   <div className='flex items-center gap-md'>
                     <Avatar
@@ -336,33 +377,6 @@ function DashboardRedacoes() {
                     </div>
                   </div>
                   <div className='flex items-center gap-md'>
-                    {r.lastEmailSentAt ? (
-                      <>
-                        <span className='text-green-600'>Enviado</span>
-                        <button
-                          className='ys-btn-ghost'
-                          onClick={() => handleSendEmail(r._id)}
-                        >
-                          Enviar novamente
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        className='ys-btn-ghost'
-                        onClick={() => handleSendEmail(r._id)}
-                      >
-                        Enviar por e-mail
-                      </button>
-                    )}
-                    <a
-                      className='ys-btn-ghost'
-                      href={r.fileUrl}
-                      target='_blank'
-                      rel='noreferrer'
-                      aria-label='Arquivo'
-                    >
-                      <FaFilePdf />
-                    </a>
                     <button
                       className='ys-btn-ghost'
                       onClick={() => setEditEssay(r)}
@@ -370,18 +384,82 @@ function DashboardRedacoes() {
                     >
                       <FaPen />
                     </button>
+                    {filters.status === 'pendentes' ? (
+                      <button
+                        className='ys-btn-primary'
+                        onClick={() => setModalEssay(r)}
+                      >
+                        Corrigir
+                      </button>
+                    ) : (
+                      <>
+                        {r.lastEmailSentAt ? (
+                          <>
+                            <span className='text-green-600'>Enviado</span>
+                            <button
+                              className='ys-btn-ghost'
+                              onClick={() => handleSendEmail(r._id)}
+                            >
+                              Enviar novamente
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            className='ys-btn-ghost'
+                            onClick={() => handleSendEmail(r._id)}
+                          >
+                            Enviar por e-mail
+                          </button>
+                        )}
+                        <a
+                          className='ys-btn-ghost'
+                          href={r.fileUrl}
+                          target='_blank'
+                          rel='noreferrer'
+                          aria-label='Arquivo'
+                        >
+                          <FaFilePdf />
+                        </a>
+                      </>
+                    )}
                   </div>
                 </div>
               );
             })}
           </div>
-        </div>
+
+          {/* Paginação */}
+          {totalPages > 1 && (
+            <div className='mt-6'>
+              <Pagination
+                currentPage={filters.page}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                pageSize={filters.pageSize}
+                onPageChange={goToPage}
+                onPageSizeChange={setPageSize}
+                showPageSizeSelector={true}
+                pageSizeOptions={[5, 10, 20, 50]}
+                showTotal={true}
+                showFirstLast={true}
+                showPrevNext={true}
+                showPageInput={true}
+                disabled={loading}
+                loading={isUrlLoading}
+              />
+            </div>
+          )}
+        </>
       )}
+
       {newModalOpen && (
         <NovaRedacaoModal
           isOpen={newModalOpen}
           onClose={() => setNewModalOpen(false)}
-          onCreated={loadPendentes}
+          onCreated={() => {
+            handleReload();
+            setNewModalOpen(false);
+          }}
         />
       )}
 

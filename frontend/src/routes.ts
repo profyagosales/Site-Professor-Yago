@@ -156,7 +156,9 @@ export const ROUTES = {
       }
       // Catch-all routes podem ser "*" ou "/*"
       if (path !== '*' && path !== '/*' && !path.startsWith('/')) {
-        throw new Error(`Route "notFound" must be "*", "/*", or start with "/", got: "${path}"`);
+        throw new Error(
+          `Route "notFound" must be "*", "/*", or start with "/", got: "${path}"`
+        );
       }
     }
     return path;
