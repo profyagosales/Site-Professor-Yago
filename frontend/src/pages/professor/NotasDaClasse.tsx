@@ -1,16 +1,31 @@
 import { Page } from '@/components/Page';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import { useState, useEffect } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import GradeMatrix from '@/components/GradeMatrix';
 import ExportButton from '@/components/ExportButton';
 import { getClassById } from '@/services/classes';
+import { 
+  listClassGrades, 
+  computeTermTotals, 
+  computeTermAverages,
+  exportGradesToCSV,
+  exportGradesToXLSX,
+  type ClassGradesMatrix 
+} from '@/services/grades';
 import { ROUTES } from '@/routes';
+import { toast } from 'react-toastify';
 
 export default function NotasDaClasse() {
   const { id: classId } = useParams();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [classeInfo, setClasseInfo] = useState<any | null>(null);
   const [term, setTerm] = useState(searchParams.get('term') || '1');
+  const [gradesMatrix, setGradesMatrix] = useState<ClassGradesMatrix | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Carregar informações da turma
   useEffect(() => {
@@ -28,9 +43,86 @@ export default function NotasDaClasse() {
     loadClassInfo();
   }, [classId]);
 
+  // Carregar notas da turma
+  useEffect(() => {
+    if (!classId) return;
+    
+    const loadGrades = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const data = await listClassGrades({
+          classId,
+          term: parseInt(term)
+        });
+        
+        setGradesMatrix(data);
+      } catch (error) {
+        console.error('Erro ao carregar notas:', error);
+        setError('Erro ao carregar notas da turma');
+        toast.error('Erro ao carregar notas da turma');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadGrades();
+  }, [classId, term]);
+
   const titulo = classeInfo
     ? `${classeInfo.series || ''}º ${classeInfo.letter || ''} — ${classeInfo.discipline || ''}`.trim()
     : 'Notas da Classe';
+
+  const handleExportCSV = () => {
+    if (!gradesMatrix) return;
+    
+    const csv = exportGradesToCSV(gradesMatrix, parseInt(term));
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `notas_${classeInfo?.series || ''}${classeInfo?.letter || ''}_${term}bim.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('Notas exportadas para CSV');
+  };
+
+  const handleExportXLSX = () => {
+    if (!gradesMatrix) return;
+    
+    const xlsxData = exportGradesToXLSX(gradesMatrix, parseInt(term));
+    // Aqui você implementaria a exportação XLSX real com a biblioteca xlsx
+    toast.success('Funcionalidade XLSX em desenvolvimento');
+  };
+
+  const handleRefresh = () => {
+    if (classId) {
+      const loadGrades = async () => {
+        try {
+          setLoading(true);
+          setError(null);
+          
+          const data = await listClassGrades({
+            classId,
+            term: parseInt(term)
+          });
+          
+          setGradesMatrix(data);
+        } catch (error) {
+          console.error('Erro ao recarregar notas:', error);
+          setError('Erro ao recarregar notas');
+          toast.error('Erro ao recarregar notas');
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      loadGrades();
+    }
+  };
 
   if (!classId) {
     return (
@@ -65,39 +157,103 @@ export default function NotasDaClasse() {
             </select>
           </div>
           
-          {/* Botões de exportação */}
+          {/* Botões de ação */}
           <div className="flex gap-2">
-            <ExportButton
-              type="grades"
-              data={{ students: [], assessments: [], grades: [] }}
-              filename={`Notas_${classeInfo?.series || ''}${classeInfo?.letter || ''}_${term}Bimestre`}
-              className={classeInfo ? `${classeInfo.series}${classeInfo.letter}` : ''}
-              term={term}
+            <Button
+              onClick={handleRefresh}
+              disabled={loading}
+              variant="outline"
+              size="sm"
+            >
+              {loading ? 'Carregando...' : 'Atualizar'}
+            </Button>
+            <Button
+              onClick={handleExportCSV}
+              disabled={!gradesMatrix || loading}
               variant="outline"
               size="sm"
             >
               Exportar CSV
-            </ExportButton>
-            <ExportButton
-              type="grades"
-              data={{ students: [], assessments: [], grades: [] }}
-              filename={`Notas_${classeInfo?.series || ''}${classeInfo?.letter || ''}_${term}Bimestre`}
-              className={classeInfo ? `${classeInfo.series}${classeInfo.letter}` : ''}
-              term={term}
+            </Button>
+            <Button
+              onClick={handleExportXLSX}
+              disabled={!gradesMatrix || loading}
               variant="primary"
               size="sm"
             >
               Exportar XLSX
-            </ExportButton>
+            </Button>
           </div>
         </div>
 
+        {/* Estado de erro */}
+        {error && (
+          <Card className="p-4 bg-red-50 border-red-200">
+            <div className="flex items-center justify-between">
+              <p className="text-red-600">{error}</p>
+              <Button onClick={handleRefresh} variant="outline" size="sm">
+                Tentar Novamente
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {/* Estado de loading */}
+        {loading && (
+          <Card className="p-8">
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+              <span className="ml-2 text-gray-600">Carregando notas...</span>
+            </div>
+          </Card>
+        )}
+
         {/* Matriz de notas */}
-        <GradeMatrix
-          classId={classId}
-          term={term}
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
-        />
+        {!loading && !error && (
+          <GradeMatrix
+            classId={classId}
+            term={term}
+            className="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
+          />
+        )}
+
+        {/* Resumo de notas */}
+        {gradesMatrix && !loading && !error && (
+          <Card className="p-6 bg-blue-50 border-blue-200">
+            <h3 className="text-lg font-semibold text-blue-900 mb-4">
+              Resumo do {term}º Bimestre
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">
+                  {gradesMatrix.students.length}
+                </div>
+                <div className="text-sm text-blue-700">Alunos</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">
+                  {gradesMatrix.evaluations.length}
+                </div>
+                <div className="text-sm text-green-700">Avaliações</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-orange-600">
+                  {gradesMatrix.grades.length}
+                </div>
+                <div className="text-sm text-orange-700">Notas Lançadas</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-600">
+                  {Math.round(
+                    Object.values(gradesMatrix.termAverages).reduce((a, b) => a + b, 0) / 
+                    Object.values(gradesMatrix.termAverages).length * 10
+                  ) / 10 || 0}
+                </div>
+                <div className="text-sm text-purple-700">Média da Turma</div>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Informações adicionais */}
         <div className="bg-gray-50 rounded-lg p-4">

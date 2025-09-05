@@ -2,7 +2,7 @@ import { Page } from '@/components/Page';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { getStudent, getStudentEssays } from '@/services/students2';
-import gradesService from '@/services/grades';
+import { listStudentGrades, computeTermTotals, computeTermAverages } from '@/services/grades';
 import cadernoService from '@/services/caderno';
 import NewEssayModal from '@/components/redacao/NewEssayModal';
 import { toast } from 'react-toastify';
@@ -84,24 +84,55 @@ export default function PerfilAluno() {
 
 function NotasAluno({ id, classId }: { id: string; classId?: string }) {
   const [data, setData] = useState<{
-    bimesters: (number | undefined)[];
-    average: number;
+    grades: Array<{ term: number; average: number; total: number }>;
+    yearAverage: number;
   } | null>(null);
+  const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  
   useEffect(() => {
-    (async () => {
+    const loadGrades = async () => {
+      if (!id) return;
+      
       try {
+        setLoading(true);
         setErr(null);
-        const res = await gradesService.getStudentGrades(id);
-        setData(res);
+        
+        // Carregar notas de todos os bimestres
+        const allGrades = await Promise.all([
+          listStudentGrades({ studentId: id, term: 1 }).catch(() => null),
+          listStudentGrades({ studentId: id, term: 2 }).catch(() => null),
+          listStudentGrades({ studentId: id, term: 3 }).catch(() => null),
+          listStudentGrades({ studentId: id, term: 4 }).catch(() => null),
+        ]);
+        
+        const processedGrades = allGrades.map((gradeData, index) => ({
+          term: index + 1,
+          average: gradeData?.averageScore || 0,
+          total: gradeData?.totalScore || 0,
+        }));
+        
+        const yearAverage = processedGrades.reduce((sum, grade) => sum + grade.average, 0) / 4;
+        
+        setData({
+          grades: processedGrades,
+          yearAverage,
+        });
       } catch (e: any) {
         setErr(e?.response?.data?.message || 'Erro ao carregar notas');
         toast.error(e?.response?.data?.message || 'Erro ao carregar notas');
+      } finally {
+        setLoading(false);
       }
-    })();
+    };
+    
+    loadGrades();
   }, [id]);
+  
   if (err) return <div className='text-red-600'>{err}</div>;
-  if (!data) return <div className='text-ys-ink-2'>Carregando…</div>;
+  if (loading) return <div className='text-ys-ink-2'>Carregando notas…</div>;
+  if (!data) return <div className='text-ys-ink-2'>Sem dados de notas</div>;
+  
   return (
     <div className='overflow-hidden rounded-xl border border-[#E5E7EB] bg-white'>
       <table className='w-full text-sm text-[#111827]'>
@@ -111,22 +142,36 @@ function NotasAluno({ id, classId }: { id: string; classId?: string }) {
             <th className='px-4 py-3'>2º Bim</th>
             <th className='px-4 py-3'>3º Bim</th>
             <th className='px-4 py-3'>4º Bim</th>
-            <th className='px-4 py-3'>Média</th>
+            <th className='px-4 py-3'>Média Anual</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            {data.bimesters.map((v, i) => (
-              <td key={i} className='px-4 py-3'>
-                {v ?? '-'}
+            {data.grades.map((grade) => (
+              <td key={grade.term} className='px-4 py-3'>
+                {grade.average > 0 ? grade.average.toFixed(1) : '-'}
               </td>
             ))}
             <td className='px-4 py-3 font-semibold'>
-              {Number(data.average.toFixed(2))}
+              {data.yearAverage.toFixed(1)}
             </td>
           </tr>
         </tbody>
       </table>
+      
+      {/* Detalhes adicionais */}
+      <div className='px-4 py-3 bg-gray-50 border-t'>
+        <h4 className='text-sm font-medium text-gray-700 mb-2'>Detalhes por Bimestre:</h4>
+        <div className='grid grid-cols-2 md:grid-cols-4 gap-2 text-xs'>
+          {data.grades.map((grade) => (
+            <div key={grade.term} className='text-center'>
+              <div className='font-medium'>{grade.term}º Bim</div>
+              <div>Média: {grade.average.toFixed(1)}</div>
+              <div>Total: {grade.total.toFixed(1)}</div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
