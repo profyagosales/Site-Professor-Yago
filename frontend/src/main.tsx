@@ -22,6 +22,7 @@ import { UIProvider } from './providers/UIProvider';
 import { ToastProvider } from './components/ui/ToastProvider';
 import { loadAnalyticsOnce } from './lib/analytics-singleton';
 import { registerServiceWorkerOnce, startUpdateChecker } from './sw/register';
+import { DataProvider } from './providers/DataProvider';
 
 // Bootstrap da autenticação com novo sistema de sessão
 function bootstrapAuth() {
@@ -68,12 +69,14 @@ bootstrapServiceWorker();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <UIProvider>
-      <AuthProvider>
-        <div className='ys-noise' />
-        <RouterProvider router={router} />
-        <ToastProvider />
-      </AuthProvider>
-    </UIProvider>
+    <DataProvider>
+      <UIProvider>
+        <AuthProvider>
+          <div className='ys-noise' />
+          <RouterProvider router={router} />
+          <ToastProvider />
+        </AuthProvider>
+      </UIProvider>
+    </DataProvider>
   </React.StrictMode>
 );

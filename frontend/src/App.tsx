@@ -14,6 +14,7 @@ import { LoggerDebug } from '@/components/LoggerDebug';
 import { FlagsDebug, useFlagsDebug } from '@/components/FlagsDebug';
 import { useFlagsShortcut } from '@/hooks/useFlagsShortcut';
 import { useVitals } from '@/hooks/useVitals';
+import RevalidationDebugger from '@/components/RevalidationDebugger';
 
 // Rotas públicas - carregamento imediato
 const Landing = lazy(() => import('@/pages/Landing'));
@@ -62,6 +63,7 @@ export default function App() {
       <ErrorTestButton />
       <LoggerDebug />
       <FlagsDebug isOpen={isOpen} onClose={close} />
+      <RevalidationDebugger />
       <Routes>
         {/* Rotas públicas - sem Suspense para carregamento imediato */}
         <Route path={ROUTES.home} element={<Landing />} />

@@ -16,6 +16,7 @@ import {
   isStaleCache,
   subscribeCache,
 } from '@/lib/cache';
+import { useRevalidationConfig, useLocalRevalidation } from '@/providers/DataProvider';
 
 export interface UseCachedQueryOptions {
   ttlMs?: number;
@@ -44,11 +45,22 @@ export function useCachedQuery<T>(
   fetcher: () => Promise<T>,
   options: UseCachedQueryOptions = {}
 ): UseCachedQueryReturn<T> {
+  // Configurações globais de revalidação
+  const globalConfig = useRevalidationConfig();
+  
+  // Configurações locais (podem sobrescrever as globais)
+  const localConfig = useLocalRevalidation(key, {
+    refetchOnWindowFocus: options.refetchOnWindowFocus,
+    refetchOnReconnect: options.refetchOnReconnect,
+    refetchOnMount: options.refetchOnMount,
+  });
+  
   const {
     ttlMs = 30000,
     enabled = true,
-    refetchOnMount = true,
-    refetchOnWindowFocus = false,
+    refetchOnMount = localConfig.config.refetchOnMount,
+    refetchOnWindowFocus = localConfig.config.refetchOnWindowFocus,
+    refetchOnReconnect = localConfig.config.refetchOnReconnect,
     staleTime = 15000, // 15s para considerar stale
   } = options;
 
@@ -179,13 +191,31 @@ export function useCachedQuery<T>(
 
     const handleFocus = () => {
       if (enabled) {
+        localConfig.logRevalidation('Window focus');
         loadData();
       }
     };
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, [enabled, refetchOnWindowFocus, loadData]);
+  }, [enabled, refetchOnWindowFocus, loadData, localConfig]);
+
+  // Refetch na reconexão
+  useEffect(() => {
+    if (!refetchOnReconnect) {
+      return;
+    }
+
+    const handleOnline = () => {
+      if (enabled) {
+        localConfig.logRevalidation('Network reconnection');
+        loadData();
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [enabled, refetchOnReconnect, loadData, localConfig]);
 
   // Subscrição para mudanças no cache
   useEffect(() => {
