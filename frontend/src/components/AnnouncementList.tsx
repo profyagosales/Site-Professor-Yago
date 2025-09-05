@@ -12,17 +12,19 @@ import {
 import type { Announcement } from '@/services/announcements';
 import { toast } from 'react-toastify';
 
+type Props = {
+  classId?: string;
+  onEdit?: (announcement: Announcement) => void;
+  onRefresh?: () => void;
+  limit?: number;
+};
+
 export default function AnnouncementList({ 
   classId, 
   onEdit, 
   onRefresh,
   limit
-}: { 
-  classId?: string; 
-  onEdit?: (announcement: Announcement) => void;
-  onRefresh?: () => void;
-  limit?: number;
-}) {
+}: Props) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
