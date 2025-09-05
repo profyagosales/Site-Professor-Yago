@@ -21,6 +21,7 @@ import { AuthProvider } from './store/AuthContext';
 import { UIProvider } from './providers/UIProvider';
 import { ToastProvider } from './components/ui/ToastProvider';
 import { loadAnalyticsOnce } from './lib/analytics-singleton';
+import { registerServiceWorkerOnce, startUpdateChecker } from './sw/register';
 
 // Bootstrap da autenticação com novo sistema de sessão
 function bootstrapAuth() {
@@ -40,9 +41,30 @@ function bootstrapAnalytics() {
   }
 }
 
+// Bootstrap do Service Worker (apenas uma vez)
+function bootstrapServiceWorker() {
+  // Registrar Service Worker apenas em produção ou quando explicitamente habilitado
+  const shouldRegisterSW = import.meta.env.PROD || import.meta.env.VITE_SW_ENABLED === 'true';
+  
+  if (shouldRegisterSW) {
+    registerServiceWorkerOnce().then(registered => {
+      if (registered) {
+        console.info('[SW] Service Worker registrado com sucesso');
+        // Iniciar verificação periódica de atualizações
+        startUpdateChecker();
+      } else {
+        console.warn('[SW] Falha ao registrar Service Worker');
+      }
+    }).catch(error => {
+      console.warn('[SW] Erro ao registrar Service Worker:', error);
+    });
+  }
+}
+
 // garantir que roda antes do <App/>
 bootstrapAuth();
 bootstrapAnalytics();
+bootstrapServiceWorker();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
