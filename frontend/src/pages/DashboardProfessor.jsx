@@ -12,6 +12,7 @@ import { api } from '@/services/api';
 import { listUpcomingContents } from '@/services/contents';
 import { listUpcomingExams } from '@/services/exams';
 import { listAnnouncements } from '@/services/announcements';
+import AnnouncementList from '@/components/AnnouncementList';
 import { getTeacherWeeklySchedule } from '@/services/schedule';
 import { listClasses } from '@/services/classes';
 import { ROUTES } from '@/routes';
@@ -381,20 +382,10 @@ function DashboardProfessor() {
               Ver todos
             </button>
           </div>
-          {loading ? (
-            <p>Carregando...</p>
-          ) : announcements.length ? (
-            <ul className='space-y-1'>
-              {announcements.map(a => (
-                <li key={a.id} className='text-sm'>
-                  {a.title || a.message} —{' '}
-                  {new Date(a.createdAt).toLocaleDateString()}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className='text-sm text-black/60'>Sem avisos</p>
-          )}
+          <AnnouncementList 
+            limit={3}
+            onRefresh={reloadAnnouncements}
+          />
         </div>
 
         <ScheduleTable schedules={schedule} />

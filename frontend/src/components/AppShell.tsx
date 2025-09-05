@@ -18,6 +18,7 @@ const NAV_TEACHER: NavItem[] = [
   { label: 'Turmas', to: ROUTES.prof.turmas },
   { label: 'Alunos', to: ROUTES.prof.alunos },
   { label: 'Notas da Classe', to: ROUTES.prof.notasClasse },
+  { label: 'Avisos', to: ROUTES.prof.avisos },
   { label: 'Caderno', to: ROUTES.prof.caderno },
   { label: 'Gabarito', to: ROUTES.prof.gabarito },
   { label: 'Redação', to: ROUTES.prof.redacao },

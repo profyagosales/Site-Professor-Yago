@@ -102,6 +102,11 @@ export const ROUTES = {
       assertRoute('prof.turmaDetalhes', path);
       return path;
     },
+    avisos: (() => {
+      const path = '/professor/avisos';
+      assertRoute('prof.avisos', path);
+      return path;
+    })(),
   },
   aluno: {
     login: (() => {

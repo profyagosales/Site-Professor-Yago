@@ -26,6 +26,7 @@ const CadernoProf = lazy(() => import('@/pages/professor/Caderno'));
 const GabaritoProf = lazy(() => import('@/pages/professor/Gabarito'));
 const TurmaAlunosPage = lazy(() => import('@/pages/professor/TurmaAlunos'));
 const TurmaDetalhes = lazy(() => import('@/pages/professor/TurmaDetalhes'));
+const AvisosPage = lazy(() => import('@/pages/professor/Avisos'));
 const ListaAlunos = lazy(() => import('@/pages/professor/alunos/ListaAlunos'));
 const PerfilAluno = lazy(() => import('@/pages/professor/alunos/PerfilAluno'));
 
@@ -177,6 +178,20 @@ export const router = createBrowserRouter([
                 }
               >
                 <GabaritoProf />
+              </Suspense>
+            ),
+          },
+          {
+            path: 'avisos',
+            element: (
+              <Suspense
+                fallback={
+                  <div className='p-6 animate-pulse'>
+                    Carregando avisos...
+                  </div>
+                }
+              >
+                <AvisosPage />
               </Suspense>
             ),
           },
