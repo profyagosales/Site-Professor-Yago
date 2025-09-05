@@ -34,7 +34,7 @@ export default function ProcessamentoOMR() {
     // Polling para atualizar status dos processamentos
     const clearPollingInterval = wrapInterval(loadData, 5000, 'ProcessamentoOMR/polling');
     return () => clearPollingInterval();
-  }, []);
+  }, [loadData]);
 
   const loadData = async () => {
     try {
