@@ -234,6 +234,10 @@ export default function App() {
           />
         </Route>
 
+        {/* Redirecionamentos para rotas antigas - evitar 404/loops */}
+        <Route path="/professor/login" element={<Navigate to={ROUTES.auth.loginProf} replace />} />
+        <Route path="/aluno/login" element={<Navigate to={ROUTES.aluno.login} replace />} />
+
         {/* fallback por último */}
         <Route
           path={ROUTES.notFound}
