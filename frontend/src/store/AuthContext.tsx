@@ -13,6 +13,8 @@ import {
   performLogout,
 } from '@/services/session';
 import { useSession } from '@/hooks/useSession';
+import { shouldCallAuthMe, useRouteDebug } from '@/lib/route-guards';
+import { useLocation } from 'react-router-dom';
 
 // meta: evitar fetch sem token e expor helpers simples
 type AuthState = {
@@ -38,6 +40,7 @@ const AuthContext = createContext<AuthCtx>({
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ loading: true, role: null });
+  const location = useLocation();
 
   // Hook de sessão para gerenciar TTL, idle e sincronização
   const { sessionInfo, updateActivity } = useSession({
@@ -50,6 +53,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setState({ loading: false, role: null });
     },
   });
+
+  // Debug de rotas (apenas em desenvolvimento)
+  useRouteDebug(location.pathname, localStorage.getItem(STORAGE_TOKEN_KEY), state.role);
 
   const setToken = useCallback((t: string | null) => {
     if (t) {
@@ -64,7 +70,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const token = localStorage.getItem(STORAGE_TOKEN_KEY);
+    
+    // Se não tem token, não carregar
     if (!token) {
+      setState({ loading: false, role: null });
+      return;
+    }
+
+    // Verificar se deve chamar /auth/me baseado na rota atual
+    if (!shouldCallAuthMe(token)) {
+      console.info('[AuthProvider] Pulando /auth/me - rota pública ou sem token');
       setState({ loading: false, role: null });
       return;
     }
@@ -89,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setToken(null);
         setState({ loading: false, role: null });
       });
-  }, [setToken]);
+  }, [setToken, location.pathname]);
 
   async function loginTeacher(email: string, password: string) {
     const { data } = await api.post('/auth/login-teacher', { email, password });
