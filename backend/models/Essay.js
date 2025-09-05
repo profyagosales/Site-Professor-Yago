@@ -98,6 +98,12 @@ const essaySchema = new mongoose.Schema({
   email: {
     lastSentAt: { type: Date, default: null }
   },
+  // Data e hora do último envio de correção por e-mail
+  sentAt: { 
+    type: Date, 
+    default: null,
+    index: true
+  },
   status: { type: String, enum: ['PENDING', 'GRADED'], default: 'PENDING' },
   comments: { type: String, default: null }
 }, { timestamps: true });

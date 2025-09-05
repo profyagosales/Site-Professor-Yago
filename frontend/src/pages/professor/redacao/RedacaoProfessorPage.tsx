@@ -261,6 +261,50 @@ export default function RedacaoProfessorPage() {
                         >
                           Reenviar PDF
                         </button>
+                        <button
+                          className={`rounded-lg px-3 py-1.5 text-white hover:brightness-110 ${
+                            e.status === 'GRADED' 
+                              ? 'bg-green-500' 
+                              : 'bg-gray-400 cursor-not-allowed'
+                          }`}
+                          onClick={async () => {
+                            if (e.status !== 'GRADED') {
+                              toast.error('Apenas redações corrigidas podem ter o e-mail enviado');
+                              return;
+                            }
+                            
+                            try {
+                              const { sendCorrectionEmail } = await import('@/services/essays.service');
+                              const result = await sendCorrectionEmail(e.id);
+                              toast.success(result.message || 'E-mail enviado com sucesso');
+                              reload(); // Recarregar lista para atualizar sentAt
+                            } catch (err: any) {
+                              toast.error(
+                                err?.message || 
+                                err?.response?.data?.message ||
+                                'Falha ao enviar e-mail'
+                              );
+                            }
+                          }}
+                          disabled={e.status !== 'GRADED'}
+                          title={
+                            e.status !== 'GRADED' 
+                              ? 'Apenas redações corrigidas podem ter o e-mail enviado'
+                              : e.sentAt 
+                                ? `E-mail enviado em: ${new Date(e.sentAt).toLocaleString('pt-BR')}`
+                                : 'Enviar e-mail de correção'
+                          }
+                        >
+                          {e.sentAt ? 'Reenviar E-mail' : 'Enviar E-mail'}
+                        </button>
+                        {e.sentAt && (
+                          <span 
+                            className='text-xs text-gray-500'
+                            title={`Enviado em: ${new Date(e.sentAt).toLocaleString('pt-BR')}`}
+                          >
+                            📧 {new Date(e.sentAt).toLocaleDateString('pt-BR')}
+                          </span>
+                        )}
                       </div>
                     )}
                   </td>

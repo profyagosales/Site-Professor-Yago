@@ -92,6 +92,8 @@ export async function fetchEssays(params: {
         comments: e.comments,
         type: e.type,
         bimester: e.bimester,
+        status: e.status || 'PENDING',
+        sentAt: e.sentAt || null,
       };
     });
     const total = r.data?.total ?? items.length;
@@ -236,8 +238,16 @@ export async function renderCorrection(
 }
 
 export async function sendCorrectionEmail(id: string) {
-  const res = await api.post(`/essays/${id}/send-email`);
-  return res.data;
+  try {
+    const res = await api.post(`/essays/${id}/send-email`);
+    return res.data;
+  } catch (error: any) {
+    // Tratar erro 409 (redação não corrigida)
+    if (error.response?.status === 409) {
+      throw new Error(error.response.data.message || 'Apenas redações corrigidas podem ter o e-mail enviado');
+    }
+    throw error;
+  }
 }
 
 /**

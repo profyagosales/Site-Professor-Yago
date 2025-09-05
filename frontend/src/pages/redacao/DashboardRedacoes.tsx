@@ -160,14 +160,13 @@ function DashboardRedacoes() {
 
   async function handleSendEmail(id: string) {
     try {
-      await sendCorrectionEmail(id);
-      const sentAt = new Date().toISOString();
+      const result = await sendCorrectionEmail(id);
       // Recarrega os dados após enviar email
       reload();
-      toast.success('Email enviado');
+      toast.success(result.message || 'E-mail enviado com sucesso');
     } catch (err: any) {
       console.error('Erro ao enviar email', err);
-      const message = err.response?.data?.message ?? 'Erro ao enviar email';
+      const message = err.message || err.response?.data?.message ?? 'Erro ao enviar email';
       toast.error(message);
     }
   }
@@ -405,20 +404,33 @@ function DashboardRedacoes() {
                       </button>
                     ) : (
                       <>
-                        {r.lastEmailSentAt ? (
+                        {r.sentAt ? (
                           <>
-                            <span className='text-green-600'>Enviado</span>
+                            <span className='text-green-600' title={`Enviado em: ${new Date(r.sentAt).toLocaleString('pt-BR')}`}>
+                              📧 Enviado
+                            </span>
                             <button
                               className='ys-btn-ghost'
                               onClick={() => handleSendEmail(r._id)}
+                              title={`Reenviar e-mail (enviado em: ${new Date(r.sentAt).toLocaleString('pt-BR')})`}
                             >
-                              Enviar novamente
+                              Reenviar
                             </button>
                           </>
                         ) : (
                           <button
-                            className='ys-btn-ghost'
+                            className={`ys-btn-ghost ${
+                              r.status === 'GRADED' 
+                                ? '' 
+                                : 'opacity-50 cursor-not-allowed'
+                            }`}
                             onClick={() => handleSendEmail(r._id)}
+                            disabled={r.status !== 'GRADED'}
+                            title={
+                              r.status !== 'GRADED' 
+                                ? 'Apenas redações corrigidas podem ter o e-mail enviado'
+                                : 'Enviar e-mail de correção'
+                            }
                           >
                             Enviar por e-mail
                           </button>

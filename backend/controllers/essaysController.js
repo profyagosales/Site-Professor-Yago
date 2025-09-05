@@ -501,6 +501,14 @@ async function sendCorrectionEmail(req, res) {
     const essay = await Essay.findById(id);
     if (!essay) return res.status(404).json({ message: 'Redação não encontrada' });
 
+    // Verificar se a redação está corrigida
+    if (essay.status !== 'GRADED') {
+      return res.status(409).json({ 
+        message: 'Apenas redações corrigidas podem ter o e-mail de correção enviado',
+        status: essay.status
+      });
+    }
+
     const student = await Student.findById(essay.studentId);
     if (!student) return res.status(404).json({ message: 'Aluno não encontrado' });
     const classInfo = await Class.findById(essay.classId);
@@ -520,11 +528,21 @@ async function sendCorrectionEmail(req, res) {
 
     await sendEmail({ to: student.email, subject: 'Sua redação foi corrigida', html });
 
+    // Atualizar campos de e-mail
     essay.email = essay.email || {};
     essay.email.lastSentAt = new Date();
+    essay.sentAt = new Date(); // Novo campo para controle de envio
     await essay.save();
 
-    res.json({ message: 'Email enviado' });
+    // Determinar se é primeiro envio ou reenvio
+    const isResend = essay.email.lastSentAt && essay.email.lastSentAt !== essay.sentAt;
+    const message = isResend ? 'E-mail reenviado com sucesso' : 'E-mail enviado com sucesso';
+
+    res.json({ 
+      message,
+      sentAt: essay.sentAt,
+      isResend
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erro ao enviar email' });
