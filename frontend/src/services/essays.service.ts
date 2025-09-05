@@ -240,6 +240,107 @@ export async function sendCorrectionEmail(id: string) {
   return res.data;
 }
 
+/**
+ * Gera PDF corrigido consolidando anotações e nota final
+ * 
+ * @param essayId - ID da redação
+ * @returns Promise<Blob> - PDF corrigido como blob
+ */
+export async function generateCorrectedPdf(essayId: string): Promise<Blob> {
+  try {
+    const response = await api.get(`/essays/${essayId}/corrected`, {
+      responseType: 'blob',
+    });
+    
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao gerar PDF corrigido:', error);
+    throw new Error('Falha ao gerar PDF corrigido');
+  }
+}
+
+/**
+ * Verifica status de geração de PDF corrigido
+ * 
+ * @param essayId - ID da redação
+ * @returns Promise<{ status: 'processing' | 'ready' | 'error', url?: string }>
+ */
+export async function checkCorrectedPdfStatus(essayId: string): Promise<{
+  status: 'processing' | 'ready' | 'error';
+  url?: string;
+  error?: string;
+}> {
+  try {
+    const response = await api.get(`/essays/${essayId}/corrected/status`);
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao verificar status do PDF:', error);
+    return { status: 'error', error: 'Falha ao verificar status' };
+  }
+}
+
+/**
+ * Gera PDF corrigido com polling para status 202
+ * 
+ * @param essayId - ID da redação
+ * @param options - Opções de polling
+ * @returns Promise<Blob> - PDF corrigido como blob
+ */
+export async function generateCorrectedPdfWithPolling(
+  essayId: string,
+  options: {
+    pollInterval?: number; // ms entre verificações (padrão: 2000)
+    maxPollTime?: number; // tempo máximo de polling (padrão: 20000)
+    onStatusUpdate?: (status: string) => void;
+  } = {}
+): Promise<Blob> {
+  const {
+    pollInterval = 2000,
+    maxPollTime = 20000,
+    onStatusUpdate,
+  } = options;
+
+  const startTime = Date.now();
+  
+  try {
+    // Primeira tentativa de gerar PDF
+    try {
+      const blob = await generateCorrectedPdf(essayId);
+      return blob;
+    } catch (error: any) {
+      // Se retornou 202, inicia polling
+      if (error.response?.status === 202) {
+        onStatusUpdate?.('Processando PDF...');
+        
+        // Polling até PDF estar pronto ou timeout
+        while (Date.now() - startTime < maxPollTime) {
+          await new Promise(resolve => setTimeout(resolve, pollInterval));
+          
+          const status = await checkCorrectedPdfStatus(essayId);
+          
+          if (status.status === 'ready' && status.url) {
+            onStatusUpdate?.('PDF pronto!');
+            // Baixa o PDF final
+            const response = await api.get(status.url, { responseType: 'blob' });
+            return response.data;
+          } else if (status.status === 'error') {
+            throw new Error(status.error || 'Erro ao processar PDF');
+          }
+          
+          onStatusUpdate?.(`Processando PDF... (${Math.round((Date.now() - startTime) / 1000)}s)`);
+        }
+        
+        throw new Error('Timeout ao gerar PDF corrigido');
+      } else {
+        throw error;
+      }
+    }
+  } catch (error) {
+    console.error('Erro ao gerar PDF corrigido com polling:', error);
+    throw error;
+  }
+}
+
 export default {
   fetchEssays,
   gradeEssay,
@@ -247,4 +348,7 @@ export default {
   saveAnnotations,
   renderCorrection,
   sendCorrectionEmail,
+  generateCorrectedPdf,
+  checkCorrectedPdfStatus,
+  generateCorrectedPdfWithPolling,
 };

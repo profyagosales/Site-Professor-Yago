@@ -5,6 +5,7 @@ import {
   gradeEssay,
   renderCorrection,
 } from '@/services/essays.service';
+import { useCorrectedPdf } from '@/hooks/useCorrectedPdf';
 import { useOptimisticAnnotations } from '@/services/annotations';
 import AnnotationEditor from '@/components/redacao/AnnotationEditor';
 import AnnotationEditorRich from '@/components/redacao/AnnotationEditorRich';
@@ -44,6 +45,26 @@ export default function GradeWorkspace() {
 
   const [err, setErr] = useState<string | null>(null);
   const [essay, setEssay] = useState<any | null>(null);
+  // Hook para PDF corrigido
+  const {
+    isGenerating: isGeneratingPdf,
+    isDownloading: isDownloadingPdf,
+    isOpening: isOpeningPdf,
+    error: correctedPdfError,
+    status: pdfStatus,
+    generatedPdf,
+    pdfInfo,
+    generatePdf,
+    downloadPdf,
+    openPdf,
+    clearError: clearPdfError,
+    canDownload,
+    canOpen,
+  } = useCorrectedPdf({
+    showToasts: true,
+    enableLogging: true,
+  });
+
   // Hook otimista para anotações
   const {
     annotations,
@@ -622,6 +643,19 @@ export default function GradeWorkspace() {
     }
   }
 
+  const handleGeneratePdf = async () => {
+    if (!id) return;
+    await generatePdf(id);
+  };
+
+  const handleDownloadPdf = async () => {
+    await downloadPdf();
+  };
+
+  const handleOpenPdf = async () => {
+    await openPdf();
+  };
+
   if (loading && !essay) return <div className='p-6'>Carregando…</div>;
   if (err) return <div className='p-6 text-red-600'>{err}</div>;
   if (!essay) return null;
@@ -802,8 +836,81 @@ export default function GradeWorkspace() {
             )}
             <span>Gerar PDF corrigido</span>
           </button>
+          
+          {/* Botões de PDF corrigido */}
+          {generatedPdf && (
+            <>
+              <button
+                className='inline-flex items-center gap-2 rounded-lg border border-green-500 px-3 py-1.5 text-green-600 hover:bg-green-50 disabled:opacity-60'
+                disabled={isDownloadingPdf || !canDownload}
+                onClick={handleDownloadPdf}
+                title="Baixar PDF corrigido"
+              >
+                {isDownloadingPdf && (
+                  <span className='inline-block h-4 w-4 animate-spin rounded-full border-2 border-green-500 border-t-transparent' />
+                )}
+                <span>Baixar PDF</span>
+              </button>
+              
+              <button
+                className='inline-flex items-center gap-2 rounded-lg bg-blue-500 px-3 py-1.5 text-white hover:bg-blue-600 disabled:opacity-60'
+                disabled={isOpeningPdf || !canOpen}
+                onClick={handleOpenPdf}
+                title="Abrir PDF corrigido em nova aba"
+              >
+                {isOpeningPdf && (
+                  <span className='inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/80 border-t-transparent' />
+                )}
+                <span>Abrir PDF</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
+
+      {/* Status do PDF corrigido */}
+      {(isGeneratingPdf || pdfStatus || correctedPdfError) && (
+        <div className='mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg'>
+          {isGeneratingPdf && (
+            <div className='flex items-center gap-2'>
+              <div className='animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500'></div>
+              <span className='text-sm text-blue-700'>
+                {pdfStatus || 'Gerando PDF corrigido...'}
+              </span>
+            </div>
+          )}
+          
+          {correctedPdfError && (
+            <div className='flex items-center justify-between'>
+              <div className='flex items-center gap-2'>
+                <svg className='w-4 h-4 text-red-500' fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className='text-sm text-red-700'>{correctedPdfError}</span>
+              </div>
+              <button
+                onClick={clearPdfError}
+                className='text-sm text-red-600 underline hover:text-red-800'
+              >
+                Fechar
+              </button>
+            </div>
+          )}
+          
+          {generatedPdf && pdfInfo && (
+            <div className='flex items-center justify-between'>
+              <div className='flex items-center gap-2'>
+                <svg className='w-4 h-4 text-green-500' fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className='text-sm text-green-700'>
+                  PDF corrigido pronto ({pdfInfo.sizeFormatted})
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className='grid gap-4 md:grid-cols-[minmax(0,1fr)_260px]'>
         <div className='min-h-[420px] overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#F9FAFB]'>
