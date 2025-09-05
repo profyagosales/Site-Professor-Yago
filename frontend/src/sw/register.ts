@@ -13,6 +13,7 @@
  */
 
 import { toast } from '@/components/ui/ToastProvider';
+import { wrapInterval } from '@/lib/net-debug';
 
 /**
  * Registra o Service Worker uma única vez (Patch 3)
@@ -325,9 +326,12 @@ export function startUpdateChecker(): void {
 
   log('Iniciando verificação periódica de atualizações...');
   
-  setInterval(async () => {
+  const clearUpdateChecker = wrapInterval(async () => {
     await checkForUpdates();
-  }, SW_CONFIG.updateCheckInterval);
+  }, SW_CONFIG.updateCheckInterval, 'SW/update-checker');
+  
+  // Armazenar a função de limpeza para uso futuro
+  (window as any).__swUpdateCheckerCleanup = clearUpdateChecker;
 }
 
 /**
@@ -335,8 +339,16 @@ export function startUpdateChecker(): void {
  */
 export function stopUpdateChecker(): void {
   log('Parando verificação periódica de atualizações...');
-  // Note: setInterval não é armazenado, então não podemos parar facilmente
-  // Em uma implementação mais robusta, armazenaríamos o ID do interval
+  
+  // Usar a função de limpeza armazenada
+  const cleanup = (window as any).__swUpdateCheckerCleanup;
+  if (cleanup && typeof cleanup === 'function') {
+    cleanup();
+    delete (window as any).__swUpdateCheckerCleanup;
+    log('Verificação periódica de atualizações parada com sucesso');
+  } else {
+    log('Nenhuma verificação periódica ativa para parar');
+  }
 }
 
 /**

@@ -37,12 +37,18 @@ export function count(label: string) {
  */
 export function wrapInterval(fn: () => void, ms: number, label: string) {
   const id = setInterval(fn, ms);
-  // eslint-disable-next-line no-console
-  console.info(`[interval:start] ${label} id=${id} ms=${ms}`);
+  if (typeof window !== 'undefined') {
+    // @ts-ignore
+    (window.__intervals__ ||= new Set()).add(id);
+    console.info(`[interval:start] ${label} id=${id} ms=${ms}`);
+  }
   return () => {
     clearInterval(id);
-    // eslint-disable-next-line no-console
-    console.info(`[interval:clear] ${label} id=${id}`);
+    if (typeof window !== 'undefined') {
+      // @ts-ignore
+      (window.__intervals__ as Set<number>)?.delete(id);
+      console.info(`[interval:clear] ${label} id=${id}`);
+    }
   };
 }
 
