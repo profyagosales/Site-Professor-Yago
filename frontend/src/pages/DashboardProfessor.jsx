@@ -13,6 +13,8 @@ import { listUpcomingExams } from '@/services/exams';
 import { listAnnouncements } from '@/services/announcements';
 import { getTeacherWeeklySchedule } from '@/services/schedule';
 import { ROUTES } from '@/routes';
+import { useProfessorDashboard } from '@/hooks/useProfessorDashboard';
+import { logger } from '@/lib/logger';
 
 function DashboardProfessor() {
   const [user, setUser] = useState(null);
@@ -26,6 +28,25 @@ function DashboardProfessor() {
   const [announcementOpen, setAnnouncementOpen] = useState(false);
   const navigate = useNavigate();
 
+  // Hook do dashboard com cache
+  const {
+    summary,
+    stats,
+    isLoading: dashboardLoading,
+    isRefreshing: dashboardRefreshing,
+    error: dashboardError,
+    refresh: refreshDashboard,
+    pendingEssays,
+    recentAnnouncements,
+    upcomingExams,
+    classStats,
+    studentStats,
+  } = useProfessorDashboard({
+    cacheTtlMs: 30000, // 30 segundos
+    enableTelemetry: true,
+    autoRefetch: true,
+  });
+
   useEffect(() => {
     let abort = false;
     (async () => {
@@ -34,6 +55,16 @@ function DashboardProfessor() {
         if (abort) return;
         setUser(u);
         if (!u?.id) return;
+
+        // Telemetria leve em DEV
+        if (process.env.NODE_ENV === 'development') {
+          logger.info('prof_summary_view', {
+            action: 'dashboard',
+            component: 'DashboardProfessor',
+            userId: u.id,
+            timestamp: new Date().toISOString(),
+          });
+        }
         const [c, e, a, s] = await Promise.all([
           listUpcomingContents({ teacherId: u.id }).catch(() => {
             toast.error('Não foi possível carregar conteúdos');
@@ -126,6 +157,130 @@ function DashboardProfessor() {
         </button>
       </div>
 
+      {/* Cards de resumo com contagens */}
+      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-md mb-md'>
+        {/* Redações Pendentes */}
+        <div className='ys-card bg-red-50 border-red-200'>
+          <div className='flex items-center justify-between mb-sm'>
+            <h3 className='text-red-600 font-semibold'>Redações Pendentes</h3>
+            <button
+              className='link-primary text-red-600'
+              onClick={() => navigate(ROUTES.prof.redacao)}
+            >
+              Ver todas
+            </button>
+          </div>
+          {dashboardLoading ? (
+            <div className='animate-pulse'>
+              <div className='h-8 bg-red-200 rounded mb-2'></div>
+              <div className='h-4 bg-red-200 rounded w-3/4'></div>
+            </div>
+          ) : (
+            <div>
+              <div className='text-3xl font-bold text-red-600 mb-1'>
+                {summary?.pendingEssays || 0}
+              </div>
+              <p className='text-sm text-red-600'>
+                {summary?.pendingEssays === 1 ? 'redação aguardando' : 'redações aguardando'}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Avisos Recentes */}
+        <div className='ys-card bg-blue-50 border-blue-200'>
+          <div className='flex items-center justify-between mb-sm'>
+            <h3 className='text-blue-600 font-semibold'>Avisos Recentes</h3>
+            <button
+              className='link-primary text-blue-600'
+              onClick={() => navigate(ROUTES.prof.resumo)}
+            >
+              Ver todos
+            </button>
+          </div>
+          {dashboardLoading ? (
+            <div className='animate-pulse'>
+              <div className='h-8 bg-blue-200 rounded mb-2'></div>
+              <div className='h-4 bg-blue-200 rounded w-3/4'></div>
+            </div>
+          ) : (
+            <div>
+              <div className='text-3xl font-bold text-blue-600 mb-1'>
+                {summary?.recentAnnouncements || 0}
+              </div>
+              <p className='text-sm text-blue-600'>
+                {summary?.recentAnnouncements === 1 ? 'aviso recente' : 'avisos recentes'}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Próximas Avaliações */}
+        <div className='ys-card bg-green-50 border-green-200'>
+          <div className='flex items-center justify-between mb-sm'>
+            <h3 className='text-green-600 font-semibold'>Próximas Avaliações</h3>
+            <button
+              className='link-primary text-green-600'
+              onClick={() => navigate(ROUTES.prof.notasClasse)}
+            >
+              Ver todas
+            </button>
+          </div>
+          {dashboardLoading ? (
+            <div className='animate-pulse'>
+              <div className='h-8 bg-green-200 rounded mb-2'></div>
+              <div className='h-4 bg-green-200 rounded w-3/4'></div>
+            </div>
+          ) : (
+            <div>
+              <div className='text-3xl font-bold text-green-600 mb-1'>
+                {summary?.upcomingExams || 0}
+              </div>
+              <p className='text-sm text-green-600'>
+                {summary?.upcomingExams === 1 ? 'avaliação próxima' : 'avaliações próximas'}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Total de Alunos */}
+        <div className='ys-card bg-purple-50 border-purple-200'>
+          <div className='flex items-center justify-between mb-sm'>
+            <h3 className='text-purple-600 font-semibold'>Total de Alunos</h3>
+            <button
+              className='link-primary text-purple-600'
+              onClick={() => navigate(ROUTES.prof.alunos)}
+            >
+              Ver todos
+            </button>
+          </div>
+          {dashboardLoading ? (
+            <div className='animate-pulse'>
+              <div className='h-8 bg-purple-200 rounded mb-2'></div>
+              <div className='h-4 bg-purple-200 rounded w-3/4'></div>
+            </div>
+          ) : (
+            <div>
+              <div className='text-3xl font-bold text-purple-600 mb-1'>
+                {summary?.totalStudents || 0}
+              </div>
+              <p className='text-sm text-purple-600'>
+                {summary?.totalStudents === 1 ? 'aluno cadastrado' : 'alunos cadastrados'}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Indicador de refresh em background */}
+      {dashboardRefreshing && (
+        <div className="mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+          <span className="text-sm text-blue-700">Atualizando dados em background...</span>
+        </div>
+      )}
+
+      {/* Cards detalhados */}
       <div className='grid grid-cols-1 md:grid-cols-2 gap-md'>
         <div className='ys-card'>
           <div className='flex items-center justify-between mb-sm'>
