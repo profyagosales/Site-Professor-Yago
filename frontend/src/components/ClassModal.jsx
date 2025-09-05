@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import SchedulePicker from './SchedulePicker';
+import { validateClassData, generateClassName } from '@/services/classes';
 
-function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
+function ClassModal({ isOpen, onClose, onSubmit, initialData, isLoading = false }) {
   const [series, setSeries] = useState('');
   const [letter, setLetter] = useState('');
   const [discipline, setDiscipline] = useState('');
   const [schedules, setSchedules] = useState([{ day: '', slot: '', time: '' }]);
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (initialData) {
@@ -34,28 +36,40 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
     setErrors({});
   }, [initialData, isOpen]);
 
-  const handleSubmit = e => {
+  const handleSubmit = async e => {
     e.preventDefault();
-    const newErrors = {};
-    if (!series) newErrors.series = 'Selecione a série';
-    if (!letter.trim()) newErrors.letter = 'Informe a letra';
-    if (!discipline.trim()) newErrors.discipline = 'Informe a disciplina';
-    if (!schedules.length || schedules.some(s => !s.day || !s.slot)) {
-      newErrors.schedule = 'Preencha os horários';
-    }
-    setErrors(newErrors);
-    if (Object.keys(newErrors).length) return;
-    const normalizedSchedule = schedules.map(s => ({
-      day: s.day,
-      slot: Number(s.slot),
-      time: s.time,
-    }));
-    onSubmit({
+    
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
+    setErrors({});
+    
+    const payload = {
       series: Number(series),
-      letter,
-      discipline,
-      schedule: normalizedSchedule,
-    });
+      letter: letter.trim(),
+      discipline: discipline.trim(),
+      schedule: schedules.map(s => ({
+        day: s.day,
+        slot: Number(s.slot),
+        time: s.time,
+      })),
+    };
+    
+    // Validação usando o serviço
+    const validation = validateClassData(payload);
+    if (!validation.isValid) {
+      setErrors(validation.errors);
+      setIsSubmitting(false);
+      return;
+    }
+    
+    try {
+      await onSubmit(payload);
+    } catch (error) {
+      // Erro será tratado pelo componente pai
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -66,6 +80,11 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
         <h2 className='text-xl text-orange'>
           {initialData ? 'Editar Turma' : 'Nova Turma'}
         </h2>
+        {initialData && (
+          <p className='text-sm text-gray-600 mb-4'>
+            {generateClassName(Number(series), letter)}
+          </p>
+        )}
         <form onSubmit={handleSubmit} className='space-y-md'>
           <div>
             <label className='block mb-1'>Série</label>
@@ -73,6 +92,7 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
               className='w-full border p-sm rounded'
               value={series}
               onChange={e => setSeries(e.target.value)}
+              disabled={isSubmitting}
             >
               <option value=''>Selecione</option>
               {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(s => (
@@ -92,6 +112,9 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
               className='w-full border p-sm rounded'
               value={letter}
               onChange={e => setLetter(e.target.value)}
+              disabled={isSubmitting}
+              maxLength={2}
+              placeholder="Ex: A, B, C"
             />
             {errors.letter && (
               <p className='text-red-600 text-sm mt-1'>{errors.letter}</p>
@@ -104,6 +127,9 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
               className='w-full border p-sm rounded'
               value={discipline}
               onChange={e => setDiscipline(e.target.value)}
+              disabled={isSubmitting}
+              maxLength={50}
+              placeholder="Ex: Matemática, Português"
             />
             {errors.discipline && (
               <p className='text-red-600 text-sm mt-1'>{errors.discipline}</p>
@@ -140,6 +166,7 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
               onClick={() =>
                 setSchedules(prev => [...prev, { day: '', slot: '', time: '' }])
               }
+              disabled={isSubmitting}
             >
               Adicionar horário
             </button>
@@ -152,11 +179,23 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
               type='button'
               onClick={onClose}
               className='px-4 py-2 border rounded'
+              disabled={isSubmitting}
             >
               Cancelar
             </button>
-            <button type='submit' className='ys-btn-primary'>
-              {initialData ? 'Salvar' : 'Criar'}
+            <button 
+              type='submit' 
+              className='ys-btn-primary'
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  {initialData ? 'Salvando...' : 'Criando...'}
+                </div>
+              ) : (
+                initialData ? 'Salvar' : 'Criar'
+              )}
             </button>
           </div>
         </form>
