@@ -67,6 +67,10 @@ export default function App() {
         <Route path={ROUTES.home} element={<Landing />} />
         <Route path={ROUTES.auth.loginProf} element={<LoginProf />} />
         <Route path={ROUTES.aluno.login} element={<LoginAluno />} />
+        
+        {/* Redirecionamentos para rotas antigas */}
+        <Route path="/professor/login" element={<Navigate to={ROUTES.auth.loginProf} replace />} />
+        <Route path="/aluno/login" element={<Navigate to={ROUTES.aluno.login} replace />} />
 
         {/* área professor - com Suspense e skeletons específicos */}
         <Route

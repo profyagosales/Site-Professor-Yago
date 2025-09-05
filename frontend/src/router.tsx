@@ -50,6 +50,9 @@ export const router = createBrowserRouter([
       { path: ROUTES.home, element: <Landing /> },
       { path: ROUTES.auth.loginProf, element: <LoginProfessor /> },
       { path: ROUTES.aluno.login, element: <LoginAluno /> },
+      // Redirecionamentos para rotas antigas
+      { path: "/professor/login", element: <Navigate to={ROUTES.auth.loginProf} replace /> },
+      { path: "/aluno/login", element: <Navigate to={ROUTES.aluno.login} replace /> },
     ],
   },
   {
