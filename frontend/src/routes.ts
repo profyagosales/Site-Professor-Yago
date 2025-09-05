@@ -139,11 +139,6 @@ export const ROUTES = {
       assertRoute('aluno.caderno', path);
       return path;
     })(),
-    recados: (() => {
-      const path = '/aluno/recados';
-      assertRoute('aluno.recados', path);
-      return path;
-    })(),
     redacoes: (() => {
       const path = '/aluno/redacoes';
       assertRoute('aluno.redacoes', path);

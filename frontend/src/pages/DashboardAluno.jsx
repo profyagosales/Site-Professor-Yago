@@ -8,10 +8,10 @@ import {
   getStudentWeeklySchedule,
   listStudentUpcomingExams,
   listStudentUpcomingContents,
-  listStudentAnnouncements,
   getStudentNotebookSummary,
   getStudentGrades,
 } from '@/services/student';
+import { listStudentAnnouncements, processAnnouncements } from '@/services/announcements';
 import { logout } from '@/services/auth';
 import { FaPen, FaStar, FaFilePdf, FaBook } from 'react-icons/fa';
 import flags from '@/config/features';
@@ -121,10 +121,9 @@ function AnnouncementsCard({ items = [] }) {
     <div className='ys-card p-md'>
       <div className='flex justify-between items-center mb-sm'>
         <h3 className='font-semibold'>Avisos</h3>
-        {/* sem rota dedicada por enquanto */}
-        <span className='text-orange text-sm opacity-60 cursor-not-allowed'>
+        <Link to={ROUTES.aluno.recados} className='text-orange text-sm hover:text-orange-600'>
           Ver todos
-        </span>
+        </Link>
       </div>
       <ul className='space-y-1 text-sm'>
         {items.length === 0 && <li className='text-black/60'>Nenhum aviso</li>}
@@ -248,7 +247,7 @@ export default function DashboardAluno() {
       setSched(sc);
       setExams(ex);
       setContents(co);
-      setAnn(an);
+      setAnn(processAnnouncements(an));
       setNb(notebook);
       setGrades(gr);
     } catch (err) {
