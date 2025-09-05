@@ -20,6 +20,7 @@ import {
   validateClassData 
 } from '@/services/classes';
 import { toast } from 'react-toastify';
+import { classes, classUtils } from '@/__fixtures__/classes';
 
 // Mock dos serviços
 jest.mock('@/services/classes', () => ({
@@ -57,23 +58,14 @@ const mockValidateClassData = validateClassData as jest.MockedFunction<typeof va
 const mockToast = toast as jest.Mocked<typeof toast>;
 
 describe('useClasses', () => {
-  const mockClasses = [
-    {
-      id: '1',
-      series: 9,
-      letter: 'A',
-      discipline: 'Matemática',
-      schedule: [{ day: 'segunda', slot: 1, time: '08:00' }],
-      studentCount: 25,
-    },
-  ];
+  const mockClasses = classes.slice(0, 2); // Usa as primeiras 2 turmas das fixtures
 
-  const validPayload = {
+  const validPayload = classUtils.generateMock({
     series: 8,
     letter: 'B',
     discipline: 'Português',
     schedule: [{ day: 'terça', slot: 2, time: '10:00' }],
-  };
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();

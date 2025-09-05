@@ -134,38 +134,41 @@ function DashboardProfessor() {
     );
 
   return (
-    <div className='pt-4 p-md space-y-md'>
+    <div className='pt-4 p-md space-y-md' data-testid="professor-dashboard">
       <ProfileHeader
         name={user.name}
         subtitle='Professor'
         avatarUrl={user.photoUrl || user.avatarUrl}
         onLogout={handleLogout}
+        data-testid="profile-header"
       />
 
-      <div className='flex flex-wrap gap-md'>
-        <button className='ys-btn-primary' onClick={() => setShowEmail(true)}>
+      <div className='flex flex-wrap gap-md' data-testid="action-buttons">
+        <button className='ys-btn-primary' onClick={() => setShowEmail(true)} data-testid="send-email-button">
           Enviar e-mail
         </button>
         <button
           className='ys-btn-primary'
           onClick={() => setAnnouncementOpen(true)}
+          data-testid="add-announcement-button"
         >
           Adicionar aviso
         </button>
-        <button className='ys-btn-primary' onClick={() => setContentOpen(true)}>
+        <button className='ys-btn-primary' onClick={() => setContentOpen(true)} data-testid="add-content-button">
           Adicionar conteúdo
         </button>
       </div>
 
       {/* Cards de resumo com contagens */}
-      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-md mb-md'>
+      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-md mb-md' data-testid="summary-cards">
         {/* Redações Pendentes */}
-        <div className='ys-card bg-red-50 border-red-200'>
+        <div className='ys-card bg-red-50 border-red-200' data-testid="pending-essays-card">
           <div className='flex items-center justify-between mb-sm'>
             <h3 className='text-red-600 font-semibold'>Redações Pendentes</h3>
             <button
               className='link-primary text-red-600'
               onClick={() => navigate(ROUTES.prof.redacao)}
+              data-testid="view-essays-button"
             >
               Ver todas
             </button>

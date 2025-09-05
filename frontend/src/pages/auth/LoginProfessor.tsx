@@ -52,7 +52,7 @@ export default function LoginProfessor() {
         'Corrija redações e gere relatórios',
       ]}
     >
-      <form onSubmit={handleSubmit} className='space-y-4'>
+      <form onSubmit={handleSubmit} className='space-y-4' data-testid="login-form">
         <Field
           label='E-mail'
           type='email'
@@ -61,6 +61,7 @@ export default function LoginProfessor() {
           placeholder='seunome@escola.df.gov.br'
           autoComplete='email'
           onChange={e => setEmail(e.target.value)}
+          data-testid="email-input"
         />
         <Field
           label='Senha'
@@ -70,10 +71,11 @@ export default function LoginProfessor() {
           placeholder='••••••••'
           autoComplete='current-password'
           onChange={e => setSenha(e.target.value)}
+          data-testid="password-input"
         />
-        {erro && <p className='text-sm text-red-600'>{erro}</p>}
+        {erro && <p className='text-sm text-red-600' data-testid="error-message">{erro}</p>}
         <div className='pt-2'>
-          <Button type='submit' className='w-full'>
+          <Button type='submit' className='w-full' data-testid="submit-button">
             Entrar
           </Button>
         </div>

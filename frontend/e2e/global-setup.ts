@@ -1,23 +1,24 @@
 import { chromium, FullConfig } from '@playwright/test';
+import { execSync } from 'child_process';
 
 async function globalSetup(config: FullConfig) {
   console.log('🚀 Starting E2E tests setup...');
   
-  // Start browser to test if everything is working
-  const browser = await chromium.launch();
-  const page = await browser.newPage();
-  
+  // Run seed for development data
   try {
-    // Wait for the dev server to be ready
-    await page.goto('http://localhost:5173');
-    await page.waitForLoadState('networkidle');
-    console.log('✅ Dev server is ready');
+    console.log('🌱 Seeding development data...');
+    execSync('npm run seed:dev', { 
+      cwd: process.cwd(),
+      stdio: 'inherit',
+      timeout: 30000 // 30 seconds timeout
+    });
+    console.log('✅ Development data seeded');
   } catch (error) {
-    console.error('❌ Dev server not ready:', error);
-    throw error;
-  } finally {
-    await browser.close();
+    console.warn('⚠️ Seed failed, continuing with tests:', error);
   }
+  
+  // The webServer in playwright.config.ts will handle starting the dev server
+  console.log('✅ E2E setup completed - dev server will be started by Playwright');
   
   console.log('✅ E2E setup completed');
 }

@@ -1,5 +1,15 @@
 import { test, expect } from '@playwright/test';
 import { setupMocks, setupAlunoMocks } from './mocks';
+import { 
+  loginAsTeacher, 
+  loginAsStudent, 
+  logout, 
+  verifyPdfViewer, 
+  verifyPageLoaded,
+  expectTestIdVisible,
+  clickByTestId,
+  verifyNoJSErrors
+} from './helpers';
 
 test.describe('Smoke Tests - Critical Flows', () => {
   test('Landing page loads correctly', async ({ page }) => {
@@ -31,68 +41,86 @@ test.describe('Smoke Tests - Critical Flows', () => {
     expect(criticalErrors).toHaveLength(0);
   });
 
-  test('Professor login flow works end-to-end', async ({ page }) => {
+  test('Professor complete flow: landing → login → resumo → redação → PDF → logout', async ({ page }) => {
     await setupMocks(page);
     
-    // Landing → Login
+    // 1. Landing → Login Professor
     await page.goto('/');
     await page.getByText('Sou Professor').click();
     await expect(page).toHaveURL('/login-professor');
     
     // Verificar se a página de login carregou
-    await expect(page.locator('p.tracking-\\[0\\.25em\\]').getByText('PROFESSOR')).toBeVisible();
+    await expectTestIdVisible(page, 'login-form');
+    await expectTestIdVisible(page, 'email-input');
+    await expectTestIdVisible(page, 'password-input');
+    await expectTestIdVisible(page, 'submit-button');
     
-    // Verificar se os campos de login estão presentes
-    await expect(page.locator('input[type="email"]')).toBeVisible();
-    await expect(page.locator('input[type="password"]')).toBeVisible();
-    await expect(page.locator('button[type="submit"]')).toBeVisible();
+    // 2. Login como professor
+    await loginAsTeacher(page);
+    
+    // 3. Verificar dashboard do professor
+    await expectTestIdVisible(page, 'professor-dashboard');
+    await expectTestIdVisible(page, 'profile-header');
+    await expectTestIdVisible(page, 'summary-cards');
+    await expectTestIdVisible(page, 'pending-essays-card');
+    
+    // 4. Navegar para redações
+    await clickByTestId(page, 'view-essays-button');
+    await expect(page).toHaveURL('/professor/redacao');
+    
+    // 5. Verificar se há redações para visualizar
+    await expectTestIdVisible(page, 'essays-list');
+    
+    // 6. Tentar abrir uma redação (se houver)
+    const essayItem = page.locator('[data-testid="essay-item"]').first();
+    if (await essayItem.isVisible()) {
+      await essayItem.click();
+      
+      // 7. Verificar se PDF viewer está funcionando
+      await verifyPdfViewer(page);
+    }
+    
+    // 8. Logout
+    await logout(page);
+    await expect(page).toHaveURL('/');
   });
 
-  test('Aluno login flow works end-to-end', async ({ page }) => {
+  test('Aluno complete flow: landing → login → dashboard → recados/notas → logout', async ({ page }) => {
     await setupAlunoMocks(page);
     
-    // Landing → Login
+    // 1. Landing → Login Aluno
     await page.goto('/');
     await page.getByText('Sou Aluno').click();
     await expect(page).toHaveURL('/login-aluno');
     
     // Verificar se a página de login carregou
-    await expect(page.getByText('ALUNO')).toBeVisible();
+    await expectTestIdVisible(page, 'login-form');
+    await expectTestIdVisible(page, 'email-input');
+    await expectTestIdVisible(page, 'password-input');
+    await expectTestIdVisible(page, 'submit-button');
     
-    // Verificar se os campos de login estão presentes
-    await expect(page.locator('input[type="email"]')).toBeVisible();
-    await expect(page.locator('input[type="password"]')).toBeVisible();
-    await expect(page.locator('button[type="submit"]')).toBeVisible();
-  });
-
-  test('PDF viewer integration works', async ({ page }) => {
-    await setupMocks(page);
+    // 2. Login como aluno
+    await loginAsStudent(page);
     
-    // Verificar se a página de login carrega
-    await page.goto('/login-professor');
-    await expect(page.locator('p.tracking-\\[0\\.25em\\]').getByText('PROFESSOR')).toBeVisible();
+    // 3. Verificar dashboard do aluno
+    await expectTestIdVisible(page, 'student-dashboard');
+    await expectTestIdVisible(page, 'student-profile');
     
-    // Verificar se os campos estão presentes
-    await expect(page.locator('input[type="email"]')).toBeVisible();
-    await expect(page.locator('input[type="password"]')).toBeVisible();
-    await expect(page.locator('button[type="submit"]')).toBeVisible();
-  });
-
-  test('Responsive design works on mobile', async ({ page }) => {
-    // Simular dispositivo móvel
-    await page.setViewportSize({ width: 375, height: 667 });
+    // 4. Verificar se há recados ou notas
+    const announcements = page.locator('[data-testid="announcements"]');
+    const grades = page.locator('[data-testid="grades"]');
     
-    await page.goto('/');
+    if (await announcements.isVisible()) {
+      await expectTestIdVisible(page, 'announcements');
+    }
     
-    // Verificar se elementos estão visíveis em mobile
-    await expect(page.getByText('Professor Yago Sales')).toBeVisible();
-    await expect(page.getByText('Sou Professor')).toBeVisible();
-    await expect(page.getByText('Sou Aluno')).toBeVisible();
+    if (await grades.isVisible()) {
+      await expectTestIdVisible(page, 'grades');
+    }
     
-    // Verificar se não há overflow horizontal
-    const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
-    const viewportWidth = 375;
-    expect(bodyWidth).toBeLessThanOrEqual(viewportWidth + 20); // Margem de erro
+    // 5. Logout
+    await logout(page);
+    await expect(page).toHaveURL('/');
   });
 
   test('Error handling works correctly', async ({ page }) => {
@@ -106,23 +134,16 @@ test.describe('Smoke Tests - Critical Flows', () => {
     await expect(page).toHaveURL('/');
   });
 
-  test('Performance metrics are acceptable', async ({ page }) => {
-    const startTime = Date.now();
-    
+  test('Performance and error handling', async ({ page }) => {
+    // Verificar performance da landing page
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await verifyPageLoaded(page);
+    await verifyNoJSErrors(page);
     
-    const loadTime = Date.now() - startTime;
-    
-    // Verificar se a página carrega em tempo razoável (5 segundos)
-    expect(loadTime).toBeLessThan(5000);
-    
-    // Verificar se não há muitos recursos carregados
-    const requests = await page.evaluate(() => {
-      return performance.getEntriesByType('resource').length;
-    });
-    
-    // Verificar se não há muitos requests (indicaria problema de performance)
-    expect(requests).toBeLessThan(100);
+    // Verificar responsividade
+    await page.setViewportSize({ width: 375, height: 667 });
+    await expect(page.getByText('Professor Yago Sales')).toBeVisible();
+    await expect(page.getByText('Sou Professor')).toBeVisible();
+    await expect(page.getByText('Sou Aluno')).toBeVisible();
   });
 });

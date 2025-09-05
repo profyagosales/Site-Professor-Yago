@@ -48,7 +48,7 @@ export default function LoginAluno() {
         'Acesse gabaritos e materiais',
       ]}
     >
-      <form onSubmit={handleSubmit} className='space-y-4'>
+      <form onSubmit={handleSubmit} className='space-y-4' data-testid="login-form">
         <Field
           label='E-mail'
           type='email'
@@ -57,6 +57,7 @@ export default function LoginAluno() {
           placeholder='seunome@exemplo.com'
           autoComplete='email'
           onChange={e => setEmail(e.target.value)}
+          data-testid="email-input"
         />
         <Field
           label='Senha'
@@ -66,10 +67,11 @@ export default function LoginAluno() {
           placeholder='••••••••'
           autoComplete='current-password'
           onChange={e => setPassword(e.target.value)}
+          data-testid="password-input"
         />
-        {erro && <p className='text-sm text-red-600'>{erro}</p>}
+        {erro && <p className='text-sm text-red-600' data-testid="error-message">{erro}</p>}
         <div className='pt-2'>
-          <Button type='submit' className='w-full'>
+          <Button type='submit' className='w-full' data-testid="submit-button">
             Entrar
           </Button>
         </div>
