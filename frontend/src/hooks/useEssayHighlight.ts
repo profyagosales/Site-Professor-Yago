@@ -3,6 +3,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { wrapInterval, count } from '@/lib/net-debug';
 
 export interface EssayHighlight {
   essayId: string;
@@ -87,14 +88,15 @@ export function useEssayHighlight() {
 
   // Limpa highlights expirados
   useEffect(() => {
-    const interval = setInterval(() => {
+    count('useEssayHighlight/cleanup-interval');
+    const clearCleanupInterval = wrapInterval(() => {
       const now = Date.now();
       setHighlights(prev =>
         prev.filter(h => now - h.timestamp < HIGHLIGHT_DURATION)
       );
-    }, 1000);
+    }, 1000, 'useEssayHighlight/cleanup-expired');
 
-    return () => clearInterval(interval);
+    return () => clearCleanupInterval();
   }, []);
 
   return {

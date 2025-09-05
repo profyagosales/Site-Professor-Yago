@@ -4,6 +4,7 @@ import { Field } from '@/components/ui/Field';
 import { Button } from '@/components/ui/Button';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { count } from '@/lib/net-debug';
 import { api, setAuthToken } from '@/services/api';
 import { initializeSession, getToken } from '@/auth/token';
 import { ROUTES } from '@/routes';
@@ -15,6 +16,7 @@ export default function LoginProfessor() {
   const [erro, setErro] = useState('');
 
   useEffect(() => {
+    count('LoginProfessor/redirect-check');
     if (getToken()) navigate(ROUTES.prof.resumo, { replace: true });
   }, [navigate]);
 

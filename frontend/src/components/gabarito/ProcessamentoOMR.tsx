@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { wrapInterval, count } from '@/lib/net-debug';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -27,11 +28,12 @@ export default function ProcessamentoOMR() {
 
   // Carregar dados
   useEffect(() => {
+    count('ProcessamentoOMR/load-data');
     loadData();
     
     // Polling para atualizar status dos processamentos
-    const interval = setInterval(loadData, 5000);
-    return () => clearInterval(interval);
+    const clearPollingInterval = wrapInterval(loadData, 5000, 'ProcessamentoOMR/polling');
+    return () => clearPollingInterval();
   }, []);
 
   const loadData = async () => {

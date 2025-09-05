@@ -18,6 +18,7 @@ import {
 import { IDLE_TIMEOUT, LOGOUT_MESSAGES } from '@/config/auth';
 import { toast } from 'react-toastify';
 import { logger } from '@/lib/logger';
+import { wrapInterval, count } from '@/lib/net-debug';
 
 interface UseSessionOptions {
   onSessionChange?: (hasSession: boolean) => void;
@@ -131,7 +132,8 @@ export function useSession({
   useEffect(() => {
     if (!enabled || !sessionInfo.hasSession) return;
 
-    const validateInterval = setInterval(() => {
+    count('useSession/validation-interval');
+    const clearValidateInterval = wrapInterval(() => {
       setIsValidating(true);
 
       const validation = validateSession();
@@ -156,10 +158,10 @@ export function useSession({
       }
 
       setIsValidating(false);
-    }, 30000); // Valida a cada 30 segundos
+    }, 30000, 'useSession/validation'); // Valida a cada 30 segundos
 
     return () => {
-      clearInterval(validateInterval);
+      clearValidateInterval();
     };
   }, [
     enabled,

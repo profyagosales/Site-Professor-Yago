@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useListPreferences } from './usePreferences';
+import { count } from '@/lib/net-debug';
 
 export interface DashboardFilters {
   status: 'pendentes' | 'corrigidas';
@@ -192,6 +193,7 @@ export function useDashboardEssays(
 
   // Carrega parâmetros da URL na inicialização
   useEffect(() => {
+    count('useDashboardEssays/url-sync');
     const urlParams = readParamsFromURL();
     const newFilters = {
       ...DEFAULT_FILTERS,
@@ -216,6 +218,7 @@ export function useDashboardEssays(
 
   // Carrega dados quando os filtros mudam
   useEffect(() => {
+    count('useDashboardEssays/load-data');
     const loadDataAsync = async () => {
       try {
         setLoading(true);

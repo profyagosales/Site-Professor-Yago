@@ -21,6 +21,7 @@ import {
   getBrowserInfo,
   type VitalsConfig,
 } from '@/lib/vitals';
+import { wrapInterval, count } from '@/lib/net-debug';
 
 export interface UseVitalsOptions extends VitalsConfig {
   // Se deve inicializar automaticamente
@@ -139,15 +140,19 @@ export function useVitals(options: UseVitalsOptions = {}): UseVitalsReturn {
   // Configura intervalo de relatório
   useEffect(() => {
     if (reportInterval && reportInterval > 0) {
-      reportIntervalRef.current = setInterval(() => {
+      count('useVitals/report-interval');
+      const clearReportInterval = wrapInterval(() => {
         if (isInitializedRef.current) {
           displayPerformanceReport();
         }
-      }, reportInterval);
+      }, reportInterval, 'useVitals/performance-report');
+
+      reportIntervalRef.current = clearReportInterval;
 
       return () => {
         if (reportIntervalRef.current) {
-          clearInterval(reportIntervalRef.current);
+          reportIntervalRef.current();
+          reportIntervalRef.current = null;
         }
       };
     }

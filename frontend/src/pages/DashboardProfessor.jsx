@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { count } from '@/lib/net-debug';
 import { toast } from 'react-toastify';
 import ProfileHeader from '@/components/ProfileHeader';
 import ScheduleTable from '@/components/ScheduleTable';
@@ -54,6 +55,7 @@ function DashboardProfessor() {
   });
 
   useEffect(() => {
+    count('DashboardProfessor/load-data');
     let abort = false;
     (async () => {
       try {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { wrapInterval, count } from '@/lib/net-debug';
 import { YSMark } from './YSMark';
 
 const STATES = [
@@ -12,8 +13,9 @@ const STATES = [
 export function YSLogoAlive({ showLabel = false }: { showLabel?: boolean }) {
   const [i, setI] = useState(0);
   useEffect(() => {
-    const id = setInterval(() => setI(v => (v + 1) % STATES.length), 2200);
-    return () => clearInterval(id);
+    count('YSLogoAlive/animation-interval');
+    const clearAnimationInterval = wrapInterval(() => setI(v => (v + 1) % STATES.length), 2200, 'YSLogoAlive/color-animation');
+    return () => clearAnimationInterval();
   }, []);
   const c = STATES[i].color;
 

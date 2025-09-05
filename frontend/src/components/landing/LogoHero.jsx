@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { wrapInterval, count } from '@/lib/net-debug';
 
 const CATEGORIES = [
   { key: 'grades', label: 'Notas', color: '#32D74B', emoji: '📊' }, // verde limão
@@ -12,10 +13,11 @@ export default function LogoHero() {
   const current = useMemo(() => CATEGORIES[idx], [idx]);
 
   useEffect(() => {
-    const id = setInterval(() => {
+    count('LogoHero/animation-interval');
+    const clearAnimationInterval = wrapInterval(() => {
       setIdx(i => (i + 1) % CATEGORIES.length);
-    }, 1600); // tempo de troca
-    return () => clearInterval(id);
+    }, 1600, 'LogoHero/category-rotation'); // tempo de troca
+    return () => clearAnimationInterval();
   }, []);
 
   // acessibilidade: evitar animação se usuário preferir

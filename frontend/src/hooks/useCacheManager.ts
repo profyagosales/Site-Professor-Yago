@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { getCacheStats, clearCache } from '@/lib/cache';
+import { wrapInterval, count } from '@/lib/net-debug';
 
 export interface CacheStats {
   total: number;
@@ -77,8 +78,9 @@ export function useCacheManager(): UseCacheManagerReturn {
       return;
     }
 
-    const interval = setInterval(refreshStats, 5000); // A cada 5 segundos
-    return () => clearInterval(interval);
+    count('useCacheManager/refresh-stats-interval');
+    const clearRefreshInterval = wrapInterval(refreshStats, 5000, 'useCacheManager/refresh-stats'); // A cada 5 segundos
+    return () => clearRefreshInterval();
   }, [isDebugMode, refreshStats]);
 
   // Atualiza estatísticas na montagem

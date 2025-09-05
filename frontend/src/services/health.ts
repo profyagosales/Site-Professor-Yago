@@ -9,6 +9,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { wrapInterval, count } from '@/lib/net-debug';
 import { api } from './api';
 import { logger } from '@/lib/logger';
 
@@ -217,11 +218,12 @@ export function useBackendHealth(interval = HEALTH_CHECK_INTERVAL) {
 
   // Agendamento de verificações periódicas
   useEffect(() => {
-    const intervalId = setInterval(() => {
+    count('useHealth/periodic-check');
+    const clearHealthInterval = wrapInterval(() => {
       checkHealth();
-    }, interval);
+    }, interval, 'useHealth/periodic-health-check');
 
-    return () => clearInterval(intervalId);
+    return () => clearHealthInterval();
   }, [checkHealth, interval]);
 
   return {
