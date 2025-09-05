@@ -19,7 +19,7 @@ import { initializeSession } from '@/services/session';
 import { router } from './router';
 import { AuthProvider } from './store/AuthContext';
 import { UIProvider } from './providers/UIProvider';
-import { ToastProvider } from './components/ui/ToastProvider';
+import { ToastProvider } from './components/ui/toast-provider';
 import { loadAnalyticsOnce } from './lib/analytics-singleton';
 import { registerSWOnce } from './sw/register';
 import { DataProvider } from './providers/DataProvider';
