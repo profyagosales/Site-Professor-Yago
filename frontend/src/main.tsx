@@ -1,3 +1,33 @@
+// 🔥 Purga incondicional de SW + caches na primeira carga pós-deploy
+(function purgeSWOnce() {
+  try {
+    const FLAG = '__SW_PURGED__';
+    if (sessionStorage.getItem(FLAG)) return; // evita loop
+    sessionStorage.setItem(FLAG, '1');
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations()
+        .then(rs => Promise.all(rs.map(r => r.unregister())))
+        .catch(() => {});
+    }
+    if ('caches' in window) {
+      caches.keys()
+        .then(ks => Promise.all(ks.map(k => caches.delete(k))))
+        .catch(() => {});
+    }
+    // dá uma recarregada única para soltar o controller antigo
+    setTimeout(() => {
+      try {
+        if (!/__sw_rel__=1/.test(location.search)) {
+          const u = new URL(location.href);
+          u.searchParams.set('__sw_rel__', '1');
+          location.replace(u.toString());
+        }
+      } catch {}
+    }, 50);
+  } catch {}
+})();
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles.css';
@@ -21,11 +51,7 @@ import { AuthProvider } from './store/AuthContext';
 import { UIProvider } from './providers/UIProvider';
 import { ToastProvider } from './components/ui/toast-provider';
 import { loadAnalyticsOnce } from './lib/analytics-singleton';
-import { registerSWOnce, uninstallSWIfFlagged } from './sw/registerSWOnce';
 import { DataProvider } from './providers/DataProvider';
-
-uninstallSWIfFlagged();  // limpa se forçado por flag
-registerSWOnce();        // só registra se VITE_ENABLE_SW=1
 
 // Bootstrap da autenticação com novo sistema de sessão
 function bootstrapAuth() {
