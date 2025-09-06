@@ -8,7 +8,7 @@
  * - Suporte a atualização otimista
  */
 
-import { api, pickData } from '@/services/api';
+import { httpGet, httpPost, httpPut, httpDelete } from '@/services/http';
 import { logger } from '@/lib/logger';
 
 export interface ClassSchedule {
@@ -55,8 +55,7 @@ export interface ClassListResponse {
  */
 export async function listClasses(): Promise<Class[]> {
   try {
-    const response = await api.get('/classes');
-    const data = pickData(response);
+    const data = await httpGet<any>('/classes');
     
     // Normaliza a resposta para sempre retornar array
     if (Array.isArray(data)) {
@@ -82,8 +81,7 @@ export async function listClasses(): Promise<Class[]> {
  */
 export async function getClassById(id: string): Promise<Class> {
   try {
-    const response = await api.get(`/classes/${id}`);
-    return pickData(response);
+    return httpGet<Class>(`/classes/${id}`);
   } catch (error) {
     logger.error('Failed to get class by ID', {
       action: 'classes',
@@ -114,16 +112,18 @@ function normalizeSchedulePayload(payload: CreateClassPayload): CreateClassPaylo
 export async function createClass(payload: CreateClassPayload): Promise<Class> {
   try {
     const normalizedPayload = normalizeSchedulePayload(payload);
-    const response = await api.post('/classes', normalizedPayload);
-    
+    const data = await httpPost<Class>(
+      '/classes',
+      normalizedPayload,
+    );
+
     logger.info('Class created successfully', {
       action: 'classes',
-      classId: response.data?.id || response.data?._id,
+      classId: data?.id || data?._id,
       series: payload.series,
       letter: payload.letter,
     });
-    
-    return pickData(response);
+    return data;
   } catch (error) {
     logger.error('Failed to create class', {
       action: 'classes',
@@ -140,16 +140,18 @@ export async function createClass(payload: CreateClassPayload): Promise<Class> {
 export async function updateClass(id: string, payload: CreateClassPayload): Promise<Class> {
   try {
     const normalizedPayload = normalizeSchedulePayload(payload);
-    const response = await api.put(`/classes/${id}`, normalizedPayload);
-    
+    const data = await httpPut<Class>(
+      `/classes/${id}`,
+      normalizedPayload,
+    );
+
     logger.info('Class updated successfully', {
       action: 'classes',
       classId: id,
       series: payload.series,
       letter: payload.letter,
     });
-    
-    return pickData(response);
+    return data;
   } catch (error) {
     logger.error('Failed to update class', {
       action: 'classes',
@@ -166,7 +168,7 @@ export async function updateClass(id: string, payload: CreateClassPayload): Prom
  */
 export async function deleteClass(id: string): Promise<void> {
   try {
-    await api.delete(`/classes/${id}`);
+    await httpDelete(`/classes/${id}`);
     
     logger.info('Class deleted successfully', {
       action: 'classes',
@@ -187,8 +189,7 @@ export async function deleteClass(id: string): Promise<void> {
  */
 export async function listStudents(classId: string): Promise<any[]> {
   try {
-    const response = await api.get(`/classes/${classId}/students`);
-    return pickData(response);
+    return httpGet<any[]>(`/classes/${classId}/students`);
   } catch (error) {
     logger.error('Failed to list students for class', {
       action: 'classes',

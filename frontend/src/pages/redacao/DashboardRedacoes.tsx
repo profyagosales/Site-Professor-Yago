@@ -99,14 +99,14 @@ function DashboardRedacoes() {
     isFresh,
   } = useDashboardEssaysWithCache({ cacheTtlMs: 30000 });
 
+  const essays = data?.items || [];
+
   // Carrega classes para filtros
   useEffect(() => {
     const loadClasses = async () => {
       try {
         const res = await listClasses();
-        const arr = Array.isArray(res?.data)
-          ? res.data
-          : res?.data?.data || res || [];
+        const arr = Array.isArray(res) ? res : [];
         setClasses(arr);
       } catch (error) {
         console.error('Erro ao carregar classes', error);
