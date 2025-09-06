@@ -37,6 +37,6 @@ export const LOGOUT_MESSAGES = {
 
 // Configurações de redirecionamento por role
 export const LOGIN_ROUTES = {
-  professor: '/professor/login',
-  aluno: '/aluno/login',
+  professor: '/login-professor',
+  aluno: '/login-aluno',
 } as const;

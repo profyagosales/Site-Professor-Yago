@@ -19,7 +19,7 @@ export default function Home() {
           </button>
           <button
             type='button'
-            onClick={() => navigate(ROUTES.loginAluno)}
+            onClick={() => navigate(ROUTES.auth.loginAluno)}
             className='bg-white text-orange-600 font-semibold rounded-xl px-6 py-3 shadow transition hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500'
           >
             Sou Aluno

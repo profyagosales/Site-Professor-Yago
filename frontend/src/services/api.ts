@@ -17,6 +17,7 @@ import {
 export const STORAGE_TOKEN_KEY = 'auth_token';
 
 import { API_BASE_URL } from '@/config/api';
+import { LOGIN_ALUNO_PATH } from '@/routes/paths';
 
 const base = API_BASE_URL;
 
@@ -44,10 +45,10 @@ export function installApiInterceptors(
         } catch {}
         if (
           typeof window !== 'undefined' &&
-          window.location.pathname !== '/login'
+          window.location.pathname !== LOGIN_ALUNO_PATH
         ) {
           try {
-            navigate('/login', { replace: true });
+            navigate(LOGIN_ALUNO_PATH, { replace: true });
           } catch {}
         }
       }
