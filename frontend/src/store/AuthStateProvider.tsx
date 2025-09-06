@@ -1,59 +1,51 @@
-import React, { createContext, useContext, useMemo, useState, useEffect } from 'react';
-import { api, bootstrapAuthFromStorage, STORAGE_TOKEN_KEY, setAuthToken } from '@/services/api';
-import { initializeSession, performLogout } from '@/services/session';
+import { ReactNode, createContext, useContext, useState } from 'react'
 
-export type User = { id: string; name: string } | null;
+type AuthState = {
+  isAuthenticated: boolean
+  role: 'student' | 'teacher' | null
+  userId: string | null
+}
 
-export type AuthContextType = {
-  user: User;
-  loading: boolean;
-  setUser: (u: User) => void;
-  logout: () => void;
-};
+type AuthContextType = {
+  auth: AuthState
+  setAuth: (auth: AuthState) => void
+  logout: () => void
+}
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const initialAuthState: AuthState = {
+  isAuthenticated: false,
+  role: null,
+  userId: null,
+}
 
-export function AuthStateProvider({ children }: { children: React.ReactNode }): JSX.Element {
-  const [user, setUser] = useState<User>(null);
-  const [loading, setLoading] = useState(true);
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-  useEffect(() => {
-    (async () => {
-      try {
-        bootstrapAuthFromStorage();
-        initializeSession();
-        try {
-          const me = await api.get('/auth/me');
-          setUser(me.data);
-        } catch {
-          localStorage.removeItem(STORAGE_TOKEN_KEY);
-          setAuthToken(undefined);
-          setUser(null);
-        }
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+type AuthStateProviderProps = {
+  children: ReactNode
+}
+
+export function AuthStateProvider({ children }: AuthStateProviderProps) {
+  const [auth, setAuthState] = useState<AuthState>(initialAuthState)
+
+  const setAuth = (auth: AuthState) => {
+    setAuthState(auth)
+  }
 
   const logout = () => {
-    try {
-      performLogout('MANUAL');
-      localStorage.removeItem(STORAGE_TOKEN_KEY);
-      setAuthToken(undefined);
-    } finally {
-      setUser(null);
-    }
-  };
+    setAuthState(initialAuthState)
+  }
 
-  const value = useMemo<AuthContextType>(() => ({ user, loading, setUser, logout }), [user, loading]);
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ auth, setAuth, logout }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
-export function useAuth(): AuthContextType {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthStateProvider');
-  return ctx;
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthStateProvider')
+  }
+  return context
 }
-

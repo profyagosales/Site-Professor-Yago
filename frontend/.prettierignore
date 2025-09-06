@@ -1,6 +1,0 @@
-node_modules
-dist
-coverage
-public/viewer
-apps/pdf-viewer/dist
-src/__tests__

@@ -1,26 +1,17 @@
-import React from 'react';
-import { Outlet } from 'react-router-dom';
-import { DataProvider } from '@/providers/DataProvider';
-import { UIProvider } from '@/providers/UIProvider';
-import { ToastProvider } from '@/components/ui/toast-provider';
-import { AuthStateProvider } from '@/store/AuthStateProvider';
-import { AuthGate } from '@/features/auth/AuthGate';
-import { AnalyticsTracker } from '@/features/analytics/AnalyticsTracker';
+import { Outlet } from 'react-router-dom'
 
-export default function RootLayout(): JSX.Element {
+export function RootLayout() {
   return (
-    <DataProvider>
-      <UIProvider>
-        <AuthStateProvider>
-          {/* Tudo abaixo está DENTRO do Router (ver router.tsx) */}
-          <AnalyticsTracker />
-          <AuthGate />
-          <div className="ys-noise" />
-          <ToastProvider />
-          <Outlet />
-        </AuthStateProvider>
-      </UIProvider>
-    </DataProvider>
-  );
+    <div className="app-container">
+      <header className="app-header">
+        <h1>Professor Yago Sales</h1>
+      </header>
+      <main className="app-main">
+        <Outlet />
+      </main>
+      <footer className="app-footer">
+        <p>&copy; {new Date().getFullYear()} Professor Yago Sales. Todos os direitos reservados.</p>
+      </footer>
+    </div>
+  )
 }
-

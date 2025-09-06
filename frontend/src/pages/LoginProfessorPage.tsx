@@ -1,10 +1,30 @@
-import React from 'react';
-import LoginForm from '@/components/auth/LoginForm';
-
-export default function LoginProfessorPage(): JSX.Element {
-  const handleSubmit = (data: { email: string; password: string; role: 'aluno' | 'professor' }) => {
-    console.log('[login professor]', data);
-    // TODO: autenticar e, no sucesso, setar user e navegar
-  };
-  return <LoginForm role="professor" onSubmit={handleSubmit} />;
+export function LoginProfessorPage() {
+  return (
+    <div className="login-page">
+      <h1>Login de Professor</h1>
+      <form className="login-form">
+        <div className="form-group">
+          <label htmlFor="email">Email</label>
+          <input 
+            type="email" 
+            id="email" 
+            placeholder="Seu email" 
+            required 
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="password">Senha</label>
+          <input 
+            type="password" 
+            id="password" 
+            placeholder="Sua senha" 
+            required 
+          />
+        </div>
+        <button type="submit" className="login-button">
+          Entrar
+        </button>
+      </form>
+    </div>
+  )
 }
