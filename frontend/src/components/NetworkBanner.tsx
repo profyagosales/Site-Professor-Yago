@@ -6,7 +6,12 @@ import { useBackendHealth } from '@/services/health';
 export default function NetworkBanner() {
   const [isVisible, setIsVisible] = useState(false);
   const { isOnline, retryCount, retryConnection } = useNetworkStatus();
-  const { isHealthy, isChecking, retryCount: backendRetryCount, retry: retryBackend } = useBackendHealth();
+  const {
+    isHealthy,
+    isChecking,
+    retryCount: backendRetryCount,
+    retry: retryBackend,
+  } = useBackendHealth();
   const toast = useToast();
 
   // Determinar se deve mostrar o banner
@@ -19,7 +24,9 @@ export default function NetworkBanner() {
       if (!isOnline) {
         toast.warning('Conexão perdida. Verificando...');
       } else if (isBackendDown) {
-        toast.warning('Serviço temporariamente indisponível. Algumas ações podem falhar.');
+        toast.warning(
+          'Serviço temporariamente indisponível. Algumas ações podem falhar.'
+        );
       }
     } else {
       setIsVisible(false);
@@ -27,11 +34,19 @@ export default function NetworkBanner() {
         toast.success('Conexão restaurada!');
       }
     }
-  }, [isOnline, isHealthy, shouldShow, isBackendDown, retryCount, backendRetryCount, toast]);
+  }, [
+    isOnline,
+    isHealthy,
+    shouldShow,
+    isBackendDown,
+    retryCount,
+    backendRetryCount,
+    toast,
+  ]);
 
   const handleRetry = async () => {
     let success = false;
-    
+
     if (!isOnline) {
       success = await retryConnection();
     } else if (isBackendDown) {
@@ -62,7 +77,9 @@ export default function NetworkBanner() {
         <div className='flex items-center justify-between'>
           <div className='flex items-center space-x-2'>
             <div className='flex items-center space-x-1'>
-              <div className={`w-2 h-2 rounded-full ${isChecking ? 'bg-yellow-400 animate-pulse' : 'bg-gray-400'}`} />
+              <div
+                className={`w-2 h-2 rounded-full ${isChecking ? 'bg-yellow-400 animate-pulse' : 'bg-gray-400'}`}
+              />
               <svg
                 className='h-4 w-4 text-gray-500 flex-shrink-0'
                 fill='none'
@@ -80,17 +97,16 @@ export default function NetworkBanner() {
 
             <div className='flex-1'>
               <p className='text-sm text-gray-700'>
-                {!isOnline 
-                  ? 'Sem conexão com a internet' 
-                  : 'Serviço temporariamente indisponível'
-                }
+                {!isOnline
+                  ? 'Sem conexão com a internet'
+                  : 'Serviço temporariamente indisponível'}
               </p>
               <p className='text-xs text-gray-500'>
-                {!isOnline 
+                {!isOnline
                   ? 'Verifique sua conexão e tente novamente'
-                  : 'Algumas ações podem falhar'
-                }
-                {(retryCount > 0 || backendRetryCount > 0) && ` • Tentativa ${retryCount + backendRetryCount}`}
+                  : 'Algumas ações podem falhar'}
+                {(retryCount > 0 || backendRetryCount > 0) &&
+                  ` • Tentativa ${retryCount + backendRetryCount}`}
               </p>
             </div>
           </div>
@@ -98,40 +114,14 @@ export default function NetworkBanner() {
           <div className='flex items-center space-x-2'>
             <button
               onClick={handleRetry}
-              disabled={(retryCount + backendRetryCount) >= 3 || isChecking}
+              disabled={retryCount + backendRetryCount >= 3 || isChecking}
               className='px-2 py-1 text-xs font-medium bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors'
             >
-              {isChecking ? 'Verificando...' : 
-               (retryCount + backendRetryCount) >= 3 ? 'Máx. tentativas' : 'Tentar Novamente'}
-            </button>
-
-            <button
-              onClick={handleDismiss}
-              className='p-1 text-gray-400 hover:text-gray-600 transition-colors'
-              aria-label='Fechar banner'
-            >
-              <svg
-                className='h-3 w-3'
-                fill='none'
-                viewBox='0 0 24 24'
-                stroke='currentColor'
-              >
-                <path
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
-                  strokeWidth={2}
-                  d='M6 18L18 6M6 6l12 12'
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-               (retryCount + backendRetryCount) >= 3 ? 'Máx. tentativas' : 'Tentar Novamente'}
+              {isChecking
+                ? 'Verificando...'
+                : retryCount + backendRetryCount >= 3
+                  ? 'Máx. tentativas'
+                  : 'Tentar Novamente'}
             </button>
 
             <button
