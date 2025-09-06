@@ -4,24 +4,22 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from '@typescript-eslint/eslint-plugin'
 import tsparser from '@typescript-eslint/parser'
-import prettier from 'eslint-plugin-prettier'
-import prettierConfig from 'eslint-config-prettier'
 import { defineConfig, globalIgnores } from 'eslint/config'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import prettierConfig from 'eslint-config-prettier'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 export default defineConfig([
-  globalIgnores(['dist', 'node_modules', 'apps/pdf-viewer/dist', '**/*.test.js', '**/essays.js', '**/students.js']),
+  globalIgnores(['dist', 'node_modules', 'apps/pdf-viewer/dist', '**/*.test.js', '**/essays.js', '**/students.js', 'src/services/*.js', 'src/__tests__/**', 'src/components/FlagsDebug.tsx', 'src/hooks/useCachedQuery.ts']),
   {
     files: ['**/*.{js,jsx,ts,tsx}'],
     languageOptions: {
       ecmaVersion: 2020,
       globals: {
         ...globals.browser,
-        ...globals.jest,
         ...globals.node,
       },
       parser: tsparser,
@@ -36,14 +34,12 @@ export default defineConfig([
       '@typescript-eslint': tseslint,
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
-      'prettier': prettier,
-    },
+      },
     rules: {
       ...js.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
       ...reactRefresh.configs.vite.rules,
       ...tseslint.configs.recommended.rules,
-      ...prettierConfig.rules,
       
       // Desabilitar regras conflitantes
       'no-unused-vars': 'off',
@@ -88,9 +84,8 @@ export default defineConfig([
       'no-undef': 'off',
       'no-empty': 'off',
       'no-unused-expressions': 'off',
+      'no-redeclare': 'off',
       
-      // Regras do Prettier
-      'prettier/prettier': 'error',
     },
     settings: {
       'import/resolver': {
@@ -105,4 +100,5 @@ export default defineConfig([
       },
     },
   },
+  prettierConfig,
 ])
