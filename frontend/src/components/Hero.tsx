@@ -26,7 +26,7 @@ export function Hero() {
           <Link to={ROUTES.auth.loginProf} className='ys-btn-primary ys-glass'>
             Sou Professor
           </Link>
-          <Link to={ROUTES.loginAluno} className='ys-btn-ghost'>
+          <Link to={ROUTES.auth.loginAluno} className='ys-btn-ghost'>
             Sou Aluno
           </Link>
         </div>

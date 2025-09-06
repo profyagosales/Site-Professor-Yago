@@ -12,7 +12,7 @@ import {
 export function AuthGate(): null {
   const { user, loading, logout } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
+  const { pathname } = useLocation();
   const redirectedOnceRef = useRef(false);
 
   useEffect(() => {
@@ -24,9 +24,7 @@ export function AuthGate(): null {
   useEffect(() => {
     if (loading) return;
 
-    const path = location.pathname;
-    const isPublic = PUBLIC_ROUTES.has(path);
-
+    const isPublic = PUBLIC_ROUTES.has(pathname);
     const redirectOnce = (to: string) => {
       if (redirectedOnceRef.current) return;
       redirectedOnceRef.current = true;
@@ -34,19 +32,16 @@ export function AuthGate(): null {
       setTimeout(() => (redirectedOnceRef.current = false), 0);
     };
 
-    // Não autenticado: só bloqueia rotas privadas
     if (!user && !isPublic) {
-      redirectOnce(LOGIN_ALUNO_PATH); // login padrão
+      redirectOnce(LOGIN_ALUNO_PATH);
       return;
     }
 
-    // Autenticado: se está numa tela de login, manda pra home
-    if (user && (path === LOGIN_ALUNO_PATH || path === LOGIN_PROFESSOR_PATH)) {
+    if (user && (pathname === LOGIN_ALUNO_PATH || pathname === LOGIN_PROFESSOR_PATH)) {
       redirectOnce(HOME_PATH);
       return;
     }
-  }, [user, loading, location.pathname, navigate]);
+  }, [user, loading, pathname, navigate]);
 
   return null;
 }
-
