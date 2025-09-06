@@ -1,6 +1,6 @@
 import { Page } from '@/components/Page';
-import { Card, CardBody, CardTitle, CardSub } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardBody, CardTitle, CardSub } from '@/components/ui/card.tsx';
+import { Button } from '@/components/ui/button.tsx';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ClassModal from '@/components/ClassModal';

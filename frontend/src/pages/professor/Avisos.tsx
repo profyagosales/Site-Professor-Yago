@@ -1,6 +1,6 @@
 import { Page } from '@/components/Page';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card.tsx';
+import { Button } from '@/components/ui/button.tsx';
 import { useState } from 'react';
 import AnnouncementModal from '@/components/AnnouncementModal';
 import AnnouncementList from '@/components/AnnouncementList';

@@ -2,7 +2,7 @@ import React from 'react';
 import { useToast } from '@/hooks/useToast';
 import { useConfirm } from '@/hooks/useConfirm';
 import { useUI } from '@/providers/UIProvider';
-import Modal from '@/components/ui/modal';
+import Modal from '@/components/ui/modal.tsx';
 
 export default function UIExample() {
   const toast = useToast();

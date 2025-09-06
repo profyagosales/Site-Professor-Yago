@@ -1,8 +1,8 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import AppShell from '@/components/AppShell';
-import { Table, Th, Td, ResponsiveTable } from '@/components/ui/table';
-import { MobileCard, TableCard } from '@/components/ui/mobile-card';
+import { Table, Th, Td, ResponsiveTable } from '@/components/ui/table.tsx';
+import { MobileCard, TableCard } from '@/components/ui/mobile-card.tsx';
 
 // Mock do localStorage
 const mockLocalStorage = {

@@ -1,6 +1,6 @@
 import { Page } from '@/components/Page';
 import { Card } from '@/components/ui/card.tsx';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/button.tsx';
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import GradeMatrix from '@/components/GradeMatrix';

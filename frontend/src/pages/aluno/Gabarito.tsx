@@ -1,5 +1,5 @@
 import { Page } from '@/components/Page';
-import { Card } from '@/components/ui/card';
+import { Card } from '@/components/ui/card.tsx';
 
 export default function AlunoGabarito() {
   return (
