@@ -74,14 +74,6 @@ class AppErrorBoundary extends Component<Props, State> {
     this.setState({ hasError: false, error: undefined, errorInfo: undefined });
   };
 
-  handleReload = () => {
-    logger.info('User reloaded page after error', {
-      component: 'AppErrorBoundary',
-      action: 'reload',
-    });
-    window.location.reload();
-  };
-
   render() {
     if (this.state.hasError) {
       if (this.props.fallback) {
@@ -143,13 +135,6 @@ class AppErrorBoundary extends Component<Props, State> {
                 className='px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors'
               >
                 Tentar Novamente
-              </button>
-
-              <button
-                onClick={this.handleReload}
-                className='px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors'
-              >
-                Recarregar Página
               </button>
             </div>
 

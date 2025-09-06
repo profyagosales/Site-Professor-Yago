@@ -1,5 +1,4 @@
 import { toast } from 'react-toastify';
-import { ROUTES } from '@/routes';
 
 export const STORAGE_TOKEN_KEY = 'auth_token';
 
@@ -131,17 +130,7 @@ function performAutoLogout(): void {
   });
 
   // Redireciona conforme contexto
-  const currentPath = window.location.pathname;
-  let redirectPath = ROUTES.home;
-
-  if (currentPath.startsWith('/aluno')) {
-    redirectPath = ROUTES.auth.loginAluno;
-  } else if (currentPath.startsWith('/professor')) {
-    redirectPath = ROUTES.auth.loginProf;
-  }
-
-  // Usa replace para evitar voltar à página anterior
-  window.location.replace(redirectPath);
+  // Navegação controlada deve ser feita externamente
 }
 
 /**

@@ -12,9 +12,11 @@ export function isAuthenticated(): boolean {
   return !!getToken();
 }
 
-export function ensureAuthOrRedirect(): void {
+export function ensureAuthOrRedirect(
+  navigate: (to: string, opts?: any) => void
+): void {
   if (!isAuthenticated()) {
-    window.location.replace(ROUTES.auth.loginProf);
+    navigate(ROUTES.auth.loginProf, { replace: true });
   }
 }
 

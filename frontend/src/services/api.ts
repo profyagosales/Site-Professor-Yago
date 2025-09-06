@@ -1,12 +1,7 @@
 import axios from 'axios';
 import type { AxiosResponse, AxiosRequestConfig, AxiosError } from 'axios';
-import { ROUTES } from '@/routes';
 import { getToken, clearSession, isTokenExpired } from '@/auth/token';
-import {
-  getSessionToken,
-  performLogout,
-  LOGIN_ROUTES,
-} from '@/services/session';
+import { getSessionToken } from '@/services/session';
 import { logger } from '@/lib/logger';
 import { toast } from 'react-toastify';
 import {
@@ -30,6 +25,36 @@ export const api = axios.create({
   baseURL: base,
   timeout: 15000, // 15 segundos de timeout
 });
+
+let interceptorsInstalled = false;
+export function installApiInterceptors(
+  logout: () => void,
+  navigate: (to: string, opts?: any) => void
+) {
+  if (interceptorsInstalled) return;
+  interceptorsInstalled = true;
+
+  api.interceptors.response.use(
+    res => res,
+    err => {
+      const status = err?.response?.status;
+      if (status === 401) {
+        try {
+          logout();
+        } catch {}
+        if (
+          typeof window !== 'undefined' &&
+          window.location.pathname !== '/login'
+        ) {
+          try {
+            navigate('/login', { replace: true });
+          } catch {}
+        }
+      }
+      return Promise.reject(err);
+    }
+  );
+}
 
 // aplica header Authorization dinamicamente
 export function setAuthToken(token?: string) {
@@ -172,8 +197,6 @@ api.interceptors.request.use(config => {
 });
 
 // Interceptor de response com retry para GET e tratamento de 401
-let isRedirecting = false; // Evita múltiplos redirecionamentos
-
 api.interceptors.response.use(
   response => {
     // Log da resposta bem-sucedida
@@ -210,21 +233,6 @@ api.interceptors.response.use(
       error,
       duration
     );
-
-    // Tratamento de 401 - limpa token e redireciona
-    if (error.response?.status === 401 && !isRedirecting) {
-      isRedirecting = true;
-
-      logger.authError('Token expired or invalid', error, {
-        action: 'api',
-        method: config.method?.toUpperCase(),
-        url: config.url,
-      });
-
-      // Usa o novo sistema de sessão para logout
-      performLogout('UNAUTHORIZED');
-      return Promise.reject(error);
-    }
 
     // Processa erro com mapa de erros
     const processedError = processApiError(error, config);

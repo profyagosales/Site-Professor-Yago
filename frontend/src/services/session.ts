@@ -11,10 +11,8 @@ import {
   SESSION_TTL,
   IDLE_TIMEOUT,
   LOGOUT_MESSAGES,
-  LOGIN_ROUTES,
   type SessionData,
 } from '@/config/auth';
-import { ROUTES } from '@/routes';
 import { logger } from '@/lib/logger';
 
 // Callbacks para notificar mudanças de sessão
@@ -221,17 +219,7 @@ export function performLogout(
   }
 
   // Redireciona para login apropriado
-  const currentPath = window.location.pathname;
-  let redirectPath = ROUTES.home;
-
-  if (currentPath.startsWith('/aluno')) {
-    redirectPath = LOGIN_ROUTES.aluno;
-  } else if (currentPath.startsWith('/professor')) {
-    redirectPath = LOGIN_ROUTES.professor;
-  }
-
-  // Usa replace para evitar voltar à página anterior
-  window.location.replace(redirectPath);
+  // Navegação controlada deve ser feita externamente
 }
 
 /**
