@@ -15,3 +15,6 @@ export function Select({ children, className = "", ...props }: SelectProps) {
     </select>
   );
 }
+
+// ✅ compatibilidade: permite importar como named OU default
+export default Select;

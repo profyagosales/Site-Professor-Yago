@@ -1,45 +1,42 @@
-import type { ReactNode } from "react";
-import { useEffect } from "react";
+import * as React from 'react';
 
-interface ModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  children: ReactNode;
-  title?: string;
+type ModalProps = {
+  open: boolean;
+  onOpenChange?: (open: boolean) => void;
+  title?: React.ReactNode;
+  description?: React.ReactNode;
+  footer?: React.ReactNode;
   className?: string;
-}
+  children?: React.ReactNode;
+};
 
-export default function Modal({ isOpen, onClose, children, title, className = "" }: ModalProps) {
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen]);
-
-  if (!isOpen) return null;
+export function Modal({
+  open,
+  onOpenChange,
+  title,
+  description,
+  footer,
+  className,
+  children,
+}: ModalProps) {
+  if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div 
-        className="fixed inset-0 bg-black/50" 
-        onClick={onClose}
+    <div role="dialog" aria-modal="true" className={`fixed inset-0 z-50 ${className ?? ''}`}>
+      <div
+        className="fixed inset-0 bg-black/50"
+        onClick={() => onOpenChange?.(false)}
+        aria-hidden="true"
       />
-      <div className={`relative bg-white rounded-lg shadow-lg max-w-md w-full mx-4 ${className}`}>
-        {title && (
-          <div className="px-6 py-4 border-b border-ys-line">
-            <h3 className="text-lg font-semibold text-ys-ink">{title}</h3>
-          </div>
-        )}
-        <div className="p-6">
-          {children}
-        </div>
+      <div className="relative z-10 mx-auto mt-10 w-[min(96vw,720px)] rounded-xl bg-white p-4 shadow-lg">
+        {title ? <h2 className="mb-1 text-lg font-semibold">{title}</h2> : null}
+        {description ? <p className="mb-3 text-sm text-gray-600">{description}</p> : null}
+        <div>{children}</div>
+        {footer ? <div className="mt-4">{footer}</div> : null}
       </div>
     </div>
   );
 }
+
+// ✅ compatibilidade: permite importar como named OU default
+export default Modal;
