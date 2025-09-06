@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setToken(null);
         setState({ loading: false, role: null });
       });
-  }, [setToken, location.pathname]);
+  }, [setToken]);
 
   async function loginTeacher(email: string, password: string) {
     const { data } = await api.post('/auth/login-teacher', { email, password });

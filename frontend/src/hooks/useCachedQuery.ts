@@ -160,7 +160,7 @@ export function useCachedQuery<T>(
         // Error já foi tratado no promise
       }
     },
-    [enabled, ttlMs]
+    [enabled, ttlMs, key, fetcher]
   );
 
   // Função para refresh manual

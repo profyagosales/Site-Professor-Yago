@@ -6,9 +6,9 @@ import { useParams, Link } from 'react-router-dom';
 import { getClassById } from '@/services/classes';
 import { ROUTES } from '@/routes';
 import { toast } from 'react-toastify';
-import { HorarioTurma } from '@/components/schedule/HorarioTurma';
-import { AlunosTurma } from '@/components/schedule/AlunosTurma';
-import { NotasTurma } from '@/components/schedule/NotasTurma';
+import HorarioTurma from '@/components/schedule/HorarioTurma';
+import AlunosTurma from '@/components/schedule/AlunosTurma';
+import NotasTurma from '@/components/schedule/NotasTurma';
 
 export default function TurmaDetalhes() {
   const { id: classId } = useParams();

@@ -42,7 +42,7 @@ export function useEssays(initialStatus: EssayStatus) {
 
   useEffect(() => {
     load();
-  }, [status, page, pageSize, q, classId]);
+  }, [status, page, pageSize, q, classId, extra.bimester, extra.type]);
 
   return {
     status,

@@ -12,7 +12,7 @@
  * - Logging para debugging
  */
 
-import { toast } from '@/components/ui/toast-provider';
+import { toast } from 'react-toastify';
 import { wrapInterval } from '@/lib/net-debug';
 
 /**

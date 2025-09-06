@@ -60,11 +60,11 @@ export function useRevalidationConfig() {
 export function useRevalidationDebug() {
   const config = useDataConfig();
   
-  const logRevalidation = (source: string, key: string, reason: string) => {
+  const logRevalidation = React.useCallback((source: string, key: string, reason: string) => {
     if (config.enableDebugLogging) {
       console.info(`[DataRevalidation] ${source}: ${key} - ${reason}`);
     }
-  };
+  }, [config.enableDebugLogging]);
   
   return { logRevalidation };
 }
@@ -137,11 +137,11 @@ export function useLocalRevalidation(
         console.info(`[DataRevalidation] Configuração local para ${key}:`, overrides);
       }
     }
-  }, [localConfig, globalConfig, key]);
+  }, [localConfig, globalConfig]);
   
   return {
     config,
-    logRevalidation: (reason: string) => logRevalidation('Local', key, reason),
+    logRevalidation: React.useCallback((reason: string) => logRevalidation('Local', key, reason), [logRevalidation, key]),
   };
 }
 
@@ -151,18 +151,18 @@ export function useRevalidationMonitor() {
   const [revalidationCount, setRevalidationCount] = React.useState(0);
   const [lastRevalidation, setLastRevalidation] = React.useState<Date | null>(null);
   
-  const logRevalidation = (source: string, key: string, reason: string) => {
+  const logRevalidation = React.useCallback((source: string, key: string, reason: string) => {
     if (config.enableDebugLogging) {
       setRevalidationCount(prev => prev + 1);
       setLastRevalidation(new Date());
       console.info(`[DataRevalidation] ${source}: ${key} - ${reason}`);
     }
-  };
+  }, [config.enableDebugLogging]);
   
-  const resetCount = () => {
+  const resetCount = React.useCallback(() => {
     setRevalidationCount(0);
     setLastRevalidation(null);
-  };
+  }, []);
   
   return {
     revalidationCount,

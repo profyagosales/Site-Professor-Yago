@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Modal } from '@/components/ui/modal';
+import Modal from '@/components/ui/modal';
 import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
+import Select from '@/components/ui/select';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { 
@@ -11,12 +11,12 @@ import {
   createAplicacao, 
   updateAplicacaoStatus,
   listGabaritos,
-  listClasses,
   calculateAplicacaoStats,
   type AplicacaoGabarito,
   type Gabarito,
   type ProcessamentoOMR
 } from '@/services/gabaritos';
+import { listClasses } from '@/services/classes';
 import { ROUTES } from '@/routes';
 
 export default function AplicacoesGabarito() {

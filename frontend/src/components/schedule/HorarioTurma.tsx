@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Modal } from '@/components/ui/modal';
+import Modal from '@/components/ui/modal';
 import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
+import Select from '@/components/ui/select';
 import { toast } from 'react-toastify';
 import {
   listSchedules,

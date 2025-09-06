@@ -73,6 +73,36 @@ export async function listAnnouncementsForStudents(classIds: string[]): Promise<
 }
 
 /**
+ * Lista avisos para um aluno específico (alias para listAnnouncementsForStudents)
+ */
+export async function listStudentAnnouncements(classIds: string[]): Promise<Announcement[]> {
+  return listAnnouncementsForStudents(classIds);
+}
+
+/**
+ * Processa avisos para exibição (filtra e ordena)
+ */
+export function processAnnouncements(announcements: Announcement[]): Announcement[] {
+  return announcements
+    .filter(announcement => {
+      // Filtrar apenas avisos publicados ou agendados para hoje
+      const now = new Date();
+      const publishAt = announcement.publishAt ? new Date(announcement.publishAt) : null;
+      
+      if (announcement.isPublished) return true;
+      if (announcement.isScheduled && publishAt && publishAt <= now) return true;
+      
+      return false;
+    })
+    .sort((a, b) => {
+      // Ordenar por data de publicação (mais recentes primeiro)
+      const dateA = a.publishAt ? new Date(a.publishAt) : new Date(a.createdAt);
+      const dateB = b.publishAt ? new Date(b.publishAt) : new Date(b.createdAt);
+      return dateB.getTime() - dateA.getTime();
+    });
+}
+
+/**
  * Cria um novo aviso
  */
 export async function createAnnouncement(data: CreateAnnouncementData): Promise<Announcement> {
@@ -290,6 +320,8 @@ export function getPriorityOptions(): Array<{ value: string; label: string; colo
 export default {
   listAnnouncements,
   listAnnouncementsForStudents,
+  listStudentAnnouncements,
+  processAnnouncements,
   createAnnouncement,
   updateAnnouncement,
   deleteAnnouncement,
