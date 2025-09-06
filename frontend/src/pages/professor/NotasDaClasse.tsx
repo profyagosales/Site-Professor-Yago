@@ -1,5 +1,5 @@
 import { Page } from '@/components/Page';
-import { Card } from '@/components/ui/card';
+import { Card } from '@/components/ui/card.tsx';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
