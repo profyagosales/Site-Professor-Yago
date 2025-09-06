@@ -19,4 +19,3 @@ export function CardTitle({ children }: { children: ReactNode }) {
 export function CardSub({ children }: { children: ReactNode }) {
   return <p className="text-sm text-ys-ink-2">{children}</p>;
 }
-

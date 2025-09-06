@@ -1,7 +1,7 @@
 import AuthShell from '@/components/auth/AuthShell';
-import { CardBody } from '@/components/ui/card';
-import { Field } from '@/components/ui/field';
-import { Button } from '@/components/ui/button';
+import { CardBody } from '@/components/ui/Card';
+import { Field } from '@/components/ui/Field';
+import { Button } from '@/components/ui/Button';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { count } from '@/lib/net-debug';

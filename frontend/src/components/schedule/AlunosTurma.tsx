@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ROUTES } from '@/routes';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 
 interface AlunosTurmaProps {
   classId: string;

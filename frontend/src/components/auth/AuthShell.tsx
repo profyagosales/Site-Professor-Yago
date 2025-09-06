@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Card, CardBody } from '@/components/ui/card';
+import { Card, CardBody } from '@/components/ui/Card';
 import { Link } from 'react-router-dom';
 import { ROUTES } from '@/routes';
 import { useBackNavigation } from '@/hooks/useBackNavigation';

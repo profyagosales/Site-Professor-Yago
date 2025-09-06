@@ -15,4 +15,3 @@ export const Th = ({ children }: { children: ReactNode }) => (
 export const Td = ({ children }: { children: ReactNode }) => (
   <td className="text-ys-ink-2 px-4 py-3 border-b border-ys-line">{children}</td>
 );
-

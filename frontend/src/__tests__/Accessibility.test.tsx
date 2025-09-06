@@ -2,8 +2,8 @@ import { render, screen } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import { BrowserRouter } from 'react-router-dom';
 import AuthShell from '@/components/auth/AuthShell';
-import { Field } from '@/components/ui/field';
-import { Button } from '@/components/ui/button';
+import { Field } from '@/components/ui/Field';
+import { Button } from '@/components/ui/Button';
 import AppShell from '@/components/AppShell';
 
 // Configurar jest-axe
