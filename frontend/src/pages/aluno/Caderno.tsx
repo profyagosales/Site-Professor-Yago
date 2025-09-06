@@ -1,6 +1,6 @@
 import { Page } from '@/components/Page';
-import { Card } from '@/components/ui/card.tsx';
-import { Button } from '@/components/ui/button.tsx';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getStudentProfile } from '@/services/student';

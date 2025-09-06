@@ -1,6 +1,6 @@
 import { Page } from '@/components/Page';
-import { Button } from '@/components/ui/button.tsx';
-import { Table, Th, Td } from '@/components/ui/table.tsx';
+import { Button } from '@/components/ui/button';
+import { Table, Th, Td } from '@/components/ui/table';
 import React, { useState } from 'react';
 import EditStudentModal from '@/components/EditStudentModal';
 import { useParams, Link } from 'react-router-dom';

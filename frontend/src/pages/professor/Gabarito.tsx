@@ -1,6 +1,6 @@
 import { Page } from '@/components/Page';
-import { Card } from '@/components/ui/card.tsx';
-import { Button } from '@/components/ui/button.tsx';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { 
   GabaritosEmBranco, 

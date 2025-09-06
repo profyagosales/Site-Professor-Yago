@@ -1,5 +1,5 @@
 import { Page } from '@/components/Page';
-import { Card } from '@/components/ui/card.tsx';
+import { Card } from '@/components/ui/card';
 
 export default function ResumoAluno() {
   return (
