@@ -9,10 +9,10 @@
  * - Tratamento de 204 como sucesso
  */
 
-import { api } from './api';
+import { httpGet, httpPost, httpPut } from './http';
 import { useState, useEffect, useCallback } from 'react';
 import { debouncePromise } from '@/utils/debouncePromise';
-import type { Annotation } from '@/types/annotations';
+import type { Annotation } from '@/types/redacao';
 import type { Anno } from '@/types/annotations';
 
 // Tipos para o serviço
@@ -42,10 +42,13 @@ export async function getAnnotations(
   essayId: string
 ): Promise<AnnotationsPayload> {
   try {
-    const response = await api.get(`/essays/${essayId}/annotations`);
+    const data = await httpGet<{
+      annotations?: Annotation[];
+      richAnnotations?: Anno[];
+    }>(`/essays/${essayId}/annotations`);
     return {
-      annotations: response.data.annotations || [],
-      richAnnotations: response.data.richAnnotations || [],
+      annotations: data.annotations || [],
+      richAnnotations: data.richAnnotations || [],
     };
   } catch (error: any) {
     console.error('Erro ao buscar anotações:', error);
@@ -67,16 +70,9 @@ async function _saveAnnotations(
       // Authorization será adicionado automaticamente pelo interceptor
     };
 
-    const response = await api.put(`/essays/${essayId}/annotations`, payload, {
+    await httpPut<void>(`/essays/${essayId}/annotations`, payload, {
       headers,
     });
-
-    // Trata 204 como sucesso (alguns backends não retornam body)
-    if (response.status === 204 || response.status === 200) {
-      return;
-    }
-
-    throw new Error(`Status inesperado: ${response.status}`);
   } catch (error: any) {
     // Log específico para erros CORS
     if (
@@ -108,11 +104,10 @@ export async function createAnnotation(
   annotation: Annotation
 ): Promise<Annotation> {
   try {
-    const response = await api.post(
+    return httpPost<Annotation>(
       `/essays/${essayId}/annotations`,
       annotation
     );
-    return response.data;
   } catch (error: any) {
     console.error('Erro ao criar anotação:', error);
     throw new Error('Falha ao criar anotação');
