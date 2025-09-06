@@ -57,3 +57,7 @@ export function TableHeader({ children, className = "" }: { children: ReactNode;
     </th>
   );
 }
+
+// Aliases para compatibilidade
+export const Th = TableHeader;
+export const Td = TableCell;
