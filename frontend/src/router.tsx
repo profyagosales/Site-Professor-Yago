@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { ROUTES } from '@/routes';
 import { validateAndReportRoutes } from '@/routes/validateRoutes';
+import RootLayout from '@/layouts/RootLayout';
 
 // Layouts - carregamento imediato (críticos)
 import PublicLayout from '@/layouts/PublicLayout';
@@ -45,7 +46,7 @@ const GradeWorkspace = lazy(
   () => import('@/pages/professor/redacao/GradeWorkspace')
 );
 
-export const router = createBrowserRouter([
+const routes = [
   {
     element: <PublicLayout />,
     children: [
@@ -360,6 +361,14 @@ export const router = createBrowserRouter([
   },
   { path: '/redacao', element: <Navigate to={ROUTES.prof.redacao} replace /> },
   { path: ROUTES.notFound, element: <NotFound /> },
+];
+
+export const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <RootLayout />,
+    children: routes,
+  },
 ]);
 
 // Validar rotas em desenvolvimento
