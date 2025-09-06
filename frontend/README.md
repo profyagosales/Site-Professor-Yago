@@ -61,6 +61,18 @@ VITE_VIRT_PDF=true
 VITE_VIRT_BUFFER=2
 ```
 
+#### Flags do Service Worker
+
+Por padrão, nenhum Service Worker é registrado. Para habilitar ou forçar a
+desinstalação em clientes antigos, use as flags abaixo no `.env` do frontend:
+
+```env
+# registra o Service Worker (opcional)
+VITE_ENABLE_SW=1
+# desinstala e limpa caches em clientes existentes
+VITE_DISABLE_SW=1
+```
+
 ### 3. Executar Servidores
 ```bash
 # Na raiz do projeto
