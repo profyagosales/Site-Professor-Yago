@@ -81,7 +81,7 @@ export default defineConfig([
       
       // Regras de React
       'react-hooks/rules-of-hooks': 'error',
-      'react-hooks/exhaustive-deps': 'off',
+      'react-hooks/exhaustive-deps': 'warn',
       'react-refresh/only-export-components': 'off',
       
       // Regras gerais

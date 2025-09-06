@@ -24,6 +24,9 @@ import { loadAnalyticsOnce } from './lib/analytics-singleton';
 import { registerSWOnce, uninstallSWIfFlagged } from './sw/registerSWOnce';
 import { DataProvider } from './providers/DataProvider';
 
+uninstallSWIfFlagged();  // limpa se forçado por flag
+registerSWOnce();        // só registra se VITE_ENABLE_SW=1
+
 // Bootstrap da autenticação com novo sistema de sessão
 function bootstrapAuth() {
   bootstrapAuthFromStorage();
@@ -45,8 +48,6 @@ function bootstrapAnalytics() {
 // garantir que roda antes do <App/>
 bootstrapAuth();
 bootstrapAnalytics();
-uninstallSWIfFlagged();  // se VITE_DISABLE_SW=1, limpa SW + caches
-registerSWOnce();        // só registra se VITE_ENABLE_SW=1
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
