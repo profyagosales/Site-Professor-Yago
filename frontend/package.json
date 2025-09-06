@@ -31,7 +31,8 @@
     "seed:dev:backend": "tsx scripts/seed-dev.ts --backend --verbose",
     "seed:dev:clear": "tsx scripts/seed-dev.ts --clear --verbose",
     "check-all": "npm run lint && npm test && npm run e2e && npm run validate-routes && npm run check:pdf-imports && npm run vercel:preflight",
-    "check-all:ci": "npm run lint && npm test && npm run e2e --reporter=json && npm run validate-routes && npm run check:pdf-imports && npm run vercel:preflight"
+    "check-all:ci": "npm run lint && npm test && npm run e2e --reporter=json && npm run validate-routes && npm run check:pdf-imports && npm run vercel:preflight",
+    "sw:status": "node -e \"console.log('Set VITE_ENABLE_SW=1 para registrar SW; VITE_DISABLE_SW=1 para desinstalar em clientes.')\""
   },
   "dependencies": {
     "axios": "^1.11.0",

@@ -21,7 +21,7 @@ import { AuthProvider } from './store/AuthContext';
 import { UIProvider } from './providers/UIProvider';
 import { ToastProvider } from './components/ui/toast-provider';
 import { loadAnalyticsOnce } from './lib/analytics-singleton';
-import { registerSWOnce } from './sw/register';
+import { registerSWOnce, uninstallSWIfFlagged } from './sw/registerSWOnce';
 import { DataProvider } from './providers/DataProvider';
 
 // Bootstrap da autenticação com novo sistema de sessão
@@ -42,21 +42,11 @@ function bootstrapAnalytics() {
   }
 }
 
-// Bootstrap do Service Worker (apenas uma vez) - Patch 3
-function bootstrapServiceWorker() {
-  // Registrar Service Worker apenas em produção ou quando explicitamente habilitado
-  const shouldRegisterSW = import.meta.env.PROD || import.meta.env.VITE_SW_ENABLED === 'true';
-  
-  if (shouldRegisterSW) {
-    registerSWOnce(); // chame só uma vez - sem reload automático
-    console.info('[SW] Service Worker registrado (sem reload automático)');
-  }
-}
-
 // garantir que roda antes do <App/>
 bootstrapAuth();
 bootstrapAnalytics();
-bootstrapServiceWorker();
+uninstallSWIfFlagged();  // se VITE_DISABLE_SW=1, limpa SW + caches
+registerSWOnce();        // só registra se VITE_ENABLE_SW=1
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
