@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import Modal from '@/components/ui/Modal';
-import { Input } from '@/components/ui/Input';
-import Textarea from '@/components/ui/Textarea';
+import Modal from '@/components/ui/Modal.tsx';
+import { Input } from '@/components/ui/Input.tsx';
+import Textarea from '@/components/ui/Textarea.tsx';
 import { toast } from 'react-toastify';
 import { 
   createGabarito, 

@@ -1,5 +1,5 @@
 import { useUI } from '@/providers/UIProvider';
-import ConfirmModal from '@/components/ui/ConfirmModal';
+import ConfirmModal from '@/components/ui/ConfirmModal.tsx';
 import { useState } from 'react';
 import React from 'react';
 
