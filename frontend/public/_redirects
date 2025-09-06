@@ -1,5 +1,0 @@
-# SPA Routing - todas as rotas vão para index.html
-/*    /index.html   200
-
-# API Proxy - redireciona /api/* para o backend
-/api/*  https://api.professoryagosales.com.br/:splat  200
