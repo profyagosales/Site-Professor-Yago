@@ -14,11 +14,20 @@ export function AuthGate({
   requireAuth = true,
   allowedRoles = ['student', 'teacher'],
 }: AuthGateProps) {
-  const { auth } = useAuth()
+  const { auth, isLoading } = useAuth()
   const location = useLocation()
   
   // Evita redirecionamentos em cascata em um único ciclo de renderização
   const redirectedRef = useRef(false)
+  
+  // Enquanto está carregando, mostra um indicador de loading
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700"></div>
+      </div>
+    )
+  }
   
   // Se não precisa de autenticação, deixa passar
   if (!requireAuth) {
@@ -36,8 +45,8 @@ export function AuthGate({
   if (
     requireAuth &&
     auth.isAuthenticated &&
-    auth.role &&
-    !allowedRoles.includes(auth.role)
+    auth.user?.role &&
+    !allowedRoles.includes(auth.user.role)
   ) {
     if (redirectedRef.current) return null
     redirectedRef.current = true
