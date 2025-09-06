@@ -12,14 +12,14 @@
     },
     "allowJs": true,
     "checkJs": false,
-    "moduleResolution": "Bundler",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
-    "strict": false,
+    "strict": true,
     "noImplicitAny": false,
     "strictNullChecks": false,
     "strictFunctionTypes": false,
@@ -27,20 +27,13 @@
     "noFallthroughCasesInSwitch": false,
     "noUncheckedIndexedAccess": false,
     "exactOptionalPropertyTypes": false,
-    "types": ["vitest/globals", "vite/client"]
+    "types": ["vitest/globals", "vite/client", "node"]
   },
-  "include": [
-    "src/**/*",
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "src/**/*.js",
-    "src/**/*.jsx"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "apps/pdf-viewer/dist",
-    "src/__tests__"
-  ],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "include": ["src", "src/**/*.d.ts"],
+  "exclude": ["node_modules", "dist", "apps/pdf-viewer/dist", "src/__tests__"],
+  "references": [
+    {
+      "path": "./tsconfig.node.json"
+    }
+  ]
 }
