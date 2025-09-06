@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import Modal from '@/components/ui/modal';
+import Modal from '@/components/ui/Modal';
 import { Input } from '@/components/ui/input';
 import Textarea from '@/components/ui/textarea';
 import { toast } from 'react-toastify';

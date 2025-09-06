@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { wrapInterval, count } from '@/lib/net-debug';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import Modal from '@/components/ui/modal';
+import Modal from '@/components/ui/Modal';
 import Select from '@/components/ui/select';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
