@@ -2,6 +2,12 @@ import React, { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/store/AuthStateProvider';
 import { installApiInterceptors } from '@/services/api';
+import {
+  PUBLIC_ROUTES,
+  HOME_PATH,
+  LOGIN_ALUNO_PATH,
+  LOGIN_PROFESSOR_PATH,
+} from '@/routes/paths';
 
 export function AuthGate(): null {
   const { user, loading, logout } = useAuth();
@@ -18,9 +24,8 @@ export function AuthGate(): null {
   useEffect(() => {
     if (loading) return;
 
-    const isPublic =
-      location.pathname.startsWith('/login') ||
-      location.pathname.startsWith('/recuperar-senha');
+    const path = location.pathname;
+    const isPublic = PUBLIC_ROUTES.has(path);
 
     const redirectOnce = (to: string) => {
       if (redirectedOnceRef.current) return;
@@ -29,13 +34,15 @@ export function AuthGate(): null {
       setTimeout(() => (redirectedOnceRef.current = false), 0);
     };
 
+    // Não autenticado: só bloqueia rotas privadas
     if (!user && !isPublic) {
-      redirectOnce('/login');
+      redirectOnce(LOGIN_ALUNO_PATH); // login padrão
       return;
     }
 
-    if (user && isPublic) {
-      redirectOnce('/');
+    // Autenticado: se está numa tela de login, manda pra home
+    if (user && (path === LOGIN_ALUNO_PATH || path === LOGIN_PROFESSOR_PATH)) {
+      redirectOnce(HOME_PATH);
       return;
     }
   }, [user, loading, location.pathname, navigate]);
