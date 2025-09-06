@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import Modal from '@/components/ui/Modal';
-import { Input } from '@/components/ui/Input';
-import Select from '@/components/ui/Select';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import Modal from '@/components/ui/modal';
+import { Input } from '@/components/ui/input';
+import Select from '@/components/ui/select';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { 
