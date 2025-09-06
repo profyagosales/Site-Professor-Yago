@@ -1,5 +1,5 @@
 import React from 'react';
-import Modal from './modal';
+import Modal from './Modal';
 import { useUI } from '@/providers/UIProvider';
 
 interface ConfirmModalProps {
