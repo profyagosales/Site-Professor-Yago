@@ -5,16 +5,18 @@ import {
   useState,
   ReactNode,
   useCallback,
+  useRef,
 } from 'react';
-import { api, setAuthToken, STORAGE_TOKEN_KEY } from '@/services/api';
 import {
-  createSession,
-  getSessionRole,
-  performLogout,
-} from '@/services/session';
+  api,
+  setAuthToken,
+  STORAGE_TOKEN_KEY,
+  installApiInterceptors,
+} from '@/services/api';
+import { createSession, performLogout } from '@/services/session';
 import { useSession } from '@/hooks/useSession';
 import { shouldCallAuthMe, useRouteDebug } from '@/lib/route-guards';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 // meta: evitar fetch sem token e expor helpers simples
 type AuthState = {
@@ -41,6 +43,8 @@ const AuthContext = createContext<AuthCtx>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ loading: true, role: null });
   const location = useLocation();
+  const navigate = useNavigate();
+  const redirectOnceRef = useRef(false);
 
   // Hook de sessão para gerenciar TTL, idle e sincronização
   const { sessionInfo, updateActivity } = useSession({
@@ -106,6 +110,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
   }, [setToken]);
 
+  useEffect(() => {
+    if (state.loading) return;
+
+    const resetAfterTick = () =>
+      setTimeout(() => {
+        redirectOnceRef.current = false;
+      }, 0);
+
+    const isPublicPath =
+      location.pathname.startsWith('/login') ||
+      location.pathname.startsWith('/recuperar-senha');
+
+    if (!state.user && !isPublicPath) {
+      if (!redirectOnceRef.current) {
+        redirectOnceRef.current = true;
+        navigate('/login', { replace: true });
+        resetAfterTick();
+      }
+      return;
+    }
+
+    if (state.user && isPublicPath) {
+      if (!redirectOnceRef.current) {
+        redirectOnceRef.current = true;
+        navigate('/', { replace: true });
+        resetAfterTick();
+      }
+      return;
+    }
+  }, [state.user, state.loading, location.pathname, navigate]);
+
   async function loginTeacher(email: string, password: string) {
     const { data } = await api.post('/auth/login-teacher', { email, password });
     if (data?.token) {
@@ -150,6 +185,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     setState({ loading: false, role: null });
   }
+
+  useEffect(() => {
+    installApiInterceptors(logout, (to, opts) => navigate(to, opts));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <AuthContext.Provider
