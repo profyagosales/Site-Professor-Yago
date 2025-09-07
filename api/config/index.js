@@ -18,12 +18,14 @@ const config = {
       // Split APP_DOMAIN into array if it's a comma-separated string
       const domains = process.env.APP_DOMAIN ? process.env.APP_DOMAIN.split(',') : [];
       
-      // Aceitar qualquer origem de domínio Vercel
+      // Aceitar qualquer origem de domínio Vercel ou domínio personalizado
       if (origin && (
           origin.includes('vercel.app') || 
           origin.includes('professoryagosales.com.br')
       )) {
         console.log(`Aceitando origem Vercel/domínio personalizado: ${origin}`);
+        // Definir origem específica no cabeçalho Access-Control-Allow-Origin
+        // Isso é necessário para que os cookies funcionem corretamente
         return callback(null, true);
       }
       

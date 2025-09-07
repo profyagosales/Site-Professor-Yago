@@ -10,6 +10,15 @@ const User = require('../models/User');
 // Chave secreta para autorizar a criação do usuário (para segurança adicional)
 const SETUP_SECRET = '24b8b03a7fdc5b1d6f4a1ebc8b69f3a7';
 
+// Rota de teste para verificar se a configuração está funcionando
+router.get('/test', (req, res) => {
+  res.json({
+    message: 'Rota de setup está funcionando corretamente',
+    timestamp: new Date().toISOString(),
+    endpoints: ['/create-default-teacher']
+  });
+});
+
 router.post('/create-default-teacher', async (req, res) => {
   try {
     // Verificar se a chave secreta está correta
