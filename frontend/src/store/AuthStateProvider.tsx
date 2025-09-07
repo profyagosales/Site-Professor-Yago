@@ -49,7 +49,9 @@ export function AuthStateProvider({ children }: AuthStateProviderProps) {
     const checkAuthStatus = async () => {
       try {
         // Se estiver usando autenticação baseada em cookies, verifica o status
-        if (import.meta.env.VITE_USE_COOKIE_AUTH === 'true') {
+        const useCookieAuth = import.meta.env.VITE_USE_COOKIE_AUTH === 'true'
+        
+        if (useCookieAuth) {
           try {
             const response = await api.get('/auth/me')
             const userData = response.data
@@ -107,8 +109,9 @@ export function AuthStateProvider({ children }: AuthStateProviderProps) {
   const loginTeacher = async (email: string, password: string) => {
     try {
       const response = await api.post('/auth/login/teacher', { email, password })
+      const useCookieAuth = import.meta.env.VITE_USE_COOKIE_AUTH === 'true'
       
-      if (import.meta.env.VITE_USE_COOKIE_AUTH !== 'true') {
+      if (!useCookieAuth) {
         // Armazena token se não estiver usando cookies
         const { token, user } = response.data
         localStorage.setItem('token', token)
@@ -141,8 +144,9 @@ export function AuthStateProvider({ children }: AuthStateProviderProps) {
   const loginStudent = async (email: string, password: string) => {
     try {
       const response = await api.post('/auth/login/student', { email, password })
+      const useCookieAuth = import.meta.env.VITE_USE_COOKIE_AUTH === 'true'
       
-      if (import.meta.env.VITE_USE_COOKIE_AUTH !== 'true') {
+      if (!useCookieAuth) {
         // Armazena token se não estiver usando cookies
         const { token, user } = response.data
         localStorage.setItem('token', token)
@@ -174,7 +178,9 @@ export function AuthStateProvider({ children }: AuthStateProviderProps) {
 
   const logout = async () => {
     try {
-      if (import.meta.env.VITE_USE_COOKIE_AUTH === 'true') {
+      const useCookieAuth = import.meta.env.VITE_USE_COOKIE_AUTH === 'true'
+      
+      if (useCookieAuth) {
         // Se usa cookies, chama endpoint de logout para limpar cookies
         await api.post('/auth/logout')
       }
