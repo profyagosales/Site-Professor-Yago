@@ -18,6 +18,7 @@ const authRoutes = require('./routes/auth');
 const themesRoutes = require('./routes/themes');
 const essaysRoutes = require('./routes/essays');
 const uploadsRoutes = require('./routes/uploads');
+const setupRoutes = require('./routes/setup'); // Rota temporária para configuração
 
 const app = express();
 
@@ -68,6 +69,7 @@ app.use(`${apiPrefix}/auth`, authRoutes);
 app.use(`${apiPrefix}/themes`, themesRoutes);
 app.use(`${apiPrefix}/essays`, essaysRoutes);
 app.use(`${apiPrefix}/uploads`, uploadsRoutes);
+app.use(`${apiPrefix}/setup`, setupRoutes); // Rota temporária para configuração inicial
 
 // Error handler
 app.use(errorHandler);
