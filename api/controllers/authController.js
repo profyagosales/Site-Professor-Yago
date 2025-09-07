@@ -2,6 +2,7 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const config = require('../config');
+const { getAuthCookieOptions } = require('../utils/cookieUtils');
 
 // Login para professores
 exports.loginTeacher = async (req, res, next) => {

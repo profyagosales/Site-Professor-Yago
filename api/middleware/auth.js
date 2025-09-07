@@ -21,11 +21,23 @@ const authRequired = (roles = []) => {
           console.log('Headers disponíveis:', Object.keys(req.headers));
           console.log('Cookies disponíveis:', req.cookies ? Object.keys(req.cookies) : 'nenhum');
           console.log('USE_COOKIE_AUTH está definido como:', process.env.USE_COOKIE_AUTH);
-          return res.status(401).json({ message: 'Token de autenticação não fornecido' });
+          
+          // Verificar se existe algum cookie auth_token em qualquer formato
+          if (req.cookies) {
+            console.log('Cookies brutos:', JSON.stringify(req.cookies));
+          }
+          
+          // Verificar se existem outros cabeçalhos de autenticação
+          if (req.headers['x-access-token']) {
+            console.log('Encontrado cabeçalho x-access-token');
+            token = req.headers['x-access-token'];
+          } else {
+            return res.status(401).json({ message: 'Token de autenticação não fornecido' });
+          }
+        } else {
+          console.log('Usuário autenticado via token Bearer');
+          token = authHeader.split(' ')[1];
         }
-        
-        console.log('Usuário autenticado via token Bearer');
-        token = authHeader.split(' ')[1];
       }
       
       if (!token) {

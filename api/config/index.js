@@ -18,6 +18,15 @@ const config = {
       // Split APP_DOMAIN into array if it's a comma-separated string
       const domains = process.env.APP_DOMAIN ? process.env.APP_DOMAIN.split(',') : [];
       
+      // Aceitar qualquer origem de domínio Vercel
+      if (origin && (
+          origin.includes('vercel.app') || 
+          origin.includes('professoryagosales.com.br')
+      )) {
+        console.log(`Aceitando origem Vercel/domínio personalizado: ${origin}`);
+        return callback(null, true);
+      }
+      
       const allowlist = [
         ...domains,
         process.env.FRONTEND_URL,
@@ -37,6 +46,7 @@ const config = {
         callback(new Error('Not allowed by CORS'));
       }
     },
+    credentials: true, // IMPORTANTE: Habilitar o compartilhamento de credenciais (cookies)
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
     allowedHeaders: ['Authorization', 'Content-Type']

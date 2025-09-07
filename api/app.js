@@ -1,15 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-// Tentar importar cookie-parser de forma segura para não quebrar a inicialização
-let cookieParser;
-try {
-  cookieParser = require('cookie-parser');
-} catch (err) {
-  console.warn('Cookie-parser não encontrado. Autenticação por cookie não estará disponível.');
-  cookieParser = () => (req, res, next) => next(); // Mock function
-}
+const cookieParser = require('cookie-parser');
 const errorHandler = require('./middleware/errorHandler');
+const requestDebugger = require('./middleware/requestDebugger');
 const config = require('./config');
 
 // Routes
@@ -27,6 +21,7 @@ app.use(helmet());
 app.use(cors(config.corsOptions));
 app.use(express.json());
 app.use(cookieParser());
+app.use(requestDebugger); // Adicionar middleware de debug
 
 // Get API prefix from environment variable or use empty string
 // Necessário para ambientes como o Render que podem adicionar prefixos
@@ -41,8 +36,19 @@ app.get('/', (req, res) => {
     apiPrefix: apiPrefix,
     cookieAuthEnabled: process.env.USE_COOKIE_AUTH === 'true',
     mongoUri: config.mongoUri ? 'Configurado' : 'Não configurado',
-    corsOrigins: config.corsOptions.origin.toString(),
+    corsOrigins: typeof config.corsOptions.origin === 'function' ? 'Função dinâmica' : config.corsOptions.origin.toString(),
+    corsCredentials: config.corsOptions.credentials === true ? 'Habilitado' : 'Desabilitado',
     timestamp: new Date().toISOString(),
+    availableRoutes: [
+      `${apiPrefix}/auth/login/teacher`,
+      `${apiPrefix}/auth/login/student`,
+      `${apiPrefix}/auth/me`,
+      `${apiPrefix}/auth/me-test`,
+      `${apiPrefix}/auth/test`,
+      `${apiPrefix}/auth/set-test-cookie`,
+      `${apiPrefix}/health`,
+      `${apiPrefix}/setup/create-teacher`
+    ],
     envVars: {
       PORT: process.env.PORT,
       NODE_ENV: process.env.NODE_ENV,
@@ -50,6 +56,14 @@ app.get('/', (req, res) => {
       FRONTEND_URL: process.env.FRONTEND_URL,
       API_PREFIX: process.env.API_PREFIX,
       USE_COOKIE_AUTH: process.env.USE_COOKIE_AUTH
+    },
+    cookies: req.cookies || {},
+    headers: {
+      'content-type': req.headers['content-type'],
+      'user-agent': req.headers['user-agent'],
+      'origin': req.headers['origin'],
+      'host': req.headers['host'],
+      'referer': req.headers['referer']
     }
   });
 });
