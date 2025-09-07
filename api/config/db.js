@@ -3,10 +3,7 @@ const config = require('./index');
 
 const connectDB = async () => {
   try {
-    await mongoose.connect(config.mongoUri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    await mongoose.connect(config.mongoUri);
     console.log('MongoDB Connected');
   } catch (error) {
     console.error('MongoDB connection error:', error.message);
