@@ -41,7 +41,7 @@ const createDefaultTeacher = async () => {
     const newUser = new User({
       name: defaultTeacher.name,
       email: defaultTeacher.email,
-      password: hashedPassword,
+      passwordHash: hashedPassword, // Corrigido de password para passwordHash
       role: defaultTeacher.role,
       createdAt: defaultTeacher.createdAt
     });
