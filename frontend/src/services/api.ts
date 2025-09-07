@@ -1,14 +1,20 @@
 import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 
+// URL padrão para produção
+const defaultApiUrl = 'https://api.professoryagosales.com.br';
+
 // Criar instância do axios com configurações padrão
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: import.meta.env.VITE_API_BASE_URL || defaultApiUrl,
   headers: {
     'Content-Type': 'application/json',
   },
   // Sempre enviar cookies para suportar autenticação baseada em cookies
   withCredentials: true,
 });
+
+// Log da URL base usada
+console.log(`API Base URL: ${api.defaults.baseURL}`);
 
 // Interceptador para adicionar token de autenticação nas requisições
 api.interceptors.request.use(
