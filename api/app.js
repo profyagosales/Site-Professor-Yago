@@ -1,7 +1,14 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const cookieParser = require('cookie-parser');
+// Tentar importar cookie-parser de forma segura para não quebrar a inicialização
+let cookieParser;
+try {
+  cookieParser = require('cookie-parser');
+} catch (err) {
+  console.warn('Cookie-parser não encontrado. Autenticação por cookie não estará disponível.');
+  cookieParser = () => (req, res, next) => next(); // Mock function
+}
 const errorHandler = require('./middleware/errorHandler');
 const config = require('./config');
 
