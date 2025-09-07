@@ -30,6 +30,15 @@ app.use(cookieParser());
 // Get API prefix from environment variable or use empty string
 const apiPrefix = process.env.API_PREFIX || '';
 
+// Rota de diagnóstico direta que não depende do banco de dados
+app.get('/', (req, res) => {
+  res.json({
+    status: 'API está funcionando',
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Routes
 app.use(`${apiPrefix}/health`, healthRoutes);
 app.use(`${apiPrefix}/auth`, authRoutes);
