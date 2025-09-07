@@ -1,5 +1,6 @@
 const { PDFDocument, rgb } = require('pdf-lib');
-const fetch = require('node-fetch');
+// Usando importação dinâmica para node-fetch v3
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 // Cores para as categorias
 const COLORS = {

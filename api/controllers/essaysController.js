@@ -5,7 +5,8 @@ const config = require('../config');
 const cloudinaryService = require('../services/cloudinaryService');
 const pdfService = require('../services/pdfService');
 const emailService = require('../services/emailService');
-const fetch = require('node-fetch');
+// Usando importação dinâmica para node-fetch v3
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 // Listar redações com filtros
 exports.getEssays = async (req, res, next) => {
