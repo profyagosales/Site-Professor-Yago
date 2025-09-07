@@ -38,7 +38,18 @@ app.get('/', (req, res) => {
     status: 'API está funcionando',
     environment: process.env.NODE_ENV || 'development',
     apiPrefix: apiPrefix,
-    timestamp: new Date().toISOString()
+    cookieAuthEnabled: process.env.USE_COOKIE_AUTH === 'true',
+    mongoUri: config.mongoUri ? 'Configurado' : 'Não configurado',
+    corsOrigins: config.corsOptions.origin.toString(),
+    timestamp: new Date().toISOString(),
+    envVars: {
+      PORT: process.env.PORT,
+      NODE_ENV: process.env.NODE_ENV,
+      APP_DOMAIN: process.env.APP_DOMAIN,
+      FRONTEND_URL: process.env.FRONTEND_URL,
+      API_PREFIX: process.env.API_PREFIX,
+      USE_COOKIE_AUTH: process.env.USE_COOKIE_AUTH
+    }
   });
 });
 

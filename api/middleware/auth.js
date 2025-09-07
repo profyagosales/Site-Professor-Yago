@@ -18,6 +18,9 @@ const authRequired = (roles = []) => {
         
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
           console.log('Usuário não está autenticado via cookie ou token');
+          console.log('Headers disponíveis:', Object.keys(req.headers));
+          console.log('Cookies disponíveis:', req.cookies ? Object.keys(req.cookies) : 'nenhum');
+          console.log('USE_COOKIE_AUTH está definido como:', process.env.USE_COOKIE_AUTH);
           return res.status(401).json({ message: 'Token de autenticação não fornecido' });
         }
         
