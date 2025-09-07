@@ -1,5 +1,6 @@
 const { PDFDocument, rgb } = require('pdf-lib');
-const fetch = require('node-fetch');
+// Usando importação dinâmica para node-fetch, que funciona tanto em CommonJS quanto em ESM
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 // Cores para as categorias
 const COLORS = {

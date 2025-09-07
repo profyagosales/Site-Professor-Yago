@@ -3,9 +3,10 @@ const AnnotationSet = require('../models/AnnotationSet');
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const cloudinaryService = require('../services/cloudinaryService');
+// Usando importação dinâmica para node-fetch, que funciona tanto em CommonJS quanto em ESM
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 const pdfService = require('../services/pdfService');
 const emailService = require('../services/emailService');
-const fetch = require('node-fetch');
 
 // Listar redações com filtros
 exports.getEssays = async (req, res, next) => {
