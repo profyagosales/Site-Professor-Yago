@@ -2,6 +2,18 @@
 
 Este é o backend da plataforma de correção de redações do Professor Yago Sales. A API fornece endpoints para gerenciar usuários, temas, redações, anotações e envio de e-mails.
 
+## Configuração Inicial após Deploy
+
+Após o deploy da API, execute o script para criar o usuário professor padrão:
+
+```bash
+node scripts/createDefaultTeacher.js
+```
+
+Isso criará um usuário professor com as seguintes credenciais:
+- Email: prof.yago.red@gmail.com
+- Senha: TR24339es
+
 ## Estrutura do Projeto
 
 ```
@@ -13,6 +25,7 @@ api/
   ├── middleware/         # Middlewares (auth, error handler, etc)
   ├── models/             # Modelos Mongoose
   ├── routes/             # Definições de rotas
+  ├── scripts/            # Scripts de utilidade (criação de usuário padrão)
   ├── services/           # Serviços externos (email, cloudinary, pdf)
   └── utils/              # Utilitários e helpers
 ```
