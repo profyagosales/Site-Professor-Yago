@@ -34,16 +34,39 @@ exports.loginTeacher = async (req, res, next) => {
       { expiresIn: config.jwtExpiration }
     );
 
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        photoUrl: user.photoUrl
-      }
-    });
+    // Verificar se devemos usar cookies para autenticação
+    if (process.env.USE_COOKIE_AUTH === 'true') {
+      // Configurar cookie seguro
+      res.cookie('auth_token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 24 * 60 * 60 * 1000 // 24 horas
+      });
+      
+      // Retornar dados do usuário sem o token
+      res.json({
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          photoUrl: user.photoUrl
+        }
+      });
+    } else {
+      // Retornar token e dados do usuário (comportamento padrão)
+      res.json({
+        token,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          photoUrl: user.photoUrl
+        }
+      });
+    }
   } catch (error) {
     next(error);
   }
@@ -80,16 +103,39 @@ exports.loginStudent = async (req, res, next) => {
       { expiresIn: config.jwtExpiration }
     );
 
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        photoUrl: user.photoUrl
-      }
-    });
+    // Verificar se devemos usar cookies para autenticação
+    if (process.env.USE_COOKIE_AUTH === 'true') {
+      // Configurar cookie seguro
+      res.cookie('auth_token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 24 * 60 * 60 * 1000 // 24 horas
+      });
+      
+      // Retornar dados do usuário sem o token
+      res.json({
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          photoUrl: user.photoUrl
+        }
+      });
+    } else {
+      // Retornar token e dados do usuário (comportamento padrão)
+      res.json({
+        token,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          photoUrl: user.photoUrl
+        }
+      });
+    }
   } catch (error) {
     next(error);
   }

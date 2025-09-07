@@ -9,7 +9,11 @@ const config = {
   
   corsOptions: {
     origin: function (origin, callback) {
+      // Split APP_DOMAIN into array if it's a comma-separated string
+      const domains = process.env.APP_DOMAIN ? process.env.APP_DOMAIN.split(',') : [];
+      
       const allowlist = [
+        ...domains,
         process.env.FRONTEND_URL,
         'http://localhost:5173',
         'http://localhost:3000'
@@ -37,7 +41,7 @@ const config = {
     port: process.env.SMTP_PORT,
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
-    from: process.env.SMTP_FROM || 'noreply@example.com'
+    from: process.env.EMAIL_FROM || 'noreply@example.com'
   },
   
   appDomain: process.env.APP_DOMAIN || 'professoryagosales.com.br'

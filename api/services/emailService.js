@@ -5,7 +5,7 @@ const config = require('../config');
 const transporter = nodemailer.createTransport({
   host: config.smtp.host,
   port: config.smtp.port,
-  secure: config.smtp.port === 465, // true para porta 465, false para outras portas
+  secure: process.env.SMTP_SECURE === 'true', // Usa a variável de ambiente SMTP_SECURE
   auth: {
     user: config.smtp.user,
     pass: config.smtp.pass

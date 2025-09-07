@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
 const errorHandler = require('./middleware/errorHandler');
 const config = require('./config');
 
@@ -17,13 +18,17 @@ const app = express();
 app.use(helmet());
 app.use(cors(config.corsOptions));
 app.use(express.json());
+app.use(cookieParser());
+
+// Get API prefix from environment variable or use empty string
+const apiPrefix = process.env.API_PREFIX || '';
 
 // Routes
-app.use('/health', healthRoutes);
-app.use('/auth', authRoutes);
-app.use('/themes', themesRoutes);
-app.use('/essays', essaysRoutes);
-app.use('/uploads', uploadsRoutes);
+app.use(`${apiPrefix}/health`, healthRoutes);
+app.use(`${apiPrefix}/auth`, authRoutes);
+app.use(`${apiPrefix}/themes`, themesRoutes);
+app.use(`${apiPrefix}/essays`, essaysRoutes);
+app.use(`${apiPrefix}/uploads`, uploadsRoutes);
 
 // Error handler
 app.use(errorHandler);

@@ -5,13 +5,21 @@ const User = require('../models/User');
 const authRequired = (roles = []) => {
   return async (req, res, next) => {
     try {
-      const authHeader = req.headers.authorization;
+      // Verificar se o token está no cookie (se USE_COOKIE_AUTH é true)
+      let token;
       
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ message: 'Token de autenticação não fornecido' });
+      if (process.env.USE_COOKIE_AUTH === 'true' && req.cookies && req.cookies.auth_token) {
+        token = req.cookies.auth_token;
+      } else {
+        // Verificar o cabeçalho Authorization padrão
+        const authHeader = req.headers.authorization;
+        
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          return res.status(401).json({ message: 'Token de autenticação não fornecido' });
+        }
+        
+        token = authHeader.split(' ')[1];
       }
-      
-      const token = authHeader.split(' ')[1];
       
       if (!token) {
         return res.status(401).json({ message: 'Token de autenticação inválido' });
