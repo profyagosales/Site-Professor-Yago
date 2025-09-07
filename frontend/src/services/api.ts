@@ -6,7 +6,8 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: import.meta.env.VITE_USE_COOKIE_AUTH === 'true',
+  // Sempre enviar cookies para suportar autenticação baseada em cookies
+  withCredentials: true,
 });
 
 // Interceptador para adicionar token de autenticação nas requisições

@@ -28,13 +28,25 @@ app.use(express.json());
 app.use(cookieParser());
 
 // Get API prefix from environment variable or use empty string
+// Necessário para ambientes como o Render que podem adicionar prefixos
 const apiPrefix = process.env.API_PREFIX || '';
+console.log(`Usando prefixo de API: '${apiPrefix}'`);
 
 // Rota de diagnóstico direta que não depende do banco de dados
 app.get('/', (req, res) => {
   res.json({
     status: 'API está funcionando',
     environment: process.env.NODE_ENV || 'development',
+    apiPrefix: apiPrefix,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Rota de diagnóstico para verificar cookies e headers
+app.get('/debug', (req, res) => {
+  res.json({
+    cookies: req.cookies || 'Nenhum cookie',
+    headers: req.headers,
     timestamp: new Date().toISOString()
   });
 });

@@ -48,33 +48,31 @@ export function AuthStateProvider({ children }: AuthStateProviderProps) {
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
-        // Se estiver usando autenticação baseada em cookies, verifica o status
-        const useCookieAuth = import.meta.env.VITE_USE_COOKIE_AUTH === 'true'
-        
-        if (useCookieAuth) {
-          try {
-            const response = await api.get('/auth/me')
-            const userData = response.data
-            
-            setAuthState({
-              isAuthenticated: true,
+        // Tentar primeiro a autenticação via cookie
+        try {
+          console.log('Verificando autenticação por cookie...')
+          const response = await api.get('/auth/me')
+          const userData = response.data
+          
+          console.log('Usuário autenticado via cookie:', userData.name)
+          setAuthState({
+            isAuthenticated: true,
+            role: userData.role,
+            userId: userData._id,
+            user: {
+              id: userData._id,
+              name: userData.name,
+              email: userData.email,
               role: userData.role,
-              userId: userData._id,
-              user: {
-                id: userData._id,
-                name: userData.name,
-                email: userData.email,
-                role: userData.role,
-                photoUrl: userData.photoUrl,
-              },
-              token: null, // Não armazena token quando usa cookies
-            })
-          } catch (err) {
-            // Se a requisição falhar, não está autenticado
-            console.log("Usuário não está autenticado via cookie")
-          }
-        } else {
-          // Verifica se há token salvo no localStorage
+              photoUrl: userData.photoUrl,
+            },
+            token: null // Não armazena token quando usa cookies
+          })
+        } catch (err) {
+          // Se a requisição falhar, não está autenticado via cookie
+          console.log("Usuário não está autenticado via cookie")
+          
+          // Tenta autenticação via token no localStorage
           const token = localStorage.getItem('token')
           const userStr = localStorage.getItem('user')
           
@@ -87,6 +85,9 @@ export function AuthStateProvider({ children }: AuthStateProviderProps) {
               user,
               token,
             })
+          } else {
+            // Nem cookie nem token disponíveis
+            setAuthState(initialAuthState)
           }
         }
       } catch (error) {
