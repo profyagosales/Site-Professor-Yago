@@ -155,3 +155,20 @@ exports.getMe = async (req, res, next) => {
     next(error);
   }
 };
+
+// Logout - Limpa o cookie de autenticação
+exports.logout = async (req, res, next) => {
+  try {
+    // Limpar o cookie de autenticação
+    res.cookie('auth_token', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      expires: new Date(0) // Data no passado para expirar imediatamente
+    });
+    
+    res.json({ message: 'Logout realizado com sucesso' });
+  } catch (error) {
+    next(error);
+  }
+};
