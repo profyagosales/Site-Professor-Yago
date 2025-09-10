@@ -3,7 +3,7 @@ services:
     name: professor-yago-api
     runtime: node
     buildCommand: cd api && npm install
-    startCommand: cd api && node server-simple.js
+    startCommand: cd api && node setup-server.js
     envVars:
       - key: NODE_ENV
         value: production
@@ -21,3 +21,5 @@ services:
         value: https://professoryagosales.com.br
       - key: APP_DOMAIN
         value: professoryagosales.com.br
+      - key: API_PREFIX
+        value: ""

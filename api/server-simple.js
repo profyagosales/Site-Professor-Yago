@@ -3,11 +3,25 @@
  * Use este arquivo apenas para configuração inicial, depois volte para o server.js normal
  */
 
+console.log('=== INICIANDO SERVIDOR SIMPLIFICADO DE CONFIGURAÇÃO ===');
+console.log(`Data e hora: ${new Date().toISOString()}`);
+
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+
+// Forçar definição de variáveis de ambiente importantes
+process.env.API_PREFIX = ''; // Muito importante: remover prefixo de API
+process.env.USE_COOKIE_AUTH = 'true';
+
+console.log('Variáveis de ambiente:');
+console.log('- NODE_ENV:', process.env.NODE_ENV || 'não definido');
+console.log('- API_PREFIX:', process.env.API_PREFIX);
+console.log('- USE_COOKIE_AUTH:', process.env.USE_COOKIE_AUTH);
+console.log('- PORT:', process.env.PORT || '5050 (padrão)');
+
 const app = express();
 
 // Configuração básica
@@ -139,6 +153,28 @@ app.post('/setup/create-default-teacher', async (req, res) => {
   }
 });
 
+// Adicionar handler para rota 404
+app.use((req, res) => {
+  console.log(`Rota não encontrada: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({ 
+    error: 'Rota não encontrada',
+    method: req.method,
+    path: req.originalUrl,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Adicionar handler para erros
+app.use((err, req, res, next) => {
+  console.error('Erro na aplicação:', err);
+  res.status(500).json({
+    error: 'Erro interno do servidor',
+    message: err.message,
+    stack: process.env.NODE_ENV === 'production' ? undefined : err.stack,
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Iniciar o servidor
 const PORT = process.env.PORT || 5050;
 
@@ -148,6 +184,9 @@ connectDB()
     if (connected) {
       app.listen(PORT, () => {
         console.log(`Servidor de configuração simplificada rodando na porta ${PORT}`);
+        console.log(`URL da API: http://localhost:${PORT}/`);
+        console.log(`Teste: http://localhost:${PORT}/setup/test`);
+        console.log(`Criação de professor: POST http://localhost:${PORT}/setup/create-default-teacher`);
       });
     } else {
       console.error('Não foi possível iniciar o servidor devido a problemas com o banco de dados');

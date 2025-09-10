@@ -43,7 +43,11 @@
             }
             
             try {
-                const response = await fetch('https://api.professoryagosales.com.br/setup/create-default-teacher', {
+                // URL da API sem prefixo quando usamos o servidor simplificado
+                const apiUrl = 'https://api.professoryagosales.com.br/setup/create-default-teacher';
+                console.log('Chamando API:', apiUrl);
+                
+                const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ secretKey }),
