@@ -1,10 +1,17 @@
 require('dotenv').config();
 
+// Força o USE_COOKIE_AUTH para true - IMPORTANTE para o funcionamento da autenticação
+process.env.USE_COOKIE_AUTH = 'true';
+
 const isProd = process.env.NODE_ENV === 'production';
 
 // Valores padrão para produção caso as variáveis de ambiente não estejam definidas
 const PROD_MONGODB_URI = 'mongodb+srv://profyagored:pqtt1QixnwEVWiPH@profyago.yuhmlow.mongodb.net/ProfessorYago?retryWrites=true&w=majority&appName=ProfYago';
 const PROD_JWT_SECRET = '1cb5a88e6ab4cc18d2365e639b9a0cf4164117e146c86a5acef95076d2ca0d3d';
+
+console.log(`Modo: ${isProd ? 'Produção' : 'Desenvolvimento'}`);
+console.log(`Cookie Auth: ${process.env.USE_COOKIE_AUTH}`);
+console.log(`API Prefix: ${process.env.API_PREFIX || ''}`);
 
 const config = {
   port: process.env.PORT || 5050,

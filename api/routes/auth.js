@@ -30,6 +30,25 @@ router.get('/me-test', (req, res) => {
   });
 });
 
+// Rota para teste de cookie
+router.get('/cookie-test', (req, res) => {
+  // Definir um cookie de teste
+  const { getAuthCookieOptions } = require('../utils/cookieUtils');
+  const options = getAuthCookieOptions();
+  
+  console.log('Definindo cookie de teste com opções:', options);
+  res.cookie('test_cookie', 'teste_valor_' + Date.now(), options);
+  
+  res.json({
+    message: 'Cookie de teste definido',
+    cookieOptions: options,
+    cookiePresent: req.cookies || {},
+    useSecure: process.env.NODE_ENV === 'production',
+    useSameSiteNone: process.env.NODE_ENV === 'production',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Rota de diagnóstico para manipular cookies manualmente
 router.get('/set-test-cookie', (req, res) => {
   res.cookie('test_cookie', 'valor_teste', {

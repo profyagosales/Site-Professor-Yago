@@ -44,10 +44,23 @@ export function AuthStateProvider({ children }: AuthStateProviderProps) {
   const [auth, setAuthState] = useState<AuthState>(initialAuthState)
   const [isLoading, setIsLoading] = useState(true)
 
+  // Controlar tentativas de autenticação
+  const [authAttemptCount, setAuthAttemptCount] = useState(0)
+
   // Verifica se o usuário está autenticado ao carregar o componente
   useEffect(() => {
+    // Limitar a uma tentativa inicial para evitar loops
+    if (authAttemptCount > 0) {
+      return;
+    }
+
+    setAuthAttemptCount(prev => prev + 1);
+    
     const checkAuthStatus = async () => {
       try {
+        // Flag para verificar se já autenticou
+        let isAuthenticated = false;
+        
         // Tentar primeiro a autenticação via cookie
         try {
           console.log('Verificando autenticação por cookie...')
@@ -68,30 +81,42 @@ export function AuthStateProvider({ children }: AuthStateProviderProps) {
             },
             token: null // Não armazena token quando usa cookies
           })
-        } catch (err) {
+          isAuthenticated = true;
+        } catch (err: any) {
           // Se a requisição falhar, não está autenticado via cookie
-          console.log("Usuário não está autenticado via cookie")
+          console.log("Usuário não está autenticado via cookie", err.message || err)
           
           // Tenta autenticação via token no localStorage
           const token = localStorage.getItem('token')
           const userStr = localStorage.getItem('user')
           
           if (token && userStr) {
-            const user = JSON.parse(userStr)
-            setAuthState({
-              isAuthenticated: true,
-              role: user.role,
-              userId: user.id,
-              user,
-              token,
-            })
-          } else {
-            // Nem cookie nem token disponíveis
-            setAuthState(initialAuthState)
+            try {
+              const user = JSON.parse(userStr)
+              setAuthState({
+                isAuthenticated: true,
+                role: user.role,
+                userId: user.id,
+                user,
+                token,
+              })
+              isAuthenticated = true;
+            } catch (parseError) {
+              console.error("Erro ao processar dados do usuário armazenados:", parseError)
+              localStorage.removeItem('user')
+              localStorage.removeItem('token')
+            }
           }
         }
-      } catch (error) {
+
+        if (!isAuthenticated) {
+          // Nem cookie nem token disponíveis
+          setAuthState(initialAuthState)
+          console.log("Usuário não autenticado - redirecionamento normal")
+        }
+      } catch (error: any) {
         // Se houver erro, limpa dados de autenticação
+        console.error("Erro geral na verificação de autenticação:", error.message || error)
         localStorage.removeItem('token')
         localStorage.removeItem('user')
         setAuthState(initialAuthState)

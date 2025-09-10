@@ -8,34 +8,45 @@ const authRequired = (roles = []) => {
       // Verificar se o token está no cookie ou no header
       let token;
       
+      console.log('==== Verificação de autenticação ====');
+      console.log(`Método: ${req.method}, URL: ${req.originalUrl}`);
+      console.log('USE_COOKIE_AUTH:', process.env.USE_COOKIE_AUTH);
+      console.log('Cookies presentes:', req.cookies ? Object.keys(req.cookies).join(', ') : 'nenhum');
+      
       // Verificar primeiro se está no cookie
       if (req.cookies && req.cookies.auth_token) {
-        console.log('Usuário autenticado via cookie');
+        console.log('✓ Token encontrado no cookie');
         token = req.cookies.auth_token;
       } else {
+        console.log('✗ Token não encontrado no cookie');
+        
         // Verificar o cabeçalho Authorization padrão
         const authHeader = req.headers.authorization;
         
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-          console.log('Usuário não está autenticado via cookie ou token');
-          console.log('Headers disponíveis:', Object.keys(req.headers));
-          console.log('Cookies disponíveis:', req.cookies ? Object.keys(req.cookies) : 'nenhum');
-          console.log('USE_COOKIE_AUTH está definido como:', process.env.USE_COOKIE_AUTH);
+          console.log('✗ Token não encontrado no cabeçalho Authorization');
+          console.log('Headers disponíveis:', Object.keys(req.headers).join(', '));
           
-          // Verificar se existe algum cookie auth_token em qualquer formato
+          // Log detalhado de cookies para debug
           if (req.cookies) {
-            console.log('Cookies brutos:', JSON.stringify(req.cookies));
+            console.log('Detalhes de cookies disponíveis:');
+            console.log(JSON.stringify(req.cookies, null, 2));
           }
           
-          // Verificar se existem outros cabeçalhos de autenticação
+          // Verificar outros cabeçalhos de autenticação
           if (req.headers['x-access-token']) {
-            console.log('Encontrado cabeçalho x-access-token');
+            console.log('✓ Token encontrado no cabeçalho x-access-token');
             token = req.headers['x-access-token'];
           } else {
-            return res.status(401).json({ message: 'Token de autenticação não fornecido' });
+            console.log('✗ Nenhum token de autenticação encontrado');
+            return res.status(401).json({ 
+              message: 'Token de autenticação não fornecido',
+              cookieAuthEnabled: process.env.USE_COOKIE_AUTH === 'true',
+              cookiesPresent: req.cookies ? Object.keys(req.cookies) : []
+            });
           }
         } else {
-          console.log('Usuário autenticado via token Bearer');
+          console.log('✓ Token encontrado no cabeçalho Authorization');
           token = authHeader.split(' ')[1];
         }
       }

@@ -35,39 +35,24 @@ exports.loginTeacher = async (req, res, next) => {
       { expiresIn: config.jwtExpiration }
     );
 
-    // Verificar se devemos usar cookies para autenticação
-    if (process.env.USE_COOKIE_AUTH === 'true') {
-      // Configurar cookie seguro
-      res.cookie('auth_token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 24 * 60 * 60 * 1000 // 24 horas
-      });
-      
-      // Retornar dados do usuário sem o token
-      res.json({
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          photoUrl: user.photoUrl
-        }
-      });
-    } else {
-      // Retornar token e dados do usuário (comportamento padrão)
-      res.json({
-        token,
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          photoUrl: user.photoUrl
-        }
-      });
-    }
+    console.log('Login de professor:', email);
+    console.log('Cookie auth ativado:', process.env.USE_COOKIE_AUTH);
+
+    // Sempre usar cookies para autenticação
+    const cookieOptions = getAuthCookieOptions();
+    console.log('Definindo cookie com opções:', cookieOptions);
+    res.cookie('auth_token', token, cookieOptions);
+    
+    // Retornar dados do usuário sem o token
+    res.json({
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        photoUrl: user.photoUrl
+      }
+    });
   } catch (error) {
     next(error);
   }
@@ -104,39 +89,24 @@ exports.loginStudent = async (req, res, next) => {
       { expiresIn: config.jwtExpiration }
     );
 
-    // Verificar se devemos usar cookies para autenticação
-    if (process.env.USE_COOKIE_AUTH === 'true') {
-      // Configurar cookie seguro
-      res.cookie('auth_token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 24 * 60 * 60 * 1000 // 24 horas
-      });
-      
-      // Retornar dados do usuário sem o token
-      res.json({
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          photoUrl: user.photoUrl
-        }
-      });
-    } else {
-      // Retornar token e dados do usuário (comportamento padrão)
-      res.json({
-        token,
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          photoUrl: user.photoUrl
-        }
-      });
-    }
+    console.log('Login de aluno:', email);
+    console.log('Cookie auth ativado:', process.env.USE_COOKIE_AUTH);
+
+    // Sempre usar cookies para autenticação
+    const cookieOptions = getAuthCookieOptions();
+    console.log('Definindo cookie com opções:', cookieOptions);
+    res.cookie('auth_token', token, cookieOptions);
+    
+    // Retornar dados do usuário sem o token
+    res.json({
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        photoUrl: user.photoUrl
+      }
+    });
   } catch (error) {
     next(error);
   }
@@ -145,6 +115,8 @@ exports.loginStudent = async (req, res, next) => {
 // Obter perfil do usuário autenticado
 exports.getMe = async (req, res, next) => {
   try {
+    console.log('getMe - Usuário na requisição:', req.user);
+    
     const user = await User.findById(req.user.id).select('-passwordHash');
     
     if (!user) {
@@ -160,13 +132,17 @@ exports.getMe = async (req, res, next) => {
 // Logout - Limpa o cookie de autenticação
 exports.logout = async (req, res, next) => {
   try {
-    // Limpar o cookie de autenticação
-    res.cookie('auth_token', '', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+    console.log('Realizando logout');
+    
+    // Limpar o cookie de autenticação usando as mesmas opções que foram usadas para criar
+    const cookieOptions = getAuthCookieOptions();
+    const expiredOptions = { 
+      ...cookieOptions,
       expires: new Date(0) // Data no passado para expirar imediatamente
-    });
+    };
+    
+    console.log('Removendo cookie com opções:', expiredOptions);
+    res.cookie('auth_token', '', expiredOptions);
     
     res.json({ message: 'Logout realizado com sucesso' });
   } catch (error) {
