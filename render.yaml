@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: professor-yago-api
+    runtime: node
+    buildCommand: cd api && npm install
+    startCommand: cd api && node server-simple.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: USE_COOKIE_AUTH
+        value: "true"
+      - key: MONGODB_URI
+        value: mongodb+srv://profyagored:pqtt1QixnwEVWiPH@profyago.yuhmlow.mongodb.net/ProfessorYago
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION
+        value: "24h"
+      - key: FRONTEND_URL
+        value: https://professoryagosales.com.br
+      - key: APP_DOMAIN
+        value: professoryagosales.com.br
