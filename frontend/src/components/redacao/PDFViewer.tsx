@@ -1,4 +1,10 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import { Document, Page, pdfjs } from 'react-pdf'
+import 'react-pdf/dist/esm/Page/AnnotationLayer.css'
+import 'react-pdf/dist/esm/Page/TextLayer.css'
+
+// Configuração do worker do PDF.js
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`
 
 // Tipos para as anotações no PDF
 export type Annotation = {
@@ -26,8 +32,11 @@ export function PDFViewer({
   onPageChange
 }: PDFViewerProps) {
   const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1) // Seria definido quando o PDF carregar
+  const [totalPages, setTotalPages] = useState(1)
   const [scale, setScale] = useState(1.0)
+  const [pdfLoaded, setPdfLoaded] = useState(false)
+  const [pdfError, setPdfError] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
   const [isSelecting, setIsSelecting] = useState(false)
   const [selectionStart, setSelectionStart] = useState({ x: 0, y: 0 })
   const [selectionEnd, setSelectionEnd] = useState({ x: 0, y: 0 })
@@ -71,30 +80,40 @@ export function PDFViewer({
     setIsSelecting(false)
   }
 
-  // Funções de navegação entre páginas
-  const goToPreviousPage = () => {
-    if (currentPage > 1) {
-      const newPage = currentPage - 1
-      setCurrentPage(newPage)
-      if (onPageChange) {
-        onPageChange(newPage)
-      }
-    }
-  }
-  
+  // Funções para navegar entre páginas
   const goToNextPage = () => {
     if (currentPage < totalPages) {
       const newPage = currentPage + 1
       setCurrentPage(newPage)
-      if (onPageChange) {
-        onPageChange(newPage)
-      }
+      onPageChange?.(newPage)
     }
   }
   
-  // Função para alterar o zoom
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      const newPage = currentPage - 1
+      setCurrentPage(newPage)
+      onPageChange?.(newPage)
+    }
+  }
+  
+  // Funções para zoom
   const changeZoom = (newScale: number) => {
-    setScale(newScale)
+    if (newScale > 0.5 && newScale < 2) {
+      setScale(newScale)
+    }
+  }
+
+  // Eventos de carregamento do PDF
+  const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
+    setTotalPages(numPages)
+    setPdfLoaded(true)
+    setPdfError(false)
+  }
+
+  const onDocumentLoadError = () => {
+    setPdfError(true)
+    setPdfLoaded(false)
   }
 
   return (
@@ -160,72 +179,92 @@ export function PDFViewer({
       
       {/* Área de visualização do PDF */}
       <div 
+        ref={containerRef}
         className="flex-1 overflow-auto bg-gray-200 flex items-center justify-center relative"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
-        {/* Placeholder para a página do PDF */}
-        <div 
-          className="bg-white shadow-md mx-auto my-4 relative"
-          style={{ 
-            width: `${8.5 * scale * 96}px`, // 8.5 x 11 inch at 96 DPI
-            height: `${11 * scale * 96}px` 
-          }}
-        >
-          {/* Em uma implementação real, aqui seria renderizada a página do PDF */}
-          <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-            <div className="text-center">
-              <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-              </svg>
-              <p className="mt-2">Página {currentPage}</p>
-              <p className="text-sm mt-1">
-                (Em uma implementação real, o PDF seria renderizado aqui usando uma biblioteca como react-pdf)
-              </p>
+        <Document
+          file={pdfUrl}
+          onLoadSuccess={onDocumentLoadSuccess}
+          onLoadError={onDocumentLoadError}
+          loading={
+            <div className="flex items-center justify-center h-full w-full">
+              <div className="text-center">
+                <svg className="animate-spin h-10 w-10 mx-auto text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p className="mt-3 text-gray-600">Carregando PDF...</p>
+              </div>
             </div>
-          </div>
-          
-          {/* Anotações na página atual */}
-          {annotations
-            .filter(anno => anno.page === currentPage)
-            .map(anno => (
-              <div
-                key={anno.id}
-                className={`absolute ${anno.color} opacity-60`}
-                style={{
-                  left: anno.rect.x * scale,
-                  top: anno.rect.y * scale,
-                  width: anno.rect.width * scale,
-                  height: anno.rect.height * scale,
-                  cursor: 'pointer'
-                }}
-                title={anno.comment}
-              ></div>
-            ))
           }
-          
-          {/* Seleção atual */}
-          {isSelecting && (
-            <div
-              className={`absolute border-2 ${
-                activeCategory === 'formal' ? 'border-orange-500' :
-                activeCategory === 'grammar' ? 'border-green-500' :
-                activeCategory === 'argument' ? 'border-yellow-500' :
-                activeCategory === 'general' ? 'border-red-500' :
-                'border-blue-500' // cohesion
-              }`}
-              style={{
-                left: Math.min(selectionStart.x, selectionEnd.x),
-                top: Math.min(selectionStart.y, selectionEnd.y),
-                width: Math.abs(selectionEnd.x - selectionStart.x),
-                height: Math.abs(selectionEnd.y - selectionStart.y),
-              }}
-            ></div>
+          error={
+            <div className="flex items-center justify-center h-full w-full">
+              <div className="text-center">
+                <svg className="h-12 w-12 mx-auto text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                <p className="mt-3 text-gray-800">Não foi possível carregar o PDF</p>
+                <p className="text-sm text-gray-500 mt-1">Verifique se o arquivo é válido ou tente novamente mais tarde.</p>
+              </div>
+            </div>
+          }
+        >
+          {pdfLoaded && (
+            <div className="shadow-lg my-4 mx-auto bg-white">
+              <div className="relative" style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}>
+                <Page
+                  pageNumber={currentPage}
+                  renderTextLayer={true}
+                  renderAnnotationLayer={true}
+                  className="mx-auto"
+                />
+                
+                {/* Anotações na página atual */}
+                {annotations
+                  .filter(anno => anno.page === currentPage)
+                  .map(anno => (
+                    <div
+                      key={anno.id}
+                      className={`absolute ${anno.color} opacity-60`}
+                      style={{
+                        left: anno.rect.x,
+                        top: anno.rect.y,
+                        width: anno.rect.width,
+                        height: anno.rect.height,
+                        cursor: 'pointer'
+                      }}
+                      title={anno.comment}
+                    ></div>
+                  ))
+                }
+                
+                {/* Seleção atual */}
+                {isSelecting && (
+                  <div
+                    className={`absolute border-2 ${
+                      activeCategory === 'formal' ? 'border-orange-500' :
+                      activeCategory === 'grammar' ? 'border-green-500' :
+                      activeCategory === 'argument' ? 'border-yellow-500' :
+                      activeCategory === 'general' ? 'border-red-500' :
+                      'border-blue-500' // cohesion
+                    }`}
+                    style={{
+                      left: Math.min(selectionStart.x, selectionEnd.x),
+                      top: Math.min(selectionStart.y, selectionEnd.y),
+                      width: Math.abs(selectionEnd.x - selectionStart.x),
+                      height: Math.abs(selectionEnd.y - selectionStart.y),
+                    }}
+                  ></div>
+                )}
+              </div>
+            </div>
           )}
-        </div>
+        </Document>
       </div>
     </div>
-  )
+  );
 }
