@@ -207,8 +207,15 @@ export function AuthStateProvider({ children }: AuthStateProviderProps) {
       const useCookieAuth = import.meta.env.VITE_USE_COOKIE_AUTH === 'true'
       
       if (useCookieAuth) {
-        // Se usa cookies, chama endpoint de logout para limpar cookies
-        await api.post('/auth/logout')
+        try {
+          // Se usa cookies, chama endpoint de logout para limpar cookies
+          console.log('Fazendo logout via API para limpar cookies...')
+          await api.post('/auth/logout')
+          console.log('Logout via API concluído com sucesso')
+        } catch (logoutError) {
+          console.error('Erro ao chamar endpoint de logout:', logoutError)
+          // Continua com o logout local mesmo se falhar o logout remoto
+        }
       }
       
       // Limpa armazenamento local
@@ -217,6 +224,7 @@ export function AuthStateProvider({ children }: AuthStateProviderProps) {
       
       // Reseta estado de autenticação
       setAuthState(initialAuthState)
+      console.log('Estado de autenticação resetado localmente')
     } catch (error) {
       console.error('Erro ao fazer logout:', error)
       // Mesmo com erro, limpa dados locais

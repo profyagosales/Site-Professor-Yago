@@ -41,12 +41,18 @@ api.interceptors.response.use(
   (error: AxiosError) => {
     // Tratar erro 401 (não autenticado)
     if (error.response && error.response.status === 401) {
-      // Se o token expirou ou é inválido, redireciona para o login
+      // Se o token expirou ou é inválido, limpa dados de autenticação
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       
-      // Redireciona para a página inicial
-      window.location.href = '/';
+      // Verifica se é uma requisição /auth/me (verificação de autenticação)
+      const isAuthCheck = error.config?.url?.includes('/auth/me');
+      
+      // Redireciona para a página de erro de autenticação apenas se for uma verificação explícita
+      // para não interromper outras operações com redirecionamentos desnecessários
+      if (isAuthCheck) {
+        window.location.href = '/auth-error';
+      }
     }
     return Promise.reject(error);
   }

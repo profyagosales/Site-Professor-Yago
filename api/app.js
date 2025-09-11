@@ -13,6 +13,7 @@ const themesRoutes = require('./routes/themes');
 const essaysRoutes = require('./routes/essays');
 const uploadsRoutes = require('./routes/uploads');
 const setupRoutes = require('./routes/setup'); // Rota temporária para configuração
+const diagnosticsRoutes = require('./routes/diagnostics'); // Rotas de diagnóstico
 
 const app = express();
 
@@ -47,7 +48,11 @@ app.get('/', (req, res) => {
       `${apiPrefix}/auth/test`,
       `${apiPrefix}/auth/set-test-cookie`,
       `${apiPrefix}/health`,
-      `${apiPrefix}/setup/create-teacher`
+      `${apiPrefix}/setup/create-teacher`,
+      `${apiPrefix}/diagnostics/cors-test`,
+      `${apiPrefix}/diagnostics/cookie-diagnostic`,
+      `${apiPrefix}/diagnostics/environment`,
+      `${apiPrefix}/diagnostics/set-test-token`
     ],
     envVars: {
       PORT: process.env.PORT,
@@ -84,6 +89,7 @@ app.use(`${apiPrefix}/themes`, themesRoutes);
 app.use(`${apiPrefix}/essays`, essaysRoutes);
 app.use(`${apiPrefix}/uploads`, uploadsRoutes);
 app.use(`${apiPrefix}/setup`, setupRoutes); // Rota temporária para configuração inicial
+app.use(`${apiPrefix}/diagnostics`, diagnosticsRoutes); // Rotas para diagnóstico de problemas
 
 // Error handler
 app.use(errorHandler);
