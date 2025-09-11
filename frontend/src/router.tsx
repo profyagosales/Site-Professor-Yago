@@ -7,6 +7,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { AuthErrorPage } from './pages/AuthErrorPage'
 import { GerenciarTemasPage } from './pages/GerenciarTemasPage'
 import { RevisarRedacoesPage } from './pages/RevisarRedacoesPage'
+import { CorrigirRedacaoPage } from './pages/CorrigirRedacaoPage'
 import { GerenciarAlunosPage } from './pages/GerenciarAlunosPage'
 import { NovaRedacaoPage } from './pages/NovaRedacaoPage'
 import { MinhasRedacoesPage } from './pages/MinhasRedacoesPage'
@@ -57,6 +58,14 @@ export const router = createBrowserRouter([
         element: (
           <AuthGate requireAuth={true} roles={['teacher']}>
             <RevisarRedacoesPage />
+          </AuthGate>
+        ),
+      },
+      {
+        path: `${paths.corrigirRedacao}/:id`,
+        element: (
+          <AuthGate requireAuth={true} roles={['teacher']}>
+            <CorrigirRedacaoPage />
           </AuthGate>
         ),
       },
