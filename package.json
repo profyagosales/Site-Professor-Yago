@@ -4,7 +4,7 @@
   "private": true,
   "workspaces": ["frontend"],
   "engines": {
-    "node": "20.x"
+    "node": ">=20.x"
   },
   "scripts": {
     "build": "npm --workspace frontend run build",

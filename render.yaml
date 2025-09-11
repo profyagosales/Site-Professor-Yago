@@ -2,6 +2,7 @@ services:
   - type: web
     name: professor-yago-api
     runtime: node
+    nodeVersion: 20.x
     buildCommand: cd api && npm install
     startCommand: cd api && node setup-server.js
     envVars:

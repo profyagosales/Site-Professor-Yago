@@ -5,5 +5,8 @@
       "dest": "/",
       "status": 200
     }
-  ]
+  ],
+  "buildEnvironment": {
+    "NODE_VERSION": "20.x"
+  }
 }
