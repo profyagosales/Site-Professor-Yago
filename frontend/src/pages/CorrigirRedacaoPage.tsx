@@ -126,11 +126,11 @@ export function CorrigirRedacaoPage() {
   
   // Categorias de marcação
   const categories = [
-    { id: 'formal', name: 'Aspectos formais', color: 'bg-orange-500' },
-    { id: 'grammar', name: 'Ortografia/gramática', color: 'bg-green-500' },
-    { id: 'argument', name: 'Argumentação e estrutura', color: 'bg-yellow-500' },
-    { id: 'general', name: 'Comentário geral', color: 'bg-red-500' },
-    { id: 'cohesion', name: 'Coesão e coerência', color: 'bg-blue-500' },
+    { id: 'formal', name: 'Aspectos formais', color: 'bg-orange-500', textColor: 'text-orange-600', hoverColor: 'hover:bg-orange-100' },
+    { id: 'grammar', name: 'Ortografia/gramática', color: 'bg-green-500', textColor: 'text-green-600', hoverColor: 'hover:bg-green-100' },
+    { id: 'argument', name: 'Argumentação e estrutura', color: 'bg-yellow-500', textColor: 'text-yellow-600', hoverColor: 'hover:bg-yellow-100' },
+    { id: 'general', name: 'Comentário geral', color: 'bg-red-500', textColor: 'text-red-600', hoverColor: 'hover:bg-red-100' },
+    { id: 'cohesion', name: 'Coesão e coerência', color: 'bg-blue-500', textColor: 'text-blue-600', hoverColor: 'hover:bg-blue-100' },
   ]
 
   return (
@@ -196,21 +196,25 @@ export function CorrigirRedacaoPage() {
           </div>
           
           <div className="border-t border-gray-200 pt-3 mb-3">
-            <div className="flex space-x-2 mb-3">
+            <div className="flex flex-wrap gap-2 mb-3">
               {categories.map((category) => (
                 <button
                   key={category.id}
                   onClick={() => setActiveCategory(category.id)}
-                  className={`px-2 py-1 text-xs rounded flex items-center ${
+                  className={`px-3 py-1.5 text-xs rounded flex items-center transition-all ${
                     activeCategory === category.id
-                      ? `ring-2 ring-offset-1 ${category.color.replace('bg', 'ring')}`
-                      : ''
+                      ? `${category.textColor} bg-opacity-20 ${category.color.replace('bg', 'ring')} ring-2 ring-offset-1 font-medium`
+                      : `text-gray-600 ${category.hoverColor}`
                   }`}
                 >
-                  <span className={`w-3 h-3 rounded-full ${category.color} opacity-60 mr-1`}></span>
+                  <span className={`w-3 h-3 rounded-full ${category.color} opacity-60 mr-1.5`}></span>
                   {category.name}
                 </button>
               ))}
+            </div>
+            
+            <div className="text-xs text-gray-500 mb-3">
+              Selecione o texto para adicionar uma anotação com a categoria selecionada
             </div>
           </div>
           
