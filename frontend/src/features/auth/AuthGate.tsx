@@ -7,12 +7,14 @@ type AuthGateProps = {
   children: React.ReactNode
   requireAuth?: boolean
   allowedRoles?: Array<'student' | 'teacher'>
+  roles?: string[]
 }
 
 export function AuthGate({
   children,
   requireAuth = true,
   allowedRoles = ['student', 'teacher'],
+  roles = [],
 }: AuthGateProps) {
   const { auth } = useAuth()
   const location = useLocation()
@@ -36,12 +38,22 @@ export function AuthGate({
   if (
     requireAuth &&
     auth.isAuthenticated &&
-    auth.role &&
-    !allowedRoles.includes(auth.role)
+    auth.role
   ) {
-    if (redirectedRef.current) return null
-    redirectedRef.current = true
-    return <Navigate to={paths.home} state={{ from: location }} replace />
+    // Primeiro verificamos os roles específicos se fornecidos
+    if (roles.length > 0 && !roles.includes(auth.role)) {
+      if (redirectedRef.current) return null
+      redirectedRef.current = true
+      console.log(`Papel ${auth.role} não autorizado para esta rota - redirecionando para dashboard`)
+      return <Navigate to={paths.dashboard} state={{ from: location }} replace />
+    }
+    
+    // Caso contrário, verificamos os allowedRoles padrão
+    if (!allowedRoles.includes(auth.role)) {
+      if (redirectedRef.current) return null
+      redirectedRef.current = true
+      return <Navigate to={paths.home} state={{ from: location }} replace />
+    }
   }
 
   // Passou em todas as verificações

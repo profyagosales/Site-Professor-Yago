@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../store/AuthStateProvider'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
+import { paths } from '../routes/paths'
 
 export function DashboardPage() {
   const { auth, logout, isLoading } = useAuth()
@@ -124,13 +125,22 @@ export function DashboardPage() {
           </p>
           
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            <button className="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition">
+            <button 
+              onClick={() => navigate(paths.gerenciarTemas)}
+              className="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition"
+            >
               Gerenciar Temas
             </button>
-            <button className="p-4 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition">
+            <button 
+              onClick={() => navigate(paths.revisarRedacoes)}
+              className="p-4 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition"
+            >
               Revisar Redações
             </button>
-            <button className="p-4 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition">
+            <button 
+              onClick={() => navigate(paths.gerenciarAlunos)}
+              className="p-4 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition"
+            >
               Gerenciar Alunos
             </button>
           </div>
@@ -146,13 +156,22 @@ export function DashboardPage() {
           </p>
           
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            <button className="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition">
+            <button 
+              onClick={() => navigate(paths.novaRedacao)}
+              className="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition"
+            >
               Nova Redação
             </button>
-            <button className="p-4 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition">
+            <button 
+              onClick={() => navigate(paths.minhasRedacoes)}
+              className="p-4 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition"
+            >
               Minhas Redações
             </button>
-            <button className="p-4 bg-amber-50 hover:bg-amber-100 rounded-lg border border-amber-200 transition">
+            <button 
+              onClick={() => navigate(paths.verTemas)}
+              className="p-4 bg-amber-50 hover:bg-amber-100 rounded-lg border border-amber-200 transition"
+            >
               Ver Temas
             </button>
           </div>
