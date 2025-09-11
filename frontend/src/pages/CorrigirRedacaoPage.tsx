@@ -1,18 +1,12 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { paths } from '../routes/paths'
+import { PDFViewer, Annotation } from '../components/redacao/PDFViewer'
+import { AnnotationModal } from '../components/redacao/AnnotationModal'
+import { AnnotationList } from '../components/redacao/AnnotationList'
 
-// Tipos
-type AnnotationType = {
-  id: string
-  page: number
-  rect: { x: number; y: number; width: number; height: number }
-  color: string
-  category: string
-  comment: string
-  createdBy: string
-  createdAt: string
-}
+// Gerador simples de ID único
+const generateId = () => Math.random().toString(36).substring(2, 9)
 
 type CompetenctScore = 0 | 40 | 80 | 120 | 160 | 200
 
@@ -30,7 +24,10 @@ export function CorrigirRedacaoPage() {
   // Estados para controle da página
   const [loading, setLoading] = useState(false)
   const [activeCategory, setActiveCategory] = useState<string>('formal')
-  const [annotations, setAnnotations] = useState<AnnotationType[]>([])
+  const [annotations, setAnnotations] = useState<Annotation[]>([])
+  const [currentPage, setCurrentPage] = useState(1)
+  const [selectedAnnotation, setSelectedAnnotation] = useState<Annotation | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
   
   // Estados para avaliação ENEM
   const [competencia1, setCompetencia1] = useState<CompetenctScore>(0)
@@ -95,6 +92,36 @@ export function CorrigirRedacaoPage() {
       setLoading(false)
       alert('PDF gerado com sucesso!')
     }, 2000)
+  }
+  
+  // Funções para gerenciar anotações
+  const handleEditAnnotation = (annotationId: string) => {
+    const annotation = annotations.find(anno => anno.id === annotationId)
+    if (annotation) {
+      setSelectedAnnotation(annotation)
+      setIsModalOpen(true)
+    }
+  }
+  
+  const handleDeleteAnnotation = (annotationId: string) => {
+    if (confirm('Tem certeza de que deseja excluir esta anotação?')) {
+      setAnnotations(annotations.filter(anno => anno.id !== annotationId))
+    }
+  }
+  
+  const handleSaveAnnotation = (comment: string) => {
+    if (selectedAnnotation) {
+      setAnnotations(annotations.map(anno => 
+        anno.id === selectedAnnotation.id 
+          ? { ...anno, comment } 
+          : anno
+      ))
+    }
+  }
+  
+  // Função para atualizar a página atual do PDF
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage)
   }
   
   // Categorias de marcação
@@ -187,20 +214,34 @@ export function CorrigirRedacaoPage() {
             </div>
           </div>
           
-          {/* Aqui seria o componente de visualização do PDF */}
-          <div className="bg-gray-100 h-[650px] flex items-center justify-center text-gray-500">
-            <div className="text-center">
-              <svg className="w-16 h-16 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-              </svg>
-              <p className="mb-2">
-                Visualizador de PDF seria integrado aqui
-              </p>
-              <p className="text-sm">
-                Para interface completa: usar biblioteca como react-pdf ou pdfjs-dist
-              </p>
-            </div>
-          </div>
+          {/* Componente de visualização do PDF */}
+          <PDFViewer 
+            pdfUrl={essay.pdfUrl}
+            annotations={annotations}
+            activeCategory={activeCategory}
+            onAddAnnotation={(page, rect) => {
+              // Adicionar nova anotação
+              const newAnnotation: Annotation = {
+                id: generateId(),
+                page,
+                rect,
+                color: activeCategory === 'formal' ? 'bg-orange-500' :
+                      activeCategory === 'grammar' ? 'bg-green-500' :
+                      activeCategory === 'argument' ? 'bg-yellow-500' :
+                      activeCategory === 'general' ? 'bg-red-500' :
+                      'bg-blue-500', // cohesion
+                category: activeCategory,
+                comment: ''
+              }
+              
+              setAnnotations([...annotations, newAnnotation])
+              
+              // Abrir modal para editar o comentário
+              setSelectedAnnotation(newAnnotation)
+              setIsModalOpen(true)
+            }}
+            onPageChange={handlePageChange}
+          />
         </div>
         
         {/* Painel lateral - Ocuparia 25-30% da largura */}
@@ -461,7 +502,7 @@ export function CorrigirRedacaoPage() {
             </div>
           </div>
           
-          <div className="bg-white rounded-lg shadow-md p-4">
+          <div className="bg-white rounded-lg shadow-md p-4 mb-4">
             <h3 className="font-medium text-lg mb-3">Comentários Gerais</h3>
             <textarea
               value={generalComments}
@@ -470,8 +511,39 @@ export function CorrigirRedacaoPage() {
               placeholder="Adicione comentários gerais sobre a redação..."
             ></textarea>
           </div>
+          
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-medium text-lg">Anotações na Página {currentPage}</h3>
+              <span className="text-xs text-gray-500">
+                {annotations.filter(anno => anno.page === currentPage).length} anotações
+              </span>
+            </div>
+            <AnnotationList 
+              annotations={annotations}
+              currentPage={currentPage}
+              onEditAnnotation={handleEditAnnotation}
+              onDeleteAnnotation={handleDeleteAnnotation}
+            />
+          </div>
         </div>
       </div>
+      
+      {/* Modal de comentários de anotação */}
+      <AnnotationModal
+        annotation={selectedAnnotation}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSaveAnnotation}
+        categoryName={
+          selectedAnnotation?.category === 'formal' ? 'Aspectos formais' :
+          selectedAnnotation?.category === 'grammar' ? 'Ortografia/gramática' :
+          selectedAnnotation?.category === 'argument' ? 'Argumentação e estrutura' :
+          selectedAnnotation?.category === 'general' ? 'Comentário geral' :
+          selectedAnnotation?.category === 'cohesion' ? 'Coesão e coerência' : ''
+        }
+      />
+      
       <footer className="mt-8 text-center text-gray-500 text-sm">
         © 2025 Professor Yago Sales. Todos os direitos reservados.
       </footer>
