@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { paths } from '../routes/paths'
 import { useState } from 'react'
+import { essayService } from '../services/essayService'
 
 export function NovaRedacaoPage() {
   // Estados
@@ -45,7 +46,7 @@ export function NovaRedacaoPage() {
   }
 
   // Handler para o envio da redação
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     // Validações
@@ -64,25 +65,35 @@ export function NovaRedacaoPage() {
       return
     }
     
-    // Simulação de envio
+    // Começar envio real
     setEnviando(true)
     setErro('')
     
-    // Simulação de delay de API
-    setTimeout(() => {
-      // Aqui seria a chamada à API real
-      console.log({
-        tipo: tipoRedacao,
-        temaId: temaId === 'outro' ? 'personalizado' : temaId,
-        temaPersonalizado: temaId === 'outro' ? temaPersonalizado : '',
-        arquivo
+    try {
+      // 1. Primeiro fazer o upload do arquivo
+      const fileUploadResult = await essayService.uploadEssayFile(arquivo)
+      
+      // 2. Depois criar a redação com o URL do arquivo enviado
+      await essayService.createEssay({
+        type: tipoRedacao,
+        themeId: temaId === 'outro' ? undefined : temaId,
+        themeText: temaId === 'outro' ? temaPersonalizado : undefined,
+        file: {
+          originalUrl: fileUploadResult.url,
+          mime: fileUploadResult.mime,
+          size: fileUploadResult.size,
+          pages: fileUploadResult.pages
+        }
       })
       
-      setEnviando(false)
-      
-      // Redirecionar para a página de redações após o envio
+      // 3. Redirecionar para a página de redações após o envio
       window.location.href = paths.minhasRedacoes
-    }, 2000)
+    } catch (error) {
+      console.error('Erro ao enviar redação:', error)
+      setErro('Ocorreu um erro ao enviar sua redação. Por favor, tente novamente.')
+    } finally {
+      setEnviando(false)
+    }
   }
 
   return (

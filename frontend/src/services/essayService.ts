@@ -173,4 +173,34 @@ export const essayService = {
     const response = await api.post(`/essays/${essayId}/send-email`);
     return response.data;
   },
+
+  // Fazer upload do arquivo de redação
+  async uploadEssayFile(file: File): Promise<{ url: string; mime: string; size: number; pages: number }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await api.post('/uploads/essay', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    
+    return response.data;
+  },
+  
+  // Criar uma nova redação
+  async createEssay(data: {
+    type: 'ENEM' | 'PAS';
+    themeId?: string;
+    themeText?: string;
+    file: {
+      originalUrl: string;
+      mime: string;
+      size: number;
+      pages: number;
+    }
+  }): Promise<Essay> {
+    const response = await api.post('/essays', data);
+    return response.data;
+  }
 };
