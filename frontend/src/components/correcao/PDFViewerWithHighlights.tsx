@@ -3,16 +3,16 @@ import React, { useState, useCallback } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
-import { APIAnnotation } from '../../services/essayService';
+import { FrontendAnnotation, APIAnnotation } from '../../services/essayService';
 import { CorrectionCategory } from '../../constants/correction';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 interface PDFViewerWithHighlightsProps {
   pdfUrl: string;
-  annotations: APIAnnotation[];
+  annotations: FrontendAnnotation[];
   selectedCategory: CorrectionCategory;
-  onAddAnnotation: (annotation: APIAnnotation) => void;
+  onAddAnnotation: (annotation: APIAnnotation) => void; // callback recebe APIAnnotation sem id
 }
 
 const PDFViewerWithHighlights: React.FC<PDFViewerWithHighlightsProps> = ({ 
@@ -49,7 +49,7 @@ const PDFViewerWithHighlights: React.FC<PDFViewerWithHighlightsProps> = ({
       rects: selectionRects,
       color: selectedCategory.color,
       category: selectedCategory.id,
-      comment: '', // O comentário será adicionado depois
+      comment: '',
     };
 
     onAddAnnotation(newAnnotation);
@@ -66,7 +66,7 @@ const PDFViewerWithHighlights: React.FC<PDFViewerWithHighlightsProps> = ({
                 .filter(a => a.page === index + 1)
                 .flatMap(a => a.rects.map((rect, i) => (
                   <div
-                    key={`${a.id || Math.random()}-${i}`}
+                    key={`${a.id}-${i}`}
                     className="absolute opacity-50"
                     style={{
                       left: `${rect.x}px`,

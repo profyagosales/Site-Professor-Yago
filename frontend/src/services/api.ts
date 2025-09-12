@@ -59,3 +59,4 @@ api.interceptors.response.use(
 );
 
 export default api;
+export { api }; // export nomeado para compatibilidade com imports existentes

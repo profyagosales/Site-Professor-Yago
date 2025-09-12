@@ -2,32 +2,22 @@
 import api from './api';
 
 // Interface para as anotações da API (o que é salvo no banco)
+// Novo formato simplificado de anotação usado no fluxo de correção
+// Mantemos compat compat com backend adaptando em funções de persistência se necessário
 export interface APIAnnotation {
-  text: string;
-  comment: string;
-  category: string;
-  position: {
-    pageNumber: number;
-    rects: Array<{
-      x1: number;
-      y1: number;
-      x2: number;
-      y2: number;
-      width: number;
-      height: number;
-    }>;
-  };
+  page: number; // página do PDF
+  rects: Array<{ x: number; y: number; w: number; h: number }>; // retângulos marcados
+  color: string; // cor utilizada (derivada da categoria)
+  category: string; // id da categoria
+  comment: string; // comentário do corretor
+  text?: string; // opcional: trecho de texto capturado (futuro)
 }
 
 // Interface para anotação no estado do frontend (inclui ID temporário)
-export interface FrontendAnnotation extends APIAnnotation {
-  id: string;
-}
+export interface FrontendAnnotation extends APIAnnotation { id: string; }
 
 // Interface para o conjunto de anotações
-export interface AnnotationSet {
-// ... (código existente, se houver)
-}
+export interface AnnotationSet { annotations: APIAnnotation[]; }
 
 // Interface para as categorias de marcação
 // ... (código existente)

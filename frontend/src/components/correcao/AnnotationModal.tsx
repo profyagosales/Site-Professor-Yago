@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { APIAnnotation } from '../../services/essayService';
+import { FrontendAnnotation } from '../../services/essayService';
 import { CORRECTION_CATEGORIES } from '../../constants/correction';
 
 interface AnnotationModalProps {
-  annotation: APIAnnotation | null;
+  annotation: FrontendAnnotation | null;
   onSave: (annotationId: string, comment: string) => void;
   onClose: () => void;
 }
@@ -22,7 +22,7 @@ const AnnotationModal: React.FC<AnnotationModalProps> = ({ annotation, onSave, o
   }
 
   const handleSave = () => {
-    onSave(annotation.id!, comment);
+  onSave(annotation.id, comment);
   };
 
   const category = CORRECTION_CATEGORIES.find(c => c.id === annotation.category);
