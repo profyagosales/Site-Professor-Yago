@@ -28,7 +28,7 @@ export function GerenciarAlunosPage() {
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterClassId, setFilterClassId] = useState<string>('');
+  const [filterClassId, setFilterClassId] = useState<string>('__all');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -38,7 +38,7 @@ export function GerenciarAlunosPage() {
     setLoading(true);
     try {
       const [studentsData, classesData] = await Promise.all([
-        getStudents({ page, limit: 10, query: searchQuery, classId: filterClassId }),
+  getStudents({ page, limit: 10, query: searchQuery, classId: filterClassId === '__all' ? undefined : filterClassId }),
         getClasses({ limit: 500 }) // Fetch all classes for dropdowns
       ]);
       setStudents(studentsData.users);
@@ -65,7 +65,7 @@ export function GerenciarAlunosPage() {
       setValue('classId', student.classId?._id || '');
       setValue('password', ''); // Senha em branco por padrão na edição
     } else {
-      reset({ name: '', email: '', password: '', active: true, classId: '' });
+  reset({ name: '', email: '', password: '', active: true, classId: '' });
     }
     setIsModalOpen(true);
   };
@@ -178,12 +178,12 @@ export function GerenciarAlunosPage() {
           onChange={(e) => setSearchQuery(e.target.value)}
           className="max-w-sm"
         />
-        <Select onValueChange={setFilterClassId} value={filterClassId}>
+  <Select onValueChange={setFilterClassId} value={filterClassId}>
             <SelectTrigger className="max-w-sm">
                 <SelectValue placeholder="Filtrar por turma..." />
             </SelectTrigger>
             <SelectContent>
-                <SelectItem value="">Todas as turmas</SelectItem>
+                <SelectItem value="__all">Todas as turmas</SelectItem>
                 {classes.map((cls) => (
                     <SelectItem key={cls._id} value={cls._id}>{cls.name} - {cls.year}</SelectItem>
                 ))}

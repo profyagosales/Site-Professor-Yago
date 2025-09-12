@@ -20,11 +20,10 @@ console.log(`API Base URL: ${api.defaults.baseURL}`);
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
     // Se não estiver usando cookie auth, adiciona o token no header
-    if (import.meta.env.VITE_USE_COOKIE_AUTH !== 'true') {
-      const token = localStorage.getItem('token');
-      if (token && config.headers) {
-        config.headers['Authorization'] = `Bearer ${token}`;
-      }
+    // Sempre adiciona Authorization se houver token local como fallback
+    const token = localStorage.getItem('token');
+    if (token && config.headers) {
+      config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;
   },

@@ -137,31 +137,17 @@ export function AuthStateProvider({ children }: AuthStateProviderProps) {
       const response = await api.post('/auth/login/teacher', { email, password })
       const useCookieAuth = import.meta.env.VITE_USE_COOKIE_AUTH === 'true'
       
-      if (!useCookieAuth) {
-        // Armazena token se não estiver usando cookies
-        const { token, user } = response.data
-        localStorage.setItem('token', token)
-        localStorage.setItem('user', JSON.stringify(user))
-        
-        setAuthState({
-          isAuthenticated: true,
-          role: user.role,
-          userId: user.id,
-          user,
-          token,
-        })
-      } else {
-        // Quando usa cookies, só armazena os dados do usuário
-        const { user } = response.data
-        
-        setAuthState({
-          isAuthenticated: true,
-          role: user.role,
-          userId: user.id,
-          user,
-          token: null,
-        })
-      }
+      const { token, user } = response.data
+      // Mesmo com cookie auth, armazenamos token para fallback
+      if (token) localStorage.setItem('token', token)
+      localStorage.setItem('user', JSON.stringify(user))
+      setAuthState({
+        isAuthenticated: true,
+        role: user.role,
+        userId: user.id,
+        user,
+        token: token || null,
+      })
     } catch (error) {
       throw error
     }
@@ -172,31 +158,16 @@ export function AuthStateProvider({ children }: AuthStateProviderProps) {
       const response = await api.post('/auth/login/student', { email, password })
       const useCookieAuth = import.meta.env.VITE_USE_COOKIE_AUTH === 'true'
       
-      if (!useCookieAuth) {
-        // Armazena token se não estiver usando cookies
-        const { token, user } = response.data
-        localStorage.setItem('token', token)
-        localStorage.setItem('user', JSON.stringify(user))
-        
-        setAuthState({
-          isAuthenticated: true,
-          role: user.role,
-          userId: user.id,
-          user,
-          token,
-        })
-      } else {
-        // Quando usa cookies, só armazena os dados do usuário
-        const { user } = response.data
-        
-        setAuthState({
-          isAuthenticated: true,
-          role: user.role,
-          userId: user.id,
-          user,
-          token: null,
-        })
-      }
+      const { token, user } = response.data
+      if (token) localStorage.setItem('token', token)
+      localStorage.setItem('user', JSON.stringify(user))
+      setAuthState({
+        isAuthenticated: true,
+        role: user.role,
+        userId: user.id,
+        user,
+        token: token || null,
+      })
     } catch (error) {
       throw error
     }

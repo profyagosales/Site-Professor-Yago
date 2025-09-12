@@ -51,7 +51,8 @@ exports.loginTeacher = async (req, res, next) => {
         email: user.email,
         role: user.role,
         photoUrl: user.photoUrl
-      }
+      },
+      token // sempre retornamos o token para fallback no frontend
     });
   } catch (error) {
     next(error);
@@ -105,7 +106,8 @@ exports.loginStudent = async (req, res, next) => {
         email: user.email,
         role: user.role,
         photoUrl: user.photoUrl
-      }
+      },
+      token // sempre retornamos o token para fallback no frontend
     });
   } catch (error) {
     next(error);
