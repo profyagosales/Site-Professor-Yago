@@ -176,16 +176,28 @@ export const essayService = {
 
   // Fazer upload do arquivo de redação
   async uploadEssayFile(file: File): Promise<{ url: string; mime: string; size: number; pages: number }> {
+    console.log('uploadEssayFile: Iniciando upload do arquivo', file.name);
+    
     const formData = new FormData();
     formData.append('file', file);
     
-    const response = await api.post('/uploads/essay', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
+    try {
+      console.log('uploadEssayFile: Enviando requisição para /uploads/essay');
+      const response = await api.post('/uploads/essay', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      console.log('uploadEssayFile: Resposta recebida', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('uploadEssayFile: Erro durante o upload:', error);
+      if (error.response) {
+        console.error('uploadEssayFile: Resposta de erro:', error.response.data);
+        console.error('uploadEssayFile: Status:', error.response.status);
       }
-    });
-    
-    return response.data;
+      throw error;
+    }
   },
   
   // Criar uma nova redação

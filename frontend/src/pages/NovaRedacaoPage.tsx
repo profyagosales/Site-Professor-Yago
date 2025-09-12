@@ -49,6 +49,8 @@ export function NovaRedacaoPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    console.log('Iniciando processo de envio de redação')
+    
     // Validações
     if (!arquivo) {
       setErro('Por favor, selecione um arquivo PDF da sua redação.')
@@ -69,12 +71,22 @@ export function NovaRedacaoPage() {
     setEnviando(true)
     setErro('')
     
+    console.log('Enviando arquivo:', arquivo.name, 'Tamanho:', arquivo.size)
+    
     try {
       // 1. Primeiro fazer o upload do arquivo
+      console.log('Iniciando upload do arquivo...')
       const fileUploadResult = await essayService.uploadEssayFile(arquivo)
+      console.log('Upload concluído com sucesso:', fileUploadResult)
       
       // 2. Depois criar a redação com o URL do arquivo enviado
-      await essayService.createEssay({
+      console.log('Criando redação com os seguintes dados:', {
+        type: tipoRedacao,
+        themeId: temaId === 'outro' ? undefined : temaId,
+        themeText: temaId === 'outro' ? temaPersonalizado : undefined
+      })
+      
+      const novaRedacao = await essayService.createEssay({
         type: tipoRedacao,
         themeId: temaId === 'outro' ? undefined : temaId,
         themeText: temaId === 'outro' ? temaPersonalizado : undefined,
@@ -86,11 +98,25 @@ export function NovaRedacaoPage() {
         }
       })
       
+      console.log('Redação criada com sucesso:', novaRedacao)
+      
       // 3. Redirecionar para a página de redações após o envio
+      console.log('Redirecionando para a página de minhas redações...')
       window.location.href = paths.minhasRedacoes
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao enviar redação:', error)
-      setErro('Ocorreu um erro ao enviar sua redação. Por favor, tente novamente.')
+      if (error.response) {
+        console.error('Resposta do servidor:', error.response.data)
+        console.error('Status do erro:', error.response.status)
+        console.error('Headers:', error.response.headers)
+        setErro(`Erro do servidor: ${error.response.status} - ${error.response.data.message || 'Erro desconhecido'}`)
+      } else if (error.request) {
+        console.error('Sem resposta do servidor:', error.request)
+        setErro('Não foi possível se comunicar com o servidor. Verifique sua conexão.')
+      } else {
+        console.error('Erro de configuração:', error.message)
+        setErro(`Erro: ${error.message || 'Desconhecido'}`)
+      }
     } finally {
       setEnviando(false)
     }
