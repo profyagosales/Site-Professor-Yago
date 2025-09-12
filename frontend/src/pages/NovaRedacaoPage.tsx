@@ -1,9 +1,14 @@
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { paths } from '../routes/paths'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { essayService } from '../services/essayService'
+import { useAuth } from '../store/AuthStateProvider'
 
 export function NovaRedacaoPage() {
+  // Estados de autenticação
+  const { auth, isLoading } = useAuth()
+  const [temasCarregados, setTemasCarregados] = useState([])
+  
   // Estados
   const [tipoRedacao, setTipoRedacao] = useState<'ENEM' | 'PAS'>('ENEM')
   const [temaId, setTemaId] = useState('')
@@ -11,6 +16,11 @@ export function NovaRedacaoPage() {
   const [arquivo, setArquivo] = useState<File | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState('')
+  
+  // Verificar se o usuário está autenticado
+  if (!isLoading && !auth.isAuthenticated) {
+    return <Navigate to={paths.loginAluno} />
+  }
   
   // Dados fictícios de temas disponíveis
   const temas = [
