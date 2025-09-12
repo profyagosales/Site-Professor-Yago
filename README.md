@@ -80,3 +80,64 @@ npm run dev
 Se o Vercel ainda usar `npm ci`, isso agora funcionará porque o lockfile consolidado tem todas as entradas. Se quiser reforçar, pode alterar para `installCommand: npm install --legacy-peer-deps` (já configurado em `vercel.json`).
 
 ---
+
+## Autenticação Híbrida (Cookie + Token)
+
+O backend em produção força autenticação por cookie (`USE_COOKIE_AUTH=true`). Contudo, navegadores podem bloquear/atrasar cookies cross-site. Para evitar loops de 401, o backend agora sempre retorna também um `token` (JWT) nas rotas de login (`/auth/login-teacher` e `/auth/login-student`).
+
+O frontend:
+- Tenta usar o cookie (enviando `withCredentials`)
+- Sempre que existe um token armazenado localmente, adiciona `Authorization: Bearer <token>` em cada request (fallback)
+
+### Domínio do Cookie
+Produção define o cookie com `domain=.professoryagosales.com.br` + `sameSite=None` + `secure=true` para permitir acesso a partir do domínio principal e subdomínios.
+
+### Quando usar cada um?
+- Em ambiente local, o token garante funcionamento mesmo sem HTTPS completo
+- Em produção, o cookie continua sendo o principal (para facilitar invalidação via logout), mas o token cobre cenários de race/bloqueio.
+
+### Logout
+O logout limpa o cookie e o token local.
+
+## Upload de Redação
+
+Existem dois fluxos distintos:
+
+1. Professor enviando em nome do aluno:
+   - Endpoint: `POST /essays/student/:studentId` (multipart, usa multer)
+   - Implementação: `createEssayForStudent` em `essayService.ts`
+
+2. Aluno enviando sua própria redação:
+   - Primeiro faz upload do PDF: `POST /uploads/essay` → retorna `{ url, mime, size, pages }`
+   - Em seguida cria a redação: `POST /essays` com `{ file: { originalUrl: url, mime, size, pages }, themeId, type }`
+   - Implementação: página `NovaRedacaoPage` chama `essayService.uploadEssayFile` + `essayService.createEssay`
+
+## Anotações e Correção
+
+O backend mantém duas estruturas relacionadas:
+- `AnnotationSet` separado (rotas `/essays/:id/annotations`) com `highlights` e `comments`
+- Campo `annotations` dentro de `Essay` usado em operações de correção/exportação em alguns endpoints legados
+
+O frontend unificou um formato simplificado:
+```ts
+interface APIAnnotation {
+  page: number;
+  rects: { x: number; y: number; w: number; h: number }[];
+  color: string;
+  category: string;
+  comment: string;
+}
+```
+
+Rotas atuais já aceitam esse formato (o adapter de compatibilidade não foi necessário após revisão do controller e schema). Caso futuras mudanças exijam transformação, adicionar funções de mapeamento em `essayService.ts`.
+
+## Code Splitting
+
+Foi aplicado `React.lazy` + `Suspense` para páginas mais pesadas (`CorrectionPage`, páginas de gerenciamento, envio e listagem) em `router.tsx` reduzindo o bundle inicial.
+
+## Boas Práticas Futuras
+- Adicionar skeleton loaders específicos para páginas lazy
+- Monitorar métricas de carregamento (LCP/FCP) após code splitting
+- Unificar uso de anotações (eliminar campo duplicado em `Essay` se consolidado em `AnnotationSet`)
+
+---
