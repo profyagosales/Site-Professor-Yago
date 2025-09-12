@@ -1,0 +1,44 @@
+/* Estilos para substituir as importações de CSS do react-pdf */
+
+/* Estilos para AnnotationLayer */
+.react-pdf__Page__annotations {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.react-pdf__Page__annotations .annotationLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* Estilos para TextLayer */
+.react-pdf__Page__textContent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  opacity: 0.2;
+  overflow: hidden;
+  line-height: 1.0;
+}
+
+.react-pdf__Page__textContent ::selection {
+  background: rgba(0, 0, 255, 0.3);
+}
+
+.react-pdf__Page__textContent span {
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
