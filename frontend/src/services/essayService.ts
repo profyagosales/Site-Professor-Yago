@@ -8,14 +8,35 @@ export interface APIAnnotation {
   color: string;
   category: string;
   comment: string;
+  id?: string; // ID único para a anotação
+  number?: number; // Número da anotação para exibição no PDF
 }
 
 // Interface para o conjunto de anotações
 export interface AnnotationSet {
   essayId: string;
   highlights: APIAnnotation[];
-  comments: { text: string; category: string }[];
+  comments: { text: string; category: string; id?: string }[];
 }
+
+// Interface para as categorias de marcação
+export interface MarkCategory {
+  name: string;
+  color: string;
+  title: string;
+  description?: string;
+  isError?: boolean; // Se true, conta como erro para cálculo do NE no PAS
+}
+
+// Categorias padrão para marcações
+export const DEFAULT_MARK_CATEGORIES: MarkCategory[] = [
+  { name: 'grammar', color: '#FF5252', title: 'Erro gramatical', isError: true },
+  { name: 'spelling', color: '#FF9800', title: 'Erro ortográfico', isError: true },
+  { name: 'highlight', color: '#FFEB3B', title: 'Destaque' },
+  { name: 'content', color: '#4CAF50', title: 'Conteúdo correto' },
+  { name: 'suggestion', color: '#2196F3', title: 'Sugestão' },
+  { name: 'structure', color: '#9C27B0', title: 'Estrutura textual' }
+];
 
 // Interface para redação
 export interface Essay {
@@ -25,7 +46,7 @@ export interface Essay {
   type: 'ENEM' | 'PAS';
   themeId?: string;
   themeText?: string;
-  status: 'PENDING' | 'GRADING' | 'GRADED';
+  status: 'PENDING' | 'GRADING' | 'GRADED' | 'SENT';
   file: {
     originalUrl: string;
     mime: string;
@@ -70,11 +91,12 @@ export interface Essay {
   theme?: {
     _id: string;
     title: string;
-    description: string;
+    description?: string;
   };
   teacher?: {
     _id: string;
     name: string;
+    email?: string;
   };
 }
 
@@ -91,12 +113,14 @@ export interface PaginatedResponse<T> {
 export const essayService = {
   // Listar redações com filtros
   async getEssays(params: {
-    status?: string;
+    status?: string | string[];
     type?: string;
     themeId?: string;
     q?: string;
     page?: number;
     limit?: number;
+    studentId?: string;
+    bimester?: number;
   }): Promise<PaginatedResponse<Essay>> {
     const response = await api.get('/essays', { params });
     return response.data;
@@ -118,6 +142,62 @@ export const essayService = {
   getFileUrl(id: string, token: string): string {
     return `${api.defaults.baseURL}/essays/${id}/file?token=${token}`;
   },
+  
+  // Métodos específicos para o professor
+  professor: {
+    // Listar redações pendentes (para correção)
+    async getPendingEssays(params: {
+      page?: number;
+      limit?: number;
+      q?: string; // Busca por nome de aluno ou tema
+      type?: 'ENEM' | 'PAS';
+      bimester?: number;
+    }): Promise<PaginatedResponse<Essay>> {
+      const queryParams = {
+        ...params,
+        status: 'PENDING'
+      };
+      const response = await api.get('/essays', { params: queryParams });
+      return response.data;
+    },
+    
+    // Listar redações já corrigidas
+    async getGradedEssays(params: {
+      page?: number;
+      limit?: number;
+      q?: string;
+      type?: 'ENEM' | 'PAS';
+      bimester?: number;
+      sent?: boolean; // Se true, filtra redações já enviadas por e-mail
+    }): Promise<PaginatedResponse<Essay>> {
+      const queryParams = {
+        ...params,
+        status: params.sent ? 'SENT' : 'GRADED'
+      };
+      const response = await api.get('/essays', { params: queryParams });
+      return response.data;
+    },
+  },
+  
+  // Métodos específicos para o aluno
+  student: {
+    // Listar minhas redações
+    async getMyEssays(params: {
+      page?: number;
+      limit?: number;
+      status?: 'PENDING' | 'GRADED' | 'SENT' | 'ALL';
+      type?: 'ENEM' | 'PAS';
+      bimester?: number;
+    }): Promise<PaginatedResponse<Essay>> {
+      const queryParams = {
+        ...params,
+        // Se status for ALL, não envia o parâmetro status para o backend
+        ...(params.status && params.status !== 'ALL' ? { status: params.status } : {})
+      };
+      const response = await api.get('/essays/my', { params: queryParams });
+      return response.data;
+    },
+  },
 
   // Obter anotações de uma redação
   async getAnnotations(essayId: string): Promise<AnnotationSet> {
@@ -127,26 +207,41 @@ export const essayService = {
 
   // Atualizar anotações
   async updateAnnotations(essayId: string, annotations: AnnotationSet): Promise<AnnotationSet> {
-    const response = await api.put(`/essays/${essayId}/annotations`, annotations);
-    return response.data;
+    try {
+      const response = await api.put(`/essays/${essayId}/annotations`, annotations);
+      return response.data;
+    } catch (error: any) {
+      console.error('Erro ao atualizar anotações:', error);
+      
+      if (error.response) {
+        const status = error.response.status;
+        if (status === 401 || status === 403) {
+          throw new Error('Você não tem permissão para editar estas anotações');
+        } else {
+          throw new Error(`Erro ao salvar anotações: ${error.response.data?.message || error.message}`);
+        }
+      }
+      
+      throw new Error('Erro ao salvar anotações. Por favor, tente novamente.');
+    }
   },
 
-  // Avaliar redação
+  // Avaliar redação (conforme os requisitos para ENEM e PAS)
   async gradeEssay(
     essayId: string, 
     data: {
       type: 'ENEM' | 'PAS';
       enem?: {
-        c1?: number;
-        c2?: number;
-        c3?: number;
-        c4?: number;
-        c5?: number;
+        c1?: number; // 0, 40, 80, 120, 160 ou 200
+        c2?: number; // 0, 40, 80, 120, 160 ou 200
+        c3?: number; // 0, 40, 80, 120, 160 ou 200
+        c4?: number; // 0, 40, 80, 120, 160 ou 200
+        c5?: number; // 0, 40, 80, 120, 160 ou 200
       };
       pas?: {
-        NC?: number;
-        NE?: number;
-        NL?: number;
+        NC?: number; // Nota de conteúdo
+        NE?: number; // Número de erros (contagem automática de marcações vermelhas)
+        NL?: number; // Número de linhas (ajustável manualmente)
       };
       annulment?: {
         active: boolean;
@@ -154,12 +249,41 @@ export const essayService = {
       };
       bimester?: number;
       countInAverage?: boolean;
-      grade?: number;
+      grade?: number; // Nota para o bimestre (se countInAverage for true)
       generalComments?: string;
     }
   ): Promise<Essay> {
-    const response = await api.put(`/essays/${essayId}/grade`, data);
-    return response.data;
+    try {
+      // Validações específicas para cada tipo de redação
+      if (data.type === 'ENEM' && data.enem) {
+        // Validar valores das competências (0, 40, 80, 120, 160, 200)
+        const validValues = [0, 40, 80, 120, 160, 200];
+        const competencias = [data.enem.c1, data.enem.c2, data.enem.c3, data.enem.c4, data.enem.c5];
+        
+        for (let i = 0; i < competencias.length; i++) {
+          const comp = competencias[i];
+          if (comp !== undefined && !validValues.includes(comp)) {
+            throw new Error(`Valor inválido para competência ${i+1}: ${comp}. Valores permitidos: 0, 40, 80, 120, 160, 200.`);
+          }
+        }
+      }
+      
+      // Se anulação estiver ativa, garantir que há pelo menos um motivo
+      if (data.annulment?.active && (!data.annulment.reasons || data.annulment.reasons.length === 0)) {
+        throw new Error('Para anular a redação, é necessário informar pelo menos um motivo');
+      }
+      
+      const response = await api.put(`/essays/${essayId}/grade`, data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Erro ao avaliar redação:', error);
+      
+      if (error.response) {
+        throw new Error(`Erro ao salvar avaliação: ${error.response.data?.message || error.message}`);
+      }
+      
+      throw error;
+    }
   },
 
   // Exportar PDF corrigido
@@ -173,29 +297,99 @@ export const essayService = {
     const response = await api.post(`/essays/${essayId}/send-email`);
     return response.data;
   },
+  
+  // Editar uma redação pendente (usado pelo professor)
+  async updatePendingEssay(essayId: string, data: {
+    type?: 'ENEM' | 'PAS';
+    themeId?: string;
+    themeText?: string;
+    studentId?: string;
+    bimester?: number;
+    file?: {
+      originalUrl: string;
+      mime: string;
+      size: number;
+      pages: number;
+    }
+  }): Promise<Essay> {
+    try {
+      const response = await api.put(`/essays/${essayId}`, data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Erro ao editar redação pendente:', error);
+      
+      if (error.response) {
+        const status = error.response.status;
+        
+        if (status === 401) {
+          throw new Error('Você precisa estar autenticado como professor para editar redações');
+        } else if (status === 403) {
+          throw new Error('Você não tem permissão para editar esta redação');
+        } else if (status === 404) {
+          throw new Error('Redação não encontrada');
+        } else if (status === 400) {
+          const message = error.response.data?.message || 'Dados inválidos. Verifique as informações e tente novamente.';
+          throw new Error(message);
+        } else {
+          throw new Error(`Erro no servidor (${status})`);
+        }
+      } else if (error.request) {
+        throw new Error('Sem resposta do servidor. Verifique sua conexão de internet.');
+      }
+      
+      throw error;
+    }
+  },
 
   // Fazer upload do arquivo de redação
   async uploadEssayFile(file: File): Promise<{ url: string; mime: string; size: number; pages: number }> {
-    console.log('uploadEssayFile: Iniciando upload do arquivo', file.name);
+    console.log('Iniciando upload de arquivo...');
+    
+    // Validação do arquivo
+    if (!file) {
+      throw new Error('Nenhum arquivo fornecido');
+    }
+    
+    if (file.type !== 'application/pdf') {
+      throw new Error('O arquivo deve ser um PDF');
+    }
+    
+    if (file.size > 10 * 1024 * 1024) {
+      throw new Error('O arquivo não pode exceder 10MB');
+    }
     
     const formData = new FormData();
     formData.append('file', file);
     
     try {
-      console.log('uploadEssayFile: Enviando requisição para /uploads/essay');
       const response = await api.post('/uploads/essay', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
-        }
+        },
+        withCredentials: true
       });
-      console.log('uploadEssayFile: Resposta recebida', response.data);
+      
       return response.data;
     } catch (error: any) {
-      console.error('uploadEssayFile: Erro durante o upload:', error);
+      console.error('Erro durante o upload do arquivo:', error);
+      
+      // Mensagens de erro amigáveis baseadas na resposta do servidor
       if (error.response) {
-        console.error('uploadEssayFile: Resposta de erro:', error.response.data);
-        console.error('uploadEssayFile: Status:', error.response.status);
+        const status = error.response.status;
+        
+        if (status === 401) {
+          throw new Error('Você precisa estar autenticado para enviar uma redação');
+        } else if (status === 413) {
+          throw new Error('O arquivo é muito grande. Tamanho máximo: 10MB');
+        } else if (error.response.data && error.response.data.message) {
+          throw new Error(error.response.data.message);
+        } else {
+          throw new Error(`Erro no servidor (${status})`);
+        }
+      } else if (error.request) {
+        throw new Error('Sem resposta do servidor. Verifique sua conexão de internet.');
       }
+      
       throw error;
     }
   },
@@ -210,9 +404,49 @@ export const essayService = {
       mime: string;
       size: number;
       pages: number;
-    }
+    };
+    status?: 'PENDING' | 'GRADING' | 'GRADED' | 'SENT';
+    studentId?: string; // Opcional, usado quando um professor cria em nome de aluno
+    bimester?: number;
   }): Promise<Essay> {
-    const response = await api.post('/essays', data);
-    return response.data;
+    try {
+      // Validações
+      if (!data.file || !data.file.originalUrl) {
+        throw new Error('Informações do arquivo são obrigatórias');
+      }
+      
+      if (!data.themeId && !data.themeText) {
+        throw new Error('É necessário selecionar um tema ou informar um tema personalizado');
+      }
+      
+      // Garantir que o status inicial seja PENDING se não for especificado
+      const essayData = {
+        ...data,
+        status: data.status || 'PENDING'
+      };
+      
+      const response = await api.post('/essays', essayData);
+      return response.data;
+    } catch (error: any) {
+      console.error('Erro ao criar redação:', error);
+      
+      // Mensagens de erro amigáveis
+      if (error.response) {
+        const status = error.response.status;
+        
+        if (status === 401) {
+          throw new Error('Você precisa estar autenticado para enviar uma redação');
+        } else if (status === 400) {
+          const message = error.response.data?.message || 'Dados inválidos. Verifique as informações e tente novamente.';
+          throw new Error(message);
+        } else {
+          throw new Error(`Erro no servidor (${status})`);
+        }
+      } else if (error.request) {
+        throw new Error('Sem resposta do servidor. Verifique sua conexão de internet.');
+      }
+      
+      throw error;
+    }
   }
 };

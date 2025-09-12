@@ -3,11 +3,11 @@ import { paths } from '../routes/paths'
 import { useState, useEffect } from 'react'
 import { essayService } from '../services/essayService'
 import { useAuth } from '../store/AuthStateProvider'
+import api from '../services/api'
 
 export function NovaRedacaoPage() {
   // Estados de autenticação
   const { auth, isLoading } = useAuth()
-  const [temasCarregados, setTemasCarregados] = useState([])
   
   // Estados
   const [tipoRedacao, setTipoRedacao] = useState<'ENEM' | 'PAS'>('ENEM')
@@ -16,20 +16,65 @@ export function NovaRedacaoPage() {
   const [arquivo, setArquivo] = useState<File | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState('')
+  const [statusAutenticacao, setStatusAutenticacao] = useState('Verificando...')
+  const [apiUrl, setApiUrl] = useState('')
+  
+  // Efeito para verificação de autenticação
+  useEffect(() => {
+    // Obter URL da API
+    const url = import.meta.env.VITE_API_BASE_URL || 'https://api.professoryagosales.com.br';
+    setApiUrl(url);
+    
+    // Verificar autenticação
+    if (isLoading) {
+      setStatusAutenticacao('Verificando autenticação...')
+    } else if (auth.isAuthenticated) {
+      setStatusAutenticacao(`Autenticado como: ${auth.user?.name} (${auth.user?.role})`)
+      console.log('Auth state:', auth)
+    } else {
+      setStatusAutenticacao('Não autenticado - redirecionando...')
+    }
+  }, [isLoading, auth]);
+  
+  // Estado para armazenar os temas
+  const [temas, setTemas] = useState<{ id: string; titulo: string; ativo: boolean }[]>([]);
+  const [carregandoTemas, setCarregandoTemas] = useState(true);
+  const [erroTemas, setErroTemas] = useState('');
+  
+  // Carregar temas do servidor
+  useEffect(() => {
+    const buscarTemas = async () => {
+      try {
+        setCarregandoTemas(true);
+        const response = await api.get('/themes');
+        
+        // Mapear os temas do formato da API para o formato usado no componente
+        const temasFormatados = response.data.map((tema: any) => ({
+          id: tema._id,
+          titulo: tema.title,
+          ativo: tema.active
+        }));
+        
+        setTemas(temasFormatados);
+        setErroTemas('');
+      } catch (error: any) {
+        console.error('Erro ao carregar temas:', error);
+        setErroTemas('Não foi possível carregar a lista de temas.');
+      } finally {
+        setCarregandoTemas(false);
+      }
+    };
+    
+    if (auth.isAuthenticated) {
+      buscarTemas();
+    }
+  }, [auth.isAuthenticated]);
   
   // Verificar se o usuário está autenticado
   if (!isLoading && !auth.isAuthenticated) {
+    console.log('Usuário não autenticado, redirecionando para login')
     return <Navigate to={paths.loginAluno} />
   }
-  
-  // Dados fictícios de temas disponíveis
-  const temas = [
-    { id: '1', titulo: 'Os desafios da educação digital no Brasil', ativo: true },
-    { id: '2', titulo: 'Sustentabilidade e desenvolvimento econômico', ativo: true },
-    { id: '3', titulo: 'A influência das redes sociais na formação de opinião', ativo: true },
-    { id: '4', titulo: 'Desigualdade social no contexto da pandemia', ativo: true },
-    { id: '5', titulo: 'O papel da tecnologia na democratização do conhecimento', ativo: true },
-  ]
 
   // Handler para o upload de arquivo
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -59,8 +104,6 @@ export function NovaRedacaoPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    console.log('Iniciando processo de envio de redação')
-    
     // Validações
     if (!arquivo) {
       setErro('Por favor, selecione um arquivo PDF da sua redação.')
@@ -77,26 +120,28 @@ export function NovaRedacaoPage() {
       return
     }
     
+    // Verificar tipo do arquivo
+    if (arquivo.type !== 'application/pdf') {
+      setErro('Por favor, selecione apenas arquivos em formato PDF.')
+      return
+    }
+    
+    // Verificar tamanho do arquivo (máx. 10MB)
+    if (arquivo.size > 10 * 1024 * 1024) {
+      setErro('O arquivo é muito grande. O tamanho máximo permitido é 10MB.')
+      return
+    }
+    
     // Começar envio real
     setEnviando(true)
     setErro('')
     
-    console.log('Enviando arquivo:', arquivo.name, 'Tamanho:', arquivo.size)
-    
     try {
       // 1. Primeiro fazer o upload do arquivo
-      console.log('Iniciando upload do arquivo...')
       const fileUploadResult = await essayService.uploadEssayFile(arquivo)
-      console.log('Upload concluído com sucesso:', fileUploadResult)
       
       // 2. Depois criar a redação com o URL do arquivo enviado
-      console.log('Criando redação com os seguintes dados:', {
-        type: tipoRedacao,
-        themeId: temaId === 'outro' ? undefined : temaId,
-        themeText: temaId === 'outro' ? temaPersonalizado : undefined
-      })
-      
-      const novaRedacao = await essayService.createEssay({
+      const dadosRedacao = {
         type: tipoRedacao,
         themeId: temaId === 'outro' ? undefined : temaId,
         themeText: temaId === 'outro' ? temaPersonalizado : undefined,
@@ -105,28 +150,21 @@ export function NovaRedacaoPage() {
           mime: fileUploadResult.mime,
           size: fileUploadResult.size,
           pages: fileUploadResult.pages
-        }
-      })
+        },
+        // Status inicial é sempre "PENDING" conforme o fluxo
+        status: 'PENDING' as const
+      }
       
-      console.log('Redação criada com sucesso:', novaRedacao)
+      const novaRedacao = await essayService.createEssay(dadosRedacao)
       
-      // 3. Redirecionar para a página de redações após o envio
-      console.log('Redirecionando para a página de minhas redações...')
+      // Mostrar mensagem de sucesso
+      alert('Redação cadastrada com sucesso! Sua redação está aguardando correção.')
+      
+      // 3. Redirecionar para a página de minhas redações após o envio
       window.location.href = paths.minhasRedacoes
     } catch (error: any) {
-      console.error('Erro ao enviar redação:', error)
-      if (error.response) {
-        console.error('Resposta do servidor:', error.response.data)
-        console.error('Status do erro:', error.response.status)
-        console.error('Headers:', error.response.headers)
-        setErro(`Erro do servidor: ${error.response.status} - ${error.response.data.message || 'Erro desconhecido'}`)
-      } else if (error.request) {
-        console.error('Sem resposta do servidor:', error.request)
-        setErro('Não foi possível se comunicar com o servidor. Verifique sua conexão.')
-      } else {
-        console.error('Erro de configuração:', error.message)
-        setErro(`Erro: ${error.message || 'Desconhecido'}`)
-      }
+      // Mostrar mensagem de erro amigável
+      setErro(error.message || 'Ocorreu um erro ao enviar sua redação. Por favor, tente novamente.')
     } finally {
       setEnviando(false)
     }
@@ -180,20 +218,33 @@ export function NovaRedacaoPage() {
             <label htmlFor="tema" className="block text-gray-700 font-medium mb-2">
               Tema da redação
             </label>
-            <select
-              id="tema"
-              value={temaId}
-              onChange={(e) => setTemaId(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
-            >
-              <option value="">Selecione um tema</option>
-              {temas.map((tema) => (
-                <option key={tema.id} value={tema.id}>
-                  {tema.titulo}
-                </option>
-              ))}
-              <option value="outro">Outro tema (não listado)</option>
-            </select>
+            {carregandoTemas ? (
+              <div className="flex items-center space-x-2 text-sm text-gray-500">
+                <svg className="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Carregando temas...</span>
+              </div>
+            ) : (
+              <select
+                id="tema"
+                value={temaId}
+                onChange={(e) => setTemaId(e.target.value)}
+                className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
+              >
+                <option value="">Selecione um tema</option>
+                {temas.map((tema) => (
+                  <option key={tema.id} value={tema.id}>
+                    {tema.titulo}
+                  </option>
+                ))}
+                <option value="outro">Outro tema (não listado)</option>
+              </select>
+            )}
+            {erroTemas && (
+              <p className="mt-1 text-sm text-red-600">{erroTemas}</p>
+            )}
           </div>
           
           {/* Tema personalizado */}
