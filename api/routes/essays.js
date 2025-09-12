@@ -8,6 +8,10 @@ router.get('/', authRequired(['teacher', 'student']), essaysController.getEssays
 router.post('/', authRequired(['teacher', 'student']), essaysController.createEssay);
 router.get('/:id', authRequired(['teacher', 'student']), essaysController.getEssayById);
 router.put('/:id', authRequired(['teacher']), essaysController.updateEssay);
+router.put('/:id/correction', authRequired(['teacher']), essaysController.saveCorrection);
+
+// Rota para gerar o PDF corrigido
+router.post('/:id/generate-pdf', authRequired(['teacher']), essaysController.generateCorrectedPdf);
 
 // Rotas para acesso ao arquivo
 router.post('/:id/file-token', authRequired(['teacher', 'student']), essaysController.generateFileToken);

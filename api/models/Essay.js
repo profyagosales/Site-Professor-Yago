@@ -1,5 +1,19 @@
 const mongoose = require('mongoose');
 
+const AnnotationSchema = new mongoose.Schema({
+  page: { type: Number, required: true },
+  rects: [{
+    x: Number,
+    y: Number,
+    w: Number,
+    h: Number,
+  }],
+  color: { type: String, required: true },
+  category: { type: String, required: true },
+  comment: { type: String, default: '' },
+  id: { type: String, required: true },
+}, { _id: false });
+
 const EssaySchema = new mongoose.Schema({
   studentId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -12,7 +26,7 @@ const EssaySchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['ENEM', 'PAS'],
+    enum: ['ENEM', 'PAS/UnB'],
     required: true
   },
   themeId: {
@@ -25,7 +39,7 @@ const EssaySchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['PENDING', 'GRADING', 'GRADED'],
+    enum: ['PENDING', 'GRADING', 'GRADED', 'SENT'],
     default: 'PENDING'
   },
   file: {
@@ -52,6 +66,11 @@ const EssaySchema = new mongoose.Schema({
     active: { type: Boolean, default: false },
     reasons: [String]
   },
+  generalComments: {
+    type: String,
+    trim: true
+  },
+  annotations: [AnnotationSchema],
   correctedPdfUrl: {
     type: String
   },

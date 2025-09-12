@@ -7,7 +7,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { AuthErrorPage } from './pages/AuthErrorPage'
 import { GerenciarTemasPage } from './pages/GerenciarTemasPage'
 import { RevisarRedacoesPage } from './pages/RevisarRedacoesPage'
-import { CorrigirRedacaoPage } from './pages/CorrigirRedacaoPage'
+import CorrectionPage from './pages/CorrectionPage'
 import { GerenciarAlunosPage } from './pages/GerenciarAlunosPage'
 import { NovaRedacaoPage } from './pages/NovaRedacaoPage'
 import { MinhasRedacoesPage } from './pages/MinhasRedacoesPage'
@@ -55,19 +55,11 @@ export const router = createBrowserRouter([
       },
       {
         path: paths.revisarRedacoes,
-        element: (
-          <AuthGate requireAuth={true} roles={['teacher']}>
-            <RevisarRedacoesPage />
-          </AuthGate>
-        ),
+        element: <RevisarRedacoesPage />,
       },
       {
-        path: `${paths.corrigirRedacao}/:id`,
-        element: (
-          <AuthGate requireAuth={true} roles={['teacher']}>
-            <CorrigirRedacaoPage />
-          </AuthGate>
-        ),
+        path: paths.corrigirRedacao,
+        element: <CorrectionPage />,
       },
       {
         path: paths.gerenciarAlunos,

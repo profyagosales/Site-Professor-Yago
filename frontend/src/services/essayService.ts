@@ -1,49 +1,43 @@
 // Services para integração com a API de redações
 import api from './api';
 
-// Interface para as anotações
+// Interface para as anotações da API (o que é salvo no banco)
 export interface APIAnnotation {
-  page: number;
-  rects: { x: number; y: number; w: number; h: number }[];
-  color: string;
-  category: string;
+  text: string;
   comment: string;
-  id?: string; // ID único para a anotação
-  number?: number; // Número da anotação para exibição no PDF
+  category: string;
+  position: {
+    pageNumber: number;
+    rects: Array<{
+      x1: number;
+      y1: number;
+      x2: number;
+      y2: number;
+      width: number;
+      height: number;
+    }>;
+  };
+}
+
+// Interface para anotação no estado do frontend (inclui ID temporário)
+export interface FrontendAnnotation extends APIAnnotation {
+  id: string;
 }
 
 // Interface para o conjunto de anotações
 export interface AnnotationSet {
-  essayId: string;
-  highlights: APIAnnotation[];
-  comments: { text: string; category: string; id?: string }[];
+// ... (código existente, se houver)
 }
 
 // Interface para as categorias de marcação
-export interface MarkCategory {
-  name: string;
-  color: string;
-  title: string;
-  description?: string;
-  isError?: boolean; // Se true, conta como erro para cálculo do NE no PAS
-}
-
-// Categorias padrão para marcações
-export const DEFAULT_MARK_CATEGORIES: MarkCategory[] = [
-  { name: 'grammar', color: '#FF5252', title: 'Erro gramatical', isError: true },
-  { name: 'spelling', color: '#FF9800', title: 'Erro ortográfico', isError: true },
-  { name: 'highlight', color: '#FFEB3B', title: 'Destaque' },
-  { name: 'content', color: '#4CAF50', title: 'Conteúdo correto' },
-  { name: 'suggestion', color: '#2196F3', title: 'Sugestão' },
-  { name: 'structure', color: '#9C27B0', title: 'Estrutura textual' }
-];
+// ... (código existente)
 
 // Interface para redação
 export interface Essay {
   _id: string;
   studentId: string;
   teacherId?: string;
-  type: 'ENEM' | 'PAS';
+  type: 'ENEM' | 'PAS' | 'PAS/UnB';
   themeId?: string;
   themeText?: string;
   status: 'PENDING' | 'GRADING' | 'GRADED' | 'SENT';
@@ -53,32 +47,12 @@ export interface Essay {
     size: number;
     pages: number;
   };
-  enem?: {
-    c1?: number;
-    c2?: number;
-    c3?: number;
-    c4?: number;
-    c5?: number;
-    rawScore?: number;
-  };
-  pas?: {
-    NC?: number;
-    NE?: number;
-    NL?: number;
-    rawScore?: number;
-  };
-  annulment?: {
-    active: boolean;
-    reasons: string[];
-  };
-  correctedPdfUrl?: string;
-  email?: {
-    lastSentAt?: Date;
-  };
-  bimester?: number;
-  countInAverage?: boolean;
-  grade?: number;
+  annotations: APIAnnotation[];
   generalComments?: string;
+  enemScores?: EnemCorrection;
+  pasScores?: PasCorrection;
+  finalGrade?: number;
+  correctedPdfUrl?: string;
   createdAt: string;
   updatedAt: string;
   student?: {
@@ -98,7 +72,85 @@ export interface Essay {
     name: string;
     email?: string;
   };
+};
+
+export interface EnemCorrection {
+  c1: number;
+  c2: number;
+  c3: number;
+  c4: number;
+  c5: number;
 }
+
+export interface PasCorrection {
+  arg: number;
+  type: number;
+  lang: number;
+}
+
+export interface CorrectionData {
+  annotations: APIAnnotation[];
+  generalComments: string;
+  enemScores?: EnemCorrection;
+  pasScores?: PasCorrection;
+  finalGrade: number;
+}
+
+/**
+ * Constrói a URL completa para um arquivo da API.
+ * @param filePath O caminho do arquivo retornado pela API.
+ * @returns A URL completa para o arquivo.
+ */
+export const getFileUrl = (filePath: string): string => {
+  if (!filePath) return '';
+  const cleanedPath = filePath.startsWith('public/') ? filePath.substring(7) : filePath;
+  return `${import.meta.env.VITE_API_BASE_URL.replace(/\/api$/, '')}/${cleanedPath}`;
+};
+
+
+/**
+ * Busca uma redação específica pelo seu ID.
+ * @param essayId O ID da redação.
+ * @returns Os dados da redação.
+ */
+export const getEssayById = async (essayId: string): Promise<Essay> => {
+  const { data } = await api.get(`/essays/${essayId}`);
+  return data;
+};
+
+/**
+ * Salva os dados de correção de uma redação.
+ * @param essayId O ID da redação.
+ * @param correctionData Os dados da correção.
+ * @returns A redação atualizada.
+ */
+export const saveCorrection = async (essayId: string, correctionData: CorrectionData): Promise<Essay> => {
+  const { data } = await api.put(`/essays/${essayId}/correction`, correctionData);
+  return data;
+};
+
+/**
+ * Solicita a geração do PDF corrigido para uma redação.
+ * @param essayId O ID da redação.
+ * @param correctionData Os dados da correção a serem usados na geração do PDF.
+ * @returns Um blob com o PDF gerado.
+ */
+export const generateCorrectedPdf = async (essayId: string, correctionData: CorrectionData): Promise<Blob> => {
+  const { data } = await api.post(`/essays/${essayId}/generate-pdf`, correctionData, {
+    responseType: 'blob', // Importante para receber o arquivo
+  });
+  return data;
+};
+
+/**
+ * Cria uma nova redação.
+ * @param essayData Os dados da redação a ser criada.
+ * @returns Os dados da redação criada.
+ */
+export const createEssay = async (essayData: Omit<Essay, '_id' | 'createdAt' | 'updatedAt'>): Promise<Essay> => {
+  const { data } = await api.post('/essays', essayData);
+  return data;
+};
 
 // Interface para resposta paginada
 export interface PaginatedResponse<T> {

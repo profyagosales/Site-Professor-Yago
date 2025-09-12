@@ -7,7 +7,7 @@ export const paths = {
   // Rotas do professor
   gerenciarTemas: '/temas',
   revisarRedacoes: '/redacoes',
-  corrigirRedacao: '/redacoes/corrigir',
+  corrigirRedacao: '/redacoes/corrigir/:id',
   gerenciarAlunos: '/alunos',
   // Rotas do aluno
   novaRedacao: '/nova-redacao',

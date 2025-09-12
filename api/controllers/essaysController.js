@@ -331,68 +331,53 @@ exports.getAnnotations = async (req, res, next) => {
   }
 };
 
-// Atualizar anotações de uma redação
-exports.updateAnnotations = async (req, res, next) => {
+// Salvar rascunho da correção
+exports.saveCorrection = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { highlights, comments } = req.body;
-    
+    const { annotations, generalComments, enemScores, pasScores, finalGrade } = req.body;
+
     const essay = await Essay.findById(id);
-    
+
     if (!essay) {
       return res.status(404).json({ message: 'Redação não encontrada' });
     }
-    
-    // Apenas professores podem atualizar anotações
-    if (req.user.role !== 'teacher') {
-      return res.status(403).json({ message: 'Apenas professores podem atualizar anotações' });
+
+    // O middleware authRequired já garante que o usuário é um professor
+
+    // Atualiza os campos da correção
+    if (annotations) {
+        essay.annotations = annotations.map(ann => ({
+            text: ann.content.text,
+            comment: ann.comment.text,
+            category: ann.category,
+            position: ann.position,
+        }));
     }
-    
-    // Buscar ou criar conjunto de anotações
-    let annotationSet = await AnnotationSet.findOne({ essayId: id });
-    
-    if (!annotationSet) {
-      annotationSet = new AnnotationSet({
-        essayId: id,
-        highlights: [],
-        comments: []
-      });
+    if (generalComments) {
+      essay.generalComments = generalComments;
     }
-    
-    // Atualizar highlights
-    if (highlights) {
-      // Adicionar informações do criador
-      const newHighlights = highlights.map(highlight => ({
-        ...highlight,
-        createdBy: req.user.id,
-        createdAt: new Date()
-      }));
-      
-      annotationSet.highlights = newHighlights;
+    if (enemScores) {
+      essay.enemScores = enemScores;
     }
-    
-    // Atualizar comentários
-    if (comments) {
-      // Adicionar informações do criador
-      const newComments = comments.map(comment => ({
-        ...comment,
-        createdBy: req.user.id,
-        createdAt: new Date()
-      }));
-      
-      annotationSet.comments = newComments;
+    if (pasScores) {
+      essay.pasScores = pasScores;
     }
-    
-    // Marcar redação como em processo de correção
+    if (finalGrade !== undefined) {
+      essay.finalGrade = finalGrade;
+    }
+
+    // Atualiza o status da redação se for a primeira vez que está sendo corrigida
     if (essay.status === 'PENDING') {
       essay.status = 'GRADING';
       essay.teacherId = req.user.id;
-      await essay.save();
     }
     
-    await annotationSet.save();
-    
-    res.json(annotationSet);
+    essay.updatedAt = Date.now();
+
+    const updatedEssay = await essay.save();
+
+    res.json(updatedEssay);
   } catch (error) {
     next(error);
   }
@@ -606,6 +591,59 @@ exports.sendEmailWithPdf = async (req, res, next) => {
       sentAt: essay.email.lastSentAt
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+// Gerar PDF corrigido
+exports.generateCorrectedPdf = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const essay = await Essay.findById(id).populate('studentId', 'name');
+
+    if (!essay) {
+      return res.status(404).json({ message: 'Redação não encontrada' });
+    }
+
+    if (essay.status !== 'GRADED' && essay.status !== 'GRADING') {
+        // Salva a correção antes de gerar o PDF, caso ainda não tenha sido salva
+        const { annotations, generalComments, enemScores, pasScores, finalGrade } = req.body;
+        if (annotations) {
+            essay.annotations = annotations.map(ann => ({
+                text: ann.content.text,
+                comment: ann.comment.text,
+                category: ann.category,
+                position: ann.position,
+            }));
+        }
+        if (generalComments) essay.generalComments = generalComments;
+        if (enemScores) essay.enemScores = enemScores;
+        if (pasScores) essay.pasScores = pasScores;
+        if (finalGrade !== undefined) essay.finalGrade = finalGrade;
+    }
+
+
+    // Dados para o espelho de correção
+    const correctionData = {
+      studentName: essay.studentId.name,
+      essayType: essay.type,
+      finalGrade: essay.finalGrade,
+      generalComments: essay.generalComments,
+      enemScores: essay.enemScores,
+      pasScores: essay.pasScores,
+      annotations: essay.annotations,
+    };
+
+    // Gera o PDF
+    const pdfBytes = await pdfService.generateCorrectedPdf(essay.file.originalUrl, correctionData);
+
+    // Envia o PDF como resposta
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="redacao_corrigida_${essay._id}.pdf"`);
+    res.send(Buffer.from(pdfBytes));
+
+  } catch (error) {
+    console.error('Erro ao gerar PDF corrigido:', error);
     next(error);
   }
 };
