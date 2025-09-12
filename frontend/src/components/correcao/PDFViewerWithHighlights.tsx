@@ -1,8 +1,8 @@
 
 import React, { useState, useCallback } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
-import 'react-pdf/dist/esm/Page/TextLayer.css';
+// As folhas de estilo de camadas do react-pdf foram removidas (a lib já embute estilos principais na v10)
+// Removidos imports de 'AnnotationLayer.css' e 'TextLayer.css' que quebravam o build
 import { FrontendAnnotation, APIAnnotation } from '../../services/essayService';
 import { CorrectionCategory } from '../../constants/correction';
 
