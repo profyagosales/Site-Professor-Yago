@@ -1,18 +1,19 @@
 import { createBrowserRouter } from 'react-router-dom'
 import { RootLayout } from './layouts/RootLayout'
+import React, { Suspense, lazy } from 'react'
 import { HomePage } from './pages/HomePage'
 import { LoginAlunoPage } from './pages/LoginAlunoPage'
 import { LoginProfessorPage } from './pages/LoginProfessorPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { AuthErrorPage } from './pages/AuthErrorPage'
-import { GerenciarTemasPage } from './pages/GerenciarTemasPage'
-import { RevisarRedacoesPage } from './pages/RevisarRedacoesPage'
-import CorrectionPage from './pages/CorrectionPage'
-import { GerenciarAlunosPage } from './pages/GerenciarAlunosPage'
-import GerenciarTurmasPage from './pages/GerenciarTurmasPage' // Importar a nova página
-import { NovaRedacaoPage } from './pages/NovaRedacaoPage'
-import { MinhasRedacoesPage } from './pages/MinhasRedacoesPage'
-import { VerTemasPage } from './pages/VerTemasPage'
+const GerenciarTemasPage = lazy(() => import('./pages/GerenciarTemasPage').then(m => ({ default: m.GerenciarTemasPage })))
+const RevisarRedacoesPage = lazy(() => import('./pages/RevisarRedacoesPage').then(m => ({ default: m.RevisarRedacoesPage })))
+const CorrectionPage = lazy(() => import('./pages/CorrectionPage'))
+const GerenciarAlunosPage = lazy(() => import('./pages/GerenciarAlunosPage').then(m => ({ default: m.GerenciarAlunosPage })))
+const GerenciarTurmasPage = lazy(() => import('./pages/GerenciarTurmasPage'))
+const NovaRedacaoPage = lazy(() => import('./pages/NovaRedacaoPage').then(m => ({ default: m.NovaRedacaoPage })))
+const MinhasRedacoesPage = lazy(() => import('./pages/MinhasRedacoesPage').then(m => ({ default: m.MinhasRedacoesPage })))
+const VerTemasPage = lazy(() => import('./pages/VerTemasPage').then(m => ({ default: m.VerTemasPage })))
 import { paths } from './routes/paths'
 import { AuthGate } from './features/auth/AuthGate'
 
@@ -50,23 +51,23 @@ export const router = createBrowserRouter([
         path: paths.gerenciarTemas,
         element: (
           <AuthGate requireAuth={true} roles={['teacher']}>
-            <GerenciarTemasPage />
+            <Suspense fallback={<div>Carregando...</div>}><GerenciarTemasPage /></Suspense>
           </AuthGate>
         ),
       },
       {
         path: paths.revisarRedacoes,
-        element: <RevisarRedacoesPage />,
+  element: <Suspense fallback={<div>Carregando...</div>}><RevisarRedacoesPage /></Suspense>,
       },
       {
         path: paths.corrigirRedacao,
-        element: <CorrectionPage />,
+  element: <Suspense fallback={<div>Carregando PDF...</div>}><CorrectionPage /></Suspense>,
       },
       {
         path: paths.gerenciarAlunos,
         element: (
           <AuthGate requireAuth={true} roles={['teacher']}>
-            <GerenciarAlunosPage />
+            <Suspense fallback={<div>Carregando...</div>}><GerenciarAlunosPage /></Suspense>
           </AuthGate>
         ),
       },
@@ -74,7 +75,7 @@ export const router = createBrowserRouter([
         path: paths.gerenciarTurmas, // Adicionar a nova rota de turmas
         element: (
           <AuthGate requireAuth={true} roles={['teacher']}>
-            <GerenciarTurmasPage />
+            <Suspense fallback={<div>Carregando...</div>}><GerenciarTurmasPage /></Suspense>
           </AuthGate>
         ),
       },
@@ -83,7 +84,7 @@ export const router = createBrowserRouter([
         path: paths.novaRedacao,
         element: (
           <AuthGate requireAuth={true} roles={['student']}>
-            <NovaRedacaoPage />
+            <Suspense fallback={<div>Carregando...</div>}><NovaRedacaoPage /></Suspense>
           </AuthGate>
         ),
       },
@@ -91,7 +92,7 @@ export const router = createBrowserRouter([
         path: paths.minhasRedacoes,
         element: (
           <AuthGate requireAuth={true} roles={['student']}>
-            <MinhasRedacoesPage />
+            <Suspense fallback={<div>Carregando...</div>}><MinhasRedacoesPage /></Suspense>
           </AuthGate>
         ),
       },
@@ -99,7 +100,7 @@ export const router = createBrowserRouter([
         path: paths.verTemas,
         element: (
           <AuthGate requireAuth={true} roles={['student']}>
-            <VerTemasPage />
+            <Suspense fallback={<div>Carregando...</div>}><VerTemasPage /></Suspense>
           </AuthGate>
         ),
       },
