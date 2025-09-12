@@ -31,10 +31,29 @@ const UserSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+// Campos específicos para alunos
+  classId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Class',
+    required: function() { return this.role === 'student'; }
+  },
+  // Campos específicos para professores
+  // (adicionar campos se necessário no futuro)
   createdAt: {
     type: Date,
     default: Date.now
   }
+}, {
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Virtual populate para turmas
+UserSchema.virtual('class', {
+  ref: 'Class',
+  localField: 'classId',
+  foreignField: '_id',
+  justOne: true
 });
 
 // Método para verificar senha

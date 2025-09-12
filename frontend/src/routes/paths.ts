@@ -9,6 +9,7 @@ export const paths = {
   revisarRedacoes: '/redacoes',
   corrigirRedacao: '/redacoes/corrigir/:id',
   gerenciarAlunos: '/alunos',
+  gerenciarTurmas: '/turmas', // Adicionar rota para gerenciar turmas
   // Rotas do aluno
   novaRedacao: '/nova-redacao',
   minhasRedacoes: '/minhas-redacoes',

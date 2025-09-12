@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../store/AuthStateProvider'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom' // Importar Link
 import api from '../services/api'
 import { paths } from '../routes/paths'
+import { Button } from '@/components/ui/button' // Importar Button
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card' // Importar Card
+import { Users, Book, FileText, CheckSquare } from 'lucide-react' // Importar ícones
 
 export function DashboardPage() {
   const { auth, logout, isLoading } = useAuth()
@@ -56,25 +59,126 @@ export function DashboardPage() {
               Bem-vindo, {auth.user?.name || 'Usuário'}!
             </h1>
             <p className="text-gray-600 mb-4">
-              {auth.role === 'teacher' ? 'Acesso de Professor' : 'Acesso de Aluno'}
+              {auth.role === 'teacher' ? 'Painel do Professor' : 'Painel do Aluno'}
             </p>
           </div>
           
           <div className="mt-4 md:mt-0">
-            <button
+            <Button
               onClick={handleLogout}
-              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+              variant="destructive"
             >
               Sair
-            </button>
+            </Button>
           </div>
         </div>
       </div>
 
+      {/* Menu de Ações Rápidas */}
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold mb-4">Ações Rápidas</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {auth.role === 'teacher' && (
+            <>
+              <Link to={paths.gerenciarAlunos}>
+                <Card className="hover:bg-gray-50 transition-colors">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Gerenciar Alunos</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">+</div>
+                    <p className="text-xs text-muted-foreground">Adicionar e editar alunos</p>
+                  </CardContent>
+                </Card>
+              </Link>
+              <Link to={paths.gerenciarTurmas}>
+                <Card className="hover:bg-gray-50 transition-colors">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Gerenciar Turmas</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">+</div>
+                    <p className="text-xs text-muted-foreground">Criar e editar turmas</p>
+                  </CardContent>
+                </Card>
+              </Link>
+              <Link to={paths.gerenciarTemas}>
+                <Card className="hover:bg-gray-50 transition-colors">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Gerenciar Temas</CardTitle>
+                    <Book className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">+</div>
+                    <p className="text-xs text-muted-foreground">Adicionar e editar temas</p>
+                  </CardContent>
+                </Card>
+              </Link>
+              <Link to={paths.revisarRedacoes}>
+                <Card className="hover:bg-gray-50 transition-colors">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Revisar Redações</CardTitle>
+                    <CheckSquare className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">→</div>
+                    <p className="text-xs text-muted-foreground">Corrigir redações enviadas</p>
+                  </CardContent>
+                </Card>
+              </Link>
+            </>
+          )}
+          {auth.role === 'student' && (
+            <>
+              <Link to={paths.novaRedacao}>
+                <Card className="hover:bg-gray-50 transition-colors">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Enviar Nova Redação</CardTitle>
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">+</div>
+                    <p className="text-xs text-muted-foreground">Enviar uma nova redação para correção</p>
+                  </CardContent>
+                </Card>
+              </Link>
+              <Link to={paths.minhasRedacoes}>
+                <Card className="hover:bg-gray-50 transition-colors">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Minhas Redações</CardTitle>
+                    <CheckSquare className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">→</div>
+                    <p className="text-xs text-muted-foreground">Ver minhas redações corrigidas</p>
+                  </CardContent>
+                </Card>
+              </Link>
+               <Link to={paths.verTemas}>
+                <Card className="hover:bg-gray-50 transition-colors">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Ver Temas</CardTitle>
+                    <Book className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">→</div>
+                    <p className="text-xs text-muted-foreground">Consultar temas disponíveis</p>
+                  </CardContent>
+                </Card>
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-4">Suas informações</h2>
-          <div className="space-y-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Suas informações</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
             <p><span className="font-medium">Nome:</span> {auth.user?.name}</p>
             <p><span className="font-medium">Email:</span> {auth.user?.email}</p>
             <p><span className="font-medium">Função:</span> {auth.role === 'teacher' ? 'Professor' : 'Aluno'}</p>
@@ -88,19 +192,19 @@ export function DashboardPage() {
                 />
               </div>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-4">Teste de API</h2>
-          <div className="space-y-4">
-            <button
+        <Card>
+          <CardHeader>
+            <CardTitle>Teste de API</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button
               onClick={testApiConnection}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
             >
-              Testar conexão com API
-            </button>
-            
+              Testar Conexão com API
+            </Button>
             {apiTestResult && (
               <div className={`mt-4 p-4 rounded ${
                 apiTestResult.includes('Sucesso') 
@@ -112,8 +216,8 @@ export function DashboardPage() {
                 {apiTestResult}
               </div>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
       {auth.role === 'teacher' && (

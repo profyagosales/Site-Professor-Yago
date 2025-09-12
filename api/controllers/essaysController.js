@@ -88,8 +88,7 @@ exports.createEssay = async (req, res, next) => {
     
     // Criar nova redação
     const essay = new Essay({
-      studentId: req.user.role === 'student' ? req.user.id : req.body.studentId,
-      teacherId: req.user.role === 'teacher' ? req.user.id : null,
+      studentId: req.user.id, // Aluno só pode criar para si mesmo
       type,
       themeId,
       themeText,
@@ -104,6 +103,52 @@ exports.createEssay = async (req, res, next) => {
     
     await essay.save();
     
+    res.status(201).json(essay);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Criar nova redação para um aluno específico (usado por professores)
+exports.createEssayForStudent = async (req, res, next) => {
+  const { studentId } = req.params;
+  const { themeId } = req.body;
+  const file = req.file; // Arquivo vem do multer
+
+  try {
+    if (!file) {
+      return res.status(400).json({ message: 'Arquivo da redação é obrigatório.' });
+    }
+    if (!themeId) {
+      return res.status(400).json({ message: 'O tema da redação é obrigatório.' });
+    }
+
+    // Upload para o Cloudinary
+    const uploadResult = await cloudinaryService.uploadFile(file.buffer, {
+      folder: `essays/originals/${studentId}`,
+      resource_type: 'auto',
+    });
+
+    // Obter número de páginas do PDF
+    const pageCount = await pdfService.getPdfPageCount(uploadResult.secure_url);
+
+    const essay = new Essay({
+      studentId,
+      teacherId: req.user.id, // Professor que está enviando
+      type: 'ENEM', // Ou determinar de outra forma
+      themeId,
+      file: {
+        originalUrl: uploadResult.secure_url,
+        cloudinaryPublicId: uploadResult.public_id,
+        mime: file.mimetype,
+        size: file.size,
+        pages: pageCount,
+      },
+      status: 'PENDING',
+    });
+
+    await essay.save();
+
     res.status(201).json(essay);
   } catch (error) {
     next(error);

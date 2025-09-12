@@ -1,33 +1,33 @@
 const User = require('../models/User');
+const Class = require('../models/Class'); // Importar o modelo Class
 const bcrypt = require('bcryptjs');
 
-// Listar usuários (apenas alunos)
+// Listar todos os alunos com filtros e paginação
 exports.getStudents = async (req, res, next) => {
   try {
-    const { query = '', page = 1, limit = 10, active } = req.query;
+    const { query = '', page = 1, limit = 10, active, classId } = req.query;
     
     const filter = { role: 'student' };
     
-    // Adicionar filtro de texto na busca
     if (query) {
-      filter.$or = [
-        { name: { $regex: query, $options: 'i' } },
-        { email: { $regex: query, $options: 'i' } }
-      ];
+      filter.name = { $regex: query, $options: 'i' };
     }
     
-    // Filtrar por status ativo
     if (active !== undefined) {
       filter.active = active === 'true';
     }
+
+    if (classId) {
+      filter.classId = classId;
+    }
     
     const options = {
-      sort: { createdAt: -1 },
-      skip: (parseInt(page) - 1) * parseInt(limit),
-      limit: parseInt(limit)
+      sort: { name: 1 },
+      skip: (parseInt(page, 10) - 1) * parseInt(limit, 10),
+      limit: parseInt(limit, 10),
+      populate: { path: 'classId', select: 'name year' }
     };
     
-    // Não retornar o hash de senha
     const projection = '-passwordHash';
     
     const [users, total] = await Promise.all([
@@ -39,9 +39,9 @@ exports.getStudents = async (req, res, next) => {
       users,
       pagination: {
         total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        pages: Math.ceil(total / parseInt(limit))
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
+        pages: Math.ceil(total / parseInt(limit, 10))
       }
     });
   } catch (error) {
@@ -49,40 +49,41 @@ exports.getStudents = async (req, res, next) => {
   }
 };
 
-// Criar novo aluno
+// Criar um novo aluno
 exports.createStudent = async (req, res, next) => {
   try {
-    const { name, email, password, active } = req.body;
+    const { name, email, password, active, classId } = req.body;
     
-    // Validações
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: 'Nome, email e senha são obrigatórios' });
+    if (!name || !email || !password || !classId) {
+      return res.status(400).json({ message: 'Nome, email, senha e turma são obrigatórios.' });
     }
     
-    // Verificar se o email já existe
     const existingUser = await User.findOne({ email });
-    
     if (existingUser) {
-      return res.status(400).json({ message: 'Este email já está em uso' });
+      return res.status(400).json({ message: 'Este email já está em uso.' });
+    }
+
+    const studentClass = await Class.findById(classId);
+    if (!studentClass) {
+        return res.status(400).json({ message: 'Turma não encontrada.' });
     }
     
-    // Hash da senha
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
     
-    // Criar novo usuário
     const user = new User({
       name,
       email,
       passwordHash,
       role: 'student',
-      active: active !== undefined ? active : true
+      active: active !== undefined ? active : true,
+      classId
     });
     
     await user.save();
     
-    // Não retornar o hash da senha
     const newUser = user.toJSON();
+    delete newUser.passwordHash;
     
     res.status(201).json(newUser);
   } catch (error) {
@@ -90,84 +91,71 @@ exports.createStudent = async (req, res, next) => {
   }
 };
 
-// Atualizar aluno existente
+// Atualizar um aluno existente
 exports.updateStudent = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, email, password, active, photoUrl } = req.body;
+    const { name, email, password, active, photoUrl, classId } = req.body;
     
     const user = await User.findById(id);
     
-    if (!user) {
-      return res.status(404).json({ message: 'Usuário não encontrado' });
+    if (!user || user.role !== 'student') {
+      return res.status(404).json({ message: 'Aluno não encontrado.' });
     }
     
-    // Garantir que apenas alunos possam ser atualizados por esta rota
-    if (user.role !== 'student') {
-      return res.status(403).json({ message: 'Esta rota só pode atualizar alunos' });
+    if (req.user.role !== 'teacher') {
+      return res.status(403).json({ message: 'Acesso não autorizado.' });
     }
-    
-    // Atualizar campos
-    if (name !== undefined) {
-      user.name = name;
-    }
-    
-    if (email !== undefined) {
-      // Verificar se o novo email já existe
-      if (email !== user.email) {
-        const existingUser = await User.findOne({ email });
-        
-        if (existingUser) {
-          return res.status(400).json({ message: 'Este email já está em uso' });
+
+    if (classId) {
+        const studentClass = await Class.findById(classId);
+        if (!studentClass) {
+            return res.status(400).json({ message: 'Turma não encontrada.' });
         }
-        
-        user.email = email;
-      }
+        user.classId = classId;
     }
+    
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (active !== undefined) user.active = active;
+    if (photoUrl) user.photoUrl = photoUrl;
     
     if (password) {
       const salt = await bcrypt.genSalt(10);
       user.passwordHash = await bcrypt.hash(password, salt);
     }
     
-    if (active !== undefined) {
-      user.active = active;
-    }
-    
-    if (photoUrl !== undefined) {
-      user.photoUrl = photoUrl;
-    }
-    
     await user.save();
     
-    // Não retornar o hash da senha
-    const updatedUser = user.toJSON();
+    const updatedUser = await User.findById(id).populate('classId', 'name year');
+
+    const userJSON = updatedUser.toJSON();
+    delete userJSON.passwordHash;
     
-    res.json(updatedUser);
+    res.json(userJSON);
   } catch (error) {
     next(error);
   }
 };
 
-// Excluir aluno
+// Deletar um aluno
 exports.deleteStudent = async (req, res, next) => {
   try {
     const { id } = req.params;
     
     const user = await User.findById(id);
     
-    if (!user) {
-      return res.status(404).json({ message: 'Usuário não encontrado' });
+    if (!user || user.role !== 'student') {
+      return res.status(404).json({ message: 'Aluno não encontrado.' });
     }
     
-    // Garantir que apenas alunos possam ser excluídos por esta rota
-    if (user.role !== 'student') {
-      return res.status(403).json({ message: 'Esta rota só pode excluir alunos' });
+    if (req.user.role !== 'teacher') {
+      return res.status(403).json({ message: 'Acesso não autorizado.' });
     }
     
-    await user.delete();
+    await User.findByIdAndDelete(id);
     
-    res.json({ message: 'Aluno removido com sucesso' });
+    res.status(200).json({ message: 'Aluno deletado com sucesso.' });
   } catch (error) {
     next(error);
   }

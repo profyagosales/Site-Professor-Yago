@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
+const multer = require('multer'); // Importar multer
 const errorHandler = require('./middleware/errorHandler');
 const requestDebugger = require('./middleware/requestDebugger');
 const config = require('./config');
@@ -15,8 +16,13 @@ const uploadsRoutes = require('./routes/uploads');
 const setupRoutes = require('./routes/setup'); // Rota temporária para configuração
 const diagnosticsRoutes = require('./routes/diagnostics'); // Rotas de diagnóstico
 const studentsRoutes = require('./routes/students'); // Rotas para gerenciamento de alunos
+const classesRoutes = require('./routes/classes'); // Rotas para gerenciamento de turmas
 
 const app = express();
+
+// Configuração do Multer para upload de arquivos em memória
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
 // Middleware
 app.use(helmet());
@@ -88,11 +94,13 @@ app.get('/debug', (req, res) => {
 app.use(`${apiPrefix}/health`, healthRoutes);
 app.use(`${apiPrefix}/auth`, authRoutes);
 app.use(`${apiPrefix}/themes`, themesRoutes);
-app.use(`${apiPrefix}/essays`, essaysRoutes);
+// Aplicar multer apenas nas rotas de 'essays' que precisam de upload
+app.use(`${apiPrefix}/essays`, upload.single('file'), essaysRoutes);
 app.use(`${apiPrefix}/uploads`, uploadsRoutes);
 app.use(`${apiPrefix}/setup`, setupRoutes); // Rota temporária para configuração inicial
 app.use(`${apiPrefix}/diagnostics`, diagnosticsRoutes); // Rotas para diagnóstico de problemas
 app.use(`${apiPrefix}/students`, studentsRoutes); // Rotas para gerenciar alunos
+app.use(`${apiPrefix}/classes`, classesRoutes); // Rotas para gerenciar turmas
 
 // Error handler
 app.use(errorHandler);

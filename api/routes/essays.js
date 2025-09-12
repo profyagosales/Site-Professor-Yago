@@ -3,9 +3,12 @@ const router = express.Router();
 const essaysController = require('../controllers/essaysController');
 const { authRequired } = require('../middleware/auth');
 
+// Rota para professor criar redação para um aluno específico
+router.post('/student/:studentId', authRequired(['teacher']), essaysController.createEssayForStudent);
+
 // Rotas para redações
 router.get('/', authRequired(['teacher', 'student']), essaysController.getEssays);
-router.post('/', authRequired(['teacher', 'student']), essaysController.createEssay);
+router.post('/', authRequired(['student']), essaysController.createEssay); // Apenas alunos podem criar para si mesmos
 router.get('/:id', authRequired(['teacher', 'student']), essaysController.getEssayById);
 router.put('/:id', authRequired(['teacher']), essaysController.updateEssay);
 router.put('/:id/correction', authRequired(['teacher']), essaysController.saveCorrection);

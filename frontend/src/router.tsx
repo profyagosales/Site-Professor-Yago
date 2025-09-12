@@ -9,6 +9,7 @@ import { GerenciarTemasPage } from './pages/GerenciarTemasPage'
 import { RevisarRedacoesPage } from './pages/RevisarRedacoesPage'
 import CorrectionPage from './pages/CorrectionPage'
 import { GerenciarAlunosPage } from './pages/GerenciarAlunosPage'
+import GerenciarTurmasPage from './pages/GerenciarTurmasPage' // Importar a nova página
 import { NovaRedacaoPage } from './pages/NovaRedacaoPage'
 import { MinhasRedacoesPage } from './pages/MinhasRedacoesPage'
 import { VerTemasPage } from './pages/VerTemasPage'
@@ -66,6 +67,14 @@ export const router = createBrowserRouter([
         element: (
           <AuthGate requireAuth={true} roles={['teacher']}>
             <GerenciarAlunosPage />
+          </AuthGate>
+        ),
+      },
+      {
+        path: paths.gerenciarTurmas, // Adicionar a nova rota de turmas
+        element: (
+          <AuthGate requireAuth={true} roles={['teacher']}>
+            <GerenciarTurmasPage />
           </AuthGate>
         ),
       },

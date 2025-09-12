@@ -97,8 +97,22 @@ export interface CorrectionData {
 }
 
 /**
+ * Cria uma nova redação para um aluno específico (usado por professores).
+ * @param studentId - O ID do aluno.
+ * @param formData - Os dados do formulário (incluindo o arquivo).
+ */
+export const createEssayForStudent = async (studentId: string, formData: FormData): Promise<Essay> => {
+  const response = await api.post(`/essays/student/${studentId}`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+/**
  * Constrói a URL completa para um arquivo da API.
- * @param filePath O caminho do arquivo retornado pela API.
+ * @param relativePath - O caminho relativo do arquivo (ex: /uploads/...).
  * @returns A URL completa para o arquivo.
  */
 export const getFileUrl = (filePath: string): string => {
