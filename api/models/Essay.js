@@ -26,8 +26,21 @@ const EssaySchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['ENEM', 'PAS/UnB'],
+    enum: ['ENEM', 'PAS'], // Simplificado para ENEM | PAS no MVP
     required: true
+  },
+  bimester: {
+    type: Number,
+    min: 1,
+    max: 4,
+  },
+  countInBimester: {
+    type: Boolean,
+    default: false
+  },
+  computedBimesterScore: { // Nota normalizada para o bimestre (derivada) armazenada para query rápida
+    type: Number,
+    min: 0
   },
   themeId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -98,7 +111,33 @@ EssaySchema.pre('validate', function(next) {
 // Atualizar o timestamp de updatedAt
 EssaySchema.pre('save', function(next) {
   this.updatedAt = Date.now();
+
+  // Se anulação ativa, força rawScore 0 (mantendo dados originais para auditoria futura se quisermos)
+  if (this.annulment && this.annulment.active) {
+    if (this.enem) {
+      this.enem.rawScore = 0;
+    }
+    if (this.pas) {
+      this.pas.rawScore = 0;
+    }
+  }
+
+  // Calcular computedBimesterScore se countInBimester true
+  if (this.countInBimester) {
+    // Regras: ENEM rawScore 0-1000 -> proporcional a bimesterValue (TODO: armazenar valor do bimestre por configuração global)
+    // PAS rawScore 0-10 -> proporcional
+    // Como não temos ainda o valor alvo (ex: 2.0) guardado no schema, deixamos para pipeline posterior.
+    // Placeholder: não calcular sem contexto de valor do bimestre. (Poderíamos ter um hook externo.)
+  } else {
+    this.computedBimesterScore = undefined;
+  }
   next();
 });
+
+// Índices auxiliares para filtros comuns
+EssaySchema.index({ status: 1, type: 1, bimester: 1 });
+EssaySchema.index({ studentId: 1, status: 1 });
+EssaySchema.index({ teacherId: 1, status: 1 });
+EssaySchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Essay', EssaySchema);
