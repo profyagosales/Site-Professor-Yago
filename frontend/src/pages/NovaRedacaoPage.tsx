@@ -65,7 +65,7 @@ export function NovaRedacaoPage() {
       formData.append('themeId', data.themeId);
       formData.append('file', file);
 
-      if (isTeacher) {
+  if (isTeacher) {
         if (!data.studentId) {
           toast.error("Por favor, selecione um aluno.");
           setIsSubmitting(false);
@@ -75,12 +75,20 @@ export function NovaRedacaoPage() {
         await createEssayForStudent(data.studentId, formData);
         toast.success(`Redação para o aluno selecionado enviada com sucesso!`);
       } else {
-        // Para alunos, o studentId é inferido no backend a partir do token
-  // Para alunos usamos createEssay com objeto estruturado; precisamos primeiro fazer upload? Aqui assumimos backend aceita multipart simplificado se adaptado.
-  // Simplificação: criar uma redação via FormData ainda não suportado no serviço tipado; ajustar para usar createEssayForStudent se aluno (mas backend exige studentId).
-  // Portanto convertemos para fluxo: não suportado -> placeholder erro amigável.
-  throw new Error('Envio de redação por aluno ainda não implementado neste fluxo refatorado');
-        toast.success("Sua redação foi enviada com sucesso!");
+        // Fluxo de aluno: primeiro upload do arquivo via service, depois createEssay
+        try {
+          const uploadResult = await essayService.uploadEssayFile(file);
+          // Adapter: serviço de criação espera originalUrl
+          const { url, mime, size, pages } = uploadResult;
+          await essayService.createEssay({
+            type: 'ENEM', // TODO: permitir escolha no formulário futuramente
+            themeId: data.themeId,
+            file: { originalUrl: url, mime, size, pages },
+          });
+          toast.success('Sua redação foi enviada com sucesso!');
+        } catch (uploadErr: any) {
+          throw uploadErr;
+        }
       }
       
       reset();
