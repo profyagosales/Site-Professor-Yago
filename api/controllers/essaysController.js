@@ -72,26 +72,33 @@ exports.getEssays = async (req, res, next) => {
   }
 };
 
-// Criar nova redação
+// Helper simples de validação de criação
+function validateCreationPayload({ type, themeId, themeText, file }) {
+  const errors = [];
+  if (!type) errors.push('type é obrigatório');
+  if (type && !['ENEM','PAS'].includes(type)) errors.push('type inválido (ENEM|PAS)');
+  if (!file || !file.originalUrl) errors.push('arquivo (file.originalUrl) obrigatório');
+  if (!themeId && !themeText) errors.push('themeId ou themeText obrigatório');
+  return errors;
+}
+
+// Criar nova redação (Aluno)
 exports.createEssay = async (req, res, next) => {
   try {
-    const { type, themeId, themeText, file } = req.body;
-    
-    // Validações básicas
-    if (!type || !file || !file.originalUrl) {
-      return res.status(400).json({ message: 'Tipo de redação e arquivo são obrigatórios' });
+    const { type, themeId, themeText, file, bimester, countInBimester } = req.body;
+
+    const validationErrors = validateCreationPayload({ type, themeId, themeText, file });
+    if (validationErrors.length) {
+      return res.status(400).json({ message: 'Erros de validação', errors: validationErrors });
     }
-    
-    if (!themeId && !themeText) {
-      return res.status(400).json({ message: 'É necessário fornecer um tema cadastrado ou texto de tema não cadastrado' });
-    }
-    
-    // Criar nova redação
+
     const essay = new Essay({
-      studentId: req.user.id, // Aluno só pode criar para si mesmo
+      studentId: req.user.id,
       type,
-      themeId,
-      themeText,
+      themeId: themeId || undefined,
+      themeText: themeText || undefined,
+      bimester: bimester || undefined,
+      countInBimester: !!countInBimester,
       file: {
         originalUrl: file.originalUrl,
         mime: file.mime || 'application/pdf',
@@ -100,43 +107,37 @@ exports.createEssay = async (req, res, next) => {
       },
       status: 'PENDING'
     });
-    
+
     await essay.save();
-    
     res.status(201).json(essay);
   } catch (error) {
     next(error);
   }
 };
 
-// Criar nova redação para um aluno específico (usado por professores)
+// Criar nova redação para um aluno específico (Professor)
 exports.createEssayForStudent = async (req, res, next) => {
   const { studentId } = req.params;
-  const { themeId } = req.body;
-  const file = req.file; // Arquivo vem do multer
-
+  const { themeId, type, bimester, countInBimester } = req.body;
+  const file = req.file;
   try {
-    if (!file) {
-      return res.status(400).json({ message: 'Arquivo da redação é obrigatório.' });
-    }
-    if (!themeId) {
-      return res.status(400).json({ message: 'O tema da redação é obrigatório.' });
-    }
+    if (!file) return res.status(400).json({ message: 'Arquivo da redação é obrigatório.' });
+    if (!themeId) return res.status(400).json({ message: 'O tema da redação é obrigatório.' });
+    const finalType = (type && ['ENEM','PAS'].includes(type)) ? type : 'ENEM';
 
-    // Upload para o Cloudinary
     const uploadResult = await cloudinaryService.uploadFile(file.buffer, {
       folder: `essays/originals/${studentId}`,
-      resource_type: 'auto',
+      resource_type: 'auto'
     });
-
-    // Obter número de páginas do PDF
     const pageCount = await pdfService.getPdfPageCount(uploadResult.secure_url);
 
     const essay = new Essay({
       studentId,
-      teacherId: req.user.id, // Professor que está enviando
-      type: 'ENEM', // Ou determinar de outra forma
+      teacherId: req.user.id,
+      type: finalType,
       themeId,
+      bimester: bimester || undefined,
+      countInBimester: !!countInBimester,
       file: {
         originalUrl: uploadResult.secure_url,
         cloudinaryPublicId: uploadResult.public_id,
@@ -144,11 +145,10 @@ exports.createEssayForStudent = async (req, res, next) => {
         size: file.size,
         pages: pageCount,
       },
-      status: 'PENDING',
+      status: 'PENDING'
     });
 
     await essay.save();
-
     res.status(201).json(essay);
   } catch (error) {
     next(error);
@@ -180,22 +180,30 @@ exports.getEssayById = async (req, res, next) => {
   }
 };
 
-// Atualizar uma redação
+// Atualizar uma redação (apenas enquanto PENDING)
 exports.updateEssay = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { type, themeId, themeText, file, status } = req.body;
-    
+    const { type, themeId, themeText, file, bimester, countInBimester, studentId } = req.body;
     const essay = await Essay.findById(id);
-    
-    if (!essay) {
-      return res.status(404).json({ message: 'Redação não encontrada' });
+    if (!essay) return res.status(404).json({ message: 'Redação não encontrada' });
+    if (essay.status !== 'PENDING') {
+      return res.status(409).json({ message: 'Apenas redações com status PENDING podem ser editadas' });
     }
-    
-    // Atualizar campos
-    if (type !== undefined) essay.type = type;
-    if (themeId !== undefined) essay.themeId = themeId;
-    if (themeText !== undefined) essay.themeText = themeText;
+
+    if (type && ['ENEM','PAS'].includes(type)) essay.type = type;
+    if (themeId !== undefined) {
+      essay.themeId = themeId;
+      if (themeId) essay.themeText = undefined; // limpa texto livre se definimos themeId
+    }
+    if (themeText !== undefined) {
+      essay.themeText = themeText;
+      if (themeText) essay.themeId = undefined; // exclusividade
+    }
+    if (bimester !== undefined) essay.bimester = bimester;
+    if (countInBimester !== undefined) essay.countInBimester = !!countInBimester;
+    if (studentId) essay.studentId = studentId; // reatribuição (opcional)
+
     if (file && file.originalUrl) {
       essay.file = {
         originalUrl: file.originalUrl,
@@ -204,14 +212,9 @@ exports.updateEssay = async (req, res, next) => {
         pages: file.pages || essay.file.pages
       };
     }
-    if (status !== undefined && ['PENDING', 'GRADING', 'GRADED'].includes(status)) {
-      essay.status = status;
-    }
-    
+
     essay.updatedAt = Date.now();
-    
     await essay.save();
-    
     res.json(essay);
   } catch (error) {
     next(error);
