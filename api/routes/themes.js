@@ -7,6 +7,7 @@ const { authRequired } = require('../middleware/auth');
 router.get('/', authRequired(['teacher', 'student']), themesController.getThemes);
 router.post('/', authRequired(['teacher']), themesController.createTheme);
 router.put('/:id', authRequired(['teacher']), themesController.updateTheme);
-router.delete('/:id', authRequired(['teacher']), themesController.deleteTheme);
+router.post('/:id/archive', authRequired(['teacher']), themesController.archiveTheme);
+router.post('/:id/restore', authRequired(['teacher']), themesController.restoreTheme);
 
 module.exports = router;

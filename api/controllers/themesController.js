@@ -93,20 +93,33 @@ exports.updateTheme = async (req, res, next) => {
   }
 };
 
-// Excluir tema
-exports.deleteTheme = async (req, res, next) => {
+// Arquivar tema (soft delete)
+exports.archiveTheme = async (req, res, next) => {
   try {
     const { id } = req.params;
-    
     const theme = await Theme.findById(id);
-    
     if (!theme) {
       return res.status(404).json({ message: 'Tema não encontrado' });
     }
-    
-    await theme.remove();
-    
-    res.json({ message: 'Tema removido com sucesso' });
+    theme.active = false;
+    await theme.save();
+    res.json(theme);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Restaurar tema (soft restore)
+exports.restoreTheme = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const theme = await Theme.findById(id);
+    if (!theme) {
+      return res.status(404).json({ message: 'Tema não encontrado' });
+    }
+    theme.active = true;
+    await theme.save();
+    res.json(theme);
   } catch (error) {
     next(error);
   }
