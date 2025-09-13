@@ -190,19 +190,41 @@ exports.updateEssay = async (req, res, next) => {
     if (essay.status !== 'PENDING') {
       return res.status(409).json({ message: 'Apenas redações com status PENDING podem ser editadas' });
     }
-
-    if (type && ['ENEM','PAS'].includes(type)) essay.type = type;
+    // Validar type
+    if (type !== undefined) {
+      if (!['ENEM','PAS'].includes(type)) {
+        return res.status(400).json({ message: 'type inválido (ENEM|PAS)' });
+      }
+      essay.type = type;
+    }
+    // Exclusividade themeId/themeText
+    if (themeId !== undefined && themeText !== undefined && themeId && themeText) {
+      return res.status(400).json({ message: 'Envie apenas themeId OU themeText, não ambos.' });
+    }
     if (themeId !== undefined) {
-      essay.themeId = themeId;
-      if (themeId) essay.themeText = undefined; // limpa texto livre se definimos themeId
+      essay.themeId = themeId || undefined;
+      if (themeId) essay.themeText = undefined;
     }
     if (themeText !== undefined) {
-      essay.themeText = themeText;
-      if (themeText) essay.themeId = undefined; // exclusividade
+      essay.themeText = themeText || undefined;
+      if (themeText) essay.themeId = undefined;
     }
-    if (bimester !== undefined) essay.bimester = bimester;
+    if (bimester !== undefined) {
+      const num = Number(bimester);
+      if (!Number.isInteger(num) || num < 1 || num > 4) {
+        return res.status(400).json({ message: 'bimester deve ser inteiro entre 1 e 4' });
+      }
+      essay.bimester = num;
+    }
     if (countInBimester !== undefined) essay.countInBimester = !!countInBimester;
-    if (studentId) essay.studentId = studentId; // reatribuição (opcional)
+    if (studentId) {
+      const User = require('../models/User');
+      const newStudent = await User.findById(studentId);
+      if (!newStudent || newStudent.role !== 'student') {
+        return res.status(400).json({ message: 'studentId inválido' });
+      }
+      essay.studentId = studentId;
+    }
 
     if (file && file.originalUrl) {
       essay.file = {
