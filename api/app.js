@@ -21,6 +21,8 @@ const studentsRoutes = require('./routes/students'); // Rotas para gerenciamento
 const classesRoutes = require('./routes/classes'); // Rotas para gerenciamento de turmas
 
 const app = express();
+// Necessário para que req.secure e cookies 'secure' funcionem atrás de proxy/load balancer
+app.set('trust proxy', 1);
 const rateLimit = require('./middleware/rateLimit');
 const securityHeaders = require('./middleware/securityHeaders');
 const inputSanitizer = require('./middleware/inputSanitizer');
@@ -36,6 +38,8 @@ app.use(helmet({
 app.use(securityHeaders);
 app.use(rateLimit);
 app.use(cors(config.corsOptions));
+// Responder manualmente preflight caso algum caminho não seja capturado
+app.options('*', cors(config.corsOptions));
 app.use(express.json({ limit: '2mb' })); // limitar payload JSON
 app.use(inputSanitizer);
 app.use(metricsMiddleware);

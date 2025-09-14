@@ -22,20 +22,7 @@ const config = {
   
   corsOptions: {
     origin: function (origin, callback) {
-      // Split APP_DOMAIN into array if it's a comma-separated string
-      const domains = process.env.APP_DOMAIN ? process.env.APP_DOMAIN.split(',') : [];
-      
-      // Aceitar qualquer origem de domínio Vercel ou domínio personalizado
-      if (origin && (
-          origin.includes('vercel.app') || 
-          origin.includes('professoryagosales.com.br')
-      )) {
-        console.log(`Aceitando origem Vercel/domínio personalizado: ${origin}`);
-        // Definir origem específica no cabeçalho Access-Control-Allow-Origin
-        // Isso é necessário para que os cookies funcionem corretamente
-        return callback(null, true);
-      }
-      
+      const domains = process.env.APP_DOMAIN ? process.env.APP_DOMAIN.split(',').map(d => d.trim()).filter(Boolean) : [];
       const allowlist = [
         ...domains,
         process.env.FRONTEND_URL,
@@ -44,19 +31,18 @@ const config = {
         'http://localhost:5173',
         'http://localhost:3000'
       ].filter(Boolean);
-      
-      console.log(`Requisição CORS de origem: ${origin || 'sem origem'}`);
-      console.log(`Lista de domínios permitidos: ${allowlist.join(', ')}`);
-      
-      if (!origin || allowlist.indexOf(origin) !== -1) {
-        callback(null, true);
+
+      const accepted = !!(!origin || allowlist.some(a => a === origin) || (origin && (origin.includes('vercel.app') || origin.endsWith('.professoryagosales.com.br'))));
+
+      if (accepted) {
+        if (origin) console.log(`[CORS] Aceitando origem: ${origin}`);
+        return callback(null, origin || true);
       } else {
-        console.log(`Origem ${origin} bloqueada por CORS`);
-        callback(new Error('Not allowed by CORS'));
+        console.log(`[CORS] Bloqueando origem: ${origin}`);
+        return callback(new Error('Not allowed by CORS'));
       }
     },
     credentials: true, // IMPORTANTE: Habilitar o compartilhamento de credenciais (cookies)
-    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
     allowedHeaders: ['Authorization', 'Content-Type']
   },
