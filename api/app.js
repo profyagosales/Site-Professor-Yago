@@ -40,6 +40,16 @@ app.use(rateLimit);
 app.use(cors(config.corsOptions));
 // Responder manualmente preflight caso algum caminho não seja capturado
 app.options('*', cors(config.corsOptions));
+// Reforço pós-CORS: garante cabeçalhos quando origin aceito (útil se proxy interferir)
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && (origin.endsWith('professoryagosales.com.br') || origin.includes('vercel.app'))) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Vary', 'Origin');
+    res.header('Access-Control-Allow-Credentials', 'true');
+  }
+  next();
+});
 app.use(express.json({ limit: '2mb' })); // limitar payload JSON
 app.use(inputSanitizer);
 app.use(metricsMiddleware);
