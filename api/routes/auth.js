@@ -5,6 +5,7 @@ const { authRequired } = require('../middleware/auth');
 
 // Rotas públicas de autenticação
 router.post('/login/teacher', authController.loginTeacher);
+router.post('/login/teacher-dry-run', authController.loginTeacherDryRun);
 router.post('/login/student', authController.loginStudent);
 router.post('/logout', authController.logout);
 

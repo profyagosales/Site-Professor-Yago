@@ -9,6 +9,7 @@ const { getAuthCookieOptions: _getAuthCookieOptions } = require('../utils/cookie
 exports.loginTeacher = async (req, res, next) => {
   try {
     const { email, password } = req.body;
+    console.log('[loginTeacher] tentativa', { email, hasPassword: !!password });
 
     // Validação básica
     if (!email || !password) {
@@ -16,14 +17,22 @@ exports.loginTeacher = async (req, res, next) => {
     }
 
     // Buscar usuário professor
-    const user = await User.findOne({ email, role: 'teacher' });
+  const user = await User.findOne({ email, role: 'teacher' }).lean(false);
+  console.log('[loginTeacher] user encontrado?', !!user);
 
     if (!user) {
       return res.status(401).json({ message: 'Credenciais inválidas' });
     }
 
     // Verificar senha
-    const isMatch = await user.comparePassword(password);
+    let isMatch = false;
+    try {
+      isMatch = await user.comparePassword(password);
+    } catch (cmpErr) {
+      console.error('[loginTeacher] erro comparePassword', cmpErr);
+      throw cmpErr;
+    }
+    console.log('[loginTeacher] senha confere?', isMatch);
 
     if (!isMatch) {
       return res.status(401).json({ message: 'Credenciais inválidas' });
@@ -36,7 +45,7 @@ exports.loginTeacher = async (req, res, next) => {
       { expiresIn: config.jwtExpiration }
     );
 
-    console.log('Login de professor:', email);
+  console.log('[loginTeacher] sucesso login', email);
     console.log('Cookie auth ativado:', process.env.USE_COOKIE_AUTH);
 
     // Sempre usar cookies para autenticação
@@ -56,6 +65,7 @@ exports.loginTeacher = async (req, res, next) => {
       token // sempre retornamos o token para fallback no frontend
     });
   } catch (error) {
+    console.error('[loginTeacher] erro geral', error);
     next(error);
   }
 };
@@ -64,6 +74,7 @@ exports.loginTeacher = async (req, res, next) => {
 exports.loginStudent = async (req, res, next) => {
   try {
     const { email, password } = req.body;
+    console.log('[loginStudent] tentativa', { email, hasPassword: !!password });
 
     // Validação básica
     if (!email || !password) {
@@ -71,14 +82,22 @@ exports.loginStudent = async (req, res, next) => {
     }
 
     // Buscar usuário aluno
-    const user = await User.findOne({ email, role: 'student' });
+  const user = await User.findOne({ email, role: 'student' }).lean(false);
+  console.log('[loginStudent] user encontrado?', !!user);
 
     if (!user) {
       return res.status(401).json({ message: 'Credenciais inválidas' });
     }
 
     // Verificar senha
-    const isMatch = await user.comparePassword(password);
+    let isMatch = false;
+    try {
+      isMatch = await user.comparePassword(password);
+    } catch (cmpErr) {
+      console.error('[loginStudent] erro comparePassword', cmpErr);
+      throw cmpErr;
+    }
+    console.log('[loginStudent] senha confere?', isMatch);
 
     if (!isMatch) {
       return res.status(401).json({ message: 'Credenciais inválidas' });
@@ -91,7 +110,7 @@ exports.loginStudent = async (req, res, next) => {
       { expiresIn: config.jwtExpiration }
     );
 
-    console.log('Login de aluno:', email);
+  console.log('[loginStudent] sucesso login', email);
     console.log('Cookie auth ativado:', process.env.USE_COOKIE_AUTH);
 
     // Sempre usar cookies para autenticação
@@ -111,6 +130,7 @@ exports.loginStudent = async (req, res, next) => {
       token // sempre retornamos o token para fallback no frontend
     });
   } catch (error) {
+    console.error('[loginStudent] erro geral', error);
     next(error);
   }
 };
@@ -173,4 +193,36 @@ exports.debugSession = async (req, res) => {
     },
     timestamp: new Date().toISOString()
   });
+};
+
+// Login teacher dry-run: não seta cookie, retorna motivos
+exports.loginTeacherDryRun = async (req, res, next) => {
+  try {
+    const { email, password } = req.body || {};
+    const result = { stage: 'start', emailProvided: !!email, passwordProvided: !!password };
+    if (!email || !password) {
+      return res.status(400).json({ ...result, error: 'Email e senha são obrigatórios' });
+    }
+    const user = await User.findOne({ email, role: 'teacher' });
+    result.stage = 'user_lookup';
+    result.userFound = !!user;
+    if (!user) {
+      return res.status(401).json({ ...result, error: 'Credenciais inválidas (user)' });
+    }
+    let passwordOk = false;
+    try {
+      passwordOk = await user.comparePassword(password);
+    } catch (err) {
+      return res.status(500).json({ ...result, stage: 'compare', error: 'Erro ao comparar senha', err: err.message });
+    }
+    result.stage = 'compare';
+    result.passwordOk = passwordOk;
+    if (!passwordOk) {
+      return res.status(401).json({ ...result, error: 'Credenciais inválidas (senha)' });
+    }
+    result.stage = 'success';
+    res.json(result);
+  } catch (e) {
+    next(e);
+  }
 };

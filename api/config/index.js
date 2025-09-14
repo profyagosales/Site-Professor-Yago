@@ -32,7 +32,11 @@ const config = {
         'http://localhost:3000'
       ].filter(Boolean);
 
-      const accepted = !!(!origin || allowlist.some(a => a === origin) || (origin && (origin.includes('vercel.app') || origin.endsWith('.professoryagosales.com.br'))));
+  const accepted = !!(!origin 
+    || allowlist.some(a => a === origin) 
+    || (origin && (origin.includes('vercel.app') 
+    || origin.endsWith('.professoryagosales.com.br')
+    || origin.endsWith('.github.dev'))));
 
       if (accepted) {
         if (origin) console.log(`[CORS] Aceitando origem: ${origin}`);
