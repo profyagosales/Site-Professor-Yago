@@ -49,9 +49,17 @@ api.interceptors.response.use(
       
       // Redireciona para a página de erro de autenticação apenas se for uma verificação explícita
       // para não interromper outras operações com redirecionamentos desnecessários
-      if (isAuthCheck) {
-        window.location.href = '/auth-error';
-      }
+            if (isAuthCheck) {
+              // Debounce simples para evitar loops de redirecionamento
+              const now = Date.now();
+              const lastRedirect = (window as any).__lastAuthRedirect || 0;
+              if (now - lastRedirect > 3000) { // 3s de intervalo mínimo
+                (window as any).__lastAuthRedirect = now;
+                window.location.href = '/auth-error';
+              } else {
+                console.warn('Ignorando redirecionamento repetido para /auth-error');
+              }
+            }
     }
     return Promise.reject(error);
   }

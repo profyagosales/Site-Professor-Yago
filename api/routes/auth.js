@@ -49,6 +49,9 @@ router.get('/cookie-test', (req, res) => {
   });
 });
 
+// Rota de debug de sessão (não autentica, só inspeciona cookie)
+router.get('/debug-session', authController.debugSession);
+
 // Rota de diagnóstico para manipular cookies manualmente
 router.get('/set-test-cookie', (req, res) => {
   res.cookie('test_cookie', 'valor_teste', {

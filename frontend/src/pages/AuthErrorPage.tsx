@@ -64,6 +64,21 @@ export function AuthErrorPage() {
       }))
     }
   }
+
+  const debugSession = async () => {
+    try {
+      const response = await api.get('/auth/debug-session')
+      setDiagnosticInfo(prev => ({
+        ...prev,
+        sessionDebug: response.data
+      }))
+    } catch (error: any) {
+      setDiagnosticInfo(prev => ({
+        ...prev,
+        sessionDebugError: error.message
+      }))
+    }
+  }
   
   const runCompleteDiagnostic = async () => {
     setLoading(true)
@@ -139,6 +154,12 @@ export function AuthErrorPage() {
               className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition"
             >
               Diagnóstico Completo
+            </button>
+            <button
+              onClick={debugSession}
+              className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition"
+            >
+              Debug Sessão
             </button>
           </div>
         </div>

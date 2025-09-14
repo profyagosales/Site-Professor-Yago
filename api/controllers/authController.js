@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const config = require('../config');
 const { getAuthCookieOptions } = require('../utils/cookieUtils');
+const { getAuthCookieOptions: _getAuthCookieOptions } = require('../utils/cookieUtils'); // redundante mas garante tree-shake futuro
 
 // Login para professores
 exports.loginTeacher = async (req, res, next) => {
@@ -150,4 +151,26 @@ exports.logout = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
+// Debug de sessão (sem autenticação) - NÃO incluir dados sensíveis
+exports.debugSession = async (req, res) => {
+  const jwt = require('jsonwebtoken');
+  const token = req.cookies?.auth_token;
+  let decoded = null;
+  if (token) {
+    try { decoded = jwt.decode(token, { json: true }); } catch(e) { decoded = { error: 'decode_failed' }; }
+  }
+  res.json({
+    hasAuthCookie: !!token,
+    cookieKeys: Object.keys(req.cookies || {}),
+    decodedToken: decoded,
+    headers: {
+      origin: req.headers.origin,
+      referer: req.headers.referer,
+      host: req.headers.host,
+      'user-agent': req.headers['user-agent']
+    },
+    timestamp: new Date().toISOString()
+  });
 };
