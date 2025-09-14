@@ -7,11 +7,14 @@ const { authRequired } = require('../middleware/auth');
 router.post('/student/:studentId', authRequired(['teacher']), essaysController.createEssayForStudent);
 
 // Rotas para redações
+router.get('/summary', authRequired(['teacher','student']), essaysController.getEssaysSummary);
 router.get('/', authRequired(['teacher', 'student']), essaysController.getEssays);
 router.post('/', authRequired(['student']), essaysController.createEssay); // Apenas alunos podem criar para si mesmos
 router.get('/:id', authRequired(['teacher', 'student']), essaysController.getEssayById);
 router.put('/:id', authRequired(['teacher']), essaysController.updateEssay);
 router.put('/:id/correction', authRequired(['teacher']), essaysController.saveCorrection);
+// Alterar status explicitamente (opcional)
+router.put('/:id/status', authRequired(['teacher']), essaysController.changeEssayStatus);
 
 // Rota para gerar o PDF corrigido
 router.post('/:id/generate-pdf', authRequired(['teacher']), essaysController.generateCorrectedPdf);

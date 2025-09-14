@@ -13,7 +13,7 @@ const getAuthCookieOptions = () => {
     sameSite: isProduction ? 'none' : 'lax', // Em produção: 'none' para permitir cross-site
     maxAge: 24 * 60 * 60 * 1000, // 24 horas
     path: '/', // Disponível em todo o site
-    domain: undefined // Deixar o navegador determinar o domínio
+    domain: isProduction ? '.professoryagosales.com.br' : undefined // garante envio entre subdomínios
   };
 
   console.log('Configurações de Cookie:', cookieOptions);

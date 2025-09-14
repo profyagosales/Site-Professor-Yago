@@ -1,4 +1,6 @@
 const express = require('express');
+const { metricsMiddleware, exposeMetrics } = require('./middleware/metrics');
+const logger = require('./services/logger');
 const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
@@ -19,22 +21,31 @@ const studentsRoutes = require('./routes/students'); // Rotas para gerenciamento
 const classesRoutes = require('./routes/classes'); // Rotas para gerenciamento de turmas
 
 const app = express();
+const rateLimit = require('./middleware/rateLimit');
+const securityHeaders = require('./middleware/securityHeaders');
+const inputSanitizer = require('./middleware/inputSanitizer');
 
 // Configuração do Multer para upload de arquivos em memória
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 // Middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
+app.use(securityHeaders);
+app.use(rateLimit);
 app.use(cors(config.corsOptions));
-app.use(express.json());
+app.use(express.json({ limit: '2mb' })); // limitar payload JSON
+app.use(inputSanitizer);
+app.use(metricsMiddleware);
 app.use(cookieParser());
 app.use(requestDebugger); // Adicionar middleware de debug
 
 // Get API prefix from environment variable or use empty string
 // Necessário para ambientes como o Render que podem adicionar prefixos
 const apiPrefix = process.env.API_PREFIX || '';
-console.log(`Usando prefixo de API: '${apiPrefix}'`);
+logger.info('API prefix configurado',{ apiPrefix });
 
 // Rota de diagnóstico direta que não depende do banco de dados
 app.get('/', (req, res) => {
@@ -81,6 +92,9 @@ app.get('/', (req, res) => {
   });
 });
 
+// Endpoint de métricas (JSON simples)
+app.get('/metrics', exposeMetrics);
+
 // Rota de diagnóstico para verificar cookies e headers
 app.get('/debug', (req, res) => {
   res.json({
@@ -94,8 +108,15 @@ app.get('/debug', (req, res) => {
 app.use(`${apiPrefix}/health`, healthRoutes);
 app.use(`${apiPrefix}/auth`, authRoutes);
 app.use(`${apiPrefix}/themes`, themesRoutes);
-// Aplicar multer apenas nas rotas de 'essays' que precisam de upload
-app.use(`${apiPrefix}/essays`, upload.single('file'), essaysRoutes);
+// Filtro de MIME para upload (apenas PDF para essays)
+const pdfOnly = (req, file, cb) => {
+  if (file.mimetype !== 'application/pdf') {
+    return cb(new Error('Apenas arquivos PDF são permitidos'));
+  }
+  cb(null, true);
+};
+const pdfUpload = multer({ storage: storage, fileFilter: pdfOnly, limits: { fileSize: 10 * 1024 * 1024 } });
+app.use(`${apiPrefix}/essays`, pdfUpload.single('file'), essaysRoutes);
 app.use(`${apiPrefix}/uploads`, uploadsRoutes);
 app.use(`${apiPrefix}/setup`, setupRoutes); // Rota temporária para configuração inicial
 app.use(`${apiPrefix}/diagnostics`, diagnosticsRoutes); // Rotas para diagnóstico de problemas

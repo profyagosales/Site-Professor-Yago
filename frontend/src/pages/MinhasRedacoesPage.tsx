@@ -1,63 +1,67 @@
 import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { paths } from '../routes/paths'
+import { essayService } from '../services/essayService'
+import toast, { Toaster } from 'react-hot-toast'
+
+interface UIEssay {
+  _id: string;
+  theme: string;
+  type: string;
+  status: string;
+  createdAt: string;
+  finalGrade?: number;
+  correctedPdfUrl?: string;
+}
 
 export function MinhasRedacoesPage() {
-  // Dados fictícios para exemplificar a interface
-  const redacoes = [
-    {
-      id: 1,
-      tema: 'Os desafios da educação digital no Brasil',
-      tipo: 'ENEM',
-      status: 'CORRIGIDA',
-      data: '10/08/2025',
-      nota: 800,
-      pdfUrl: '#',
-    },
-    {
-      id: 2,
-      tema: 'Sustentabilidade e desenvolvimento econômico',
-      tipo: 'ENEM',
-      status: 'EM_CORRECAO',
-      data: '01/09/2025',
-      nota: null,
-      pdfUrl: null,
-    },
-    {
-      id: 3,
-      tema: 'A influência das redes sociais na formação de opinião',
-      tipo: 'PAS',
-      status: 'PENDENTE',
-      data: '05/09/2025',
-      nota: null,
-      pdfUrl: null,
-    },
-  ]
+  const [essays, setEssays] = useState<UIEssay[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true)
+      try {
+        const res = await essayService.student.getMyEssays({ page:1, limit:50, status:'ALL' })
+        const data: any[] = (res as any).essays || (res as any).data || []
+        const mapped: UIEssay[] = data.map(e => ({
+          _id: e._id,
+          theme: e.themeId?.title || e.themeText || 'Tema não informado',
+          type: e.type,
+          status: e.status,
+          createdAt: e.createdAt,
+          finalGrade: e.enem?.rawScore || e.pas?.rawScore || e.finalGrade || undefined,
+          correctedPdfUrl: e.correctedPdfUrl
+        }))
+        setEssays(mapped)
+      } catch (err:any) {
+        setError(err.message || 'Erro ao carregar redações')
+        toast.error('Erro ao carregar redações')
+      } finally { setLoading(false) }
+    }
+    load()
+  }, [])
 
   // Helper para mostrar o status em português
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'PENDENTE':
-        return 'Pendente'
-      case 'EM_CORRECAO':
-        return 'Em correção'
-      case 'CORRIGIDA':
-        return 'Corrigida'
-      default:
-        return status
+      case 'PENDING': return 'Pendente'
+      case 'GRADING': return 'Em correção'
+      case 'GRADED': return 'Corrigida'
+      case 'SENT': return 'Enviada'
+      default: return status
     }
   }
 
   // Helper para cor do status
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'PENDENTE':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'EM_CORRECAO':
-        return 'bg-blue-100 text-blue-800'
-      case 'CORRIGIDA':
-        return 'bg-green-100 text-green-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
+      case 'PENDING': return 'bg-yellow-100 text-yellow-800'
+      case 'GRADING': return 'bg-blue-100 text-blue-800'
+      case 'GRADED': return 'bg-green-100 text-green-800'
+      case 'SENT': return 'bg-purple-100 text-purple-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
   }
 
@@ -82,7 +86,9 @@ export function MinhasRedacoesPage() {
           </div>
         </div>
 
-        {redacoes.length > 0 ? (
+        {loading && <div className="text-center py-8 text-gray-500">Carregando...</div>}
+        {!loading && error && <div className="text-center py-8 text-red-500">{error}</div>}
+        {!loading && !error && essays.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
@@ -96,22 +102,18 @@ export function MinhasRedacoesPage() {
                 </tr>
               </thead>
               <tbody>
-                {redacoes.map((redacao) => (
-                  <tr key={redacao.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-2 border">{redacao.tema}</td>
-                    <td className="px-4 py-2 border text-center">{redacao.tipo}</td>
+                {essays.map(e => (
+                  <tr key={e._id} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 border">{e.theme}</td>
+                    <td className="px-4 py-2 border text-center">{e.type}</td>
                     <td className="px-4 py-2 border text-center">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(redacao.status)}`}>
-                        {getStatusLabel(redacao.status)}
-                      </span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(e.status)}`}>{getStatusLabel(e.status)}</span>
                     </td>
-                    <td className="px-4 py-2 border text-center">{redacao.data}</td>
-                    <td className="px-4 py-2 border text-center">{redacao.nota || '-'}</td>
+                    <td className="px-4 py-2 border text-center">{new Date(e.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-2 border text-center">{e.finalGrade != null ? e.finalGrade : '-'}</td>
                     <td className="px-4 py-2 border text-center">
-                      {redacao.status === 'CORRIGIDA' && (
-                        <button className="text-blue-600 hover:text-blue-800 font-medium">
-                          Ver PDF
-                        </button>
+                      {['GRADED','SENT'].includes(e.status) && e.correctedPdfUrl && (
+                        <a href={e.correctedPdfUrl} target="_blank" rel="noopener" className="text-blue-600 hover:text-blue-800 font-medium">Ver PDF</a>
                       )}
                     </td>
                   </tr>
@@ -131,6 +133,7 @@ export function MinhasRedacoesPage() {
           </div>
         )}
       </div>
+      <Toaster position="top-center" />
       <footer className="mt-8 text-center text-gray-500 text-sm">
         © 2025 Professor Yago Sales. Todos os direitos reservados.
       </footer>

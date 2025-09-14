@@ -6,7 +6,13 @@ const multer = require('multer');
 
 // Configuração do multer para upload temporário
 const upload = multer({ 
-  limits: { fileSize: 10 * 1024 * 1024 } // Limite de 10MB
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype !== 'application/pdf') {
+      return cb(new Error('Apenas PDF é permitido')); 
+    }
+    cb(null, true);
+  }
 });
 
 // Rota para upload de arquivos de redação

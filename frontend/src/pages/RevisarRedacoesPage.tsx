@@ -1,88 +1,42 @@
 import { Link } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { paths } from '../routes/paths'
+import { essayService, Essay } from '../services/essayService'
+import toast, { Toaster } from 'react-hot-toast'
 
 export function RevisarRedacoesPage() {
-  // Estado para controlar a guia ativa
   const [activeTab, setActiveTab] = useState<'pendentes' | 'corrigidas'>('pendentes')
+  const [pending, setPending] = useState<Essay[]>([])
+  const [graded, setGraded] = useState<Essay[]>([])
+  const [loadingPending, setLoadingPending] = useState(false)
+  const [loadingGraded, setLoadingGraded] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  // Dados fictícios para exemplo
-  const redacoesPendentes = [
-    {
-      id: 1,
-      aluno: {
-        id: 101,
-        nome: 'Maria Silva',
-        turma: '3º Ano A',
-        fotoUrl: null,
-      },
-      tema: 'Sustentabilidade e desenvolvimento econômico',
-      tipo: 'ENEM',
-      bimestre: 3,
-      data: '01/09/2025',
-    },
-    {
-      id: 2,
-      aluno: {
-        id: 102,
-        nome: 'João Pereira',
-        turma: '3º Ano B',
-        fotoUrl: null,
-      },
-      tema: 'A influência das redes sociais na formação de opinião',
-      tipo: 'PAS',
-      bimestre: 3,
-      data: '05/09/2025',
-    },
-    {
-      id: 3,
-      aluno: {
-        id: 103,
-        nome: 'Ana Beatriz',
-        turma: '3º Ano A',
-        fotoUrl: null,
-      },
-      tema: 'Desigualdade social no contexto da pandemia',
-      tipo: 'ENEM',
-      bimestre: 3,
-      data: '07/09/2025',
-    },
-  ]
-  
-  const redacoesCorrigidas = [
-    {
-      id: 4,
-      aluno: {
-        id: 101,
-        nome: 'Maria Silva',
-        turma: '3º Ano A',
-        fotoUrl: null,
-      },
-      tema: 'Os desafios da educação digital no Brasil',
-      tipo: 'ENEM',
-      bimestre: 2,
-      data: '10/08/2025',
-      nota: 800,
-      enviado: true,
-      dataEnvio: '12/08/2025',
-    },
-    {
-      id: 5,
-      aluno: {
-        id: 104,
-        nome: 'Pedro Oliveira',
-        turma: '3º Ano C',
-        fotoUrl: null,
-      },
-      tema: 'O papel da tecnologia na democratização do conhecimento',
-      tipo: 'PAS',
-      bimestre: 2,
-      data: '15/08/2025',
-      nota: 8.5,
-      enviado: false,
-      dataEnvio: null,
-    },
-  ]
+  const loadPending = async () => {
+    setLoadingPending(true)
+    try {
+      const res = await essayService.professor.getPendingEssays({ page:1, limit:50 })
+      // PaginatedResponse<Essay> definido como { essays, pagination } no backend? Ajustamos adaptando ambos formatos
+      const data = (res as any).essays || (res as any).data || []
+      setPending(data)
+    } catch (e: any) {
+      setError(e.message)
+      toast.error('Erro ao carregar pendentes')
+    } finally { setLoadingPending(false) }
+  }
+  const loadGraded = async () => {
+    setLoadingGraded(true)
+    try {
+      const res = await essayService.professor.getGradedEssays({ page:1, limit:50 })
+      const data = (res as any).essays || (res as any).data || []
+      setGraded(data)
+    } catch (e: any) {
+      setError(e.message)
+      toast.error('Erro ao carregar corrigidas')
+    } finally { setLoadingGraded(false) }
+  }
+
+  useEffect(() => { loadPending(); loadGraded(); }, [])
 
   // Função para criar nova redação em nome do aluno
   const criarNovaRedacao = () => {
@@ -122,7 +76,7 @@ export function RevisarRedacoesPage() {
               }`}
               onClick={() => setActiveTab('pendentes')}
             >
-              Pendentes ({redacoesPendentes.length})
+              Pendentes ({loadingPending ? '...' : pending.length})
             </button>
             <button
               className={`ml-8 py-2 px-4 border-b-2 font-medium text-sm ${
@@ -132,7 +86,7 @@ export function RevisarRedacoesPage() {
               }`}
               onClick={() => setActiveTab('corrigidas')}
             >
-              Corrigidas ({redacoesCorrigidas.length})
+              Corrigidas ({loadingGraded ? '...' : graded.length})
             </button>
           </nav>
         </div>
@@ -185,40 +139,29 @@ export function RevisarRedacoesPage() {
                 </tr>
               </thead>
               <tbody>
-                {redacoesPendentes.map((redacao) => (
-                  <tr key={redacao.id} className="hover:bg-gray-50">
+                {pending.map((redacao: any) => (
+                  <tr key={redacao._id} className="hover:bg-gray-50">
                     <td className="px-4 py-2 border">
                       <div className="flex items-center">
                         <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center mr-2">
-                          {redacao.aluno.fotoUrl ? (
-                            <img 
-                              src={redacao.aluno.fotoUrl} 
-                              alt={redacao.aluno.nome} 
-                              className="w-8 h-8 rounded-full object-cover" 
-                            />
+                          {(redacao as any).studentId?.photoUrl ? (
+                            <img src={(redacao as any).studentId.photoUrl} alt={(redacao as any).studentId.name} className="w-8 h-8 rounded-full object-cover" />
                           ) : (
-                            <span className="text-sm font-medium text-gray-700">
-                              {redacao.aluno.nome.split(' ').map(n => n[0]).join('')}
-                            </span>
+                            <span className="text-sm font-medium text-gray-700">{(redacao as any).studentId?.name?.split(' ').map((n:string)=>n[0]).join('')}</span>
                           )}
                         </div>
                         <div>
-                          <div className="font-medium">{redacao.aluno.nome}</div>
-                          <div className="text-sm text-gray-500">{redacao.aluno.turma}</div>
+                          <div className="font-medium">{(redacao as any).studentId?.name}</div>
+                          <div className="text-sm text-gray-500">{(redacao as any).studentId?.class || '—'}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-2 border">{redacao.tema}</td>
-                    <td className="px-4 py-2 border text-center">{redacao.tipo}</td>
-                    <td className="px-4 py-2 border text-center">{redacao.bimestre}º</td>
-                    <td className="px-4 py-2 border text-center">{redacao.data}</td>
+                    <td className="px-4 py-2 border">{(redacao as any).themeId?.title || redacao.themeText || 'Tema não informado'}</td>
+                    <td className="px-4 py-2 border text-center">{redacao.type}</td>
+                    <td className="px-4 py-2 border text-center">{redacao.bimester || redacao.bimestre || '—'}</td>
+                    <td className="px-4 py-2 border text-center">{new Date(redacao.createdAt).toLocaleDateString()}</td>
                     <td className="px-4 py-2 border text-center">
-                      <Link 
-                        to={`${paths.corrigirRedacao}/${redacao.id}`}
-                        className="bg-orange-600 text-white px-3 py-1 rounded text-sm hover:bg-orange-700 transition inline-block"
-                      >
-                        Corrigir
-                      </Link>
+                      <Link to={`${paths.corrigirRedacao}/${redacao._id}`} className="bg-orange-600 text-white px-3 py-1 rounded text-sm hover:bg-orange-700 transition inline-block">Corrigir</Link>
                     </td>
                   </tr>
                 ))}
@@ -241,52 +184,34 @@ export function RevisarRedacoesPage() {
                 </tr>
               </thead>
               <tbody>
-                {redacoesCorrigidas.map((redacao) => (
-                  <tr key={redacao.id} className="hover:bg-gray-50">
+                {graded.map((redacao: any) => (
+                  <tr key={redacao._id} className="hover:bg-gray-50">
                     <td className="px-4 py-2 border">
                       <div className="flex items-center">
                         <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center mr-2">
-                          {redacao.aluno.fotoUrl ? (
-                            <img 
-                              src={redacao.aluno.fotoUrl} 
-                              alt={redacao.aluno.nome} 
-                              className="w-8 h-8 rounded-full object-cover" 
-                            />
+                          {(redacao as any).studentId?.photoUrl ? (
+                            <img src={(redacao as any).studentId.photoUrl} alt={(redacao as any).studentId.name} className="w-8 h-8 rounded-full object-cover" />
                           ) : (
-                            <span className="text-sm font-medium text-gray-700">
-                              {redacao.aluno.nome.split(' ').map(n => n[0]).join('')}
-                            </span>
+                            <span className="text-sm font-medium text-gray-700">{(redacao as any).studentId?.name?.split(' ').map((n:string)=>n[0]).join('')}</span>
                           )}
                         </div>
                         <div>
-                          <div className="font-medium">{redacao.aluno.nome}</div>
-                          <div className="text-sm text-gray-500">{redacao.aluno.turma}</div>
+                          <div className="font-medium">{(redacao as any).studentId?.name}</div>
+                          <div className="text-sm text-gray-500">{(redacao as any).studentId?.class || '—'}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-2 border">{redacao.tema}</td>
-                    <td className="px-4 py-2 border text-center">{redacao.tipo}</td>
-                    <td className="px-4 py-2 border text-center font-medium">{redacao.nota}</td>
-                    <td className="px-4 py-2 border text-center">
-                      {redacao.enviado ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          Sim
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                          Não
-                        </span>
-                      )}
-                    </td>
+                    <td className="px-4 py-2 border">{(redacao as any).themeId?.title || redacao.themeText || 'Tema não informado'}</td>
+                    <td className="px-4 py-2 border text-center">{redacao.type}</td>
+                    <td className="px-4 py-2 border text-center font-medium">{redacao.enem?.rawScore || redacao.pas?.rawScore || redacao.finalGrade || '—'}</td>
+                    <td className="px-4 py-2 border text-center">{redacao.status === 'SENT' ? 'Sim' : 'Não'}</td>
                     <td className="px-4 py-2 border text-center">
                       <div className="flex justify-center space-x-2">
-                        <button className="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700 transition">
-                          Ver PDF
-                        </button>
-                        {!redacao.enviado && (
-                          <button className="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 transition">
-                            Enviar
-                          </button>
+                        <Link to={`${paths.corrigirRedacao}/${redacao._id}`} className="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700 transition">Revisar</Link>
+                        {redacao.status === 'SENT' ? (
+                          <span className="text-xs text-green-600 font-medium">Enviado</span>
+                        ) : (
+                          <button className="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 transition">Enviar PDF</button>
                         )}
                       </div>
                     </td>
@@ -298,17 +223,18 @@ export function RevisarRedacoesPage() {
         )}
 
         {/* Mensagem quando não há redações */}
-        {activeTab === 'pendentes' && redacoesPendentes.length === 0 && (
+        {activeTab === 'pendentes' && pending.length === 0 && !loadingPending && (
           <div className="bg-yellow-50 p-4 rounded-lg text-center">
             <p className="text-yellow-700">Não há redações pendentes de correção.</p>
           </div>
         )}
         
-        {activeTab === 'corrigidas' && redacoesCorrigidas.length === 0 && (
+        {activeTab === 'corrigidas' && graded.length === 0 && !loadingGraded && (
           <div className="bg-yellow-50 p-4 rounded-lg text-center">
             <p className="text-yellow-700">Não há redações corrigidas.</p>
           </div>
         )}
+        <Toaster position="top-center" />
       </div>
       <footer className="mt-8 text-center text-gray-500 text-sm">
         © 2025 Professor Yago Sales. Todos os direitos reservados.

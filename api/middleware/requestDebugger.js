@@ -2,6 +2,10 @@
 // Adicione esta linha ao app.js antes de registrar as rotas: app.use(requestDebugger);
 
 module.exports = (req, res, next) => {
+  // Silenciar completamente em ambiente de teste para evitar poluição de saída
+  if (process.env.NODE_ENV === 'test') {
+    return next();
+  }
   // Pular debug para rotas de saúde/monitoramento
   if (req.path.includes('/health')) {
     return next();

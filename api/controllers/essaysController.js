@@ -4,14 +4,53 @@ const jwt = require('jsonwebtoken');
 const config = require('../config');
 const cloudinaryService = require('../services/cloudinaryService');
 const pdfService = require('../services/pdfService');
+const logger = require('../services/logger');
+const { trackPdfGeneration, incEmailSent, incStatusTransition } = require('../middleware/metrics');
 const emailService = require('../services/emailService');
 // Usando importação dinâmica para node-fetch v3
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
+// Resumo agregado para dashboards
+exports.getEssaysSummary = async (req, res, next) => {
+  try {
+    const { classId, bimester } = req.query;
+    const match = {};
+    if (bimester) {
+      const b = parseInt(bimester); if (!isNaN(b)) match.bimester = b;
+    }
+    if (req.user.role === 'student') {
+      match.studentId = req.user.id;
+    } else if (classId) {
+      const User = require('../models/User');
+      const students = await User.find({ classId, role: 'student' }, '_id');
+      match.studentId = { $in: students.map(s => s._id) };
+    }
+
+    const pipeline = [ { $match: match }, {
+      $facet: {
+        byStatus: [ { $group: { _id: '$status', count: { $sum: 1 } } } ],
+        byType: [ { $group: { _id: '$type', count: { $sum: 1 } } } ],
+        byBimester: [ { $match: { bimester: { $exists: true } } }, { $group: { _id: '$bimester', count: { $sum: 1 } } } ],
+        total: [ { $count: 'value' } ]
+      }
+    }];
+
+    const [result] = await Essay.aggregate(pipeline);
+
+    const mapArray = arr => Object.fromEntries((arr||[]).map(i => [i._id, i.count]));
+    res.json({
+      total: (result.total && result.total[0] && result.total[0].value) || 0,
+      byStatus: mapArray(result.byStatus),
+      byType: mapArray(result.byType),
+      byBimester: mapArray(result.byBimester)
+    });
+  } catch (error) { next(error); }
+};
+
 // Listar redações com filtros
 exports.getEssays = async (req, res, next) => {
   try {
-    const { status, type, themeId, q, page = 1, limit = 10 } = req.query;
+    const { status, type, themeId, q, page = 1, limit = 10, bimester, classId, studentId } = req.query;
     
     const filter = {};
     
@@ -28,6 +67,23 @@ exports.getEssays = async (req, res, next) => {
     // Filtro por tema
     if (themeId) {
       filter.themeId = themeId;
+    }
+
+    if (bimester) {
+      const b = parseInt(bimester);
+      if (!isNaN(b)) filter.bimester = b;
+    }
+
+    // Filtro por turma via join (fazemos lookup posterior)
+    if (classId) {
+      // coletar alunos da turma
+      const User = require('../models/User');
+      const students = await User.find({ classId, role: 'student' }, '_id');
+      filter.studentId = { $in: students.map(s => s._id) };
+    }
+
+    if (studentId) {
+      filter.studentId = studentId;
     }
     
     // Busca por texto
@@ -395,7 +451,117 @@ exports.getAnnotations = async (req, res, next) => {
       });
     }
     
-    res.json(annotationSet);
+    // Resposta simplificada: { annotations: [...] }
+    res.json({
+      essayId: annotationSet.essayId,
+      annotations: (annotationSet.highlights || []).map(h => ({
+        page: h.page,
+        rects: h.rects,
+        color: h.color,
+        category: h.category,
+        comment: h.comment,
+        text: h.text,
+        id: h._id
+      })),
+      updatedAt: annotationSet.updatedAt
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Atualizar anotações (substituição idempotente do conjunto de highlights)
+exports.updateAnnotations = async (req, res, next) => {
+  try {
+    const { id } = req.params; // essayId
+    const { annotations } = req.body; // payload esperado: { annotations: [...] }
+
+    if (req.user.role !== 'teacher') {
+      return res.status(403).json({ message: 'Apenas professores podem editar anotações' });
+    }
+
+    const essay = await require('../models/Essay').findById(id);
+    if (!essay) return res.status(404).json({ message: 'Redação não encontrada' });
+
+    // Validação básica do array
+    if (!Array.isArray(annotations)) {
+      return res.status(400).json({ message: 'Formato inválido: annotations deve ser array' });
+    }
+
+    // Map de normalização de categorias antigas -> novas
+    const categoryMap = {
+      ortografia: 'grammar',
+      argumentacao: 'argument',
+      coesao: 'cohesion',
+      geral: 'general',
+      // já compatíveis: formal, grammar, argument, general, cohesion
+    };
+    const allowedCategories = new Set(['formal','grammar','argument','general','cohesion']);
+
+    const sanitized = [];
+    for (let i = 0; i < annotations.length; i++) {
+      const a = annotations[i];
+      const errors = [];
+      if (typeof a.page !== 'number' || a.page < 1) errors.push('page inválida');
+      if (!Array.isArray(a.rects) || a.rects.length === 0) errors.push('rects obrigatórios');
+      if (typeof a.comment !== 'string' || a.comment.trim() === '') errors.push('comment obrigatório');
+      if (typeof a.category !== 'string') errors.push('category obrigatória');
+      if (typeof a.color !== 'string' || a.color.trim() === '') errors.push('color obrigatória');
+      if (errors.length) {
+        return res.status(400).json({ message: 'Erro de validação em annotation', index: i, errors });
+      }
+
+      const normalizedCategory = categoryMap[a.category] || a.category;
+      if (!allowedCategories.has(normalizedCategory)) {
+        return res.status(400).json({ message: `Categoria inválida: ${a.category}` });
+      }
+
+      // Sanitizar rects (números não negativos, largura/altura > 0)
+      const rects = a.rects.map(r => ({
+        x: Number(r.x),
+        y: Number(r.y),
+        w: Number(r.w),
+        h: Number(r.h)
+      })).filter(r => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.w) && Number.isFinite(r.h) && r.w > 0 && r.h > 0);
+
+      if (!rects.length) {
+        return res.status(400).json({ message: 'Todos os rects inválidos após sanitização', index: i });
+      }
+
+      sanitized.push({
+        page: a.page,
+        rects,
+        color: a.color,
+        category: normalizedCategory,
+        comment: a.comment.trim(),
+        text: a.text ? String(a.text).slice(0, 500) : undefined,
+        createdBy: req.user.id
+      });
+    }
+
+    // Upsert do AnnotationSet
+    let annotationSet = await AnnotationSet.findOne({ essayId: id });
+    if (!annotationSet) {
+      annotationSet = new AnnotationSet({ essayId: id, highlights: sanitized });
+    } else {
+      annotationSet.highlights = sanitized;
+      annotationSet.updatedAt = Date.now();
+    }
+    await annotationSet.save();
+
+    res.json({
+      essayId: annotationSet.essayId,
+      annotations: annotationSet.highlights.map(h => ({
+        page: h.page,
+        rects: h.rects,
+        color: h.color,
+        category: h.category,
+        comment: h.comment,
+        text: h.text,
+        id: h._id
+      })),
+      updatedAt: annotationSet.updatedAt
+    });
   } catch (error) {
     next(error);
   }
@@ -437,10 +603,19 @@ exports.saveCorrection = async (req, res, next) => {
       essay.finalGrade = finalGrade;
     }
 
-    // Atualiza o status da redação se for a primeira vez que está sendo corrigida
+    // Transição automática PENDING -> GRADING ao iniciar correção
     if (essay.status === 'PENDING') {
-      essay.status = 'GRADING';
-      essay.teacherId = req.user.id;
+      try {
+        const { assertTransition } = require('../services/statusService');
+        assertTransition(essay, 'GRADING');
+        essay.teacherId = req.user.id;
+        incStatusTransition();
+        logger.info('Transição de status',{ essayId: essay._id, from:'PENDING', to:'GRADING' });
+      } catch (e) {
+        return res.status(400).json({ message: e.message });
+      }
+    } else if (!['GRADING','GRADED'].includes(essay.status)) {
+      return res.status(400).json({ message: `Status atual (${essay.status}) não permite salvar correção` });
     }
     
     essay.updatedAt = Date.now();
@@ -457,76 +632,36 @@ exports.saveCorrection = async (req, res, next) => {
 exports.gradeEssay = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { 
-      type, 
-      c1, c2, c3, c4, c5, // ENEM
-      NC, NE, NL, // PAS
-      annulment 
-    } = req.body;
-    
+    const payload = req.body;
     const essay = await Essay.findById(id);
-    
-    if (!essay) {
-      return res.status(404).json({ message: 'Redação não encontrada' });
+    if (!essay) return res.status(404).json({ message: 'Redação não encontrada' });
+    if (req.user.role !== 'teacher') return res.status(403).json({ message: 'Apenas professores podem atribuir notas' });
+    if (payload.type && payload.type !== essay.type) {
+      return res.status(400).json({ message: 'Tipo enviado não corresponde ao tipo da redação' });
     }
-    
-    // Apenas professores podem atribuir notas
-    if (req.user.role !== 'teacher') {
-      return res.status(403).json({ message: 'Apenas professores podem atribuir notas' });
+
+    try {
+      const { applyScoring } = require('../services/scoringService');
+      await applyScoring({ essay, payload: { ...payload, type: essay.type } });
+    } catch (e) {
+      return res.status(400).json({ message: e.message });
     }
-    
-    // Verificar anulação
-    let rawScore = 0;
-    
-    if (annulment && annulment.active) {
-      essay.annulment = {
-        active: true,
-        reasons: annulment.reasons || []
-      };
-    } else {
-      // Calcular nota baseada no tipo
-      if (type === 'ENEM') {
-        if (c1 === undefined || c2 === undefined || c3 === undefined || c4 === undefined || c5 === undefined) {
-          return res.status(400).json({ message: 'Todas as competências são obrigatórias para redações ENEM' });
-        }
-        
-        // Validar valores
-        if (c1 < 0 || c1 > 200 || c2 < 0 || c2 > 200 || c3 < 0 || c3 > 200 || c4 < 0 || c4 > 200 || c5 < 0 || c5 > 200) {
-          return res.status(400).json({ message: 'Valores de competências devem estar entre 0 e 200' });
-        }
-        
-        rawScore = c1 + c2 + c3 + c4 + c5;
-        
-        essay.enem = { c1, c2, c3, c4, c5, rawScore };
-      } else if (type === 'PAS') {
-        if (NC === undefined || NE === undefined) {
-          return res.status(400).json({ message: 'NC e NE são obrigatórios para redações PAS' });
-        }
-        
-        // Validar valores
-        if (NC < 0 || NE < 0) {
-          return res.status(400).json({ message: 'Valores de NC e NE devem ser positivos' });
-        }
-        
-        // Usar NL padrão = 1 se não fornecido
-        const nlValue = NL || 1;
-        
-        // Calcular nota: NR = NC - 2*NE/NL (>=0)
-        rawScore = Math.max(0, NC - (2 * NE / nlValue));
-        
-        essay.pas = { NC, NE, NL: nlValue, rawScore };
-      } else {
-        return res.status(400).json({ message: 'Tipo de redação inválido' });
-      }
+
+    // Exigir que esteja em GRADING para graduar
+    if (essay.status !== 'GRADING') {
+      return res.status(400).json({ message: `Redação precisa estar em GRADING para atribuir nota (atual: ${essay.status})` });
     }
-    
-    // Atualizar status e nota
-    essay.status = 'GRADED';
-    essay.teacherId = req.user.id;
+    try {
+      const { assertTransition } = require('../services/statusService');
+      assertTransition(essay, 'GRADED');
+      essay.teacherId = req.user.id;
+      incStatusTransition();
+      logger.info('Transição de status',{ essayId: essay._id, from:'GRADING', to:'GRADED' });
+    } catch (e) {
+      return res.status(400).json({ message: e.message });
+    }
     essay.updatedAt = Date.now();
-    
     await essay.save();
-    
     res.json(essay);
   } catch (error) {
     next(error);
@@ -613,14 +748,38 @@ exports.sendEmailWithPdf = async (req, res, next) => {
       return res.status(403).json({ message: 'Apenas professores podem enviar e-mails com redações corrigidas' });
     }
     
-    // Verificar se está corrigida
-    if (essay.status !== 'GRADED') {
-      return res.status(400).json({ message: 'A redação precisa estar corrigida para enviar por e-mail' });
+    // Verificar se está corrigida (permitir reenviar se já SENT)
+    if (!['GRADED','SENT'].includes(essay.status)) {
+      return res.status(400).json({ message: 'A redação precisa estar corrigida (GRADED) para enviar por e-mail' });
     }
-    
-    // Verificar se há PDF corrigido
+
+    // Gerar PDF se ausente (idempotência de pipeline)
+    const AnnotationSet = require('../models/AnnotationSet');
     if (!essay.correctedPdfUrl) {
-      return res.status(400).json({ message: 'É necessário gerar o PDF corrigido antes de enviar por e-mail' });
+      const annotationSet = await AnnotationSet.findOne({ essayId: id });
+      if (!annotationSet || !annotationSet.highlights || !annotationSet.highlights.length) {
+        return res.status(400).json({ message: 'A redação precisa ter anotações para gerar/enviar PDF' });
+      }
+      const startPdf = process.hrtime.bigint();
+      const pdfBuffer = await pdfService.generateCorrectedPdf(essay.file.originalUrl, {
+        essay,
+        annotationSet,
+        espelho: {
+          studentName: essay.studentId.name,
+          type: essay.type,
+          generalComments: essay.generalComments,
+          finalGrade: essay.type === 'ENEM' ? essay.enem?.rawScore : essay.pas?.rawScore
+        }
+      });
+      const endPdf = process.hrtime.bigint();
+      trackPdfGeneration(Number(endPdf - startPdf)/1e6);
+      logger.info('PDF corrigido gerado', { essayId: essay._id });
+      const uploadResult = await cloudinaryService.uploadFile(pdfBuffer, {
+        folder: `essays/corrected/${essay._id}`,
+        resource_type: 'auto'
+      });
+      essay.correctedPdfUrl = uploadResult.secure_url;
+      await essay.save();
     }
     
     // Verificar se o aluno tem e-mail
@@ -646,19 +805,30 @@ exports.sendEmailWithPdf = async (req, res, next) => {
       pdfUrl: essay.correctedPdfUrl,
       filename: `redacao_corrigida_${essay._id}.pdf`
     });
+    incEmailSent();
+    logger.info('Email enviado',{ essayId: essay._id, to: essay.studentId.email });
     
-    // Registrar envio do e-mail
-    essay.email = {
-      lastSentAt: new Date()
-    };
-    
+    // Registrar envio do e-mail e transicionar status se ainda GRADED
+    essay.email = { lastSentAt: new Date() };
+    if (essay.status === 'GRADED') {
+      try {
+        const { assertTransition } = require('../services/statusService');
+        assertTransition(essay, 'SENT');
+        incStatusTransition();
+        logger.info('Transição de status',{ essayId: essay._id, from:'GRADED', to:'SENT' });
+      } catch (e) {
+        // Se falhar a transição, ainda consideramos o envio feito mas retornamos erro de fluxo
+        return res.status(400).json({ message: e.message, emailSent: true });
+      }
+    }
     await essay.save();
     
     res.json({ 
       success: true,
       message: 'E-mail enviado com sucesso',
       sentTo: essay.studentId.email,
-      sentAt: essay.email.lastSentAt
+      sentAt: essay.email.lastSentAt,
+      status: essay.status
     });
   } catch (error) {
     next(error);
@@ -716,4 +886,27 @@ exports.generateCorrectedPdf = async (req, res, next) => {
     console.error('Erro ao gerar PDF corrigido:', error);
     next(error);
   }
+};
+
+// Alterar status manualmente (endpoint controlado) - hoje só útil para PENDING -> GRADING se for necessário sem salvar correção
+exports.changeEssayStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!status) return res.status(400).json({ message: 'Status alvo é obrigatório' });
+    if (!['PENDING','GRADING','GRADED','SENT'].includes(status)) {
+      return res.status(400).json({ message: 'Status inválido' });
+    }
+    const essay = await Essay.findById(id);
+    if (!essay) return res.status(404).json({ message: 'Redação não encontrada' });
+    if (req.user.role !== 'teacher') return res.status(403).json({ message: 'Apenas professores podem alterar status' });
+    try {
+      const { assertTransition } = require('../services/statusService');
+      assertTransition(essay, status);
+      await essay.save();
+      res.json({ success: true, status: essay.status });
+    } catch (e) {
+      return res.status(400).json({ message: e.message });
+    }
+  } catch (error) { next(error); }
 };
