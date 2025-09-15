@@ -19,6 +19,7 @@ const setupRoutes = require('./routes/setup'); // Rota temporária para configur
 const diagnosticsRoutes = require('./routes/diagnostics'); // Rotas de diagnóstico
 const studentsRoutes = require('./routes/students'); // Rotas para gerenciamento de alunos
 const classesRoutes = require('./routes/classes'); // Rotas para gerenciamento de turmas
+const metricsRoutes = require('./routes/metrics'); // Rota para métricas agregadas
 
 const app = express();
 // Necessário para que req.secure e cookies 'secure' funcionem atrás de proxy/load balancer
@@ -146,6 +147,7 @@ app.use(`${apiPrefix}/setup`, setupRoutes); // Rota temporária para configuraç
 app.use(`${apiPrefix}/diagnostics`, diagnosticsRoutes); // Rotas para diagnóstico de problemas
 app.use(`${apiPrefix}/students`, studentsRoutes); // Rotas para gerenciar alunos
 app.use(`${apiPrefix}/classes`, classesRoutes); // Rotas para gerenciar turmas
+app.use(`${apiPrefix}/metrics`, metricsRoutes); // Rotas de métricas agregadas
 
 // Error handler
 app.use(errorHandler);

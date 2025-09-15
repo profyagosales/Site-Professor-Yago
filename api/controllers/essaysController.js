@@ -657,6 +657,7 @@ exports.gradeEssay = async (req, res, next) => {
       essay.teacherId = req.user.id;
       incStatusTransition();
       logger.info('Transição de status',{ essayId: essay._id, from:'GRADING', to:'GRADED' });
+      if (!essay.gradedAt) essay.gradedAt = new Date();
     } catch (e) {
       return res.status(400).json({ message: e.message });
     }
@@ -816,6 +817,7 @@ exports.sendEmailWithPdf = async (req, res, next) => {
         assertTransition(essay, 'SENT');
         incStatusTransition();
         logger.info('Transição de status',{ essayId: essay._id, from:'GRADED', to:'SENT' });
+          if (!essay.sentAt) essay.sentAt = new Date();
       } catch (e) {
         // Se falhar a transição, ainda consideramos o envio feito mas retornamos erro de fluxo
         return res.status(400).json({ message: e.message, emailSent: true });

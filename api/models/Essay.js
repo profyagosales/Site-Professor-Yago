@@ -87,6 +87,12 @@ const EssaySchema = new mongoose.Schema({
   correctedPdfUrl: {
     type: String
   },
+  gradedAt: { // primeiro momento em que atinge GRADED
+    type: Date
+  },
+  sentAt: { // primeiro momento em que atinge SENT
+    type: Date
+  },
   email: {
     lastSentAt: { type: Date }
   },

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button' // Importar Button
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card' // Importar Card
 import { Users, Book, FileText, CheckSquare } from 'lucide-react' // Importar ícones
 import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist'
+import { DashboardMetricsWidget } from '@/components/dashboard/DashboardMetricsWidget'
 
 export function DashboardPage() {
   const { auth, logout, isLoading } = useAuth()
@@ -54,6 +55,7 @@ export function DashboardPage() {
   return (
     <div className="container mx-auto px-4 py-8">
   <OnboardingChecklist />
+  {auth.role === 'teacher' && <DashboardMetricsWidget />}
   <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
