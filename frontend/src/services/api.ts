@@ -1,5 +1,8 @@
 import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { isAuthRedirectLocked, setAuthRedirectLock } from '@/constants/authRedirect';
+// Lazy reference para evitar import cíclico direto do provider
+let markSessionExpiredGlobal: (() => void) | null = null;
+export function __registerSessionExpiredMarker(fn: () => void) { markSessionExpiredGlobal = fn }
 
 // URL padrão para produção
 const defaultApiUrl = 'https://api.professoryagosales.com.br';
@@ -39,27 +42,27 @@ api.interceptors.response.use(
     return response;
   },
   (error: AxiosError) => {
-    // Tratar erro 401 (não autenticado)
     if (error.response && error.response.status === 401) {
-      // Se o token expirou ou é inválido, limpa dados de autenticação
+      const now = Date.now();
+      // Limpa credenciais locais
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      
-      // Verifica se é uma requisição /auth/me (verificação de autenticação)
+      // Marca sessão expirada para UI reagir (modal, etc.)
+      try { markSessionExpiredGlobal?.() } catch {}
+
       const isAuthCheck = error.config?.url?.includes('/auth/me');
-      
-      // Redireciona para a página de erro de autenticação apenas se for uma verificação explícita
-      // para não interromper outras operações com redirecionamentos desnecessários
       if (isAuthCheck) {
-        const now = Date.now();
-        // Se já existe lock persistente, não redireciona novamente
         if (isAuthRedirectLocked(now)) {
           console.warn('Redirect /auth-error suprimido (lock ativo)');
         } else {
+          // Em vez de redirecionar imediatamente, aguardamos breve tempo para UI mostrar modal (se configurado)
           setAuthRedirectLock(now);
-          // fallback in-memory (caso localStorage não funcione)
           (window as any).__lastAuthRedirect = now;
-          window.location.href = '/auth-error';
+          setTimeout(() => {
+            // Se durante o atraso o provider já revalidou, não redireciona
+            if (localStorage.getItem('user')) return;
+            window.location.href = '/auth-error';
+          }, 1200);
         }
       }
     }
