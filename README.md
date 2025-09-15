@@ -185,6 +185,22 @@ scrape_configs:
 
 Se quiser filtrar em reverse proxy, permitir apenas IPs internos ou usar basic auth.
 
+#### Proteção dos Endpoints de Métricas
+
+Defina `METRICS_TOKEN` no backend. Quando presente, os endpoints `/metrics` e `/metrics/prom` exigem header:
+
+```
+Authorization: Bearer <METRICS_TOKEN>
+```
+
+Exemplo curl:
+```
+METRICS_TOKEN=secreta123
+curl -H "Authorization: Bearer secreta123" https://api.seu-dominio/metrics/prom
+```
+
+Sem o header correto, resposta `401 {"error":"Unauthorized metrics"}`.
+
 Interpretação rápida:
 - Se `cookieEchoMiss` cresce mas `cookieEchoSuccess` permanece zero após várias páginas/refresh, cookies não estão sendo armazenados.
 - Se sucessos começam a aparecer apenas após remover Domain (`DISABLE_COOKIE_DOMAIN=true`), problema ligado a escopo de domínio.

@@ -106,10 +106,18 @@ app.get('/', (req, res) => {
   });
 });
 
+// Middleware opcional para proteger métricas com METRICS_TOKEN
+function metricsAuth(req,res,next){
+  const token = process.env.METRICS_TOKEN;
+  if(!token){ return next(); }
+  const header = req.headers['authorization'] || '';
+  if(header === `Bearer ${token}`){ return next(); }
+  return res.status(401).json({ error: 'Unauthorized metrics' });
+}
 // Endpoint de métricas (JSON simples)
-app.get('/metrics', exposeMetrics);
+app.get('/metrics', metricsAuth, exposeMetrics);
 // Endpoint de métricas Prometheus
-app.get('/metrics/prom', exposeMetricsProm);
+app.get('/metrics/prom', metricsAuth, exposeMetricsProm);
 
 // Rota de diagnóstico para verificar cookies e headers
 app.get('/debug', (req, res) => {
