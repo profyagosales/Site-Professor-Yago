@@ -12,6 +12,9 @@ type DiagnosticInfo = {
   cookieTestError?: string;
   cookieTestStatus?: number;
   diagnosticsOff?: boolean;
+  cookieVariants?: any;
+  cookieVariantsError?: string;
+  cookieVariantsStatus?: number;
   environment?: any;
   environmentError?: any;
   cors?: any;
@@ -24,6 +27,9 @@ type DiagnosticInfo = {
 export function AuthErrorPage() {
   const [diagnosticInfo, setDiagnosticInfo] = useState<DiagnosticInfo>({})
   const [loading, setLoading] = useState(true)
+  const [healthHistory, setHealthHistory] = useState<any[]>([])
+  const [autoHealth, setAutoHealth] = useState(false)
+  const [autoHealthTick, setAutoHealthTick] = useState(0)
 
   useEffect(() => {
     const runDiagnostics = async () => {
@@ -56,6 +62,7 @@ export function AuthErrorPage() {
         ...prev,
         cookieTest: response.data
       }))
+      setHealthHistory(prev => [response.data, ...prev].slice(0,10))
     } catch (error: any) {
       console.error('Erro ao testar cookies (health):', error)
       const status = error.response?.status
@@ -68,6 +75,25 @@ export function AuthErrorPage() {
       }))
     }
   }
+
+  const runVariants = async () => {
+    try {
+      const res = await api.get('/auth/set-cookie-variants')
+      setDiagnosticInfo(prev => ({ ...prev, cookieVariants: res.data }))
+    } catch (e:any) {
+      setDiagnosticInfo(prev => ({ ...prev, cookieVariantsError: e.message, cookieVariantsStatus: e.response?.status }))
+    }
+  }
+
+  // Auto refresh de health
+  useEffect(() => {
+    if(!autoHealth) return;
+    const id = setInterval(() => {
+      setAutoHealthTick(t => t+1);
+      testCookie();
+    }, 5000);
+    return () => clearInterval(id);
+  }, [autoHealth]);
 
   const debugSession = async () => {
     try {
@@ -154,6 +180,18 @@ export function AuthErrorPage() {
               Testar Cookie (Health)
             </button>
             <button
+              onClick={runVariants}
+              className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition"
+            >
+              Cookie Variants
+            </button>
+            <button
+              onClick={() => setAutoHealth(a=>!a)}
+              className={`px-4 py-2 rounded transition ${autoHealth ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-gray-600 hover:bg-gray-700 text-white'}`}
+            >
+              Auto Health {autoHealth ? 'ON' : 'OFF'}
+            </button>
+            <button
               onClick={runCompleteDiagnostic}
               className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition"
             >
@@ -218,6 +256,26 @@ export function AuthErrorPage() {
                   <pre className="text-sm whitespace-pre-wrap">
                     {JSON.stringify(diagnosticInfo.cookieTest, null, 2)}
                   </pre>
+                </div>
+              )}
+              {healthHistory.length > 1 && (
+                <div className="p-4 bg-gray-50 rounded-lg overflow-auto max-h-60">
+                  <h3 className="font-medium mb-2">Histórico Health (últimos {healthHistory.length}):</h3>
+                  <pre className="text-xs whitespace-pre-wrap">
+{healthHistory.map((h,i)=>`#${healthHistory.length - i} echoedBack=${h?.probe?.echoedBack} newValue=${h?.probe?.newValue} time=${h?.timestamp}`).join('\n')}
+                  </pre>
+                </div>
+              )}
+              {diagnosticInfo.cookieVariants && (
+                <div className="p-4 bg-gray-50 rounded-lg overflow-auto max-h-60">
+                  <h3 className="font-medium mb-2">Cookie Variants:</h3>
+                  <pre className="text-sm whitespace-pre-wrap">{JSON.stringify(diagnosticInfo.cookieVariants, null, 2)}</pre>
+                </div>
+              )}
+              {diagnosticInfo.cookieVariantsError && (
+                <div className="p-4 bg-red-50 rounded-lg overflow-auto max-h-60">
+                  <h3 className="font-medium mb-2 text-red-700">Cookie Variants (Erro):</h3>
+                  <pre className="text-sm whitespace-pre-wrap text-red-700">{diagnosticInfo.cookieVariantsError} {diagnosticInfo.cookieVariantsStatus ? `(Status: ${diagnosticInfo.cookieVariantsStatus})` : ''}</pre>
                 </div>
               )}
               {diagnosticInfo.cookieTestError && (
