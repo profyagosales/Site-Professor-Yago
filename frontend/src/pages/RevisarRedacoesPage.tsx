@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { paths } from '../routes/paths'
 import { essayService, Essay } from '../services/essayService'
 import { getClasses } from '@/services/classService'
+import { getThemes } from '@/services/themeService'
 import toast, { Toaster } from 'react-hot-toast'
 
 export function RevisarRedacoesPage() {
@@ -16,6 +17,7 @@ export function RevisarRedacoesPage() {
   const [selectedClassId, setSelectedClassId] = useState<string>('')
   const [selectedBimester, setSelectedBimester] = useState<string>('')
   const [selectedType, setSelectedType] = useState<string>('')
+  const [selectedThemeId, setSelectedThemeId] = useState<string>('')
   const [search, setSearch] = useState<string>('')
   const [refreshToken, setRefreshToken] = useState<number>(0)
 
@@ -27,6 +29,13 @@ export function RevisarRedacoesPage() {
   // Cache simples em módulo (escopo de execução)
   const classesCacheRef = (window as any).__classesCacheRef || ((window as any).__classesCacheRef = { data: null as any, ts: 0 })
   const CLASSES_CACHE_TTL = 60 * 1000 // 1 minuto
+
+  // Temas dinâmicos
+  const [themeOptions, setThemeOptions] = useState<{ id: string; title: string }[]>([{ id: '', title: 'Todos os temas' }])
+  const [loadingThemes, setLoadingThemes] = useState(false)
+  const [themesError, setThemesError] = useState<string | null>(null)
+  const themesCacheRef = (window as any).__themesCacheRef || ((window as any).__themesCacheRef = { data: null as any, ts: 0 })
+  const THEMES_CACHE_TTL = 60 * 1000
 
   const loadClasses = useCallback(async () => {
     try {
@@ -57,6 +66,7 @@ export function RevisarRedacoesPage() {
     if (selectedBimester) params.bimester = Number(selectedBimester);
     if (selectedClassId) params.classId = selectedClassId;
     if (search.trim()) params.q = search.trim();
+    if (selectedThemeId) params.themeId = selectedThemeId;
     return params;
   }
 
@@ -77,7 +87,29 @@ export function RevisarRedacoesPage() {
       setError(e.message)
       toast.error('Erro ao carregar pendentes')
     } finally { setLoadingPending(false) }
-  }, [selectedClassId, selectedBimester, selectedType, search, refreshToken])
+  }, [selectedClassId, selectedBimester, selectedType, selectedThemeId, search, refreshToken])
+
+  const loadThemes = useCallback(async () => {
+    try {
+      setLoadingThemes(true)
+      setThemesError(null)
+      const now = Date.now()
+      if (themesCacheRef.data && (now - themesCacheRef.ts) < THEMES_CACHE_TTL) {
+        setThemeOptions([{ id: '', title: 'Todos os temas' }, ...themesCacheRef.data.map((t: any)=>({ id: t._id, title: t.title }))])
+        return
+      }
+      const res = await getThemes({ limit: 100, active: true })
+      themesCacheRef.data = res.themes
+      themesCacheRef.ts = now
+      setThemeOptions([{ id: '', title: 'Todos os temas' }, ...res.themes.map(t => ({ id: t._id, title: t.title }))])
+    } catch (e: any) {
+      console.error('Erro ao carregar temas', e)
+      setThemesError(e.message || 'Erro ao carregar temas')
+      toast.error('Erro ao carregar temas')
+    } finally { setLoadingThemes(false) }
+  }, [])
+
+  useEffect(() => { loadThemes() }, [loadThemes])
   const loadGraded = useCallback( async () => {
     setLoadingGraded(true)
     try {
@@ -148,7 +180,7 @@ export function RevisarRedacoesPage() {
 
         {/* Filtros */}
         <div className="mb-6 bg-gray-50 p-4 rounded-lg">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Turma</label>
               <select value={selectedClassId} onChange={e=>setSelectedClassId(e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
@@ -156,6 +188,14 @@ export function RevisarRedacoesPage() {
               </select>
               {loadingClasses && <div className="text-xs text-gray-500 mt-1">Carregando turmas...</div>}
               {classesError && <div className="text-xs text-red-600 mt-1">{classesError}</div>}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tema</label>
+              <select value={selectedThemeId} onChange={e=>setSelectedThemeId(e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                {themeOptions.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
+              </select>
+              {loadingThemes && <div className="text-xs text-gray-500 mt-1">Carregando temas...</div>}
+              {themesError && <div className="text-xs text-red-600 mt-1">{themesError}</div>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Bimestre</label>
@@ -181,6 +221,7 @@ export function RevisarRedacoesPage() {
             </div>
             <div className="flex items-end gap-2">
               <button onClick={()=>{ setSelectedClassId(''); setSelectedBimester(''); setSelectedType(''); setSearch(''); }} className="px-3 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300">Limpar</button>
+              <button onClick={()=>{ setSelectedClassId(''); setSelectedBimester(''); setSelectedType(''); setSelectedThemeId(''); setSearch(''); }} className="px-3 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300">Limpar</button>
               <button onClick={()=>setRefreshToken(t=>t+1)} className="px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Atualizar</button>
             </div>
           </div>
