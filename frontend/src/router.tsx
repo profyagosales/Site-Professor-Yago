@@ -6,6 +6,7 @@ import { LoginAlunoPage } from './pages/LoginAlunoPage'
 import { LoginProfessorPage } from './pages/LoginProfessorPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { AuthErrorPage } from './pages/AuthErrorPage'
+const DebugAuthPage = React.lazy(() => import('./pages/DebugAuthPage'))
 const GerenciarTemasPage = lazy(() => import('./pages/GerenciarTemasPage').then(m => ({ default: m.GerenciarTemasPage })))
 const RevisarRedacoesPage = lazy(() => import('./pages/RevisarRedacoesPage').then(m => ({ default: m.RevisarRedacoesPage })))
 const CorrectionPage = lazy(() => import('./pages/CorrectionPage'))
@@ -25,6 +26,10 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: <HomePage />,
+      },
+      {
+        path: '/debug-auth',
+        element: <Suspense fallback={<div>Carregando...</div>}><DebugAuthPage /></Suspense>
       },
       {
         path: paths.loginAluno,

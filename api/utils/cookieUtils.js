@@ -11,7 +11,8 @@ const getAuthCookieOptions = () => {
   // - Se useCookieAuth ativo, precisamos permitir envio cross-site => SameSite=None; Secure true (mesmo em staging se HTTPS)
   // - Dominio: aplicar sempre que produção OU variável APP_DOMAIN definida
   const baseDomain = process.env.APP_DOMAIN || 'professoryagosales.com.br';
-  const domain = (isProduction || useCookieAuth) ? (baseDomain.startsWith('.') ? baseDomain : `.${baseDomain}`) : undefined;
+  const disableDomain = process.env.DISABLE_COOKIE_DOMAIN === 'true';
+  const domain = disableDomain ? undefined : ((isProduction || useCookieAuth) ? (baseDomain.startsWith('.') ? baseDomain : `.${baseDomain}`) : undefined);
 
   const cookieOptions = {
     httpOnly: true,
@@ -22,7 +23,7 @@ const getAuthCookieOptions = () => {
     domain
   };
 
-  console.log('Configurações de Cookie calculadas:', cookieOptions);
+  console.log('Configurações de Cookie calculadas:', cookieOptions, { disableDomain });
   return cookieOptions;
 };
 

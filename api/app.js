@@ -1,5 +1,5 @@
 const express = require('express');
-const { metricsMiddleware, exposeMetrics } = require('./middleware/metrics');
+const { metricsMiddleware, exposeMetrics, exposeMetricsProm } = require('./middleware/metrics');
 const logger = require('./services/logger');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -108,6 +108,8 @@ app.get('/', (req, res) => {
 
 // Endpoint de métricas (JSON simples)
 app.get('/metrics', exposeMetrics);
+// Endpoint de métricas Prometheus
+app.get('/metrics/prom', exposeMetricsProm);
 
 // Rota de diagnóstico para verificar cookies e headers
 app.get('/debug', (req, res) => {

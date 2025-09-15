@@ -99,6 +99,109 @@ Produção define o cookie com `domain=.professoryagosales.com.br` + `sameSite=N
 ### Logout
 O logout limpa o cookie e o token local.
 
+## Diagnóstico de Cookies / Cross-Site Auth
+
+Para investigar problemas de cookies não aparecendo no navegador, foram adicionadas rotas e ferramentas:
+
+Rotas de diagnóstico (todas GET em `/auth`):
+- `/cookie-options` – Exibe as opções atuais calculadas (`getAuthCookieOptions`).
+- `/set-raw-cookie` – Envia um único `Set-Cookie` manual montado à mão.
+- `/set-cookie-variants` – Envia múltiplos `Set-Cookie` com variações (com/sem Domain, SameSite, Secure) para ver quais sobrevivem.
+- `/cookie-test` – Usa `res.cookie` padrão para um cookie de teste.
+- `/debug-session` – Mostra se o servidor recebeu `auth_token` (cookies) e cabeçalhos relevantes.
+- `/diagnose-user?email=...` – Confirma existência de usuário (sem vazar hash).
+
+Flags de ambiente relevantes:
+- `USE_COOKIE_AUTH=true` – Força SameSite=None + Secure.
+- `APP_DOMAIN=professoryagosales.com.br` – Base para `Domain=.professoryagosales.com.br`.
+- `DISABLE_COOKIE_DOMAIN=true` – Remove o atributo `Domain` (testa cookie host-only).
+- `VITE_DISABLE_AUTO_AUTH_CHECK=true` (frontend) – Evita chamada automática a `/auth/me` ao carregar a aplicação (útil para não poluir testes com loops de 401).
+- `DIAGNOSTICS_ENABLED=true` – (backend) Habilita as rotas de diagnóstico; manter `false` ou ausente em produção final para reduzir superfície.
+
+Página de debug no frontend:
+- Acesse `/debug-auth` no frontend para botões que disparam todas as rotas e exibem `document.cookie`.
+
+Script de teste via curl:
+```
+BASE_URL=https://api.seu-dominio ./scripts/curl-auth-debug.sh
+BASE_URL=https://api.seu-dominio EMAIL=professor@exemplo.com PASSWORD=senha ./scripts/curl-auth-debug.sh
+```
+Ele mostrará headers `Set-Cookie` capturados fora do navegador para diferenciar entre bloqueio do navegador e ausência real do header na resposta.
+
+Fluxo recomendado de investigação:
+1. Ver `/auth/cookie-options` e validar atributos.
+2. Testar `/auth/set-cookie-variants` e ver no DevTools quais aparecem (comparar com saída do curl).
+3. Usar `/auth/health` para confirmar se o cookie probe volta (campo `probe.echoedBack`).
+4. Se no curl aparece e no browser não: verificar política de terceiros/HTTPS/domínio.
+5. Testar com `DISABLE_COOKIE_DOMAIN=true` para remover `Domain` e validar cookie host-only.
+6. Realizar login e depois `/auth/debug-session` para ver se o backend recebeu cookie de volta.
+
+## Métricas Internas (Endpoint /metrics se existir integração)
+
+O middleware simples em `api/middleware/metrics.js` mantém contadores e amostras em memória:
+
+HTTP:
+- `http.total` – Total de requisições atendidas.
+- `http.inflight` – Requisições em andamento.
+- `http.avgMs` – Média dos últimos tempos de resposta (janela limitada).
+
+PDF:
+- `pdf.avgMs` – Tempo médio de geração de PDFs (amostras recentes).
+- `pdf.samples` – Quantidade de amostras retidas.
+
+Emails:
+- `emails.sent` – Total de envios (incrementado em serviço de email real/mock).
+
+Ensaios / Redações:
+- `essays.statusTransitions` – Mudanças de status de redação.
+
+Autenticação (cookies):
+- `auth.healthCalls` – Número de chamadas ao endpoint `/auth/health`.
+- `auth.cookieEchoSuccess` – Quantas vezes o probe cookie voltou (navegador enviou de volta).
+- `auth.cookieEchoMiss` – Quantas vezes não voltou (indica problema de persistência/bloqueio ou primeira chamada).
+
+### Formato Prometheus
+
+Endpoint adicional: `/metrics/prom` retorna texto no formato Prometheus exposition (content-type `text/plain; version=0.0.4`). Exemplo de saída:
+
+```
+# HELP app_http_requests_total Total de requisições HTTP
+# TYPE app_http_requests_total counter
+app_http_requests_total 42
+# HELP app_auth_cookie_echo_success_total Cookie probe retornou
+# TYPE app_auth_cookie_echo_success_total counter
+app_auth_cookie_echo_success_total 7
+```
+
+Config exemplo de scrape:
+```yaml
+scrape_configs:
+   - job_name: 'prof-yago-api'
+      metrics_path: /metrics/prom
+      static_configs:
+         - targets: ['api.professoryagosales.com.br']
+      scheme: https
+```
+
+Se quiser filtrar em reverse proxy, permitir apenas IPs internos ou usar basic auth.
+
+Interpretação rápida:
+- Se `cookieEchoMiss` cresce mas `cookieEchoSuccess` permanece zero após várias páginas/refresh, cookies não estão sendo armazenados.
+- Se sucessos começam a aparecer apenas após remover Domain (`DISABLE_COOKIE_DOMAIN=true`), problema ligado a escopo de domínio.
+- Diferença muito grande entre `healthCalls` e soma de success+miss sugere erro de processamento (ver logs).
+
+### Métricas de Autenticação
+O endpoint de métricas agora inclui:
+```json
+auth: {
+   "healthCalls": <total de chamadas a /auth/health>,
+   "cookieEchoSuccess": <vezes que o cookie probe voltou>,
+   "cookieEchoMiss": <vezes que não voltou>
+}
+```
+Use a relação `cookieEchoSuccess / healthCalls` para detectar regressões de persistência de cookie.
+
+
 ## Upload de Redação
 
 Existem dois fluxos distintos:

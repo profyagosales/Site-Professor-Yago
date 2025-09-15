@@ -49,6 +49,12 @@ export function AuthStateProvider({ children }: AuthStateProviderProps) {
 
   // Verifica se o usuário está autenticado ao carregar o componente
   useEffect(() => {
+    const disableAuto = import.meta.env.VITE_DISABLE_AUTO_AUTH_CHECK === 'true';
+    if (disableAuto) {
+      console.log('Auto auth check desabilitado por VITE_DISABLE_AUTO_AUTH_CHECK');
+      setIsLoading(false);
+      return;
+    }
     // Limitar a uma tentativa inicial para evitar loops
     if (authAttemptCount > 0) {
       return;

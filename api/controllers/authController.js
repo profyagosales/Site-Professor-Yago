@@ -52,6 +52,14 @@ exports.loginTeacher = async (req, res, next) => {
     const cookieOptions = getAuthCookieOptions();
     console.log('Definindo cookie com opções:', cookieOptions);
     res.cookie('auth_token', token, cookieOptions);
+    // Log após tentativa de set-cookie (não garante envio ao cliente, mas confirma execução)
+    console.log('[loginTeacher] cookie auth_token registrado na resposta');
+    // Fallback: alguns proxies podem filtrar SameSite=None incorretamente; oferecer header manual adicional (não padrão)
+    try {
+      res.setHeader('X-Debug-Auth-Token-Set', 'true');
+    } catch(e) {
+      console.warn('[loginTeacher] falha ao setar header debug', e.message);
+    }
     
     // Retornar dados do usuário sem o token
     res.json({
@@ -115,8 +123,10 @@ exports.loginStudent = async (req, res, next) => {
 
     // Sempre usar cookies para autenticação
     const cookieOptions = getAuthCookieOptions();
-    console.log('Definindo cookie com opções:', cookieOptions);
-    res.cookie('auth_token', token, cookieOptions);
+  console.log('Definindo cookie com opções:', cookieOptions);
+  res.cookie('auth_token', token, cookieOptions);
+  console.log('[loginStudent] cookie auth_token registrado na resposta');
+  try { res.setHeader('X-Debug-Auth-Token-Set', 'true'); } catch(e) { console.warn('[loginStudent] falha header debug', e.message); }
     
     // Retornar dados do usuário sem o token
     res.json({
@@ -225,4 +235,140 @@ exports.loginTeacherDryRun = async (req, res, next) => {
   } catch (e) {
     next(e);
   }
+};
+
+// Diagnose user: inspeciona existência e hash de senha sem revelar valores sensíveis
+exports.diagnoseUser = async (req, res, next) => {
+  try {
+    const { email } = req.query;
+    if (!email) {
+      return res.status(400).json({ error: 'Parâmetro email é obrigatório' });
+    }
+    const teacher = await User.findOne({ email }).lean();
+    if (!teacher) {
+      return res.json({ found: false });
+    }
+    res.json({
+      found: true,
+      id: teacher._id,
+      role: teacher.role,
+      hasPasswordHash: !!teacher.passwordHash,
+      nameLength: teacher.name ? teacher.name.length : 0,
+      createdAt: teacher.createdAt,
+      updatedAt: teacher.updatedAt
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Set raw cookie manual (bypassa res.cookie) para isolar comportamento de SameSite/Domain
+exports.setRawCookie = async (req, res, next) => {
+  try {
+    const token = 'raw_test_' + Date.now();
+    const { getAuthCookieOptions } = require('../utils/cookieUtils');
+    const opts = getAuthCookieOptions();
+    // Monta manualmente header Set-Cookie
+    const parts = [
+      `auth_token=${token}`,
+      'Path=/',
+      `Max-Age=${60 * 10}`,
+      'HttpOnly',
+      opts.secure ? 'Secure' : null,
+      opts.sameSite ? `SameSite=${opts.sameSite}` : null,
+      opts.domain ? `Domain=${opts.domain}` : null
+    ].filter(Boolean);
+    const headerValue = parts.join('; ');
+    res.setHeader('Set-Cookie', headerValue);
+    res.json({
+      message: 'Raw cookie enviado',
+      headerValue,
+      optionsDerived: opts,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Expor configuração atual de cookie (para depuração remota)
+exports.cookieOptions = async (req, res) => {
+  const { getAuthCookieOptions } = require('../utils/cookieUtils');
+  const opts = getAuthCookieOptions();
+  res.json({
+    options: opts,
+    env: {
+      NODE_ENV: process.env.NODE_ENV,
+      USE_COOKIE_AUTH: process.env.USE_COOKIE_AUTH,
+      APP_DOMAIN: process.env.APP_DOMAIN,
+      DISABLE_COOKIE_DOMAIN: process.env.DISABLE_COOKIE_DOMAIN
+    },
+    timestamp: new Date().toISOString()
+  });
+};
+
+// Dispara múltiplos Set-Cookie para testar quais sobrevivem
+exports.setCookieVariants = async (req, res) => {
+  const isProd = process.env.NODE_ENV === 'production';
+  const baseDomain = process.env.APP_DOMAIN || 'professoryagosales.com.br';
+  const domain = baseDomain.startsWith('.') ? baseDomain : `.${baseDomain}`;
+  const now = Date.now();
+
+  const variants = [
+    { name: 'ck_default', value: 'v_' + now, attrs: ['Path=/', 'HttpOnly', 'Max-Age=300', 'SameSite=None', 'Secure'] },
+    { name: 'ck_no_secure', value: 'v_' + now, attrs: ['Path=/', 'HttpOnly', 'Max-Age=300', 'SameSite=None'] },
+    { name: 'ck_host_only', value: 'v_' + now, attrs: ['Path=/', 'HttpOnly', 'Max-Age=300', 'SameSite=None', 'Secure'] },
+    { name: 'ck_with_domain', value: 'v_' + now, attrs: ['Path=/', 'HttpOnly', 'Max-Age=300', 'SameSite=None', 'Secure', `Domain=${domain}`] },
+    { name: 'ck_lax', value: 'v_' + now, attrs: ['Path=/', 'HttpOnly', 'Max-Age=300', 'SameSite=Lax'] },
+  ];
+
+  // Monta lista Set-Cookie
+  const headerValues = variants.map(v => [ `${v.name}=${v.value}`, ...v.attrs ].join('; '));
+  res.setHeader('Set-Cookie', headerValues);
+
+  res.json({
+    message: 'Cookies de variantes enviados',
+    count: headerValues.length,
+    headerValues,
+    domainUsed: domain,
+    isProd,
+    timestamp: new Date().toISOString()
+  });
+};
+
+// Health de autenticação: testa set + echo de cookie sem exigir login
+exports.authHealth = async (req, res) => {
+  const probeName = 'auth_probe';
+  const incoming = req.cookies?.[probeName];
+  const freshValue = 'p_' + Date.now();
+  let setAttempted = false;
+  const { incAuthHealthCall, incAuthCookieEchoSuccess, incAuthCookieEchoMiss } = require('../middleware/metrics');
+  incAuthHealthCall();
+  try {
+    const { getAuthCookieOptions } = require('../utils/cookieUtils');
+    const opts = getAuthCookieOptions();
+    res.cookie(probeName, freshValue, opts);
+    setAttempted = true;
+  } catch (e) {
+    incAuthCookieEchoMiss();
+    return res.status(500).json({ ok: false, error: 'Falha ao setar cookie', err: e.message });
+  }
+  if (incoming) {
+    incAuthCookieEchoSuccess();
+  } else {
+    incAuthCookieEchoMiss();
+  }
+  res.json({
+    ok: true,
+    probe: {
+      setAttempted,
+      newValue: freshValue,
+      echoedBack: incoming || null
+    },
+    diagnosticsEnabled: process.env.DIAGNOSTICS_ENABLED === 'true',
+    domainDisabled: process.env.DISABLE_COOKIE_DOMAIN === 'true',
+    cookieAuth: process.env.USE_COOKIE_AUTH === 'true',
+    env: process.env.NODE_ENV,
+    timestamp: new Date().toISOString()
+  });
 };
