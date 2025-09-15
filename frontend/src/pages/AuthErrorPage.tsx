@@ -30,6 +30,7 @@ export function AuthErrorPage() {
   const [healthHistory, setHealthHistory] = useState<any[]>([])
   const [autoHealth, setAutoHealth] = useState(false)
   const [autoHealthTick, setAutoHealthTick] = useState(0)
+  const lastEchoed = healthHistory[0]?.probe?.echoedBack
 
   useEffect(() => {
     const runDiagnostics = async () => {
@@ -94,6 +95,19 @@ export function AuthErrorPage() {
     }, 5000);
     return () => clearInterval(id);
   }, [autoHealth]);
+
+  // Auto-stop quando primeiro echoedBack aparece
+  useEffect(() => {
+    if (autoHealth && lastEchoed) {
+      setAutoHealth(false);
+    }
+  }, [autoHealth, lastEchoed]);
+
+  const copy = (label: string, data: any) => {
+    try {
+      navigator.clipboard.writeText(typeof data === 'string' ? data : JSON.stringify(data, null, 2));
+    } catch(e){ console.warn('Falha ao copiar', label, e); }
+  }
 
   const debugSession = async () => {
     try {
@@ -252,7 +266,13 @@ export function AuthErrorPage() {
 
               {diagnosticInfo.cookieTest && (
                 <div className="p-4 bg-gray-50 rounded-lg overflow-auto max-h-60">
-                  <h3 className="font-medium mb-2">Teste de Cookie:</h3>
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-medium">Teste de Cookie:</h3>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-2 py-1 rounded ${lastEchoed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{lastEchoed ? 'COOKIE OK' : 'SEM COOKIE'}</span>
+                          <button onClick={()=>copy('cookieTest', diagnosticInfo.cookieTest)} className="text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded">Copiar</button>
+                        </div>
+                      </div>
                   <pre className="text-sm whitespace-pre-wrap">
                     {JSON.stringify(diagnosticInfo.cookieTest, null, 2)}
                   </pre>
@@ -260,7 +280,10 @@ export function AuthErrorPage() {
               )}
               {healthHistory.length > 1 && (
                 <div className="p-4 bg-gray-50 rounded-lg overflow-auto max-h-60">
-                  <h3 className="font-medium mb-2">Histórico Health (últimos {healthHistory.length}):</h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-medium">Histórico Health (últimos {healthHistory.length}):</h3>
+                    <button onClick={()=>copy('healthHistory', healthHistory)} className="text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded">Copiar</button>
+                  </div>
                   <pre className="text-xs whitespace-pre-wrap">
 {healthHistory.map((h,i)=>`#${healthHistory.length - i} echoedBack=${h?.probe?.echoedBack} newValue=${h?.probe?.newValue} time=${h?.timestamp}`).join('\n')}
                   </pre>
@@ -268,7 +291,10 @@ export function AuthErrorPage() {
               )}
               {diagnosticInfo.cookieVariants && (
                 <div className="p-4 bg-gray-50 rounded-lg overflow-auto max-h-60">
-                  <h3 className="font-medium mb-2">Cookie Variants:</h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-medium">Cookie Variants:</h3>
+                    <button onClick={()=>copy('cookieVariants', diagnosticInfo.cookieVariants)} className="text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded">Copiar</button>
+                  </div>
                   <pre className="text-sm whitespace-pre-wrap">{JSON.stringify(diagnosticInfo.cookieVariants, null, 2)}</pre>
                 </div>
               )}
@@ -301,7 +327,10 @@ export function AuthErrorPage() {
               
               {diagnosticInfo.cookies && (
                 <div className="p-4 bg-gray-50 rounded-lg overflow-auto max-h-60">
-                  <h3 className="font-medium mb-2">Cookies:</h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-medium">Cookies:</h3>
+                    <button onClick={()=>copy('cookies', diagnosticInfo.cookies)} className="text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded">Copiar</button>
+                  </div>
                   <pre className="text-sm whitespace-pre-wrap">
                     {JSON.stringify(diagnosticInfo.cookies, null, 2)}
                   </pre>
@@ -309,7 +338,10 @@ export function AuthErrorPage() {
               )}
 
               <div className="p-4 bg-gray-50 rounded-lg overflow-auto max-h-60">
-                <h3 className="font-medium mb-2">Configurações API:</h3>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-medium">Configurações API:</h3>
+                  <button onClick={()=>copy('apiConfig', { baseURL: api.defaults.baseURL, withCredentials: api.defaults.withCredentials })} className="text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded">Copiar</button>
+                </div>
                 <pre className="text-sm whitespace-pre-wrap">
 API Base URL: {api.defaults.baseURL}
 withCredentials: {api.defaults.withCredentials ? 'true' : 'false'}
