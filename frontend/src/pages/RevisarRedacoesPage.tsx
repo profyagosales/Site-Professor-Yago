@@ -21,6 +21,18 @@ export function RevisarRedacoesPage() {
   const [selectedThemeId, setSelectedThemeId] = useState<string>('')
   const [search, setSearch] = useState<string>('')
   const [refreshToken, setRefreshToken] = useState<number>(0)
+  // Modal criação
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [newEssayType, setNewEssayType] = useState<'ENEM' | 'PAS'>('ENEM')
+  const [newEssayThemeId, setNewEssayThemeId] = useState('')
+  const [newEssayThemeText, setNewEssayThemeText] = useState('')
+  const [newEssayStudentId, setNewEssayStudentId] = useState('')
+  const [newEssayBimester, setNewEssayBimester] = useState('')
+  const [newEssayFile, setNewEssayFile] = useState<File | null>(null)
+  const [studentsOptions, setStudentsOptions] = useState<{ id: string; name: string; className?: string }[]>([])
+  const [loadingStudents, setLoadingStudents] = useState(false)
 
   // Turmas dinâmicas
   const [classOptions, setClassOptions] = useState<{ id: string; name: string }[]>([{ id: '', name: 'Todas as turmas' }])
@@ -128,8 +140,65 @@ export function RevisarRedacoesPage() {
 
   // Função para criar nova redação em nome do aluno
   const criarNovaRedacao = () => {
-    console.log('Criar nova redação para aluno')
-    // Implementar modal para seleção do aluno e upload de redação
+    setIsCreateOpen(true)
+  }
+
+  // Carregar alunos sob demanda quando abrir modal
+  useEffect(() => {
+    const loadStudents = async () => {
+      if (!isCreateOpen) return;
+      try {
+        setLoadingStudents(true)
+        const res = await (await import('@/services/studentService')).getStudents({ limit: 200, classId: selectedClassId || undefined })
+        setStudentsOptions(res.users.map(u => ({ id: u._id, name: u.name, className: (u.classId as any)?.name })))
+      } catch (e: any) {
+        toast.error('Erro ao carregar alunos')
+      } finally { setLoadingStudents(false) }
+    }
+    loadStudents()
+  }, [isCreateOpen, selectedClassId])
+
+  const handleUploadFile = async (file: File) => {
+    try {
+      setUploading(true)
+      const uploadRes = await essayService.uploadEssayFile(file)
+      return uploadRes
+    } catch (e: any) {
+      toast.error(e.message || 'Falha no upload')
+      throw e
+    } finally { setUploading(false) }
+  }
+
+  const handleCreateEssay = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newEssayFile) { toast.error('Selecione um PDF'); return }
+    if (!newEssayStudentId) { toast.error('Selecione um aluno'); return }
+    if (!newEssayThemeId && !newEssayThemeText.trim()) { toast.error('Selecione ou informe um tema'); return }
+    try {
+      setCreating(true)
+      const uploaded = await handleUploadFile(newEssayFile)
+      await essayService.createEssay({
+        type: newEssayType,
+        themeId: newEssayThemeId || undefined,
+        themeText: newEssayThemeId ? undefined : newEssayThemeText.trim(),
+        file: {
+          originalUrl: uploaded.url,
+          mime: uploaded.mime,
+          size: uploaded.size,
+          pages: uploaded.pages
+        },
+        studentId: newEssayStudentId,
+        bimester: newEssayBimester ? Number(newEssayBimester) : undefined
+      })
+      toast.success('Redação cadastrada')
+      setIsCreateOpen(false)
+      // reset
+      setNewEssayFile(null); setNewEssayThemeId(''); setNewEssayThemeText(''); setNewEssayStudentId(''); setNewEssayBimester('')
+      // refresh pendentes
+      loadPending();
+    } catch (e: any) {
+      // erros já tratados em parte
+    } finally { setCreating(false) }
   }
 
   return (
@@ -354,6 +423,68 @@ export function RevisarRedacoesPage() {
         )}
         <Toaster position="top-center" />
       </div>
+      {isCreateOpen && (
+        <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center bg-black/40 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-6 animate-in fade-in slide-in-from-top-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Nova Redação</h2>
+              <button onClick={()=>setIsCreateOpen(false)} className="text-gray-500 hover:text-gray-700">✕</button>
+            </div>
+            <form onSubmit={handleCreateEssay} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Aluno</label>
+                  <select value={newEssayStudentId} onChange={e=>setNewEssayStudentId(e.target.value)} className="w-full border rounded px-3 py-1.5">
+                    <option value="">Selecione...</option>
+                    {loadingStudents && <option>Carregando...</option>}
+                    {studentsOptions.map(s => <option key={s.id} value={s.id}>{s.name}{s.className ? ` (${s.className})` : ''}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Tipo</label>
+                  <select value={newEssayType} onChange={e=>setNewEssayType(e.target.value as any)} className="w-full border rounded px-3 py-1.5">
+                    <option value="ENEM">ENEM</option>
+                    <option value="PAS">PAS</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Tema (existente)</label>
+                  <select value={newEssayThemeId} onChange={e=>{ setNewEssayThemeId(e.target.value); if (e.target.value) setNewEssayThemeText('') }} className="w-full border rounded px-3 py-1.5">
+                    <option value="">— Selecionar —</option>
+                    {themeOptions.filter(t=>t.id).map(t=> <option key={t.id} value={t.id}>{t.title}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Tema personalizado</label>
+                  <input value={newEssayThemeText} onChange={e=>{ setNewEssayThemeText(e.target.value); if (e.target.value) setNewEssayThemeId('') }} placeholder="Digite o tema..." className="w-full border rounded px-3 py-1.5" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Bimestre (opcional)</label>
+                  <select value={newEssayBimester} onChange={e=>setNewEssayBimester(e.target.value)} className="w-full border rounded px-3 py-1.5">
+                    <option value="">—</option>
+                    <option value="1">1º</option>
+                    <option value="2">2º</option>
+                    <option value="3">3º</option>
+                    <option value="4">4º</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Arquivo (PDF)</label>
+                  <input type="file" accept="application/pdf" onChange={e=>{ if (e.target.files?.[0]) setNewEssayFile(e.target.files[0]) }} />
+                  {newEssayFile && <p className="text-xs text-gray-500 mt-1">{newEssayFile.name} ({(newEssayFile.size/1024/1024).toFixed(2)} MB)</p>}
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={()=>setIsCreateOpen(false)} className="px-4 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300">Cancelar</button>
+                <button disabled={creating || uploading} className="px-4 py-2 text-sm bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-60">
+                  {uploading ? 'Enviando...' : creating ? 'Salvando...' : 'Salvar'}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500">Para cadastrar: selecione um aluno, escolha tema existente ou personalize, defina tipo e anexe o PDF.</p>
+            </form>
+          </div>
+        </div>
+      )}
       <footer className="mt-8 text-center text-gray-500 text-sm">
         © 2025 Professor Yago Sales. Todos os direitos reservados.
       </footer>
