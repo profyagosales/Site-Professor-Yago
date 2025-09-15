@@ -20,6 +20,7 @@ const diagnosticsRoutes = require('./routes/diagnostics'); // Rotas de diagnóst
 const studentsRoutes = require('./routes/students'); // Rotas para gerenciamento de alunos
 const classesRoutes = require('./routes/classes'); // Rotas para gerenciamento de turmas
 const metricsRoutes = require('./routes/metrics'); // Rota para métricas agregadas
+const aiRoutes = require('./routes/ai'); // Rotas para assistente IA
 
 const app = express();
 // Necessário para que req.secure e cookies 'secure' funcionem atrás de proxy/load balancer
@@ -148,6 +149,7 @@ app.use(`${apiPrefix}/diagnostics`, diagnosticsRoutes); // Rotas para diagnósti
 app.use(`${apiPrefix}/students`, studentsRoutes); // Rotas para gerenciar alunos
 app.use(`${apiPrefix}/classes`, classesRoutes); // Rotas para gerenciar turmas
 app.use(`${apiPrefix}/metrics`, metricsRoutes); // Rotas de métricas agregadas
+app.use(`${apiPrefix}/ai`, aiRoutes); // Rotas de IA
 
 // Error handler
 app.use(errorHandler);

@@ -19,6 +19,7 @@ import {
 } from '../services/essayService';
 import { getFileUrl } from '../services/essayService';
 import { CorrectionCategory, CORRECTION_CATEGORIES } from '../constants/correction';
+import { requestCorrectionSuggestion, CorrectionSuggestionResponse } from '@/services/aiService';
 
 const CorrectionPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -32,6 +33,10 @@ const CorrectionPage: React.FC = () => {
   const [enemScores, setEnemScores] = useState<EnemCorrection>({ c1: 0, c2: 0, c3: 0, c4: 0, c5: 0 });
   const [pasScores, setPasScores] = useState<PasCorrection>({ arg: 0, type: 0, lang: 0 });
   const [generalComments, setGeneralComments] = useState('');
+  // IA Suggestion state
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<CorrectionSuggestionResponse | null>(null);
+  const [showAiPanel, setShowAiPanel] = useState(false);
 
   // Calcula a nota final dinamicamente
   const finalGrade = useMemo(() => {
@@ -163,6 +168,31 @@ const CorrectionPage: React.FC = () => {
     }
   };
 
+  const handleRequestAISuggestion = async () => {
+    if (!essay) return;
+    setAiLoading(true);
+    setShowAiPanel(true);
+    setAiSuggestion(null);
+    try {
+      const currentScoresObj: Record<string, number> = essay.type === 'ENEM'
+        ? { c1: enemScores.c1, c2: enemScores.c2, c3: enemScores.c3, c4: enemScores.c4, c5: enemScores.c5 }
+        : { arg: (pasScores as any).arg, type: (pasScores as any).type, lang: (pasScores as any).lang };
+      const payload = {
+        essayId: essay._id,
+        type: essay.type,
+        themeText: essay.theme?.title || essay.themeText,
+        currentScores: currentScoresObj
+      };
+      const suggestion = await requestCorrectionSuggestion(payload);
+      setAiSuggestion(suggestion);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Erro ao obter sugestão IA');
+      setShowAiPanel(false);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   if (error) {
     return <div className="text-red-500 text-center mt-10">{error}</div>;
   }
@@ -200,6 +230,18 @@ const CorrectionPage: React.FC = () => {
       />
       <div className="flex flex-1 overflow-hidden">
         <main className="flex-1 p-4 overflow-y-auto" id="pdf-container">
+          <div className="mb-4 flex gap-2 items-center">
+            <button
+              onClick={handleRequestAISuggestion}
+              disabled={aiLoading}
+              className="px-3 py-2 text-sm rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {aiLoading ? 'Gerando...' : 'Sugestão IA'}
+            </button>
+            {aiSuggestion && !aiLoading && (
+              <span className="text-xs text-gray-500">Gerado em {aiSuggestion.metadata.generationMs}ms</span>
+            )}
+          </div>
           <PDFViewerWithHighlights 
             pdfUrl={essayUrl} 
             annotations={annotations}
@@ -218,6 +260,58 @@ const CorrectionPage: React.FC = () => {
             onCorrectionChange={handleCorrectionChange}
             onGeneralCommentsChange={setGeneralComments}
           />
+          {showAiPanel && (
+            <div className="mt-6 border-t pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold">Sugestão IA</h3>
+                <button
+                  onClick={() => setShowAiPanel(false)}
+                  className="text-xs text-gray-500 hover:text-gray-700"
+                >Fechar</button>
+              </div>
+              {aiLoading && (
+                <div className="text-xs text-gray-500">Gerando sugestão...</div>
+              )}
+              {!aiLoading && aiSuggestion && (
+                <div className="space-y-3 text-xs">
+                  <p className="text-[11px] text-amber-600 italic leading-snug">{aiSuggestion.disclaimer}</p>
+                  <div>
+                    <h4 className="font-medium mb-1">Feedback Geral</h4>
+                    <p className="whitespace-pre-line text-gray-700">
+                      {aiSuggestion.sections.generalFeedback}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium mb-1">Competências</h4>
+                    <ul className="space-y-2">
+                      {aiSuggestion.sections.competencies.map(c => (
+                        <li key={c.id} className="border p-2 rounded">
+                          <div className="flex justify-between">
+                            <span className="font-semibold">{c.label}</span>
+                            <span className="text-[11px] text-gray-500">Sug: {c.suggestedScore}</span>
+                          </div>
+                          <div className="mt-1">
+                            <span className="text-gray-600">Força:</span> {c.strength}
+                          </div>
+                          <div className="mt-1">
+                            <span className="text-gray-600">Melhorar:</span> {c.improvement}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="font-medium mb-1">Sugestões de Melhoria</h4>
+                    <ul className="list-disc ml-4 space-y-1">
+                      {aiSuggestion.sections.improvements.map((impr, idx) => (
+                        <li key={idx}>{impr}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </aside>
       </div>
       {editingAnnotation && (
