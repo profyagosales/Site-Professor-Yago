@@ -6,6 +6,7 @@ import { paths } from '../routes/paths'
 import { Button } from '@/components/ui/button' // Importar Button
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card' // Importar Card
 import { Users, Book, FileText, CheckSquare } from 'lucide-react' // Importar ícones
+import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist'
 
 export function DashboardPage() {
   const { auth, logout, isLoading } = useAuth()
@@ -52,7 +53,8 @@ export function DashboardPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+  <OnboardingChecklist />
+  <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-2xl font-bold mb-2">
