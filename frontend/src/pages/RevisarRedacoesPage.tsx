@@ -4,6 +4,7 @@ import { paths } from '../routes/paths'
 import { essayService, Essay } from '../services/essayService'
 import { getClasses } from '@/services/classService'
 import { getThemes } from '@/services/themeService'
+import StatusBadge from '@/components/common/StatusBadge'
 import toast, { Toaster } from 'react-hot-toast'
 
 export function RevisarRedacoesPage() {
@@ -220,9 +221,14 @@ export function RevisarRedacoesPage() {
               <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Digite parte do tema..." className="w-full border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500" />
             </div>
             <div className="flex items-end gap-2">
-              <button onClick={()=>{ setSelectedClassId(''); setSelectedBimester(''); setSelectedType(''); setSearch(''); }} className="px-3 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300">Limpar</button>
-              <button onClick={()=>{ setSelectedClassId(''); setSelectedBimester(''); setSelectedType(''); setSelectedThemeId(''); setSearch(''); }} className="px-3 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300">Limpar</button>
-              <button onClick={()=>setRefreshToken(t=>t+1)} className="px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Atualizar</button>
+              <button
+                onClick={()=>{ setSelectedClassId(''); setSelectedBimester(''); setSelectedType(''); setSelectedThemeId(''); setSearch(''); }}
+                className="px-3 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300"
+              >Limpar</button>
+              <button
+                onClick={()=>setRefreshToken(t=>t+1)}
+                className="px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+              >Atualizar</button>
             </div>
           </div>
           <div className="mt-2 text-xs text-gray-500 flex gap-4">
@@ -241,6 +247,7 @@ export function RevisarRedacoesPage() {
                   <th className="px-4 py-2 border text-left">Aluno</th>
                   <th className="px-4 py-2 border text-left">Tema</th>
                   <th className="px-4 py-2 border text-center">Tipo</th>
+                  <th className="px-4 py-2 border text-center">Status</th>
                   <th className="px-4 py-2 border text-center">Bimestre</th>
                   <th className="px-4 py-2 border text-center">Data</th>
                   <th className="px-4 py-2 border text-center">Ações</th>
@@ -265,12 +272,8 @@ export function RevisarRedacoesPage() {
                       </div>
                     </td>
                     <td className="px-4 py-2 border">{(redacao as any).themeId?.title || redacao.themeText || 'Tema não informado'}</td>
-                    <td className="px-4 py-2 border text-center">
-                      {redacao.type}
-                      {redacao.status === 'GRADING' && (
-                        <span className="ml-2 text-xs px-2 py-0.5 rounded bg-yellow-100 text-yellow-700">Em andamento</span>
-                      )}
-                    </td>
+                    <td className="px-4 py-2 border text-center">{redacao.type}</td>
+                    <td className="px-4 py-2 border text-center"><StatusBadge status={redacao.status} /></td>
                     <td className="px-4 py-2 border text-center">{redacao.bimester || redacao.bimestre || '—'}</td>
                     <td className="px-4 py-2 border text-center">{new Date(redacao.createdAt).toLocaleDateString()}</td>
                     <td className="px-4 py-2 border text-center">
@@ -292,6 +295,7 @@ export function RevisarRedacoesPage() {
                   <th className="px-4 py-2 border text-left">Tema</th>
                   <th className="px-4 py-2 border text-center">Tipo</th>
                   <th className="px-4 py-2 border text-center">Nota</th>
+                  <th className="px-4 py-2 border text-center">Status</th>
                   <th className="px-4 py-2 border text-center">Enviado</th>
                   <th className="px-4 py-2 border text-center">Ações</th>
                 </tr>
@@ -317,6 +321,7 @@ export function RevisarRedacoesPage() {
                     <td className="px-4 py-2 border">{(redacao as any).themeId?.title || redacao.themeText || 'Tema não informado'}</td>
                     <td className="px-4 py-2 border text-center">{redacao.type}</td>
                     <td className="px-4 py-2 border text-center font-medium">{redacao.enem?.rawScore || redacao.pas?.rawScore || redacao.finalGrade || '—'}</td>
+                    <td className="px-4 py-2 border text-center"><StatusBadge status={redacao.status} /></td>
                     <td className="px-4 py-2 border text-center">{redacao.status === 'SENT' ? 'Sim' : 'Não'}</td>
                     <td className="px-4 py-2 border text-center">
                       <div className="flex justify-center space-x-2">
