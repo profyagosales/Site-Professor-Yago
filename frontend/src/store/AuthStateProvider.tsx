@@ -1,5 +1,6 @@
 import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
 import api from '../services/api'
+import { isAuthRedirectLocked, clearAuthRedirectLock } from '@/constants/authRedirect'
 
 type User = {
   id: string
@@ -55,8 +56,12 @@ export function AuthStateProvider({ children }: AuthStateProviderProps) {
       setIsLoading(false);
       return;
     }
-    // Limitar a uma tentativa inicial para evitar loops
-    if (authAttemptCount > 0) {
+    // Limitar a uma tentativa inicial para evitar loops; se lock ativo, não tenta
+    if (authAttemptCount > 0 || isAuthRedirectLocked()) {
+      if (isAuthRedirectLocked()) {
+        console.log('Auth check inicial suprimido (lock de redirect ativo)');
+      }
+      setIsLoading(false);
       return;
     }
 
@@ -147,6 +152,7 @@ export function AuthStateProvider({ children }: AuthStateProviderProps) {
       // Mesmo com cookie auth, armazenamos token para fallback
       if (token) localStorage.setItem('token', token)
       localStorage.setItem('user', JSON.stringify(user))
+      clearAuthRedirectLock();
       setAuthState({
         isAuthenticated: true,
         role: user.role,
@@ -167,6 +173,7 @@ export function AuthStateProvider({ children }: AuthStateProviderProps) {
       const { token, user } = response.data
       if (token) localStorage.setItem('token', token)
       localStorage.setItem('user', JSON.stringify(user))
+      clearAuthRedirectLock();
       setAuthState({
         isAuthenticated: true,
         role: user.role,
@@ -199,7 +206,8 @@ export function AuthStateProvider({ children }: AuthStateProviderProps) {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
       
-      // Reseta estado de autenticação
+  // Reseta estado de autenticação e limpa lock
+  clearAuthRedirectLock();
       setAuthState(initialAuthState)
       console.log('Estado de autenticação resetado localmente')
     } catch (error) {

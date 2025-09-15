@@ -1,4 +1,5 @@
 import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import { isAuthRedirectLocked, setAuthRedirectLock } from '@/constants/authRedirect';
 
 // URL padrão para produção
 const defaultApiUrl = 'https://api.professoryagosales.com.br';
@@ -49,17 +50,18 @@ api.interceptors.response.use(
       
       // Redireciona para a página de erro de autenticação apenas se for uma verificação explícita
       // para não interromper outras operações com redirecionamentos desnecessários
-            if (isAuthCheck) {
-              // Debounce simples para evitar loops de redirecionamento
-              const now = Date.now();
-              const lastRedirect = (window as any).__lastAuthRedirect || 0;
-              if (now - lastRedirect > 3000) { // 3s de intervalo mínimo
-                (window as any).__lastAuthRedirect = now;
-                window.location.href = '/auth-error';
-              } else {
-                console.warn('Ignorando redirecionamento repetido para /auth-error');
-              }
-            }
+      if (isAuthCheck) {
+        const now = Date.now();
+        // Se já existe lock persistente, não redireciona novamente
+        if (isAuthRedirectLocked(now)) {
+          console.warn('Redirect /auth-error suprimido (lock ativo)');
+        } else {
+          setAuthRedirectLock(now);
+          // fallback in-memory (caso localStorage não funcione)
+          (window as any).__lastAuthRedirect = now;
+          window.location.href = '/auth-error';
+        }
+      }
     }
     return Promise.reject(error);
   }

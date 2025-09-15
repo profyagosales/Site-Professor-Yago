@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { paths } from '../routes/paths'
 import api from '../services/api'
+import { authRedirectRemaining, clearAuthRedirectLock, isAuthRedirectLocked, getAuthRedirectCooldown } from '@/constants/authRedirect'
+import { useAuth } from '@/store/AuthStateProvider'
 
 type DiagnosticInfo = {
   cookies?: any;
@@ -30,20 +32,24 @@ export function AuthErrorPage() {
   const [healthHistory, setHealthHistory] = useState<any[]>([])
   const [autoHealth, setAutoHealth] = useState(false)
   const [autoHealthTick, setAutoHealthTick] = useState(0)
+  const [remainingMs, setRemainingMs] = useState(0)
+  const navigate = useNavigate()
+  const { setAuth } = useAuth()
+  const diagnosticsEnabled = (import.meta as any).env?.VITE_ENABLE_DIAGNOSTICS === 'true'
+  const [flash, setFlash] = useState<string | null>(null)
   const lastEchoed = healthHistory[0]?.probe?.echoedBack
 
   useEffect(() => {
+    if(!diagnosticsEnabled) { setLoading(false); return; }
     const runDiagnostics = async () => {
       try {
         setLoading(true)
-        // Testar endpoint sem autenticação para diagnóstico
         const response = await api.get('/auth/me-test')
         setDiagnosticInfo({
           cookies: response.data.cookies,
           headers: response.data.headers
         })
       } catch (error: any) {
-        console.error('Erro durante diagnóstico:', error)
         setDiagnosticInfo({
           error: error.message,
           status: error.response?.status
@@ -52,9 +58,73 @@ export function AuthErrorPage() {
         setLoading(false)
       }
     }
-
     runDiagnostics()
+  }, [diagnosticsEnabled])
+
+  // Atualiza contagem regressiva se lock ativo
+  useEffect(() => {
+    const update = () => {
+      if (isAuthRedirectLocked()) {
+        setRemainingMs(authRedirectRemaining())
+      } else {
+        setRemainingMs(0)
+      }
+    }
+    update()
+    const id = setInterval(update, 500)
+    return () => clearInterval(id)
   }, [])
+
+  const forceRetry = async () => {
+    clearAuthRedirectLock()
+    setRemainingMs(0)
+    // tenta novamente checar auth via /auth/me para ver se cookie apareceu
+    try {
+      const res = await api.get('/auth/me')
+      if (res.data && res.data._id) {
+        // sucesso: atualizar estado de auth e navegar
+        const userData = res.data
+        setAuth({
+          isAuthenticated: true,
+          role: userData.role,
+            userId: userData._id,
+            user: {
+              id: userData._id,
+              name: userData.name,
+              email: userData.email,
+              role: userData.role,
+              photoUrl: userData.photoUrl,
+            },
+            token: null
+        })
+        navigate(paths.dashboard)
+        return
+      }
+    } catch (e) {
+      // permanece na página, sem redirect
+    }
+    // Se falhou continua como está
+  }
+
+  const clearLocalState = () => {
+    try {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      clearAuthRedirectLock();
+      setAuth({
+        isAuthenticated: false,
+        role: null,
+        userId: null,
+        user: null,
+        token: null
+      });
+      setFlash('Estado local limpo');
+      setTimeout(()=>setFlash(null), 4000);
+    } catch(e){
+      setFlash('Falha ao limpar estado');
+      setTimeout(()=>setFlash(null), 4000);
+    }
+  }
 
   const testCookie = async () => {
     try {
@@ -187,36 +257,34 @@ export function AuthErrorPage() {
             >
               Voltar à página inicial
             </Link>
+            {remainingMs > 0 && (
+              <div className="px-4 py-2 bg-orange-100 text-orange-700 rounded text-sm flex flex-col items-center justify-center">
+                <span>Nova verificação em ~{Math.ceil(remainingMs/1000)}s</span>
+                <span className="text-[10px] mt-1">Cooldown: {getAuthRedirectCooldown()/1000}s</span>
+              </div>
+            )}
             <button
-              onClick={testCookie}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+              onClick={forceRetry}
+              disabled={remainingMs > 0 && remainingMs > 1000}
+              className={`px-4 py-2 rounded transition ${remainingMs > 0 && remainingMs > 1000 ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-teal-600 hover:bg-teal-700 text-white'}`}
             >
-              Testar Cookie (Health)
+              Tentar novamente agora
             </button>
             <button
-              onClick={runVariants}
-              className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition"
+              onClick={clearLocalState}
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
             >
-              Cookie Variants
+              Limpar estado local
             </button>
-            <button
-              onClick={() => setAutoHealth(a=>!a)}
-              className={`px-4 py-2 rounded transition ${autoHealth ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-gray-600 hover:bg-gray-700 text-white'}`}
-            >
-              Auto Health {autoHealth ? 'ON' : 'OFF'}
-            </button>
-            <button
-              onClick={runCompleteDiagnostic}
-              className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition"
-            >
-              Diagnóstico Completo
-            </button>
-            <button
-              onClick={debugSession}
-              className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition"
-            >
-              Debug Sessão
-            </button>
+            {diagnosticsEnabled && (
+              <>
+                <button onClick={testCookie} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition">Testar Cookie (Health)</button>
+                <button onClick={runVariants} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition">Cookie Variants</button>
+                <button onClick={() => setAutoHealth(a=>!a)} className={`px-4 py-2 rounded transition ${autoHealth ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-gray-600 hover:bg-gray-700 text-white'}`}>Auto Health {autoHealth ? 'ON' : 'OFF'}</button>
+                <button onClick={runCompleteDiagnostic} className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition">Diagnóstico Completo</button>
+                <button onClick={debugSession} className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition">Debug Sessão</button>
+              </>
+            )}
           </div>
         </div>
 
@@ -232,21 +300,23 @@ export function AuthErrorPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="p-4 bg-gray-50 rounded-lg overflow-auto max-h-60">
-                <h3 className="font-medium mb-2">Status:</h3>
-                <pre className="text-sm whitespace-pre-wrap">
-                  {diagnosticInfo.error ? (
-                    <span className="text-red-600">
-                      Erro: {diagnosticInfo.error} 
-                      {diagnosticInfo.status ? ` (Status: ${diagnosticInfo.status})` : ''}
-                    </span>
-                  ) : (
-                    <span className="text-green-600">Diagnóstico realizado com sucesso</span>
-                  )}
-                </pre>
-              </div>
+              {flash && (
+                <div className="p-3 rounded bg-blue-100 text-blue-800 text-sm">{flash}</div>
+              )}
+              {diagnosticsEnabled && (
+                <div className="p-4 bg-gray-50 rounded-lg overflow-auto max-h-60">
+                  <h3 className="font-medium mb-2">Status:</h3>
+                  <pre className="text-sm whitespace-pre-wrap">
+                    {diagnosticInfo.error ? (
+                      <span className="text-red-600">Erro: {diagnosticInfo.error} {diagnosticInfo.status ? ` (Status: ${diagnosticInfo.status})` : ''}</span>
+                    ) : (
+                      <span className="text-green-600">Diagnóstico realizado com sucesso</span>
+                    )}
+                  </pre>
+                </div>
+              )}
 
-              {diagnosticInfo.environment && (
+              {diagnosticsEnabled && diagnosticInfo.environment && (
                 <div className="p-4 bg-gray-50 rounded-lg overflow-auto max-h-60">
                   <h3 className="font-medium mb-2">Ambiente:</h3>
                   <pre className="text-sm whitespace-pre-wrap">
@@ -255,7 +325,7 @@ export function AuthErrorPage() {
                 </div>
               )}
 
-              {diagnosticInfo.cors && (
+              {diagnosticsEnabled && diagnosticInfo.cors && (
                 <div className="p-4 bg-gray-50 rounded-lg overflow-auto max-h-60">
                   <h3 className="font-medium mb-2">CORS:</h3>
                   <pre className="text-sm whitespace-pre-wrap">
@@ -264,7 +334,7 @@ export function AuthErrorPage() {
                 </div>
               )}
 
-              {diagnosticInfo.cookieTest && (
+              {diagnosticsEnabled && diagnosticInfo.cookieTest && (
                 <div className="p-4 bg-gray-50 rounded-lg overflow-auto max-h-60">
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="font-medium">Teste de Cookie:</h3>
@@ -278,7 +348,7 @@ export function AuthErrorPage() {
                   </pre>
                 </div>
               )}
-              {healthHistory.length > 1 && (
+              {diagnosticsEnabled && healthHistory.length > 1 && (
                 <div className="p-4 bg-gray-50 rounded-lg overflow-auto max-h-60">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="font-medium">Histórico Health (últimos {healthHistory.length}):</h3>
@@ -289,7 +359,7 @@ export function AuthErrorPage() {
                   </pre>
                 </div>
               )}
-              {diagnosticInfo.cookieVariants && (
+              {diagnosticsEnabled && diagnosticInfo.cookieVariants && (
                 <div className="p-4 bg-gray-50 rounded-lg overflow-auto max-h-60">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="font-medium">Cookie Variants:</h3>
@@ -298,13 +368,13 @@ export function AuthErrorPage() {
                   <pre className="text-sm whitespace-pre-wrap">{JSON.stringify(diagnosticInfo.cookieVariants, null, 2)}</pre>
                 </div>
               )}
-              {diagnosticInfo.cookieVariantsError && (
+              {diagnosticsEnabled && diagnosticInfo.cookieVariantsError && (
                 <div className="p-4 bg-red-50 rounded-lg overflow-auto max-h-60">
                   <h3 className="font-medium mb-2 text-red-700">Cookie Variants (Erro):</h3>
                   <pre className="text-sm whitespace-pre-wrap text-red-700">{diagnosticInfo.cookieVariantsError} {diagnosticInfo.cookieVariantsStatus ? `(Status: ${diagnosticInfo.cookieVariantsStatus})` : ''}</pre>
                 </div>
               )}
-              {diagnosticInfo.cookieTestError && (
+              {diagnosticsEnabled && diagnosticInfo.cookieTestError && (
                 <div className="p-4 bg-red-50 rounded-lg overflow-auto max-h-60">
                   <h3 className="font-medium mb-2 text-red-700">Teste de Cookie (Erro):</h3>
                   <pre className="text-sm whitespace-pre-wrap text-red-700">
@@ -316,7 +386,7 @@ export function AuthErrorPage() {
                 </div>
               )}
               
-              {diagnosticInfo.cookieDiagnostic && (
+              {diagnosticsEnabled && diagnosticInfo.cookieDiagnostic && (
                 <div className="p-4 bg-gray-50 rounded-lg overflow-auto max-h-60">
                   <h3 className="font-medium mb-2">Diagnóstico de Cookie:</h3>
                   <pre className="text-sm whitespace-pre-wrap">
@@ -325,7 +395,7 @@ export function AuthErrorPage() {
                 </div>
               )}
               
-              {diagnosticInfo.cookies && (
+              {diagnosticsEnabled && diagnosticInfo.cookies && (
                 <div className="p-4 bg-gray-50 rounded-lg overflow-auto max-h-60">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="font-medium">Cookies:</h3>
@@ -337,22 +407,24 @@ export function AuthErrorPage() {
                 </div>
               )}
 
-              <div className="p-4 bg-gray-50 rounded-lg overflow-auto max-h-60">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium">Configurações API:</h3>
-                  <button onClick={()=>copy('apiConfig', { baseURL: api.defaults.baseURL, withCredentials: api.defaults.withCredentials })} className="text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded">Copiar</button>
-                </div>
-                <pre className="text-sm whitespace-pre-wrap">
+              {diagnosticsEnabled && (
+                <div className="p-4 bg-gray-50 rounded-lg overflow-auto max-h-60">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-medium">Configurações API:</h3>
+                    <button onClick={()=>copy('apiConfig', { baseURL: api.defaults.baseURL, withCredentials: api.defaults.withCredentials })} className="text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded">Copiar</button>
+                  </div>
+                  <pre className="text-sm whitespace-pre-wrap">
 API Base URL: {api.defaults.baseURL}
 withCredentials: {api.defaults.withCredentials ? 'true' : 'false'}
-                </pre>
-              </div>
+                  </pre>
+                </div>
+              )}
               
-              <div className="text-center mt-6">
-                <p className="text-gray-600 text-sm">
-                  Se o problema persistir, tente limpar os cookies do seu navegador e fazer login novamente.
-                </p>
-              </div>
+              {!diagnosticsEnabled && (
+                <div className="text-center mt-6 text-sm text-gray-600">
+                  Falha de autenticação. Faça login novamente. Se continuar, contate o suporte.
+                </div>
+              )}
             </div>
           )}
         </div>

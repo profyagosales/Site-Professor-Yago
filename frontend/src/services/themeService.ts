@@ -3,10 +3,10 @@ import { api } from './api';
 export interface Theme {
   _id: string;
   title: string;
-  description: string;
   active: boolean;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string; // backend pode não enviar updatedAt sempre
+  createdBy?: { _id: string; name: string };
 }
 
 export interface PaginatedThemes {
@@ -29,16 +29,21 @@ export const getThemeById = async (id: string): Promise<Theme> => {
   return response.data;
 };
 
-export const createTheme = async (data: { title: string; description: string; active?: boolean }): Promise<Theme> => {
+export const createTheme = async (data: { title: string; active?: boolean }): Promise<Theme> => {
   const response = await api.post('/themes', data);
   return response.data;
 };
 
-export const updateTheme = async (id: string, data: { title?: string; description?: string; active?: boolean }): Promise<Theme> => {
+export const updateTheme = async (id: string, data: { title?: string; active?: boolean }): Promise<Theme> => {
   const response = await api.put(`/themes/${id}`, data);
   return response.data;
 };
+export const archiveTheme = async (id: string): Promise<Theme> => {
+  const response = await api.post(`/themes/${id}/archive`);
+  return response.data;
+};
 
-export const deleteTheme = async (id: string): Promise<void> => {
-  await api.delete(`/themes/${id}`);
+export const restoreTheme = async (id: string): Promise<Theme> => {
+  const response = await api.post(`/themes/${id}/restore`);
+  return response.data;
 };

@@ -1,32 +1,16 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { paths } from '../routes/paths'
-import api from '../services/api'
+import { getThemes, createTheme, updateTheme, archiveTheme, restoreTheme, Theme } from '@/services/themeService'
+import { toast } from 'sonner'
 
-// Definir tipos para os temas
-interface Theme {
-  _id: string
-  title: string
-  active: boolean
-  createdAt: string
-  createdBy: {
-    _id: string
-    name: string
-  }
-}
-
-interface ThemesResponse {
-  themes: Theme[]
-  pagination: {
-    total: number
-    page: number
-    limit: number
-    pages: number
-  }
+// createdBy já vem populado em alguns casos; definimos tipo parcial
+interface ThemeWithCreator extends Theme {
+  createdBy?: { _id: string; name: string }
 }
 
 export function GerenciarTemasPage() {
-  const [themes, setThemes] = useState<Theme[]>([])
+  const [themes, setThemes] = useState<ThemeWithCreator[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -54,12 +38,9 @@ export function GerenciarTemasPage() {
       setLoading(true)
       setError(null)
       
-      const response = await api.get<ThemesResponse>(
-        `/themes?page=${page}&limit=10&query=${encodeURIComponent(searchQuery)}`
-      )
-      
-      setThemes(response.data.themes)
-      setTotalPages(response.data.pagination.pages)
+      const response = await getThemes({ page, limit: 10, query: searchQuery })
+      setThemes(response.themes as ThemeWithCreator[])
+      setTotalPages(response.pagination.pages)
     } catch (err: any) {
       console.error('Erro ao carregar temas:', err)
       setError(err.message || 'Erro ao carregar temas')
@@ -79,10 +60,8 @@ export function GerenciarTemasPage() {
     try {
       setIsSubmitting(true)
       
-      await api.post('/themes', {
-        title: newThemeTitle.trim(),
-        active: newThemeActive
-      })
+      await createTheme({ title: newThemeTitle.trim(), active: newThemeActive })
+      toast.success('Tema criado')
       
       setNewThemeTitle('')
       setNewThemeActive(true)
@@ -90,7 +69,9 @@ export function GerenciarTemasPage() {
       fetchThemes()
     } catch (err: any) {
       console.error('Erro ao criar tema:', err)
-      setError(err.message || 'Erro ao criar tema')
+      const msg = err?.response?.data?.message || err.message || 'Erro ao criar tema'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setIsSubmitting(false)
     }
@@ -107,37 +88,35 @@ export function GerenciarTemasPage() {
     try {
       setIsSubmitting(true)
       
-      await api.put(`/themes/${editingTheme._id}`, {
-        title: editTitle.trim(),
-        active: editActive
-      })
+      await updateTheme(editingTheme._id, { title: editTitle.trim(), active: editActive })
+      toast.success('Tema atualizado')
       
       setEditingTheme(null)
       fetchThemes()
     } catch (err: any) {
       console.error('Erro ao atualizar tema:', err)
-      setError(err.message || 'Erro ao atualizar tema')
+      const msg = err?.response?.data?.message || err.message || 'Erro ao atualizar tema'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setIsSubmitting(false)
     }
   }
 
   // Excluir tema
-  const handleDeleteTheme = async (id: string) => {
-    if (!window.confirm('Tem certeza que deseja excluir este tema?')) {
-      return
-    }
-    
+  const handleToggleActive = async (theme: Theme) => {
     try {
-      setLoading(true)
-      
-      await api.delete(`/themes/${id}`)
-      
+      if (theme.active) {
+        await archiveTheme(theme._id)
+        toast.success('Tema arquivado')
+      } else {
+        await restoreTheme(theme._id)
+        toast.success('Tema restaurado')
+      }
       fetchThemes()
     } catch (err: any) {
-      console.error('Erro ao excluir tema:', err)
-      setError(err.message || 'Erro ao excluir tema')
-      setLoading(false)
+      console.error('Erro ao alterar status do tema:', err)
+      toast.error(err.message || 'Erro ao alterar status')
     }
   }
 
@@ -357,11 +336,11 @@ export function GerenciarTemasPage() {
                           ✏️
                         </button>
                         <button
-                          onClick={() => handleDeleteTheme(theme._id)}
-                          className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-                          title="Excluir"
+                          onClick={() => handleToggleActive(theme)}
+                          className={`px-2 py-1 rounded text-white ${theme.active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-600 hover:bg-green-700'}`}
+                          title={theme.active ? 'Arquivar (inativar)' : 'Restaurar (ativar)'}
                         >
-                          🗑️
+                          {theme.active ? 'Arquivar' : 'Ativar'}
                         </button>
                       </div>
                     </td>

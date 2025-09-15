@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { paths } from '../routes/paths'
 import { essayService, Essay } from '../services/essayService'
+import { getClasses } from '@/services/classService'
 import toast, { Toaster } from 'react-hot-toast'
 
 export function RevisarRedacoesPage() {
@@ -11,32 +12,86 @@ export function RevisarRedacoesPage() {
   const [loadingPending, setLoadingPending] = useState(false)
   const [loadingGraded, setLoadingGraded] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Filtros
+  const [selectedClassId, setSelectedClassId] = useState<string>('')
+  const [selectedBimester, setSelectedBimester] = useState<string>('')
+  const [selectedType, setSelectedType] = useState<string>('')
+  const [search, setSearch] = useState<string>('')
+  const [refreshToken, setRefreshToken] = useState<number>(0)
 
-  const loadPending = async () => {
+  // Turmas dinâmicas
+  const [classOptions, setClassOptions] = useState<{ id: string; name: string }[]>([{ id: '', name: 'Todas as turmas' }])
+  const [loadingClasses, setLoadingClasses] = useState(false)
+  const [classesError, setClassesError] = useState<string | null>(null)
+
+  // Cache simples em módulo (escopo de execução)
+  const classesCacheRef = (window as any).__classesCacheRef || ((window as any).__classesCacheRef = { data: null as any, ts: 0 })
+  const CLASSES_CACHE_TTL = 60 * 1000 // 1 minuto
+
+  const loadClasses = useCallback(async () => {
+    try {
+      setLoadingClasses(true)
+      setClassesError(null)
+      const now = Date.now()
+      if (classesCacheRef.data && (now - classesCacheRef.ts) < CLASSES_CACHE_TTL) {
+        setClassOptions([{ id: '', name: 'Todas as turmas' }, ...classesCacheRef.data.map((c: any)=>({ id: c._id, name: c.name }))])
+        return
+      }
+      const res = await getClasses({ limit: 100 })
+      const mapped = res.classes.map(c => ({ id: c._id, name: c.name }))
+      classesCacheRef.data = res.classes
+      classesCacheRef.ts = now
+      setClassOptions([{ id: '', name: 'Todas as turmas' }, ...mapped])
+    } catch (e: any) {
+      console.error('Erro ao carregar turmas', e)
+      setClassesError(e.message || 'Erro ao carregar turmas')
+      toast.error('Erro ao carregar turmas')
+    } finally { setLoadingClasses(false) }
+  }, [])
+
+  useEffect(() => { loadClasses() }, [loadClasses])
+
+  const buildCommonParams = () => {
+    const params: any = { page: 1, limit: 50 };
+    if (selectedType) params.type = selectedType;
+    if (selectedBimester) params.bimester = Number(selectedBimester);
+    if (selectedClassId) params.classId = selectedClassId;
+    if (search.trim()) params.q = search.trim();
+    return params;
+  }
+
+  const loadPending = useCallback(async () => {
     setLoadingPending(true)
     try {
-      const res = await essayService.professor.getPendingEssays({ page:1, limit:50 })
-      // PaginatedResponse<Essay> definido como { essays, pagination } no backend? Ajustamos adaptando ambos formatos
-      const data = (res as any).essays || (res as any).data || []
-      setPending(data)
+      // Carregar PENDING
+      const baseParams = buildCommonParams();
+      const resPending = await essayService.getEssays({ ...baseParams, status: 'PENDING' });
+      const listPending = (resPending as any).essays || (resPending as any).data || [];
+      // Carregar GRADING (em andamento) para permitir retomada
+      const resGrading = await essayService.getEssays({ ...baseParams, status: 'GRADING' });
+      const listGrading = (resGrading as any).essays || (resGrading as any).data || [];
+      const merged = [...listPending, ...listGrading]
+        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setPending(merged)
     } catch (e: any) {
       setError(e.message)
       toast.error('Erro ao carregar pendentes')
     } finally { setLoadingPending(false) }
-  }
-  const loadGraded = async () => {
+  }, [selectedClassId, selectedBimester, selectedType, search, refreshToken])
+  const loadGraded = useCallback( async () => {
     setLoadingGraded(true)
     try {
-      const res = await essayService.professor.getGradedEssays({ page:1, limit:50 })
-      const data = (res as any).essays || (res as any).data || []
+      const baseParams = buildCommonParams();
+      const resGraded = await essayService.getEssays({ ...baseParams, status: 'GRADED' });
+      const data = (resGraded as any).essays || (resGraded as any).data || [];
       setGraded(data)
     } catch (e: any) {
       setError(e.message)
       toast.error('Erro ao carregar corrigidas')
     } finally { setLoadingGraded(false) }
-  }
+  }, [selectedClassId, selectedBimester, selectedType, search, refreshToken])
 
-  useEffect(() => { loadPending(); loadGraded(); }, [])
+  useEffect(() => { loadPending(); loadGraded(); }, [loadPending, loadGraded])
 
   // Função para criar nova redação em nome do aluno
   const criarNovaRedacao = () => {
@@ -93,34 +148,46 @@ export function RevisarRedacoesPage() {
 
         {/* Filtros */}
         <div className="mb-6 bg-gray-50 p-4 rounded-lg">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Turma</label>
-              <select className="w-full border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                <option value="">Todas as turmas</option>
-                <option>3º Ano A</option>
-                <option>3º Ano B</option>
-                <option>3º Ano C</option>
+              <select value={selectedClassId} onChange={e=>setSelectedClassId(e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                {classOptions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
+              {loadingClasses && <div className="text-xs text-gray-500 mt-1">Carregando turmas...</div>}
+              {classesError && <div className="text-xs text-red-600 mt-1">{classesError}</div>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Bimestre</label>
-              <select className="w-full border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                <option value="">Todos os bimestres</option>
-                <option>1º Bimestre</option>
-                <option>2º Bimestre</option>
-                <option>3º Bimestre</option>
-                <option>4º Bimestre</option>
+              <select value={selectedBimester} onChange={e=>setSelectedBimester(e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                <option value="">Todos</option>
+                <option value="1">1º Bimestre</option>
+                <option value="2">2º Bimestre</option>
+                <option value="3">3º Bimestre</option>
+                <option value="4">4º Bimestre</option>
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-              <select className="w-full border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                <option value="">Todos os tipos</option>
-                <option>ENEM</option>
-                <option>PAS</option>
+              <select value={selectedType} onChange={e=>setSelectedType(e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                <option value="">Todos</option>
+                <option value="ENEM">ENEM</option>
+                <option value="PAS">PAS</option>
               </select>
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Buscar (tema)</label>
+              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Digite parte do tema..." className="w-full border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+            </div>
+            <div className="flex items-end gap-2">
+              <button onClick={()=>{ setSelectedClassId(''); setSelectedBimester(''); setSelectedType(''); setSearch(''); }} className="px-3 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300">Limpar</button>
+              <button onClick={()=>setRefreshToken(t=>t+1)} className="px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Atualizar</button>
+            </div>
+          </div>
+          <div className="mt-2 text-xs text-gray-500 flex gap-4">
+            <span>Pendentes inclui status PENDING + GRADING</span>
+            {loadingPending && <span>Carregando pendentes...</span>}
+            {loadingGraded && <span>Carregando corrigidas...</span>}
           </div>
         </div>
 
@@ -157,7 +224,12 @@ export function RevisarRedacoesPage() {
                       </div>
                     </td>
                     <td className="px-4 py-2 border">{(redacao as any).themeId?.title || redacao.themeText || 'Tema não informado'}</td>
-                    <td className="px-4 py-2 border text-center">{redacao.type}</td>
+                    <td className="px-4 py-2 border text-center">
+                      {redacao.type}
+                      {redacao.status === 'GRADING' && (
+                        <span className="ml-2 text-xs px-2 py-0.5 rounded bg-yellow-100 text-yellow-700">Em andamento</span>
+                      )}
+                    </td>
                     <td className="px-4 py-2 border text-center">{redacao.bimester || redacao.bimestre || '—'}</td>
                     <td className="px-4 py-2 border text-center">{new Date(redacao.createdAt).toLocaleDateString()}</td>
                     <td className="px-4 py-2 border text-center">
