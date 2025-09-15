@@ -11,6 +11,7 @@ type DiagnosticInfo = {
   cookieTest?: any;
   cookieTestError?: string;
   cookieTestStatus?: number;
+  diagnosticsOff?: boolean;
   environment?: any;
   environmentError?: any;
   cors?: any;
@@ -50,17 +51,20 @@ export function AuthErrorPage() {
 
   const testCookie = async () => {
     try {
-      const response = await api.get('/auth/cookie-test')
+      const response = await api.get('/auth/health')
       setDiagnosticInfo(prev => ({
         ...prev,
         cookieTest: response.data
       }))
     } catch (error: any) {
-      console.error('Erro ao testar cookies:', error)
+      console.error('Erro ao testar cookies (health):', error)
+      const status = error.response?.status
+      const diagnosticsOff = status === 404
       setDiagnosticInfo(prev => ({
         ...prev,
-        cookieTestError: error.message,
-        cookieTestStatus: error.response?.status
+        cookieTestError: diagnosticsOff ? 'Endpoint /auth/health não disponível (diagnóstico desativado?)' : error.message,
+        cookieTestStatus: status,
+        diagnosticsOff
       }))
     }
   }
@@ -147,7 +151,7 @@ export function AuthErrorPage() {
               onClick={testCookie}
               className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
             >
-              Testar Cookie
+              Testar Cookie (Health)
             </button>
             <button
               onClick={runCompleteDiagnostic}
@@ -214,6 +218,17 @@ export function AuthErrorPage() {
                   <pre className="text-sm whitespace-pre-wrap">
                     {JSON.stringify(diagnosticInfo.cookieTest, null, 2)}
                   </pre>
+                </div>
+              )}
+              {diagnosticInfo.cookieTestError && (
+                <div className="p-4 bg-red-50 rounded-lg overflow-auto max-h-60">
+                  <h3 className="font-medium mb-2 text-red-700">Teste de Cookie (Erro):</h3>
+                  <pre className="text-sm whitespace-pre-wrap text-red-700">
+                    {diagnosticInfo.cookieTestError} {diagnosticInfo.cookieTestStatus ? `(Status: ${diagnosticInfo.cookieTestStatus})` : ''}
+                  </pre>
+                  {diagnosticInfo.diagnosticsOff && (
+                    <p className="text-xs mt-2 text-red-600">Rotas de diagnóstico podem estar desativadas. Defina DIAGNOSTICS_ENABLED=true no backend para habilitar.</p>
+                  )}
                 </div>
               )}
               
