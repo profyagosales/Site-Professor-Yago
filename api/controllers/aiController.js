@@ -1,7 +1,8 @@
 const Essay = require('../models/Essay');
 const AICorrectionSuggestion = require('../models/AICorrectionSuggestion');
-const { buildAIProvider } = require('../services/ai/aiProvider');
-const provider = buildAIProvider();
+const { buildAIProvider, withFallback } = require('../services/ai/aiProvider');
+const baseProvider = buildAIProvider();
+const provider = withFallback(baseProvider);
 const logger = require('../services/logger');
 
 function featureEnabled() {
@@ -48,7 +49,7 @@ exports.correctionSuggestion = async (req, res, next) => {
     };
 
     // Geração + hash (provider mock já retorna hash em metadata). Antes de gerar, se houver hash conhecido e registro recente igual, reutiliza.
-    let suggestion = await provider.generateSuggestion(generationInput);
+  let suggestion = await provider.generateSuggestion(generationInput);
 
     // Tentativa de reuso: se já existe registro com mesmo hash para o mesmo professor e redação, retorna sem criar novo.
     if (suggestion?.metadata?.hash) {
@@ -101,7 +102,7 @@ exports.correctionSuggestion = async (req, res, next) => {
       });
     } catch (e) { /* swallow logging errors */ }
 
-    res.json({ suggestionId: record?._id, ...suggestion, reused: false });
+  res.json({ suggestionId: record?._id, ...suggestion, reused: false, providerFallback: !!suggestion?.metadata?.fallback });
   } catch (err) {
     next(err);
   }

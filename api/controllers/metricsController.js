@@ -85,6 +85,28 @@ exports.getSummary = async (req, res, next) => {
     const created7dTotal = created7d.reduce((a,b)=> a + b.count, 0);
     const graded7dTotal = graded7d.reduce((a,b)=> a + b.count, 0);
 
+    // Amostra de tempos de geração AI (últimos 500 registros com generationMs definido)
+    const aiGenSamples = await AICorrectionSuggestion.find({ generationMs: { $exists: true } })
+      .sort({ createdAt: -1 })
+      .limit(500)
+      .select({ generationMs: 1, _id: 0 })
+      .lean();
+    let aiGenAvg = null, aiGenP50 = null, aiGenP95 = null;
+    if (aiGenSamples.length) {
+      const arr = aiGenSamples.map(s => s.generationMs).filter(n => typeof n === 'number');
+      if (arr.length) {
+        aiGenAvg = Number((arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(2));
+        const sorted = [...arr].sort((a,b)=>a-b);
+        const pct = (p) => {
+          if (!sorted.length) return null;
+          const idx = Math.ceil(p/100 * sorted.length) - 1;
+            return sorted[Math.min(Math.max(idx,0), sorted.length-1)];
+        };
+        aiGenP50 = pct(50);
+        aiGenP95 = pct(95);
+      }
+    }
+
     const response = {
       generatedAt: now.toISOString(),
       totals: { students: studentsCount, classes: classesCount, themes: themesCount },
@@ -105,7 +127,12 @@ exports.getSummary = async (req, res, next) => {
       },
       performance: {
         avgCorrectionTimeHours,
-        medianCorrectionTimeHours
+        medianCorrectionTimeHours,
+        aiGenerationMs: {
+          avg: aiGenAvg,
+          p50: aiGenP50,
+          p95: aiGenP95
+        }
       },
       queue: {
         pendingAgingHours,

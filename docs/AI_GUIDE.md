@@ -247,6 +247,12 @@ Gera uma sugestão estruturada de correção (feedback geral, competências/nota
 ### Flags e Variáveis
 - `ENABLE_AI_CORRECTION=true` habilita endpoints.
 - `AI_PROVIDER=mock` (placeholder para futuros provedores reais).
+ - `AI_PROVIDER=external` ativa provider externo genérico.
+ - `AI_EXTERNAL_ENDPOINT` URL POST que retorna `{ sections: {...}, disclaimer? }`.
+ - `AI_EXTERNAL_API_KEY` chave bearer para provider.
+ - `AI_TIMEOUT_MS` timeout geração (default 15000).
+ - `AI_BREAKER_THRESHOLD` falhas seguidas para abrir circuito (default 3).
+ - `AI_BREAKER_COOLDOWN_MS` cooldown antes de nova tentativa (default 60000).
 
 ### Endpoints
 1. `POST /ai/correction-suggestion`
@@ -305,6 +311,11 @@ Campos principais:
 ### Reuso (Cache por Hash)
 Se a mesma entrada (hash gerado pelo provider) for solicitada de novo pelo mesmo professor e redação, retornamos resposta com `reused: true` sem criar novo registro.
 
+### Fallback & Circuit Breaker
+- Wrapper tenta provider primário; em falha ou timeout aplica fallback mock.
+- Metadado `providerFallback: true` no response (frontend exibe badge "Fallback").
+- Circuit breaker abre após N falhas consecutivas (`AI_BREAKER_THRESHOLD`) e permanece aberto por `AI_BREAKER_COOLDOWN_MS` (usa somente fallback nesse período).
+
 ### Métricas
 Endpoint `/metrics/summary` bloco `ai` ampliado:
 ```json
@@ -319,6 +330,16 @@ Endpoint `/metrics/summary` bloco `ai` ampliado:
 }
 ```
 - `adoptionRate` = `appliedTotal / suggestionsTotal` (2 casas decimais).
+
+Em `performance.aiGenerationMs`:
+```json
+{
+	"performance": {
+		"aiGenerationMs": { "avg": 420.13, "p50": 390, "p95": 880 }
+	}
+}
+```
+Base: últimos 500 registros com `generationMs`.
 
 
 ### Fluxo de Uso no Frontend

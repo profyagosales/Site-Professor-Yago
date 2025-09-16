@@ -292,7 +292,15 @@ const CorrectionPage: React.FC = () => {
               >Aplicar Notas</button>
             )}
             {aiSuggestion && !aiLoading && (
-              <span className="text-xs text-gray-500">Gerado em {aiSuggestion.metadata.generationMs}ms</span>
+              <span className="text-xs text-gray-500 flex items-center gap-2">
+                <span>Gerado em {aiSuggestion.metadata.generationMs}ms</span>
+                {(aiSuggestion as any).reused && (
+                  <span className="px-2 py-0.5 bg-gray-200 text-gray-600 rounded text-[10px] uppercase">Reuso</span>
+                )}
+                {(aiSuggestion as any).providerFallback && (
+                  <span className="px-2 py-0.5 bg-amber-200 text-amber-700 rounded text-[10px] uppercase">Fallback</span>
+                )}
+              </span>
             )}
           </div>
           <PDFViewerWithHighlights 

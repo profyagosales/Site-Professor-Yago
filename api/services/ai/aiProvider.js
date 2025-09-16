@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const fetch = require('node-fetch');
 
 /**
  * Interface conceitual do provider de IA.
@@ -117,13 +118,103 @@ class MockAIProvider {
   }
 }
 
-function buildAIProvider() {
-  const providerName = process.env.AI_PROVIDER || 'mock';
-  switch (providerName) {
-    case 'mock':
-    default:
-      return new MockAIProvider();
+class ExternalAIProvider {
+  constructor(options = {}) {
+    this.mode = 'external';
+    this.endpoint = options.endpoint;
+    this.apiKey = options.apiKey;
+    this.timeoutMs = options.timeoutMs || 15000;
+    this.maxRawText = options.maxRawText || 12000;
+  }
+
+  async generateSuggestion(params) {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), this.timeoutMs);
+    const start = Date.now();
+    const { type='ENEM', themeText='', rawText='', currentScores={} } = params;
+    try {
+      const res = await fetch(this.endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`
+        },
+        body: JSON.stringify({ type, themeText, rawText: rawText.slice(0,this.maxRawText), currentScores }),
+        signal: controller.signal
+      });
+      if (!res.ok) throw new Error(`Provider HTTP ${res.status}`);
+      const data = await res.json();
+      clearTimeout(t);
+      // Espera-se que data contenha: sections{...}
+      const hash = crypto.createHash('md5').update((rawText||'').slice(0,this.maxRawText) + themeText + type).digest('hex').slice(0,8);
+      return {
+        mode: this.mode,
+        disclaimer: data.disclaimer || 'Sugestão automática. Revise antes de aplicar.',
+        type,
+        sections: data.sections || {},
+        metadata: {
+          generationMs: Date.now() - start,
+          hash,
+          rawTextChars: (rawText||'').length
+        }
+      };
+    } catch (err) {
+      clearTimeout(t);
+      err.__aiProviderFailed = true;
+      throw err;
+    }
   }
 }
 
-module.exports = { MockAIProvider, buildAIProvider };
+// Circuit breaker simples em memória
+const breakerState = {
+  failures: 0,
+  open: false,
+  nextTry: 0
+};
+
+function buildAIProvider() {
+  const providerName = process.env.AI_PROVIDER || 'mock';
+  if (providerName === 'external') {
+    return new ExternalAIProvider({
+      endpoint: process.env.AI_EXTERNAL_ENDPOINT,
+      apiKey: process.env.AI_EXTERNAL_API_KEY,
+      timeoutMs: Number(process.env.AI_TIMEOUT_MS || 15000)
+    });
+  }
+  return new MockAIProvider();
+}
+
+function withFallback(providerPrimary, providerFallback = new MockAIProvider()) {
+  return {
+    mode: 'wrapper',
+    async generateSuggestion(params) {
+      const now = Date.now();
+      if (breakerState.open && now < breakerState.nextTry) {
+        // Circuit open - usa fallback direto
+        return providerFallback.generateSuggestion(params);
+      }
+      try {
+        const result = await providerPrimary.generateSuggestion(params);
+        // Sucesso -> reset failure count
+        breakerState.failures = 0;
+        breakerState.open = false;
+        return result;
+      } catch (err) {
+        breakerState.failures += 1;
+        if (breakerState.failures >= Number(process.env.AI_BREAKER_THRESHOLD || 3)) {
+          breakerState.open = true;
+          const coolDown = Number(process.env.AI_BREAKER_COOLDOWN_MS || 60000);
+          breakerState.nextTry = Date.now() + coolDown;
+        }
+        // Fallback
+        const fb = await providerFallback.generateSuggestion(params);
+        fb.metadata = fb.metadata || {};
+        fb.metadata.fallback = true;
+        return fb;
+      }
+    }
+  };
+}
+
+module.exports = { MockAIProvider, ExternalAIProvider, buildAIProvider, withFallback };
