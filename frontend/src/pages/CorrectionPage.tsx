@@ -37,6 +37,7 @@ const CorrectionPage: React.FC = () => {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<CorrectionSuggestionResponse | null>(null);
   const [showAiPanel, setShowAiPanel] = useState(false);
+  const [rawTextInput, setRawTextInput] = useState('');
 
   // Calcula a nota final dinamicamente
   const finalGrade = useMemo(() => {
@@ -181,6 +182,7 @@ const CorrectionPage: React.FC = () => {
         essayId: essay._id,
         type: essay.type,
         themeText: essay.theme?.title || essay.themeText,
+        rawText: rawTextInput || undefined,
         currentScores: currentScoresObj
       };
       const suggestion = await requestCorrectionSuggestion(payload);
@@ -191,6 +193,39 @@ const CorrectionPage: React.FC = () => {
     } finally {
       setAiLoading(false);
     }
+  };
+
+  const handleApplyAIGeneralFeedback = () => {
+    if (!aiSuggestion) return;
+    const disclaimerLine = '[IA] (Revise antes de enviar)\n';
+    // Evitar duplicar se já aplicado
+    if (generalComments.includes(aiSuggestion.sections.generalFeedback.slice(0,20))) return;
+    setGeneralComments(prev => `${prev ? prev + '\n\n' : ''}${disclaimerLine}${aiSuggestion.sections.generalFeedback}`);
+    toast.success('Feedback geral aplicado');
+  };
+
+  const handleApplyAISuggestedScores = () => {
+    if (!aiSuggestion || !essay) return;
+    if (essay.type === 'ENEM') {
+      const updated: EnemCorrection = { ...enemScores };
+      aiSuggestion.sections.competencies.forEach(c => {
+        if (c.id === 'c1' || c.id === 'c2' || c.id === 'c3' || c.id === 'c4' || c.id === 'c5') {
+          const val = Math.max(0, Math.min(200, c.suggestedScore));
+          (updated as any)[c.id] = val; // cast seguro controlado acima
+        }
+      });
+      setEnemScores(updated as EnemCorrection);
+    } else if (essay.type?.startsWith('PAS')) {
+      const updated: PasCorrection = { ...pasScores };
+      aiSuggestion.sections.competencies.forEach(c => {
+        if (c.id === 'arg' || c.id === 'type' || c.id === 'lang') {
+          const val = Math.max(0, Math.min(10, c.suggestedScore));
+          (updated as any)[c.id] = val;
+        }
+      });
+      setPasScores(updated as PasCorrection);
+    }
+    toast.success('Notas sugeridas aplicadas');
   };
 
   if (error) {
@@ -238,6 +273,18 @@ const CorrectionPage: React.FC = () => {
             >
               {aiLoading ? 'Gerando...' : 'Sugestão IA'}
             </button>
+            {aiSuggestion && (
+              <button
+                onClick={handleApplyAIGeneralFeedback}
+                className="px-3 py-2 text-sm rounded bg-emerald-600 text-white hover:bg-emerald-700"
+              >Aplicar Feedback Geral</button>
+            )}
+            {aiSuggestion && (
+              <button
+                onClick={handleApplyAISuggestedScores}
+                className="px-3 py-2 text-sm rounded bg-teal-600 text-white hover:bg-teal-700"
+              >Aplicar Notas</button>
+            )}
             {aiSuggestion && !aiLoading && (
               <span className="text-xs text-gray-500">Gerado em {aiSuggestion.metadata.generationMs}ms</span>
             )}
@@ -268,6 +315,19 @@ const CorrectionPage: React.FC = () => {
                   onClick={() => setShowAiPanel(false)}
                   className="text-xs text-gray-500 hover:text-gray-700"
                 >Fechar</button>
+              </div>
+              <div className="mb-4">
+                <label className="block text-xs font-medium mb-1 text-gray-600">Texto bruto (opcional para IA)</label>
+                <textarea
+                  value={rawTextInput}
+                  onChange={e => setRawTextInput(e.target.value.slice(0,12000))}
+                  placeholder="Cole aqui o texto integral da redação (máx 12.000 caracteres)"
+                  className="w-full h-28 text-xs p-2 border rounded resize-y focus:outline-none focus:ring focus:border-indigo-400"
+                />
+                <div className="text-[10px] text-gray-500 mt-1 flex justify-between">
+                  <span>{rawTextInput.length} / 12000</span>
+                  {rawTextInput.length >= 12000 && <span className="text-red-500">Limite atingido</span>}
+                </div>
               </div>
               {aiLoading && (
                 <div className="text-xs text-gray-500">Gerando sugestão...</div>

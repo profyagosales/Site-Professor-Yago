@@ -117,4 +117,13 @@ class MockAIProvider {
   }
 }
 
-module.exports = { MockAIProvider };
+function buildAIProvider() {
+  const providerName = process.env.AI_PROVIDER || 'mock';
+  switch (providerName) {
+    case 'mock':
+    default:
+      return new MockAIProvider();
+  }
+}
+
+module.exports = { MockAIProvider, buildAIProvider };

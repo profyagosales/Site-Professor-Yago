@@ -236,3 +236,51 @@ middleware/             # Middlewares
 ---
 
 **Lembre-se**: O objetivo é manter o sistema estável e funcional. Quando em dúvida, prefira mudanças incrementais, bem testadas e documentadas.
+
+---
+
+## 🤖 Assistente de Correção (IA) – Preview
+
+### Flag de Ativação
+Defina `ENABLE_AI_CORRECTION=true` para habilitar a rota de sugestão.
+
+### Rota
+`POST /ai/correction-suggestion`
+
+Body (exemplo mínimo):
+```json
+{ "essayId": "<id_da_redacao>" }
+```
+Campos opcionais: `type`, `themeText`, `rawText` (≤ 12.000 chars), `currentScores`.
+
+### Resposta (mock)
+```json
+{
+	"mode": "mock",
+	"disclaimer": "Sugestão automática (modo demonstração). Revise antes de aplicar.",
+	"sections": {
+		"generalFeedback": "...",
+		"competencies": [ { "id":"c1", "suggestedScore":160, ... } ],
+		"improvements": ["..."]
+	},
+	"metadata": { "generationMs": 42, "hash": "abcd1234" }
+}
+```
+
+### Limites
+- Rate limit dedicado: 10 requisições / 5 min por professor.
+- `rawText` acima de 12.000 caracteres retorna 413.
+- Texto é sanitizado (remoção de caracteres de controle).
+
+### Frontend
+Botão “Sugestão IA” na página de correção abre painel com:
+- Aplicar Feedback Geral
+- Aplicar Notas (ENEM/PAS)
+- Campo opcional para colar texto bruto
+
+### Futuro
+- Provider real configurável (`AI_PROVIDER`)
+- OCR/extração automática de texto
+- Persistência de histórico de sugestões (opt-in)
+
+---
