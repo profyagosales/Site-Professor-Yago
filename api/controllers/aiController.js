@@ -40,12 +40,36 @@ exports.correctionSuggestion = async (req, res, next) => {
       rawText = rawText.replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F]/g, '');
     }
 
-    const suggestion = await provider.generateSuggestion({
+    const generationInput = {
       type: finalType,
       themeText: themeText || essay.themeText || essay.theme?.title,
       rawText: rawText || '',
       currentScores: currentScores || essay.enemScores || essay.pasScores || {}
-    });
+    };
+
+    // Geração + hash (provider mock já retorna hash em metadata). Antes de gerar, se houver hash conhecido e registro recente igual, reutiliza.
+    let suggestion = await provider.generateSuggestion(generationInput);
+
+    // Tentativa de reuso: se já existe registro com mesmo hash para o mesmo professor e redação, retorna sem criar novo.
+    if (suggestion?.metadata?.hash) {
+      const existing = await AICorrectionSuggestion.findOne({
+        essayId: essay._id,
+        teacherId: req.user._id,
+        hash: suggestion.metadata.hash
+      }).sort({ createdAt: -1 }).lean();
+      if (existing) {
+        try {
+          logger.info('ai_suggestion_reused', {
+            userId: req.user._id?.toString(),
+            essayId: essay._id?.toString(),
+            type: finalType,
+            provider: process.env.AI_PROVIDER || 'mock',
+            hash: suggestion.metadata.hash
+          });
+        } catch (_) {}
+        return res.json({ suggestionId: existing._id, ...suggestion, reused: true });
+      }
+    }
     const elapsed = Date.now() - start;
     // Persistir
     let record;
@@ -77,7 +101,7 @@ exports.correctionSuggestion = async (req, res, next) => {
       });
     } catch (e) { /* swallow logging errors */ }
 
-    res.json({ suggestionId: record?._id, ...suggestion });
+    res.json({ suggestionId: record?._id, ...suggestion, reused: false });
   } catch (err) {
     next(err);
   }
@@ -106,6 +130,14 @@ exports.applySuggestion = async (req, res, next) => {
     }
     if (Object.keys(updates).length) {
       await AICorrectionSuggestion.updateOne({ _id: suggestion._id }, { $set: updates });
+      try {
+        logger.info('ai_suggestion_applied', {
+          suggestionId: suggestion._id.toString(),
+          userId: req.user._id.toString(),
+          applyFeedback: !!updates.appliedFeedback,
+            applyScores: !!updates.appliedScores
+        });
+      } catch (_) {}
     }
     res.json({ ok: true, updated: updates });
   } catch (err) { next(err); }

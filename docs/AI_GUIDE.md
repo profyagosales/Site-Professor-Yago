@@ -302,17 +302,24 @@ Campos principais:
 - Apenas professores podem gerar/aplicar.
 - Feature flag impede geração quando desligada.
 
+### Reuso (Cache por Hash)
+Se a mesma entrada (hash gerado pelo provider) for solicitada de novo pelo mesmo professor e redação, retornamos resposta com `reused: true` sem criar novo registro.
+
 ### Métricas
-Endpoint `/metrics/summary` agora retorna bloco `ai`:
+Endpoint `/metrics/summary` bloco `ai` ampliado:
 ```json
 {
 	"ai": {
 		"suggestionsTotal": 123,
-		"suggestions7d": [ { "day": "2025-09-15", "count": 5 } ]
+		"suggestions7d": [{ "day": "2025-09-15", "count": 5 }],
+		"appliedTotal": 80,
+		"applied7d": [{ "day": "2025-09-15", "count": 4 }],
+		"adoptionRate": 0.65
 	}
 }
 ```
-Próximas extensões planejadas: contagem de aplicações (feedback/scores) e taxa de adoção.
+- `adoptionRate` = `appliedTotal / suggestionsTotal` (2 casas decimais).
+
 
 ### Fluxo de Uso no Frontend
 1. Usuário (professor) abre página de correção.

@@ -18,4 +18,9 @@ const AICorrectionSuggestionSchema = new Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+// Índices compostos úteis para análises futuras e reuso
+AICorrectionSuggestionSchema.index({ essayId: 1, teacherId: 1, createdAt: -1 });
+AICorrectionSuggestionSchema.index({ teacherId: 1, createdAt: -1 });
+AICorrectionSuggestionSchema.index({ hash: 1, teacherId: 1, essayId: 1 });
+
 module.exports = mongoose.model('AICorrectionSuggestion', AICorrectionSuggestionSchema);
