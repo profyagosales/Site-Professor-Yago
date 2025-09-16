@@ -26,3 +26,8 @@ export async function requestCorrectionSuggestion(payload: CorrectionSuggestionR
   const { data } = await api.post('/ai/correction-suggestion', payload);
   return data;
 }
+
+export async function applySuggestion(id: string, options: { applyFeedback?: boolean; applyScores?: boolean }): Promise<{ ok: boolean; updated: any }> {
+  const { data } = await api.post(`/ai/suggestion/${id}/apply`, options);
+  return data;
+}

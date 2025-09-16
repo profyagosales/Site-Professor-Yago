@@ -2,6 +2,7 @@ const Essay = require('../models/Essay');
 const User = require('../models/User');
 const Theme = require('../models/Theme');
 const ClassModel = require('../models/Class');
+const AICorrectionSuggestion = require('../models/AICorrectionSuggestion');
 
 // GET /metrics/summary (apenas professor)
 exports.getSummary = async (req, res, next) => {
@@ -14,12 +15,18 @@ exports.getSummary = async (req, res, next) => {
     const sevenDaysAgo = new Date(now.getTime() - 7*24*60*60*1000);
     const thirtyDaysAgo = new Date(now.getTime() - 30*24*60*60*1000);
 
-    const [studentsCount, classesCount, themesCount, statusAgg] = await Promise.all([
+    const [studentsCount, classesCount, themesCount, statusAgg, aiCounts, aiLast7d] = await Promise.all([
       User.countDocuments({ role: 'student' }),
       ClassModel.countDocuments({}),
       Theme.countDocuments({ active: true }),
       Essay.aggregate([
         { $group: { _id: '$status', count: { $sum: 1 } } }
+      ]),
+      AICorrectionSuggestion.countDocuments({}),
+      AICorrectionSuggestion.aggregate([
+        { $match: { createdAt: { $gte: sevenDaysAgo } } },
+        { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 } } },
+        { $sort: { _id: 1 } }
       ])
     ]);
 
@@ -82,6 +89,10 @@ exports.getSummary = async (req, res, next) => {
           created: created7d.map(i => ({ day: i._id, count: i.count })),
           graded: graded7d.map(i => ({ day: i._id, count: i.count }))
         }
+      },
+      ai: {
+        suggestionsTotal: aiCounts,
+        suggestions7d: aiLast7d.map(i => ({ day: i._id, count: i.count }))
       },
       performance: {
         avgCorrectionTimeHours,

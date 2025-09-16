@@ -6,5 +6,7 @@ const aiRateLimit = require('../middleware/aiRateLimit');
 
 // POST /ai/correction-suggestion
 router.post('/correction-suggestion', authRequired(['teacher']), aiRateLimit, aiController.correctionSuggestion);
+// POST /ai/suggestion/:id/apply
+router.post('/suggestion/:id/apply', authRequired(['teacher']), aiController.applySuggestion);
 
 module.exports = router;

@@ -19,7 +19,7 @@ import {
 } from '../services/essayService';
 import { getFileUrl } from '../services/essayService';
 import { CorrectionCategory, CORRECTION_CATEGORIES } from '../constants/correction';
-import { requestCorrectionSuggestion, CorrectionSuggestionResponse } from '@/services/aiService';
+import { requestCorrectionSuggestion, CorrectionSuggestionResponse, applySuggestion } from '@/services/aiService';
 
 const CorrectionPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -195,16 +195,19 @@ const CorrectionPage: React.FC = () => {
     }
   };
 
-  const handleApplyAIGeneralFeedback = () => {
+  const handleApplyAIGeneralFeedback = async () => {
     if (!aiSuggestion) return;
     const disclaimerLine = '[IA] (Revise antes de enviar)\n';
     // Evitar duplicar se já aplicado
     if (generalComments.includes(aiSuggestion.sections.generalFeedback.slice(0,20))) return;
     setGeneralComments(prev => `${prev ? prev + '\n\n' : ''}${disclaimerLine}${aiSuggestion.sections.generalFeedback}`);
     toast.success('Feedback geral aplicado');
+    if ((aiSuggestion as any).suggestionId) {
+      try { await applySuggestion((aiSuggestion as any).suggestionId, { applyFeedback: true }); } catch {}
+    }
   };
 
-  const handleApplyAISuggestedScores = () => {
+  const handleApplyAISuggestedScores = async () => {
     if (!aiSuggestion || !essay) return;
     if (essay.type === 'ENEM') {
       const updated: EnemCorrection = { ...enemScores };
@@ -226,6 +229,9 @@ const CorrectionPage: React.FC = () => {
       setPasScores(updated as PasCorrection);
     }
     toast.success('Notas sugeridas aplicadas');
+    if ((aiSuggestion as any).suggestionId) {
+      try { await applySuggestion((aiSuggestion as any).suggestionId, { applyScores: true }); } catch {}
+    }
   };
 
   if (error) {

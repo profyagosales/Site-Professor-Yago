@@ -1,4 +1,5 @@
 const Essay = require('../models/Essay');
+const AICorrectionSuggestion = require('../models/AICorrectionSuggestion');
 const { buildAIProvider } = require('../services/ai/aiProvider');
 const provider = buildAIProvider();
 const logger = require('../services/logger');
@@ -46,6 +47,23 @@ exports.correctionSuggestion = async (req, res, next) => {
       currentScores: currentScores || essay.enemScores || essay.pasScores || {}
     });
     const elapsed = Date.now() - start;
+    // Persistir
+    let record;
+    try {
+      record = await AICorrectionSuggestion.create({
+        essayId: essay._id,
+        teacherId: req.user._id,
+        provider: process.env.AI_PROVIDER || 'mock',
+        type: finalType,
+        hash: suggestion.metadata?.hash,
+        generationMs: suggestion.metadata?.generationMs,
+        rawTextChars: suggestion.metadata?.rawTextChars,
+        sections: suggestion.sections,
+        disclaimer: suggestion.disclaimer
+      });
+    } catch (persistErr) {
+      logger.error('ai_suggestion_persist_error', { error: persistErr.message });
+    }
     try {
       logger.info('ai_suggestion_generated', {
         userId: req.user._id?.toString(),
@@ -59,8 +77,36 @@ exports.correctionSuggestion = async (req, res, next) => {
       });
     } catch (e) { /* swallow logging errors */ }
 
-    res.json(suggestion);
+    res.json({ suggestionId: record?._id, ...suggestion });
   } catch (err) {
     next(err);
   }
+};
+
+exports.applySuggestion = async (req, res, next) => {
+  try {
+    if (req.user?.role !== 'teacher') {
+      return res.status(403).json({ message: 'Apenas professores' });
+    }
+    const { id } = req.params;
+    const { applyFeedback, applyScores } = req.body || {};
+    const suggestion = await AICorrectionSuggestion.findById(id);
+    if (!suggestion) return res.status(404).json({ message: 'Sugestão não encontrada' });
+    if (suggestion.teacherId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Não autorizado para esta sugestão' });
+    }
+    const updates = {};
+    if (applyFeedback && !suggestion.appliedFeedback) {
+      updates.appliedFeedback = true;
+      updates.appliedAt = new Date();
+    }
+    if (applyScores && !suggestion.appliedScores) {
+      updates.appliedScores = true;
+      updates.appliedScoresAt = new Date();
+    }
+    if (Object.keys(updates).length) {
+      await AICorrectionSuggestion.updateOne({ _id: suggestion._id }, { $set: updates });
+    }
+    res.json({ ok: true, updated: updates });
+  } catch (err) { next(err); }
 };

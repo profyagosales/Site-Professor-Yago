@@ -239,48 +239,96 @@ middleware/             # Middlewares
 
 ---
 
-## 🤖 Assistente de Correção (IA) – Preview
+## 🤖 Assistente de Correção (IA)
 
-### Flag de Ativação
-Defina `ENABLE_AI_CORRECTION=true` para habilitar a rota de sugestão.
+### Visão Geral
+Gera uma sugestão estruturada de correção (feedback geral, competências/notas sugeridas, melhorias). Nesta fase usa provider `mock` porém já persiste cada geração para métricas e auditoria parcial (sem armazenar texto completo da redação enviada no `rawText`).
 
-### Rota
-`POST /ai/correction-suggestion`
+### Flags e Variáveis
+- `ENABLE_AI_CORRECTION=true` habilita endpoints.
+- `AI_PROVIDER=mock` (placeholder para futuros provedores reais).
 
-Body (exemplo mínimo):
-```json
-{ "essayId": "<id_da_redacao>" }
-```
-Campos opcionais: `type`, `themeText`, `rawText` (≤ 12.000 chars), `currentScores`.
+### Endpoints
+1. `POST /ai/correction-suggestion`
+	 - Gera uma nova sugestão e persiste um registro `AICorrectionSuggestion`.
+	 - Body mínimo: `{ "essayId": "<id>" }`
+	 - Campos opcionais: `type`, `themeText`, `rawText` (≤ 12000 chars), `currentScores`.
+	 - Retorna `suggestionId` para permitir operação de apply.
 
-### Resposta (mock)
+	 Exemplo de resposta:
+	 ```json
+	 {
+		 "suggestionId": "665ab...",
+		 "mode": "mock",
+		 "disclaimer": "Sugestão automática (modo demonstração). Revise antes de aplicar.",
+		 "type": "ENEM",
+		 "sections": {
+			 "generalFeedback": "...",
+			 "competencies": [ { "id": "c1", "suggestedScore": 160 } ],
+			 "improvements": ["..."]
+		 },
+		 "metadata": { "generationMs": 42, "hash": "abcd1234", "rawTextChars": 523 }
+	 }
+	 ```
+
+2. `POST /ai/suggestion/:id/apply`
+	 - Marca que partes da sugestão foram aplicadas.
+	 - Body: `{ "applyFeedback": true, "applyScores": true }` (qualquer combinação true/false).
+	 - Efeitos: Atualiza flags `appliedFeedback` / `appliedScores` e timestamps (`appliedAt` / `appliedScoresAt`).
+
+### Modelo `AICorrectionSuggestion`
+Campos principais:
+| Campo | Tipo | Descrição |
+|-------|------|----------|
+| essayId | ObjectId | Redação alvo |
+| teacherId | ObjectId | Professor solicitante |
+| provider | String | mock / futuro real |
+| type | String | ENEM / PAS / PAS/UnB |
+| hash | String | Hash derivado para telemetria (não reversível) |
+| generationMs | Number | Tempo de geração reportado |
+| rawTextChars | Number | Tamanho do texto bruto enviado |
+| sections | Object | Estrutura retornada (feedback, competencies, improvements) |
+| disclaimer | String | Mensagem de aviso exibida ao usuário |
+| appliedFeedback | Boolean | Se feedback foi aplicado no editor |
+| appliedScores | Boolean | Se notas sugeridas foram aplicadas |
+| appliedAt | Date | Timestamp aplicação feedback |
+| appliedScoresAt | Date | Timestamp aplicação notas |
+| createdAt | Date | Criado automaticamente |
+
+### Limites & Validações
+- Rate limit: 10 gerações / 5 min / professor (middleware dedicado).
+- Tamanho máximo `rawText`: 12.000 chars → 413 se excedido.
+- Sanitização remove caracteres de controle (exceto \n, \r, \t).
+- Apenas professores podem gerar/aplicar.
+- Feature flag impede geração quando desligada.
+
+### Métricas
+Endpoint `/metrics/summary` agora retorna bloco `ai`:
 ```json
 {
-	"mode": "mock",
-	"disclaimer": "Sugestão automática (modo demonstração). Revise antes de aplicar.",
-	"sections": {
-		"generalFeedback": "...",
-		"competencies": [ { "id":"c1", "suggestedScore":160, ... } ],
-		"improvements": ["..."]
-	},
-	"metadata": { "generationMs": 42, "hash": "abcd1234" }
+	"ai": {
+		"suggestionsTotal": 123,
+		"suggestions7d": [ { "day": "2025-09-15", "count": 5 } ]
+	}
 }
 ```
+Próximas extensões planejadas: contagem de aplicações (feedback/scores) e taxa de adoção.
 
-### Limites
-- Rate limit dedicado: 10 requisições / 5 min por professor.
-- `rawText` acima de 12.000 caracteres retorna 413.
-- Texto é sanitizado (remoção de caracteres de controle).
+### Fluxo de Uso no Frontend
+1. Usuário (professor) abre página de correção.
+2. (Opcional) Informa texto bruto para melhor contexto.
+3. Clica em “Sugestão IA” → chamada ao endpoint de geração.
+4. Recebe painel com seções; botões de Aplicar Feedback / Aplicar Notas disparam `apply`.
+5. Ajustes manuais finais e salvamento normal da redação.
 
-### Frontend
-Botão “Sugestão IA” na página de correção abre painel com:
-- Aplicar Feedback Geral
-- Aplicar Notas (ENEM/PAS)
-- Campo opcional para colar texto bruto
+### Considerações de Privacidade
+- Não persistimos o texto bruto completo, apenas comprimento (`rawTextChars`) e hash para deduplicação estatística.
+- Logs contêm apenas IDs e hash, sem conteúdo de redação.
 
-### Futuro
-- Provider real configurável (`AI_PROVIDER`)
-- OCR/extração automática de texto
-- Persistência de histórico de sugestões (opt-in)
+### Roadmap Futuro (resumido)
+- Provedores reais (OpenAI/Anthropic) com fallback.
+- Métricas de aplicação (appliedFeedback/appliedScores) publicadas em `/metrics/summary`.
+- Reuso inteligente de histórico (cache por hash + tipo + tema).
+- Observabilidade (tracing distribuído) para latência por provider.
 
 ---
