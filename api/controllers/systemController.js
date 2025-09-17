@@ -57,3 +57,15 @@ exports.getSystemStatus = async (req, res, next) => {
     next(err);
   }
 };
+
+// Reset manual do breaker (apenas professor autenticado) - uso emergencial
+exports.resetAIBreaker = async (req, res, next) => {
+  try {
+    if (!req.user || req.user.role !== 'teacher') {
+      return res.status(403).json({ message: 'Apenas professores' });
+    }
+    const { resetBreakerState } = require('../services/ai/aiProvider');
+    const after = resetBreakerState();
+    return res.status(200).json({ ok: true, reset: true, breaker: after });
+  } catch (err) { next(err); }
+};

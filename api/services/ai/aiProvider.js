@@ -1,5 +1,6 @@
 const crypto = require('crypto');
-const fetch = require('node-fetch');
+// node-fetch v3 é ESM; usar import dinâmico para compatibilidade em módulo CommonJS
+const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
 
 /**
  * Interface conceitual do provider de IA.
@@ -192,13 +193,19 @@ function withFallback(providerPrimary, providerFallback = new MockAIProvider()) 
       const now = Date.now();
       if (breakerState.open && now < breakerState.nextTry) {
         // Circuit open - usa fallback direto
-        return providerFallback.generateSuggestion(params);
+        const fb = await providerFallback.generateSuggestion(params);
+        fb.metadata = fb.metadata || {};
+        fb.metadata.fallback = true;
+        fb.metadata.providerUsed = providerFallback.mode || 'mock';
+        return fb;
       }
       try {
         const result = await providerPrimary.generateSuggestion(params);
         // Sucesso -> reset failure count
         breakerState.failures = 0;
         breakerState.open = false;
+        result.metadata = result.metadata || {};
+        result.metadata.providerUsed = providerPrimary.mode || 'external';
         return result;
       } catch (err) {
         breakerState.failures += 1;
@@ -207,10 +214,15 @@ function withFallback(providerPrimary, providerFallback = new MockAIProvider()) 
           const coolDown = Number(process.env.AI_BREAKER_COOLDOWN_MS || 60000);
           breakerState.nextTry = Date.now() + coolDown;
         }
-        // Fallback
+        const disable = process.env.AI_DISABLE_FALLBACK === 'true';
+        if (disable) {
+          err.message = '[AI_DISABLE_FALLBACK] ' + err.message;
+          throw err;
+        }
         const fb = await providerFallback.generateSuggestion(params);
         fb.metadata = fb.metadata || {};
         fb.metadata.fallback = true;
+        fb.metadata.providerUsed = providerFallback.mode || 'mock';
         return fb;
       }
     }
@@ -221,4 +233,11 @@ function getBreakerStateSnapshot() {
   return { ...breakerState };
 }
 
-module.exports = { MockAIProvider, ExternalAIProvider, buildAIProvider, withFallback, getBreakerStateSnapshot };
+function resetBreakerState() {
+  breakerState.failures = 0;
+  breakerState.open = false;
+  breakerState.nextTry = 0;
+  return getBreakerStateSnapshot();
+}
+
+module.exports = { MockAIProvider, ExternalAIProvider, buildAIProvider, withFallback, getBreakerStateSnapshot, resetBreakerState };

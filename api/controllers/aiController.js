@@ -84,7 +84,8 @@ exports.correctionSuggestion = async (req, res, next) => {
         generationMs: suggestion.metadata?.generationMs,
         rawTextChars: suggestion.metadata?.rawTextChars,
         sections: suggestion.sections,
-        disclaimer: suggestion.disclaimer
+        disclaimer: suggestion.disclaimer,
+        providerUsed: suggestion.metadata?.providerUsed || suggestion.mode
       });
     } catch (persistErr) {
       logger.error('ai_suggestion_persist_error', { error: persistErr.message });
@@ -102,7 +103,7 @@ exports.correctionSuggestion = async (req, res, next) => {
       });
     } catch (e) { /* swallow logging errors */ }
 
-  res.json({ suggestionId: record?._id, ...suggestion, reused: false, providerFallback: !!suggestion?.metadata?.fallback });
+  res.json({ suggestionId: record?._id, ...suggestion, reused: false, providerFallback: !!suggestion?.metadata?.fallback, providerUsed: suggestion.metadata?.providerUsed || suggestion.mode });
   } catch (err) {
     next(err);
   }

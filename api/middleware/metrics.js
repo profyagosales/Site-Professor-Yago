@@ -58,6 +58,12 @@ function exposeMetricsProm(req,res){
   const avg = a=> a.length? a.reduce((s,x)=>s+x,0)/a.length:0;
   const lines = [];
   const push = l=> lines.push(l);
+  // Snapshot breaker (lazy load to avoid require cycles)
+  let breaker = null;
+  try { breaker = require('../services/ai/aiProvider').getBreakerStateSnapshot(); } catch {}
+  const breakerOpen = breaker ? (breaker.open ? 1 : 0) : 0;
+  const breakerFailures = breaker ? breaker.failures : 0;
+  const breakerRetryInMs = breaker && breaker.open ? Math.max(breaker.nextTry - Date.now(), 0) : 0;
   push('# HELP app_http_requests_total Total de requisições HTTP');
   push('# TYPE app_http_requests_total counter');
   push(`app_http_requests_total ${metrics.http_requests_total}`);
@@ -103,6 +109,24 @@ function exposeMetricsProm(req,res){
   push('# HELP app_login_student_unavailable_total Logins aluno falha 503');
   push('# TYPE app_login_student_unavailable_total counter');
   push(`app_login_student_unavailable_total ${metrics.login_student_unavailable_total}`);
+  push('# HELP app_ai_breaker_open Circuit breaker IA aberto (1/0)');
+  push('# TYPE app_ai_breaker_open gauge');
+  push(`app_ai_breaker_open ${breakerOpen}`);
+  push('# HELP app_ai_breaker_failures Falhas consecutivas atuais do breaker IA');
+  push('# TYPE app_ai_breaker_failures gauge');
+  push(`app_ai_breaker_failures ${breakerFailures}`);
+  push('# HELP app_ai_breaker_retry_ms Milissegundos até próxima tentativa externa (0 se fechado)');
+  push('# TYPE app_ai_breaker_retry_ms gauge');
+  push(`app_ai_breaker_retry_ms ${breakerRetryInMs}`);
+  // Taxas login (gauge derivado para facilitar alertas sem recording rule)
+  function loginRate(success, unauth, unavail){
+    const total = success+unauth+unavail; if(!total) return 0; return success/total; }
+  push('# HELP app_login_teacher_success_rate Taxa de sucesso logins professor');
+  push('# TYPE app_login_teacher_success_rate gauge');
+  push(`app_login_teacher_success_rate ${loginRate(metrics.login_teacher_success_total, metrics.login_teacher_unauthorized_total, metrics.login_teacher_unavailable_total).toFixed(4)}`);
+  push('# HELP app_login_student_success_rate Taxa de sucesso logins aluno');
+  push('# TYPE app_login_student_success_rate gauge');
+  push(`app_login_student_success_rate ${loginRate(metrics.login_student_success_total, metrics.login_student_unauthorized_total, metrics.login_student_unavailable_total).toFixed(4)}`);
   res.set('Content-Type','text/plain; version=0.0.4');
   res.send(lines.join('\n') + '\n');
 }

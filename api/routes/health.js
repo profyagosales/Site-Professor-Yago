@@ -11,6 +11,8 @@ router.get('/', (req, res) => {
 
 // Status agregado do sistema (DB, adoção IA, login snapshot)
 router.get('/system/status', systemController.getSystemStatus);
+// Reset breaker IA (protegido em controller por role)
+router.post('/system/ai/reset-breaker', systemController.resetAIBreaker);
 
 // Diagnóstico completo
 router.get('/diagnostic', async (req, res) => {
