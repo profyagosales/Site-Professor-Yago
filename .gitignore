@@ -10,3 +10,7 @@ backend/uploads/
 
 # Frontend build output
 frontend/dist/
+
+# Cobertura (não versionar)
+api/coverage/
+coverage/
