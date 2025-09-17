@@ -10,6 +10,10 @@ exports.loginTeacher = async (req, res, next) => {
   try {
     const { email, password } = req.body;
     console.log('[loginTeacher] tentativa', { email, hasPassword: !!password });
+    const mongoose = require('mongoose');
+    if (!mongoose.connection || mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ message: 'Serviço temporariamente indisponível (banco offline)' });
+    }
 
     // Validação básica
     if (!email || !password) {
@@ -83,6 +87,10 @@ exports.loginStudent = async (req, res, next) => {
   try {
     const { email, password } = req.body;
     console.log('[loginStudent] tentativa', { email, hasPassword: !!password });
+    const mongoose = require('mongoose');
+    if (!mongoose.connection || mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ message: 'Serviço temporariamente indisponível (banco offline)' });
+    }
 
     // Validação básica
     if (!email || !password) {
@@ -201,6 +209,19 @@ exports.debugSession = async (req, res) => {
       host: req.headers.host,
       'user-agent': req.headers['user-agent']
     },
+    timestamp: new Date().toISOString()
+  });
+};
+
+// Status de autenticação / disponibilidade (db + ambiente)
+exports.status = async (req, res) => {
+  const mongoose = require('mongoose');
+  const dbReady = mongoose.connection && mongoose.connection.readyState === 1;
+  res.json({
+    ok: true,
+    dbConnected: dbReady,
+    env: process.env.NODE_ENV || 'development',
+    cookieAuth: process.env.USE_COOKIE_AUTH === 'true',
     timestamp: new Date().toISOString()
   });
 };

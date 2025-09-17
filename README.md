@@ -24,6 +24,41 @@ Depois de criar o usuário professor, você pode fazer login com:
 - Email: `prof.yago.red@gmail.com`
 - Senha: `TR24339es`
 
+### Quick Start (Ambiente Local com Auto-Seed)
+
+Para acelerar configuração local sem rodar página de setup:
+
+1. Suba MongoDB local (ou use Atlas):
+```bash
+docker run -d --name mongo-yago -p 27017:27017 mongo:6
+```
+2. Exporte variáveis e inicie backend:
+```bash
+export MONGODB_URI='mongodb://localhost:27017/professor-yago'
+export AUTO_SEED_TEACHER=true
+export TEACHER_SEED_EMAIL='prof.yago.red@gmail.com'
+export TEACHER_SEED_PASSWORD='TR24339es'
+export TEACHER_SEED_NAME='Professor Yago Sales'
+node server.js
+```
+3. Verifique status:
+```bash
+curl -s http://localhost:5050/auth/status | jq
+```
+4. Login via curl:
+```bash
+curl -i -X POST http://localhost:5050/auth/login/teacher \
+   -H 'Content-Type: application/json' \
+   -d '{"email":"prof.yago.red@gmail.com","password":"TR24339es"}'
+```
+
+Se o banco estiver offline, as rotas de login retornam `503 Serviço temporariamente indisponível (banco offline)`.
+
+Rota de status adicionada:
+```
+GET /auth/status -> { ok, dbConnected, env, cookieAuth, timestamp }
+```
+
 ## Desenvolvimento
 
 ### Estrutura do Projeto

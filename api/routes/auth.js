@@ -8,6 +8,7 @@ router.post('/login/teacher', authController.loginTeacher);
 router.post('/login/teacher-dry-run', authController.loginTeacherDryRun);
 router.post('/login/student', authController.loginStudent);
 router.post('/logout', authController.logout);
+router.get('/status', authController.status);
 const diagnosticsEnabled = process.env.DIAGNOSTICS_ENABLED === 'true';
 // Health de autenticação (sempre exposto, não sensível)
 router.get('/health', authController.authHealth);
