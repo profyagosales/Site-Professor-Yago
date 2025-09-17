@@ -9,7 +9,12 @@ const { getAuthCookieOptions: _getAuthCookieOptions } = require('../utils/cookie
 exports.loginTeacher = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    console.log('[loginTeacher] tentativa', { email, hasPassword: !!password });
+  const logger = require('../services/logger');
+  const anonEmailHash = email ? require('crypto').createHash('sha256').update(email.toLowerCase()).digest('hex').slice(0,12) : null;
+  const clientIp = (req.headers['x-forwarded-for'] || req.connection.remoteAddress || '').toString().split(',')[0].trim();
+  const ipTrunc = clientIp.includes('.') ? clientIp.split('.').slice(0,3).join('.') + '.*' : clientIp;
+  const ua = (req.headers['user-agent']||'').slice(0,120);
+  logger.info(JSON.stringify({ evt:'login_attempt', role:'teacher', emailHash: anonEmailHash, hasPassword: !!password, ip: ipTrunc, ua }));
     const mongoose = require('mongoose');
     if (!mongoose.connection || mongoose.connection.readyState !== 1) {
       try { const m = require('../middleware/metrics'); m.metrics && (m.metrics.login_teacher_unavailable_total+=1); } catch(_){}
@@ -23,7 +28,7 @@ exports.loginTeacher = async (req, res, next) => {
 
     // Buscar usuário professor
   const user = await User.findOne({ email, role: 'teacher' }).lean(false);
-  console.log('[loginTeacher] user encontrado?', !!user);
+  logger.info(JSON.stringify({ evt:'login_lookup', role:'teacher', emailHash: anonEmailHash, userFound: !!user }));
 
     if (!user) {
       try { const m = require('../middleware/metrics'); m.metrics && (m.metrics.login_teacher_unauthorized_total+=1); } catch(_){}
@@ -38,7 +43,7 @@ exports.loginTeacher = async (req, res, next) => {
       console.error('[loginTeacher] erro comparePassword', cmpErr);
       throw cmpErr;
     }
-    console.log('[loginTeacher] senha confere?', isMatch);
+  logger.info(JSON.stringify({ evt:'login_password_check', role:'teacher', emailHash: anonEmailHash, match: isMatch }));
 
     if (!isMatch) {
       try { const m = require('../middleware/metrics'); m.metrics && (m.metrics.login_teacher_unauthorized_total+=1); } catch(_){}
@@ -52,7 +57,7 @@ exports.loginTeacher = async (req, res, next) => {
       { expiresIn: config.jwtExpiration }
     );
 
-  console.log('[loginTeacher] sucesso login', email);
+  logger.info(JSON.stringify({ evt:'login_success', role:'teacher', emailHash: anonEmailHash }));
     console.log('Cookie auth ativado:', process.env.USE_COOKIE_AUTH);
 
     // Sempre usar cookies para autenticação
@@ -90,7 +95,12 @@ exports.loginTeacher = async (req, res, next) => {
 exports.loginStudent = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    console.log('[loginStudent] tentativa', { email, hasPassword: !!password });
+  const logger = require('../services/logger');
+  const anonEmailHash = email ? require('crypto').createHash('sha256').update(email.toLowerCase()).digest('hex').slice(0,12) : null;
+  const clientIp = (req.headers['x-forwarded-for'] || req.connection.remoteAddress || '').toString().split(',')[0].trim();
+  const ipTrunc = clientIp.includes('.') ? clientIp.split('.').slice(0,3).join('.') + '.*' : clientIp;
+  const ua = (req.headers['user-agent']||'').slice(0,120);
+  logger.info(JSON.stringify({ evt:'login_attempt', role:'student', emailHash: anonEmailHash, hasPassword: !!password, ip: ipTrunc, ua }));
     const mongoose = require('mongoose');
     if (!mongoose.connection || mongoose.connection.readyState !== 1) {
       try { const m = require('../middleware/metrics'); m.metrics && (m.metrics.login_student_unavailable_total+=1); } catch(_){}
@@ -104,7 +114,7 @@ exports.loginStudent = async (req, res, next) => {
 
     // Buscar usuário aluno
   const user = await User.findOne({ email, role: 'student' }).lean(false);
-  console.log('[loginStudent] user encontrado?', !!user);
+  logger.info(JSON.stringify({ evt:'login_lookup', role:'student', emailHash: anonEmailHash, userFound: !!user }));
 
     if (!user) {
       try { const m = require('../middleware/metrics'); m.metrics && (m.metrics.login_student_unauthorized_total+=1); } catch(_){}
@@ -119,7 +129,7 @@ exports.loginStudent = async (req, res, next) => {
       console.error('[loginStudent] erro comparePassword', cmpErr);
       throw cmpErr;
     }
-    console.log('[loginStudent] senha confere?', isMatch);
+  logger.info(JSON.stringify({ evt:'login_password_check', role:'student', emailHash: anonEmailHash, match: isMatch }));
 
     if (!isMatch) {
       try { const m = require('../middleware/metrics'); m.metrics && (m.metrics.login_student_unauthorized_total+=1); } catch(_){}
@@ -133,7 +143,7 @@ exports.loginStudent = async (req, res, next) => {
       { expiresIn: config.jwtExpiration }
     );
 
-  console.log('[loginStudent] sucesso login', email);
+  logger.info(JSON.stringify({ evt:'login_success', role:'student', emailHash: anonEmailHash }));
     console.log('Cookie auth ativado:', process.env.USE_COOKIE_AUTH);
 
     // Sempre usar cookies para autenticação

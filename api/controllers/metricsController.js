@@ -3,6 +3,8 @@ const User = require('../models/User');
 const Theme = require('../models/Theme');
 const ClassModel = require('../models/Class');
 const AICorrectionSuggestion = require('../models/AICorrectionSuggestion');
+// Importa métricas em memória para incluir dados de login
+const { metrics } = require('../middleware/metrics');
 
 // GET /metrics/summary (apenas professor)
 exports.getSummary = async (req, res, next) => {
@@ -141,7 +143,30 @@ exports.getSummary = async (req, res, next) => {
       ratios: {
         correctionRate7d: created7dTotal ? Number((graded7dTotal / created7dTotal).toFixed(2)) : null,
         pendingToGraded: (byStatus.GRADED + byStatus.SENT) ? Number((byStatus.PENDING / (byStatus.GRADED + byStatus.SENT)).toFixed(2)) : byStatus.PENDING
-      }
+      },
+      login: (function computeLoginBlock(m){
+        if (!m) return null;
+        const teacher = {
+          success: m.login_teacher_success_total,
+          unauthorized: m.login_teacher_unauthorized_total,
+          unavailable: m.login_teacher_unavailable_total
+        };
+        const student = {
+          success: m.login_student_success_total,
+          unauthorized: m.login_student_unauthorized_total,
+          unavailable: m.login_student_unavailable_total
+        };
+        function enrich(obj){
+          const total = obj.success + obj.unauthorized + obj.unavailable;
+            const rates = total ? {
+              successRate: Number((obj.success/total).toFixed(2)),
+              unauthorizedRate: Number((obj.unauthorized/total).toFixed(2)),
+              unavailableRate: Number((obj.unavailable/total).toFixed(2))
+            } : { successRate: null, unauthorizedRate: null, unavailableRate: null };
+          return { ...obj, total, ...rates };
+        }
+        return { teacher: enrich(teacher), student: enrich(student) };
+      })(metrics)
     };
 
     res.json(response);

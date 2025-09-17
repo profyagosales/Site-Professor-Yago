@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const systemController = require('../controllers/systemController');
 
 router.get('/', (req, res) => {
   res.json({ 
@@ -7,6 +8,9 @@ router.get('/', (req, res) => {
     timestamp: new Date().toISOString() 
   });
 });
+
+// Status agregado do sistema (DB, adoção IA, login snapshot)
+router.get('/system/status', systemController.getSystemStatus);
 
 // Diagnóstico completo
 router.get('/diagnostic', async (req, res) => {
