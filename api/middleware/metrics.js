@@ -7,7 +7,13 @@ const metrics = {
   essay_status_transitions_total: 0,
   auth_health_calls_total: 0,
   auth_cookie_echo_success_total: 0,
-  auth_cookie_echo_miss_total: 0
+  auth_cookie_echo_miss_total: 0,
+  login_teacher_success_total: 0,
+  login_teacher_unauthorized_total: 0,
+  login_teacher_unavailable_total: 0,
+  login_student_success_total: 0,
+  login_student_unauthorized_total: 0,
+  login_student_unavailable_total: 0,
 };
 const MAX_BUCKET = 200;
 function record(arr, v){ arr.push(v); if(arr.length>MAX_BUCKET) arr.shift(); }
@@ -33,6 +39,18 @@ function exposeMetrics(req,res){
       healthCalls: metrics.auth_health_calls_total,
       cookieEchoSuccess: metrics.auth_cookie_echo_success_total,
       cookieEchoMiss: metrics.auth_cookie_echo_miss_total
+    },
+    login: {
+      teacher: {
+        success: metrics.login_teacher_success_total,
+        unauthorized: metrics.login_teacher_unauthorized_total,
+        unavailable: metrics.login_teacher_unavailable_total
+      },
+      student: {
+        success: metrics.login_student_success_total,
+        unauthorized: metrics.login_student_unauthorized_total,
+        unavailable: metrics.login_student_unavailable_total
+      }
     }
   });
 }
@@ -67,6 +85,24 @@ function exposeMetricsProm(req,res){
   push('# HELP app_auth_cookie_echo_miss_total Cookie probe não retornou');
   push('# TYPE app_auth_cookie_echo_miss_total counter');
   push(`app_auth_cookie_echo_miss_total ${metrics.auth_cookie_echo_miss_total}`);
+  push('# HELP app_login_teacher_success_total Logins professor bem sucedidos');
+  push('# TYPE app_login_teacher_success_total counter');
+  push(`app_login_teacher_success_total ${metrics.login_teacher_success_total}`);
+  push('# HELP app_login_teacher_unauthorized_total Logins professor falha 401');
+  push('# TYPE app_login_teacher_unauthorized_total counter');
+  push(`app_login_teacher_unauthorized_total ${metrics.login_teacher_unauthorized_total}`);
+  push('# HELP app_login_teacher_unavailable_total Logins professor falha 503');
+  push('# TYPE app_login_teacher_unavailable_total counter');
+  push(`app_login_teacher_unavailable_total ${metrics.login_teacher_unavailable_total}`);
+  push('# HELP app_login_student_success_total Logins aluno bem sucedidos');
+  push('# TYPE app_login_student_success_total counter');
+  push(`app_login_student_success_total ${metrics.login_student_success_total}`);
+  push('# HELP app_login_student_unauthorized_total Logins aluno falha 401');
+  push('# TYPE app_login_student_unauthorized_total counter');
+  push(`app_login_student_unauthorized_total ${metrics.login_student_unauthorized_total}`);
+  push('# HELP app_login_student_unavailable_total Logins aluno falha 503');
+  push('# TYPE app_login_student_unavailable_total counter');
+  push(`app_login_student_unavailable_total ${metrics.login_student_unavailable_total}`);
   res.set('Content-Type','text/plain; version=0.0.4');
   res.send(lines.join('\n') + '\n');
 }
@@ -76,4 +112,4 @@ const incStatusTransition = ()=> metrics.essay_status_transitions_total +=1;
 const incAuthHealthCall = ()=> metrics.auth_health_calls_total +=1;
 const incAuthCookieEchoSuccess = ()=> metrics.auth_cookie_echo_success_total +=1;
 const incAuthCookieEchoMiss = ()=> metrics.auth_cookie_echo_miss_total +=1;
-module.exports = { metricsMiddleware, exposeMetrics, exposeMetricsProm, trackPdfGeneration, incEmailSent, incStatusTransition, incAuthHealthCall, incAuthCookieEchoSuccess, incAuthCookieEchoMiss };
+module.exports = { metricsMiddleware, exposeMetrics, exposeMetricsProm, trackPdfGeneration, incEmailSent, incStatusTransition, incAuthHealthCall, incAuthCookieEchoSuccess, incAuthCookieEchoMiss, metrics };

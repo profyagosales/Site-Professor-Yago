@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
+import api from '@/services/api'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../store/AuthStateProvider'
 import { useEnhancedAuth } from '@/store/EnhancedAuthProvider'
@@ -21,8 +22,19 @@ export function LoginProfessorPage() {
   
   useEffect(() => { emailRef.current?.focus() }, [])
 
+  const [statusInfo, setStatusInfo] = useState<{ dbConnected: boolean; env: string }|null>(null)
+  useEffect(()=> {
+    (async()=> {
+      try {
+        const r = await api.get('/auth/status')
+        setStatusInfo({ dbConnected: r.data.dbConnected, env: r.data.env })
+      } catch {}
+    })()
+  },[])
+
   function mapErrorMessage(err: any): string {
     const status = err?.response?.status
+    if (status === 503) return 'Serviço em manutenção (banco de dados indisponível). Tente novamente em instantes.'
     if (status === 401) return 'Credenciais inválidas. Verifique email e senha.'
     if (status === 429) return 'Muitas tentativas. Aguarde alguns instantes.'
     if (status >= 500) return 'Servidor indisponível no momento. Tente novamente.'
@@ -67,6 +79,11 @@ export function LoginProfessorPage() {
         <p className="text-center text-sm text-slate-500 mb-6">Entre para gerenciar turmas, temas e correções.</p>
         {enhanced.meta.sessionExpired && (
           <div className="mb-4 text-xs rounded-md bg-amber-50 border border-amber-200 text-amber-700 p-2">Sessão anterior expirada. Faça login novamente.</div>
+        )}
+        {(!statusInfo?.dbConnected) && (
+          <div className="mb-4 text-xs rounded-md bg-amber-50 border border-amber-300 text-amber-700 p-2">
+            Banco de dados indisponível. O serviço está em modo manutenção. O login pode falhar até restabelecer a conexão.
+          </div>
         )}
         {error && (
           <div role="alert" className="p-3 mb-4 text-sm text-red-700 bg-red-100 border border-red-200 rounded-lg">

@@ -12,6 +12,7 @@ exports.loginTeacher = async (req, res, next) => {
     console.log('[loginTeacher] tentativa', { email, hasPassword: !!password });
     const mongoose = require('mongoose');
     if (!mongoose.connection || mongoose.connection.readyState !== 1) {
+      try { const m = require('../middleware/metrics'); m.metrics && (m.metrics.login_teacher_unavailable_total+=1); } catch(_){}
       return res.status(503).json({ message: 'Serviço temporariamente indisponível (banco offline)' });
     }
 
@@ -25,6 +26,7 @@ exports.loginTeacher = async (req, res, next) => {
   console.log('[loginTeacher] user encontrado?', !!user);
 
     if (!user) {
+      try { const m = require('../middleware/metrics'); m.metrics && (m.metrics.login_teacher_unauthorized_total+=1); } catch(_){}
       return res.status(401).json({ message: 'Credenciais inválidas' });
     }
 
@@ -39,6 +41,7 @@ exports.loginTeacher = async (req, res, next) => {
     console.log('[loginTeacher] senha confere?', isMatch);
 
     if (!isMatch) {
+      try { const m = require('../middleware/metrics'); m.metrics && (m.metrics.login_teacher_unauthorized_total+=1); } catch(_){}
       return res.status(401).json({ message: 'Credenciais inválidas' });
     }
 
@@ -66,7 +69,8 @@ exports.loginTeacher = async (req, res, next) => {
     }
     
     // Retornar dados do usuário sem o token
-    res.json({
+  try { const m = require('../middleware/metrics'); m.metrics && (m.metrics.login_teacher_success_total+=1); } catch(_){}
+  res.json({
       user: {
         id: user._id,
         name: user.name,
@@ -89,6 +93,7 @@ exports.loginStudent = async (req, res, next) => {
     console.log('[loginStudent] tentativa', { email, hasPassword: !!password });
     const mongoose = require('mongoose');
     if (!mongoose.connection || mongoose.connection.readyState !== 1) {
+      try { const m = require('../middleware/metrics'); m.metrics && (m.metrics.login_student_unavailable_total+=1); } catch(_){}
       return res.status(503).json({ message: 'Serviço temporariamente indisponível (banco offline)' });
     }
 
@@ -102,6 +107,7 @@ exports.loginStudent = async (req, res, next) => {
   console.log('[loginStudent] user encontrado?', !!user);
 
     if (!user) {
+      try { const m = require('../middleware/metrics'); m.metrics && (m.metrics.login_student_unauthorized_total+=1); } catch(_){}
       return res.status(401).json({ message: 'Credenciais inválidas' });
     }
 
@@ -116,6 +122,7 @@ exports.loginStudent = async (req, res, next) => {
     console.log('[loginStudent] senha confere?', isMatch);
 
     if (!isMatch) {
+      try { const m = require('../middleware/metrics'); m.metrics && (m.metrics.login_student_unauthorized_total+=1); } catch(_){}
       return res.status(401).json({ message: 'Credenciais inválidas' });
     }
 
@@ -137,7 +144,8 @@ exports.loginStudent = async (req, res, next) => {
   try { res.setHeader('X-Debug-Auth-Token-Set', 'true'); } catch(e) { console.warn('[loginStudent] falha header debug', e.message); }
     
     // Retornar dados do usuário sem o token
-    res.json({
+  try { const m = require('../middleware/metrics'); m.metrics && (m.metrics.login_student_success_total+=1); } catch(_){}
+  res.json({
       user: {
         id: user._id,
         name: user.name,
