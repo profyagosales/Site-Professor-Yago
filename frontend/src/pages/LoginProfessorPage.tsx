@@ -11,6 +11,9 @@ export function LoginProfessorPage() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [cooldownMs, setCooldownMs] = useState(0)
+  const [last503Count, setLast503Count] = useState(0)
+  const cooldownRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const submittedRef = useRef(false)
   const emailRef = useRef<HTMLInputElement | null>(null)
   const passwordRef = useRef<HTMLInputElement | null>(null)
@@ -41,6 +44,30 @@ export function LoginProfessorPage() {
     return err?.response?.data?.message || 'Erro ao fazer login. Tente novamente.'
   }
 
+  // Tick de cooldown
+  useEffect(()=> {
+    if (cooldownMs <= 0) return; 
+    const id = setInterval(()=> setCooldownMs(ms => ms - 1000), 1000);
+    return ()=> clearInterval(id);
+  }, [cooldownMs]);
+
+  function applyBackoffFor503() {
+    const attempt = last503Count + 1; // 1..n
+    setLast503Count(attempt);
+    // Escala: 1s, 3s, 7s, 15s, 30s (limite) baseado em sequência (aprox exponencial suave)
+    const schedule = [1000, 3000, 7000, 15000, 30000];
+    const ms = schedule[Math.min(attempt-1, schedule.length -1)];
+    setCooldownMs(ms);
+    if (cooldownRef.current) clearTimeout(cooldownRef.current);
+    cooldownRef.current = setTimeout(()=> { setCooldownMs(0); }, ms);
+  }
+
+  function resetBackoffOnNon503Success() {
+    setLast503Count(0);
+    setCooldownMs(0);
+    if (cooldownRef.current) { clearTimeout(cooldownRef.current); cooldownRef.current = null; }
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (isLoading) return
@@ -59,6 +86,7 @@ export function LoginProfessorPage() {
       setIsLoading(true)
       setError(null)
       await loginTeacher(email, password)
+      resetBackoffOnNon503Success()
       toast.success('Bem-vindo!')
       const redirectTo = (location.state as any)?.from?.pathname || '/dashboard'
       navigate(redirectTo)
@@ -67,6 +95,12 @@ export function LoginProfessorPage() {
       console.error('Erro ao fazer login:', err)
       setError(msg)
       toast.error(msg)
+      if (err?.response?.status === 503) {
+        applyBackoffFor503();
+      } else if (err?.response?.status !== 503) {
+        // Reset se erro não for disponibilidade
+        resetBackoffOnNon503Success();
+      }
     } finally {
       setIsLoading(false)
     }
@@ -130,11 +164,14 @@ export function LoginProfessorPage() {
           </div>
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || cooldownMs > 0}
             className="w-full py-2.5 px-4 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-300 disabled:opacity-60 disabled:cursor-not-allowed transition"
           >
-            {isLoading ? 'Entrando...' : 'Entrar'}
+            {cooldownMs > 0 ? `Aguardando ${Math.ceil(cooldownMs/1000)}s` : (isLoading ? 'Entrando...' : 'Entrar')}
           </button>
+          {last503Count > 0 && cooldownMs === 0 && (
+            <div className="text-[11px] text-amber-600">Reintente. Backoff aplicado {last503Count}x.</div>
+          )}
         </form>
         <div className="mt-6 text-[11px] text-center text-slate-400">&copy; {new Date().getFullYear()} Plataforma do Professor</div>
       </div>

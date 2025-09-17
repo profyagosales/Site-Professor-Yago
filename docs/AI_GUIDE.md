@@ -253,6 +253,7 @@ Gera uma sugestão estruturada de correção (feedback geral, competências/nota
  - `AI_TIMEOUT_MS` timeout geração (default 15000).
  - `AI_BREAKER_THRESHOLD` falhas seguidas para abrir circuito (default 3).
  - `AI_BREAKER_COOLDOWN_MS` cooldown antes de nova tentativa (default 60000).
+ - `AI_DISABLE_FALLBACK` quando `true` faz o endpoint retornar erro em vez de usar fallback mock (útil para testes de resiliência / visibilidade de falhas reais).
 
 ### Endpoints
 1. `POST /ai/correction-suggestion`
@@ -315,6 +316,34 @@ Se a mesma entrada (hash gerado pelo provider) for solicitada de novo pelo mesmo
 - Wrapper tenta provider primário; em falha ou timeout aplica fallback mock.
 - Metadado `providerFallback: true` no response (frontend exibe badge "Fallback").
 - Circuit breaker abre após N falhas consecutivas (`AI_BREAKER_THRESHOLD`) e permanece aberto por `AI_BREAKER_COOLDOWN_MS` (usa somente fallback nesse período).
+ - Quando fallback ocorre ou circuito está aberto, `metadata.providerUsed` retorna `mock` e `metadata.fallback = true`.
+ - Em sucesso primário externo, `metadata.providerUsed=external`.
+ - Com `AI_DISABLE_FALLBACK=true` qualquer falha externa propaga erro (breaker ainda conta falhas) permitindo monitorar impacto real.
+
+#### Endpoint de Status Agregado
+`GET /health/system/status` inclui:
+```json
+{
+	"ai": {
+		"breaker": { "open": false, "failures": 0, "nextTry": 0, "retryInMs": 0 },
+		"adoption": { "total": 42, "applied": 18, "rate": 0.43 }
+	}
+}
+```
+
+#### Endpoint de Reset Manual
+`POST /health/system/ai/reset-breaker` (apenas professor autenticado). Reseta contadores do breaker para facilitar recuperação em ambiente de testes.
+
+### Métricas Prometheus Adicionais
+Expostas em `/metrics/prom`:
+```
+app_ai_breaker_open 0|1
+app_ai_breaker_failures <n>
+app_ai_breaker_retry_ms <ms>
+app_login_teacher_success_rate 0.0-1.0
+app_login_student_success_rate 0.0-1.0
+```
+Permitem criar alertas (ex.: breaker aberto > 5min ou taxa de sucesso < 70%).
 
 ### Métricas
 Endpoint `/metrics/summary` bloco `ai` ampliado:
@@ -339,7 +368,7 @@ Em `performance.aiGenerationMs`:
 	}
 }
 ```
-Base: últimos 500 registros com `generationMs`.
+Base: últimos 500 registros com `generationMs`. Cada sugestão inclui `metadata.providerUsed` (`external|mock`) para futuras segmentações.
 
 
 ### Fluxo de Uso no Frontend

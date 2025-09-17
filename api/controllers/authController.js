@@ -58,14 +58,20 @@ exports.loginTeacher = async (req, res, next) => {
     );
 
   logger.info(JSON.stringify({ evt:'login_success', role:'teacher', emailHash: anonEmailHash }));
-    console.log('Cookie auth ativado:', process.env.USE_COOKIE_AUTH);
+    if (process.env.DIAGNOSTICS_ENABLED === 'true') {
+      console.log('Cookie auth ativado:', process.env.USE_COOKIE_AUTH);
+    }
 
     // Sempre usar cookies para autenticação
     const cookieOptions = getAuthCookieOptions();
-    console.log('Definindo cookie com opções:', cookieOptions);
+    if (process.env.DIAGNOSTICS_ENABLED === 'true') {
+      console.log('Definindo cookie com opções:', cookieOptions);
+    }
     res.cookie('auth_token', token, cookieOptions);
     // Log após tentativa de set-cookie (não garante envio ao cliente, mas confirma execução)
-    console.log('[loginTeacher] cookie auth_token registrado na resposta');
+    if (process.env.DIAGNOSTICS_ENABLED === 'true') {
+      console.log('[loginTeacher] cookie auth_token registrado na resposta');
+    }
     // Fallback: alguns proxies podem filtrar SameSite=None incorretamente; oferecer header manual adicional (não padrão)
     try {
       res.setHeader('X-Debug-Auth-Token-Set', 'true');
@@ -144,13 +150,19 @@ exports.loginStudent = async (req, res, next) => {
     );
 
   logger.info(JSON.stringify({ evt:'login_success', role:'student', emailHash: anonEmailHash }));
-    console.log('Cookie auth ativado:', process.env.USE_COOKIE_AUTH);
+    if (process.env.DIAGNOSTICS_ENABLED === 'true') {
+      console.log('Cookie auth ativado:', process.env.USE_COOKIE_AUTH);
+    }
 
     // Sempre usar cookies para autenticação
     const cookieOptions = getAuthCookieOptions();
-  console.log('Definindo cookie com opções:', cookieOptions);
+  if (process.env.DIAGNOSTICS_ENABLED === 'true') {
+    console.log('Definindo cookie com opções:', cookieOptions);
+  }
   res.cookie('auth_token', token, cookieOptions);
-  console.log('[loginStudent] cookie auth_token registrado na resposta');
+  if (process.env.DIAGNOSTICS_ENABLED === 'true') {
+    console.log('[loginStudent] cookie auth_token registrado na resposta');
+  }
   try { res.setHeader('X-Debug-Auth-Token-Set', 'true'); } catch(e) { console.warn('[loginStudent] falha header debug', e.message); }
     
     // Retornar dados do usuário sem o token
@@ -174,7 +186,9 @@ exports.loginStudent = async (req, res, next) => {
 // Obter perfil do usuário autenticado
 exports.getMe = async (req, res, next) => {
   try {
-    console.log('getMe - Usuário na requisição:', req.user);
+    if (process.env.DIAGNOSTICS_ENABLED === 'true') {
+      console.log('getMe - Usuário na requisição:', req.user);
+    }
     
     const user = await User.findById(req.user.id).select('-passwordHash');
     
@@ -191,7 +205,9 @@ exports.getMe = async (req, res, next) => {
 // Logout - Limpa o cookie de autenticação
 exports.logout = async (req, res, next) => {
   try {
-    console.log('Realizando logout');
+    if (process.env.DIAGNOSTICS_ENABLED === 'true') {
+      console.log('Realizando logout');
+    }
     
     // Limpar o cookie de autenticação usando as mesmas opções que foram usadas para criar
     const cookieOptions = getAuthCookieOptions();
@@ -200,7 +216,9 @@ exports.logout = async (req, res, next) => {
       expires: new Date(0) // Data no passado para expirar imediatamente
     };
     
-    console.log('Removendo cookie com opções:', expiredOptions);
+    if (process.env.DIAGNOSTICS_ENABLED === 'true') {
+      console.log('Removendo cookie com opções:', expiredOptions);
+    }
     res.cookie('auth_token', '', expiredOptions);
     
     res.json({ message: 'Logout realizado com sucesso' });

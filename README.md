@@ -59,6 +59,42 @@ Rota de status adicionada:
 GET /auth/status -> { ok, dbConnected, env, cookieAuth, timestamp }
 ```
 
+### Status Agregado do Sistema
+
+Endpoint: `GET /health/system/status`
+
+Retorna visão resumida de saúde e adoção:
+
+```
+{
+   ok: true,
+   timestamp: "2025-09-17T12:34:56.000Z",
+   dbConnected: true,
+   ai: {
+      breaker: { open: false, failures: 0, nextTry: 0, retryInMs: 0 },
+      adoption: { total: 42, applied: 18, rate: 0.43 }
+   },
+   login: {
+      teacher: { success: 10, unauthorized: 2, unavailable: 1, successRate: 0.77 },
+      student: { success: 25, unauthorized: 3, unavailable: 0, successRate: 0.89 }
+   }
+}
+```
+
+Campos:
+- `dbConnected`: se a instância Mongo está conectada.
+- `ai.breaker`: estado atual do circuit breaker do provider externo de IA.
+   - `open`: true quando chamadas externas estão temporariamente bloqueadas e o sistema usa fallback mock.
+   - `failures`: contagem de falhas consecutivas que levaram (ou podem levar) à abertura.
+   - `nextTry`: timestamp (ms epoch) de quando a próxima tentativa externa será feita.
+   - `retryInMs`: quanto tempo resta para nova tentativa (0 se fechado).
+- `ai.adoption`: estatísticas de sugestões de IA persistidas vs aplicadas.
+- `login.*`: contadores acumulados de outcomes de login e taxa de sucesso (`successRate`).
+
+Uso típico: exibir badges de saúde no dashboard sem necessidade de múltiplas requisições.
+
+```
+
 ## Desenvolvimento
 
 ### Estrutura do Projeto

@@ -11,11 +11,16 @@ router.get('/', (req, res) => {
 
 // Status agregado do sistema (DB, adoção IA, login snapshot)
 router.get('/system/status', systemController.getSystemStatus);
-// Reset breaker IA (protegido em controller por role)
-router.post('/system/ai/reset-breaker', systemController.resetAIBreaker);
+// Reset breaker IA (só monta rota se diagnostics habilitado; controller ainda valida role)
+if (process.env.DIAGNOSTICS_ENABLED === 'true') {
+  router.post('/system/ai/reset-breaker', systemController.resetAIBreaker);
+}
 
 // Diagnóstico completo
 router.get('/diagnostic', async (req, res) => {
+  if (process.env.DIAGNOSTICS_ENABLED === 'false' || !process.env.DIAGNOSTICS_ENABLED) {
+    return res.status(404).json({ error: 'Not found' });
+  }
   try {
     // Verificar o estado dos cookies
     const cookies = req.cookies || {};

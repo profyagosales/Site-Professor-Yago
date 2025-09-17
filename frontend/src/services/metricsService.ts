@@ -8,9 +8,24 @@ export interface MetricsSummary {
     total: number;
     last7d: { created: { day: string; count: number }[]; graded: { day: string; count: number }[] };
   };
-  performance: { avgCorrectionTimeHours: number | null; medianCorrectionTimeHours: number | null };
+  ai: {
+    suggestionsTotal: number;
+    suggestions7d: { day: string; count: number }[];
+    appliedTotal: number;
+    applied7d: { day: string; count: number }[];
+    adoptionRate: number | null;
+  };
+  performance: { 
+    avgCorrectionTimeHours: number | null; 
+    medianCorrectionTimeHours: number | null;
+    aiGenerationMs: { avg: number | null; p50: number | null; p95: number | null }
+  };
   queue: { pendingAgingHours: number | null; gradingInProgress: number };
   ratios: { correctionRate7d: number | null; pendingToGraded: number | null };
+  login?: {
+    teacher: { success: number; unauthorized: number; unavailable: number; total: number; successRate: number | null; unauthorizedRate: number | null; unavailableRate: number | null };
+    student: { success: number; unauthorized: number; unavailable: number; total: number; successRate: number | null; unauthorizedRate: number | null; unavailableRate: number | null };
+  }
 }
 
 export async function getMetricsSummary(): Promise<MetricsSummary> {

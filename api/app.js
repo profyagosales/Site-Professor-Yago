@@ -56,7 +56,12 @@ app.use(express.json({ limit: '2mb' })); // limitar payload JSON
 app.use(inputSanitizer);
 app.use(metricsMiddleware);
 app.use(cookieParser());
-app.use(requestDebugger); // Adicionar middleware de debug
+// Flag de diagnóstico
+const diagnosticsEnabled = process.env.DIAGNOSTICS_ENABLED === 'true';
+// Middleware de debug apenas se diagnóstico habilitado
+if (diagnosticsEnabled) {
+  app.use(requestDebugger); // Middleware verboso de debug
+}
 
 // Get API prefix from environment variable or use empty string
 // Necessário para ambientes como o Render que podem adicionar prefixos
@@ -65,8 +70,17 @@ logger.info('API prefix configurado',{ apiPrefix });
 
 // Rota de diagnóstico direta que não depende do banco de dados
 app.get('/', (req, res) => {
+  if (!diagnosticsEnabled) {
+    return res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development'
+    });
+  }
+  // Versão detalhada somente quando diagnostics habilitado
   res.json({
     status: 'API está funcionando',
+    diagnostics: true,
     environment: process.env.NODE_ENV || 'development',
     apiPrefix: apiPrefix,
     cookieAuthEnabled: process.env.USE_COOKIE_AUTH === 'true',
@@ -78,15 +92,7 @@ app.get('/', (req, res) => {
       `${apiPrefix}/auth/login/teacher`,
       `${apiPrefix}/auth/login/student`,
       `${apiPrefix}/auth/me`,
-      `${apiPrefix}/auth/me-test`,
-      `${apiPrefix}/auth/test`,
-      `${apiPrefix}/auth/set-test-cookie`,
       `${apiPrefix}/health`,
-      `${apiPrefix}/setup/create-teacher`,
-      `${apiPrefix}/diagnostics/cors-test`,
-      `${apiPrefix}/diagnostics/cookie-diagnostic`,
-      `${apiPrefix}/diagnostics/environment`,
-      `${apiPrefix}/diagnostics/set-test-token`,
       `${apiPrefix}/students`
     ],
     envVars: {
@@ -145,7 +151,9 @@ const pdfUpload = multer({ storage: storage, fileFilter: pdfOnly, limits: { file
 app.use(`${apiPrefix}/essays`, pdfUpload.single('file'), essaysRoutes);
 app.use(`${apiPrefix}/uploads`, uploadsRoutes);
 app.use(`${apiPrefix}/setup`, setupRoutes); // Rota temporária para configuração inicial
-app.use(`${apiPrefix}/diagnostics`, diagnosticsRoutes); // Rotas para diagnóstico de problemas
+if (diagnosticsEnabled) {
+  app.use(`${apiPrefix}/diagnostics`, diagnosticsRoutes); // Rotas para diagnóstico de problemas
+}
 app.use(`${apiPrefix}/students`, studentsRoutes); // Rotas para gerenciar alunos
 app.use(`${apiPrefix}/classes`, classesRoutes); // Rotas para gerenciar turmas
 app.use(`${apiPrefix}/metrics`, metricsRoutes); // Rotas de métricas agregadas

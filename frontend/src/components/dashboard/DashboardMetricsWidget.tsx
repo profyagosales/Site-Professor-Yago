@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getMetricsSummary, MetricsSummary } from '@/services/metricsService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Activity, Clock, BarChart3, TrendingUp } from 'lucide-react';
+import { Loader2, Activity, Clock, BarChart3, TrendingUp, ShieldCheck, Brain } from 'lucide-react';
 
 function formatHours(h: number | null) {
   if (h == null) return '—';
@@ -63,10 +63,10 @@ export function DashboardMetricsWidget() {
   }
   if (!metrics) return null;
 
-  const { totals, essays, performance, queue, ratios } = metrics;
+  const { totals, essays, performance, queue, ratios, ai, login } = metrics;
 
   return (
-    <div className="mt-6 grid grid-cols-1 lg:grid-cols-4 gap-4">
+    <div className="mt-6 grid grid-cols-1 lg:grid-cols-6 gap-4">
       <Card className="col-span-1">
         <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Activity className="h-4 w-4" /> Totais</CardTitle></CardHeader>
         <CardContent className="text-xs space-y-1">
@@ -95,6 +95,7 @@ export function DashboardMetricsWidget() {
           <div>Mediana correção: {formatHours(performance.medianCorrectionTimeHours)}</div>
           <div>Idade pendentes: {formatHours(queue.pendingAgingHours)}</div>
           <div>Correções em andamento: {queue.gradingInProgress}</div>
+          <div className="pt-1 border-t text-[11px] text-muted-foreground">AI gen avg: {performance.aiGenerationMs.avg ?? '—'}ms p50:{performance.aiGenerationMs.p50 ?? '—'} p95:{performance.aiGenerationMs.p95 ?? '—'}</div>
         </CardContent>
       </Card>
 
@@ -115,6 +116,38 @@ export function DashboardMetricsWidget() {
           </div>
         </CardContent>
       </Card>
+
+      <Card className="col-span-1">
+        <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Brain className="h-4 w-4" /> IA</CardTitle></CardHeader>
+        <CardContent className="text-xs space-y-1">
+          <div>Sugestões: {ai.suggestionsTotal}</div>
+          <div>Aplicadas: {ai.appliedTotal}</div>
+          <div>Adopção: {ai.adoptionRate == null ? '—' : (ai.adoptionRate*100).toFixed(0)+'%'}</div>
+          <div className="pt-1 text-[11px] text-muted-foreground">Últimos 7d: {ai.suggestions7d.reduce((a,b)=>a+b.count,0)} geradas</div>
+        </CardContent>
+      </Card>
+
+      {login && (
+        <Card className="col-span-1">
+          <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><ShieldCheck className="h-4 w-4" /> Logins</CardTitle></CardHeader>
+          <CardContent className="text-xs space-y-2">
+            <div className="text-[11px] uppercase text-muted-foreground">Professor</div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="text-green-600" title="Sucesso">{login.teacher.success}</div>
+              <div className="text-amber-600" title="401">{login.teacher.unauthorized}</div>
+              <div className="text-red-600" title="503">{login.teacher.unavailable}</div>
+            </div>
+            <div className="text-[10px] text-muted-foreground">Taxa sucesso: {login.teacher.successRate==null?'—':(login.teacher.successRate*100).toFixed(0)+'%'}</div>
+            <div className="text-[11px] uppercase text-muted-foreground pt-2">Aluno</div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="text-green-600" title="Sucesso">{login.student.success}</div>
+              <div className="text-amber-600" title="401">{login.student.unauthorized}</div>
+              <div className="text-red-600" title="503">{login.student.unavailable}</div>
+            </div>
+            <div className="text-[10px] text-muted-foreground">Taxa sucesso: {login.student.successRate==null?'—':(login.student.successRate*100).toFixed(0)+'%'}</div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
