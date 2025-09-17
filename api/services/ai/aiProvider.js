@@ -217,4 +217,8 @@ function withFallback(providerPrimary, providerFallback = new MockAIProvider()) 
   };
 }
 
-module.exports = { MockAIProvider, ExternalAIProvider, buildAIProvider, withFallback };
+function getBreakerStateSnapshot() {
+  return { ...breakerState };
+}
+
+module.exports = { MockAIProvider, ExternalAIProvider, buildAIProvider, withFallback, getBreakerStateSnapshot };

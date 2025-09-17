@@ -1,15 +1,12 @@
 const mongoose = require('mongoose');
 const { metrics } = require('../middleware/metrics');
+const { getBreakerStateSnapshot } = require('../services/ai/aiProvider');
 const AICorrectionSuggestion = require('../models/AICorrectionSuggestion');
 let cached = { data: null, ts: 0 };
 
 // Estado do breaker de IA: importamos indiretamente do provider (se exposto)
 function getAIBreakerState() {
-  try {
-    // O breakerState não é exportado diretamente; retornamos apenas flags inferíveis.
-    // Como fallback, retornamos null indicando opaco.
-    return null;
-  } catch { return null; }
+  try { return getBreakerStateSnapshot(); } catch { return null; }
 }
 
 exports.getSystemStatus = async (req, res, next) => {
@@ -39,12 +36,14 @@ exports.getSystemStatus = async (req, res, next) => {
       }
     } : null;
     function rate(o){ if(!o) return null; const tot = o.success+o.unauthorized+o.unavailable; return tot? Number((o.success/tot).toFixed(2)):null; }
+    const breaker = getAIBreakerState();
+    const retryInMs = (breaker && breaker.open) ? Math.max(breaker.nextTry - now, 0) : 0;
     const payload = {
       ok: true,
       timestamp: new Date().toISOString(),
       dbConnected,
       ai: {
-        breaker: getAIBreakerState(),
+        breaker: breaker ? { open: breaker.open, failures: breaker.failures, nextTry: breaker.nextTry, retryInMs } : null,
         adoption: { total: totalSuggestions, applied, rate: adoptionRate }
       },
       login: login ? {
