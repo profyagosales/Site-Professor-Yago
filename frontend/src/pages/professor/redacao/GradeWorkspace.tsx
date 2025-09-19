@@ -7,6 +7,7 @@ import AnnotationEditorRich from '@/components/redacao/AnnotationEditorRich';
 import type { Highlight } from '@/components/redacao/types';
 import type { Anno } from '@/types/annotations';
 import { toast } from 'react-toastify';
+import PdfAnnotator from "@/components/redacao/PdfAnnotator";
 
 const useRich = import.meta.env.VITE_USE_RICH_ANNOS === '1' || import.meta.env.VITE_USE_RICH_ANNOS === 'true';
 const useIframe = import.meta.env.VITE_PDF_IFRAME !== '0';
@@ -375,25 +376,22 @@ export default function GradeWorkspace() {
 
       <div className="grid md:grid-cols-2 gap-4">
         <div className="min-h-[420px] overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#F9FAFB]">
-          {/* Status */}
-          {useIframe ? (
-            fileUrl && !iframeError ? (
-              <iframe
-                ref={iframeRef}
-                src="/viewer/index.html"
-                className="w-full border-0"
-                onLoad={handleIframeLoad}
-              />
-            ) : (
-              <div className="p-4 text-sm text-ys-ink-2">
-                {iframeError || 'Carregando PDF…'}
-                {fileUrl && (
-                  <button className="ml-2 underline" onClick={openPdfInNewTab}>Abrir em nova aba</button>
-                )}
-              </div>
-            )
+          {/* PDF inline obrigatório */}
+          {fileUrl ? (
+            <PdfAnnotator
+              fileSrc={fileUrl}
+              essayId={(essay as any)._id || (essay as any).id}
+              palette={[
+                { key:'apresentacao', label:'Apresentação',          color:'#f97316', rgba:'rgba(249,115,22,0.60)' },
+                { key:'ortografia',   label:'Ortografia/gramática',  color:'#22c55e', rgba:'rgba(34,197,94,0.60)'  },
+                { key:'argumentacao', label:'Argumentação/estrutura',color:'#eab308', rgba:'rgba(234,179,8,0.60)'  },
+                { key:'comentario',   label:'Comentário geral',      color:'#ef4444', rgba:'rgba(239,68,68,0.60)'  },
+                { key:'coesao',       label:'Coesão/coerência',      color:'#0ea5e9', rgba:'rgba(14,165,233,0.60)' },
+              ]}
+              onChange={(list)=> setRichAnnos(list as any)}
+            />
           ) : (
-            <div className="p-4 text-sm text-ys-ink-2">Visualização de PDF desativada</div>
+            <div className="p-4 text-sm text-ys-ink-2">Carregando PDF…</div>
           )}
         </div>
         <div className="space-y-3">
