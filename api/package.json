@@ -1,0 +1,14 @@
+{
+  "name": "api-shim",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Shim para ambientes que apontam o root do serviço para /api. Encaminha build/start para backend/.",
+  "scripts": {
+    "postinstall": "npm install --prefix ../backend",
+    "build": "echo 'no build in api shim'",
+    "start": "node ../backend/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
