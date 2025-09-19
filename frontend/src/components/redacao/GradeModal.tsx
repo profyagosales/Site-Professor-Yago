@@ -227,7 +227,7 @@ export default function GradeModal({ open, onClose, essay, onGraded }: Props) {
               isPdf ? (
                 <embed src={essay.fileUrl} type="application/pdf" className="h-[320px] w-full" />
               ) : (
-                <a className="block p-4 text-orange-600 underline" href={essay.fileUrl} target="_blank" rel="noreferrer">Abrir arquivo</a>
+                <span className="text-muted-foreground/70 select-none" title="Visualização inline">Visualização inline</span>
               )
             ) : (
               <div className="flex h-full items-center justify-center p-4 text-sm text-ys-ink-2">Sem arquivo</div>

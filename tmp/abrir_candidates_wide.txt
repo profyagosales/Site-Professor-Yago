@@ -1,0 +1,2 @@
+frontend/src/components/redacao/GradeModal.tsx:230:                <a className="block p-4 text-orange-600 underline" href={essay.fileUrl} target="_blank" rel="noreferrer">Abrir arquivo</a>
+frontend/src/pages/professor/redacao/GradeWorkspace.tsx:391:                  <button className="ml-2 underline" onClick={openPdfInNewTab}>Abrir em nova aba</button>
