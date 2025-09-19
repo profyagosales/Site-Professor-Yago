@@ -157,7 +157,7 @@ function ListaRedacoesAluno({ id }: { id: string }) {
               <td className="px-4 py-3">{e.customTheme || e.theme || '-'}</td>
               <td className="px-4 py-3">{new Date(e.submittedAt || e.createdAt).toLocaleDateString()}</td>
               <td className="px-4 py-3">{e.rawScore ?? e.score ?? '-'}</td>
-              <td className="px-4 py-3"><a className="text-orange-600 underline" href={e.originalUrl || e.fileUrl} target="_blank" rel="noreferrer">Abrir</a></td>
+              <td className="px-4 py-3"><span className="text-muted-foreground/70 select-none" title="Visualização inline">Visualização inline</span></td>
             </tr>
           ))}
           {data.items.length === 0 && <tr><td className="px-4 py-3 text-ys-ink-2" colSpan={4}>Sem redações.</td></tr>}

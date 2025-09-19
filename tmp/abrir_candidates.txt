@@ -1,0 +1,3 @@
+frontend/src/pages/professor/redacao/RedacaoProfessorPage.tsx:132:                  <td className="px-4 py-3"><a className="text-orange-600 underline" href={e.fileUrl} target="_blank" rel="noreferrer">Abrir</a></td>
+frontend/src/pages/professor/redacao/RedacaoProfessorPage.tsx:137:          <td className="px-4 py-3"><a className="text-orange-600 underline" href={e.fileUrl} target="_blank" rel="noreferrer">Abrir</a></td>
+frontend/src/pages/professor/alunos/PerfilAluno.tsx:160:              <td className="px-4 py-3"><a className="text-orange-600 underline" href={e.originalUrl || e.fileUrl} target="_blank" rel="noreferrer">Abrir</a></td>

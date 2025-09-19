@@ -129,12 +129,12 @@ export default function RedacaoProfessorPage() {
                 <td className="px-4 py-3">{(e as any).bimester ?? '-'}</td>
                 <td className="px-4 py-3">{new Date(e.submittedAt).toLocaleDateString()}</td>
         {status === 'pending' ? (
-                  <td className="px-4 py-3"><a className="text-orange-600 underline" href={e.fileUrl} target="_blank" rel="noreferrer">Abrir</a></td>
+                  <td className="px-4 py-3"><span className="text-muted-foreground/70 select-none" title="Visualização inline">Visualização inline</span></td>
                 ) : (
                   <>
                     <td className="px-4 py-3">{e.score ?? '-'}</td>
                     <td className="px-4 py-3">{e.comments ?? '-'}</td>
-          <td className="px-4 py-3"><a className="text-orange-600 underline" href={e.fileUrl} target="_blank" rel="noreferrer">Abrir</a></td>
+          <td className="px-4 py-3"><span className="text-muted-foreground/70 select-none" title="Visualização inline">Visualização inline</span></td>
                   </>
                 )}
                 <td className="px-4 py-3">
