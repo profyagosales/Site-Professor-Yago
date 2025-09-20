@@ -19,6 +19,28 @@ export interface PdfHighlighterHandle {
   jumpToPage: (p: number) => void;
 }
 
+// Lazy-load control: importa somente quando o componente realmente renderiza
+// e impede o pré-carregamento do bundle via /* @vite-ignore */.
+const LazyPdfLoader = React.lazy(async () => {
+  const m: any = await import(/* @vite-ignore */ 'react-pdf-highlighter');
+  return { default: m.PdfLoader as React.ComponentType<any> };
+});
+
+const LazyRPH = React.lazy(async () => {
+  const m: any = await import(/* @vite-ignore */ 'react-pdf-highlighter');
+  return { default: m.PdfHighlighter as React.ComponentType<any> };
+});
+
+const LazyHighlight = React.lazy(async () => {
+  const m: any = await import(/* @vite-ignore */ 'react-pdf-highlighter');
+  return { default: m.Highlight as React.ComponentType<any> };
+});
+
+const LazyPopup = React.lazy(async () => {
+  const m: any = await import(/* @vite-ignore */ 'react-pdf-highlighter');
+  return { default: m.Popup as React.ComponentType<any> };
+});
+
 const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
   (
     {
@@ -30,16 +52,6 @@ const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
     },
     ref,
   ) => {
-    const { PdfLoader, PdfHighlighter: RPH, Highlight, Popup } = React.useMemo(() => {
-      const modPromise = import('react-pdf-highlighter');
-      return {
-        PdfLoader: React.lazy(async () => ({ default: (await modPromise).PdfLoader })),
-        PdfHighlighter: React.lazy(async () => ({ default: (await modPromise).PdfHighlighter })),
-        Highlight: React.lazy(async () => ({ default: (await modPromise).Highlight })),
-        Popup: React.lazy(async () => ({ default: (await modPromise).Popup })),
-      };
-    }, []);
-
     const COLORS = Object.fromEntries(
       HIGHLIGHT_PALETTE.map((p) => [p.id, p.fill]),
     ) as Record<string, string>;
@@ -117,7 +129,7 @@ const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
     ) {
       const lbl = h.label || '';
       const inner = (
-        <Highlight
+        <LazyHighlight
           key={h.id}
           isScrolledTo={isScrolledTo}
           position={h.selection.position}
@@ -132,14 +144,14 @@ const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
         </div>
       );
       return (
-        <Popup
+        <LazyPopup
           key={h.id}
           popupContent={popup}
           onMouseOver={() => setTip(popup)}
           onMouseOut={hideTip}
         >
           {inner}
-        </Popup>
+        </LazyPopup>
       );
     }
 
@@ -179,12 +191,12 @@ const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
                 </div>
               </div>
               <div className="flex-1 overflow-hidden">
-                <PdfLoader
+                <LazyPdfLoader
                   url={fileUrl as any}
                   beforeLoad={<div className="p-4 text-sm">Carregando…</div>}
                 >
                   {(doc: any) => (
-                    <RPH
+                    <LazyRPH
                       pdfDocument={doc}
                       ref={viewerRef}
                       scrollRef={(scrollTo: any) => {
@@ -199,7 +211,7 @@ const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
                       highlights={highlights}
                     />
                   )}
-                </PdfLoader>
+                </LazyPdfLoader>
               </div>
             </div>
             {modal && (
