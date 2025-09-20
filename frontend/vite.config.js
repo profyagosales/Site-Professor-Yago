@@ -13,13 +13,14 @@ export default defineConfig({
   },
   optimizeDeps: {
     // não pré-bundle as libs de PDF; elas virão só no import dinâmico
-    exclude: ['react-pdf', 'react-pdf-highlighter', 'pdfjs-dist'],
+    exclude: ['react-pdf', 'react-pdf-highlighter', 'pdfjs-dist', 'react-konva', 'konva'],
   },
   build: {
     rollupOptions: {
       output: {
         manualChunks(id) {
           if (id.includes('react-pdf') || id.includes('pdfjs-dist') || id.includes('pdf-lib')) return 'pdf'
+          if (id.includes('react-konva') || id.includes('konva')) return 'konva'
           if (id.includes('node_modules')) return 'vendor'
         },
       },
