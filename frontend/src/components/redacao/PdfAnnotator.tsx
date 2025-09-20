@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Stage, Layer, Rect, Line, Text, Group } from "react-konva";
+import { Stage, Layer, Rect, Line, Group, Text } from "react-konva";
+import type { RectConfig } from "konva/lib/shapes/Rect";
+import type { LineConfig } from "konva/lib/shapes/Line";
 import { nanoid } from "nanoid";
 
 // IMPORTANTE:
