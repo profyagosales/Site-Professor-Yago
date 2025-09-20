@@ -25,9 +25,12 @@ function bufferToStream(buffer) {
   return readable;
 }
 
-async function uploadBuffer(buffer, folder) {
+async function uploadBuffer(buffer, folder, mimetype) {
+  // Define resource_type baseado no mimetype: PDFs -> 'raw'; imagens -> 'image'
+  const isImage = typeof mimetype === 'string' && mimetype.startsWith('image/');
+  const resource_type = isImage ? 'image' : 'raw';
   return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream({ folder }, (err, result) => {
+    const stream = cloudinary.uploader.upload_stream({ folder, resource_type }, (err, result) => {
       if (err) return reject(err);
       resolve(result.secure_url);
     });
@@ -96,7 +99,7 @@ async function createEssay(req, res) {
         return res.status(400).json({ message: 'Aluno e turma obrigatórios' });
       }
 
-    const originalUrl = await uploadBuffer(req.file.buffer, 'essays/original');
+  const originalUrl = await uploadBuffer(req.file.buffer, 'essays/original', req.file.mimetype);
 
     const essay = await Essay.create({
       studentId,
@@ -136,7 +139,7 @@ async function updateEssay(req, res) {
     if (studentId !== undefined) update.studentId = studentId || null;
 
     if (req.file) {
-      const originalUrl = await uploadBuffer(req.file.buffer, 'essays/original');
+  const originalUrl = await uploadBuffer(req.file.buffer, 'essays/original', req.file.mimetype);
       update.originalUrl = originalUrl;
       update.originalMimeType = req.file.mimetype || 'application/pdf';
     }
@@ -257,7 +260,7 @@ async function gradeEssay(req, res) {
 
     let correctedUrl = essay.correctedUrl;
     if (req.file) {
-      correctedUrl = await uploadBuffer(req.file.buffer, 'essays/corrected');
+      correctedUrl = await uploadBuffer(req.file.buffer, 'essays/corrected', req.file.mimetype || 'application/pdf');
     }
 
     let rawScore = null;
@@ -439,7 +442,7 @@ async function renderCorrection(req, res) {
   // thumbnailsCount opcional, padrão 2, limitado a 1..2 para caber na primeira folha
   const thumbnailsCount = Math.max(1, Math.min(2, Number(req.body.thumbnailsCount || 2)));
   const pdfBuffer = await renderEssayCorrectionPdf({ essay, student, classInfo, themeName, thumbnailsCount });
-    const correctedUrl = await uploadBuffer(pdfBuffer, 'essays/corrected');
+    const correctedUrl = await uploadBuffer(pdfBuffer, 'essays/corrected', 'application/pdf');
 
     essay.correctedUrl = correctedUrl;
     await essay.save();
