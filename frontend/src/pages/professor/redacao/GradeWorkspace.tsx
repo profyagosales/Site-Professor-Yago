@@ -60,6 +60,9 @@ export default function GradeWorkspace() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [iframeError, setIframeError] = useState<string | null>(null);
+  // URL segura do PDF (same-origin)
+  const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+  const secureFileUrl = (essay?._id || essay?.id) ? `${apiBase}/api/essays/${essay._id || essay.id}/file` : null;
 
   useEffect(() => {
     let alive = true;
@@ -377,9 +380,9 @@ export default function GradeWorkspace() {
       <div className="grid md:grid-cols-2 gap-4">
         <div className="min-h-[420px] overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#F9FAFB]">
           {/* PDF inline obrigatório */}
-          {fileUrl ? (
+          {secureFileUrl ? (
             <PdfAnnotator
-              fileSrc={fileUrl}
+              fileSrc={secureFileUrl}
               essayId={(essay as any)._id || (essay as any).id}
               palette={[
                 { key:'apresentacao', label:'Apresentação',          color:'#f97316', rgba:'rgba(249,115,22,0.60)' },
