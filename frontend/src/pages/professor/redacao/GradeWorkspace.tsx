@@ -60,9 +60,28 @@ export default function GradeWorkspace() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [iframeError, setIframeError] = useState<string | null>(null);
-  // URL segura do PDF (same-origin)
+  // URL segura do PDF (com assinatura curta)
   const apiBase = import.meta.env.VITE_API_BASE_URL || '';
-  const secureFileUrl = (essay?._id || essay?.id) ? `${apiBase}/api/essays/${essay._id || essay.id}/file` : null;
+  const [fileUrlSigned, setFileUrlSigned] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    let active = true;
+    async function fetchSigned() {
+      const eId = (essay as any)?._id || (essay as any)?.id;
+      if (!eId) return;
+      try {
+        const res = await fetch(`${apiBase}/api/essays/${eId}/file-signed`, { credentials: 'include' });
+        if (!res.ok) throw new Error(`file-signed ${res.status}`);
+        const data = await res.json();
+        if (active) setFileUrlSigned(data.url);
+      } catch (e) {
+        console.error('file-signed error, fallback to cookie URL', e);
+        if (active) setFileUrlSigned(`${apiBase}/api/essays/${eId}/file`);
+      }
+    }
+    fetchSigned();
+    return () => { active = false; };
+  }, [apiBase, (essay as any)?._id, (essay as any)?.id]);
 
   useEffect(() => {
     let alive = true;
@@ -273,7 +292,7 @@ export default function GradeWorkspace() {
         await gradeEssay(essay._id || essay.id, {
           essayType: 'ENEM',
           weight: Number(weight)||1,
-          annulmentReason: annulReason || undefined,
+          annul: Boolean(annulReason),
           countInBimestral,
           bimestralPointsValue: Number(bimestralValue)||0,
           enemCompetencies: { c1: Number(c1), c2: Number(c2), c3: Number(c3), c4: Number(c4), c5: Number(c5) },
@@ -283,7 +302,7 @@ export default function GradeWorkspace() {
         await gradeEssay(essay._id || essay.id, {
           essayType: 'PAS',
           weight: Number(weight)||1,
-          annulmentReason: annulReason || undefined,
+          annul: Boolean(annulReason),
           countInBimestral,
           bimestralPointsValue: Number(bimestralValue)||0,
           pas: { NC: Number(NC), NL: Number(NL) },
@@ -380,9 +399,9 @@ export default function GradeWorkspace() {
       <div className="grid md:grid-cols-2 gap-4">
         <div className="min-h-[420px] overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#F9FAFB]">
           {/* PDF inline obrigatório */}
-          {secureFileUrl ? (
+          {fileUrlSigned ? (
             <PdfAnnotator
-              fileSrc={secureFileUrl}
+              fileSrc={fileUrlSigned}
               essayId={(essay as any)._id || (essay as any).id}
               palette={[
                 { key:'apresentacao', label:'Apresentação',          color:'#f97316', rgba:'rgba(249,115,22,0.60)' },
@@ -471,7 +490,7 @@ export default function GradeWorkspace() {
           ) : (
             <AnnotationEditor
               value={annotations}
-              onChange={setAnnotations}
+              onChange={(next:any)=> setAnnotations(next as any)}
               focusIndex={lastAddedIndex}
               selectedIndex={selectedIndex}
               currentPage={currentPage}

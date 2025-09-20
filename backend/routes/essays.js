@@ -1,6 +1,8 @@
 const express = require('express');
-const auth = require('../middleware/auth');
-const { authRequired, authOptional } = auth;
+// Import robusto do middleware de auth
+const authMod = require('../middleware/auth');
+const authRequired = typeof authMod === 'function' ? authMod : authMod.authRequired;
+const authOptional = authMod.authOptional || ((req, res, next) => next());
 const {
   upload,
   getThemes,
