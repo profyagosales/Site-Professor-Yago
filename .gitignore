@@ -14,3 +14,6 @@ frontend/dist/
 # Cobertura (não versionar)
 api/coverage/
 coverage/
+
+# Backups/artefatos temporários
+frontend/vite.config.js.bak.*
