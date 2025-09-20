@@ -1,44 +1,37 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import path from 'node:path';
+import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    dedupe: ['react', 'react-dom'],
+    preserveSymlinks: true,
     alias: {
-      '@': path.resolve(__dirname, 'src'),
-      warning: path.resolve(__dirname, 'src/shims/warning.js'),
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      react: fileURLToPath(new URL('./node_modules/react', import.meta.url)),
+      'react-dom': fileURLToPath(new URL('./node_modules/react-dom', import.meta.url)),
+    },
+  },
+  build: {
+    modulePreload: { polyfill: false },
+    rollupOptions: {
+      treeshake: {
+        moduleSideEffects: (id) => (/pdfjs-dist/).test(id) ? false : null,
+      },
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (/(^|\/)(react|react-dom|react-router)(\/|$)/.test(id)) {
+              return 'vendor';
+            }
+          }
+        },
+      },
+      // workaround: evitar resolução fora do workspace por symlink
+      external: [],
     },
   },
   optimizeDeps: {
-    // não pré-bundle as libs de PDF; elas virão só no import dinâmico
     exclude: ['react-pdf', 'react-pdf-highlighter', 'pdfjs-dist', 'react-konva', 'konva'],
-  },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('react-pdf') || id.includes('pdfjs-dist') || id.includes('pdf-lib')) return 'pdf'
-          if (id.includes('react-konva') || id.includes('konva')) return 'konva'
-          if (id.includes('node_modules')) return 'vendor'
-        },
-      },
-    },
-    modulePreload: false, // evita pré-carregar chunks de PDF na home
-    commonjsOptions: { transformMixedEsModules: true },
-    chunkSizeWarningLimit: 1200,
-  },
-  server: {
-    proxy: {
-      '/api': {
-  // Durante dev, proxy para o backend local. Pode ser sobrescrito por VITE_API_URL.
-  target: process.env.VITE_API_URL || 'http://localhost:5050',
-        changeOrigin: true,
-  // Não reescreve o prefixo, já que o backend usa /api como prefixo padrão
-  // mantendo o caminho intacto para evitar confusões de cabeçalhos
-  // rewrite: (p) => p.replace(/^\/api/, ''),
-      },
-    },
   },
 });

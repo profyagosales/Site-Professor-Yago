@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { pasPreviewFrom } from '@/utils/pas';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchEssayById, gradeEssay, saveAnnotations, renderCorrection } from '@/services/essays.service';
@@ -7,7 +7,8 @@ import AnnotationEditorRich from '@/components/redacao/AnnotationEditorRich';
 import type { Highlight } from '@/components/redacao/types';
 import type { Anno } from '@/types/annotations';
 import { toast } from 'react-toastify';
-import PdfAnnotator from "@/components/redacao/PdfAnnotator";
+// Importante: carregar o PdfAnnotator de forma lazy para evitar vincular o chunk de PDF ao chunk da rota
+const LazyPdfAnnotator = React.lazy(() => import(/* @vite-ignore */ '@/components/redacao/PdfAnnotator'));
 import { updateEssayAnnotations } from '@/services/essays.service';
 
 const useRich = import.meta.env.VITE_USE_RICH_ANNOS === '1' || import.meta.env.VITE_USE_RICH_ANNOS === 'true';
@@ -444,18 +445,20 @@ export default function GradeWorkspace() {
         <div className="min-h-[420px] overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#F9FAFB]">
           {/* PDF inline obrigatório */}
           {fileUrlSigned ? (
-            <PdfAnnotator
-              fileSrc={fileUrlSigned}
-              essayId={(essay as any)._id || (essay as any).id}
-              palette={[
-                { key:'apresentacao', label:'Apresentação',          color:'#f97316', rgba:'rgba(249,115,22,0.60)' },
-                { key:'ortografia',   label:'Ortografia/gramática',  color:'#22c55e', rgba:'rgba(34,197,94,0.60)'  },
-                { key:'argumentacao', label:'Argumentação/estrutura',color:'#eab308', rgba:'rgba(234,179,8,0.60)'  },
-                { key:'comentario',   label:'Comentário geral',      color:'#ef4444', rgba:'rgba(239,68,68,0.60)'  },
-                { key:'coesao',       label:'Coesão/coerência',      color:'#0ea5e9', rgba:'rgba(14,165,233,0.60)' },
-              ]}
-              onChange={(list)=> { setRichAnnos(list as any); debouncedSaveRich(list as any); }}
-            />
+            <Suspense fallback={<div className="p-4 text-sm text-ys-ink-2">Carregando visualizador…</div>}>
+              <LazyPdfAnnotator
+                fileSrc={fileUrlSigned}
+                essayId={(essay as any)._id || (essay as any).id}
+                palette={[
+                  { key:'apresentacao', label:'Apresentação',          color:'#f97316', rgba:'rgba(249,115,22,0.60)' },
+                  { key:'ortografia',   label:'Ortografia/gramática',  color:'#22c55e', rgba:'rgba(34,197,94,0.60)'  },
+                  { key:'argumentacao', label:'Argumentação/estrutura',color:'#eab308', rgba:'rgba(234,179,8,0.60)'  },
+                  { key:'comentario',   label:'Comentário geral',      color:'#ef4444', rgba:'rgba(239,68,68,0.60)'  },
+                  { key:'coesao',       label:'Coesão/coerência',      color:'#0ea5e9', rgba:'rgba(14,165,233,0.60)' },
+                ]}
+                onChange={(list)=> { setRichAnnos(list as any); debouncedSaveRich(list as any); }}
+              />
+            </Suspense>
           ) : (
             <div className="p-4 text-sm text-ys-ink-2">Carregando PDF…</div>
           )}
