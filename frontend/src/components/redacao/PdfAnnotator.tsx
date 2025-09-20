@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Stage, Layer, Rect, Line, Group, Text } from "react-konva";
 import type { RectConfig } from "konva/lib/shapes/Rect";
 import type { LineConfig } from "konva/lib/shapes/Line";
 import { nanoid } from "nanoid";
@@ -48,6 +47,21 @@ export default function PdfAnnotator({
         if (active) setRP(m);
       } catch (e) {
         console.error("Falha ao carregar react-pdf", e);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
+  // Carrega react-konva de forma lazy
+  const [RK, setRK] = useState<null | typeof import("react-konva")>(null);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const m = await import("react-konva");
+        if (active) setRK(m);
+      } catch (e) {
+        console.error("Falha ao carregar react-konva", e);
       }
     })();
     return () => { active = false; };
@@ -204,7 +218,13 @@ export default function PdfAnnotator({
     return <div className="p-4 text-muted-foreground">Carregando visualizador…</div>;
   }
 
+  // Enquanto o react-konva não carrega, mostra placeholder
+  if (!RK) {
+    return <div className="p-4 text-muted-foreground">Carregando ferramentas…</div>;
+  }
+
   const { Document, Page } = RP;
+  const { Stage, Layer, Rect, Line, Group, Text } = RK;
 
   return (
     <div className="flex flex-col h-full">
