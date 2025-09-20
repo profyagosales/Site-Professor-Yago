@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Document, Page, pdfjs } from "react-pdf";
 import { Stage, Layer, Rect, Line, Text, Group } from "react-konva";
 import { nanoid } from "nanoid";
 
-pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
+// IMPORTANTE:
+// Não importar 'react-pdf' no topo. Vamos carregar dinamicamente dentro do componente
+// para evitar que o chunk 'pdf-*.js' execute antes do vendor (React) e derrube o app.
 
 export type PaletteItem = { key:string; label:string; color:string; rgba:string; };
 type RectNorm = { x:number; y:number; w:number; h:number };
@@ -33,6 +34,22 @@ export default function PdfAnnotator({
   palette: PaletteItem[];
   onChange?: (annos: AnnHighlight[]) => void;
 }) {
+  // Carrega react-pdf de forma lazy
+  const [RP, setRP] = useState<any>(null);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const m = await import("react-pdf");
+        // Configura o worker após carregar o módulo
+        m.pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
+        if (active) setRP(m);
+      } catch (e) {
+        console.error("Falha ao carregar react-pdf", e);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
   const [numPages, setNumPages] = useState<number>(0);
   const [scale, setScale] = useState(1);
   const [tool, setTool] = useState<"highlight"|"strike"|"box"|"pen"|"comment">("highlight");
@@ -179,6 +196,13 @@ export default function PdfAnnotator({
       </Stage>
     );
   }
+
+  // Enquanto o react-pdf não carrega, mostra placeholder
+  if (!RP) {
+    return <div className="p-4 text-muted-foreground">Carregando visualizador…</div>;
+  }
+
+  const { Document, Page } = RP;
 
   return (
     <div className="flex flex-col h-full">
