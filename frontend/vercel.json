@@ -4,7 +4,6 @@
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "https://api.professoryagosales.com.br/api/$1" },
-  { "source": "/pdf.worker.min.js", "destination": "/pdf.worker.min.js" },
     { "source": "/viewer/(.*)", "destination": "/viewer/$1" },
     { "source": "/(.*)", "destination": "/" }
   ]
