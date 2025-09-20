@@ -1,16 +1,13 @@
 const fs = require('fs');
 const path = require('path');
 
-const dst = path.resolve(__dirname, '../public/pdf.worker.mjs');
-const possible = [
-  path.resolve(__dirname, '../node_modules/pdfjs-dist/build/pdf.worker.min.mjs'),
-  path.resolve(__dirname, '../../node_modules/pdfjs-dist/build/pdf.worker.min.mjs')
-];
-const src = possible.find(fs.existsSync);
-if (!src) {
-  console.error('pdf.worker.min.mjs não encontrado');
+// Use o worker legacy UMD para evitar erros de "export" em ambientes que não suportam módulos em workers
+const src = path.join(__dirname, '..', 'node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.worker.min.js');
+const dst = path.resolve(__dirname, '..', 'public', 'pdf.worker.min.js');
+if (!fs.existsSync(src)) {
+  console.error('legacy pdf.worker.min.js não encontrado em', src);
   process.exit(1);
 }
 fs.mkdirSync(path.dirname(dst), { recursive: true });
 fs.copyFileSync(src, dst);
-console.log('pdf.worker.mjs copiado para public/');
+console.log('Copied legacy pdf.worker.min.js to public/');
