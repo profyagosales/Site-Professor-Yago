@@ -6,6 +6,8 @@
   "scripts": {
     "prebuild:guard-react-pdf": "bash -lc \"! grep -RIn --exclude-dir=node_modules -E \\\"from ['\\\\\\\"]react-pdf['\\\\\\\"]|require\\\\\\(['\\\\\\\"]react-pdf['\\\\\\\"]\\\\\\)\\\" frontend/src || (echo '[GUARD] Import estático de react-pdf encontrado. Use import() dinâmico.' >&2; exit 1)\"",
     "build": "npm run prebuild:guard-react-pdf && npm --workspace frontend run build",
-    "dev": "npm --workspace frontend run dev"
+    "dev": "npm --workspace frontend run dev",
+    "preview:start": "bash scripts/start_preview.sh",
+    "preview:stop": "bash scripts/stop_preview.sh"
   }
 }
