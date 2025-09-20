@@ -21,6 +21,13 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
+            // Separe explicitamente os pacotes pesados em chunks nomeados
+            if (/(^|\/)react-pdf(\/|$)|pdfjs-dist|react-pdf-highlighter/.test(id)) {
+              return 'pdf';
+            }
+            if (/(^|\/)(react-konva|konva)(\/|$)/.test(id)) {
+              return 'konva';
+            }
             if (/(^|\/)(react|react-dom|react-router)(\/|$)/.test(id)) {
               return 'vendor';
             }

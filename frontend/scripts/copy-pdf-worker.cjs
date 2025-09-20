@@ -1,26 +1,45 @@
 #!/usr/bin/env node
+// Copia o worker do pdfjs-dist para public/ aceitando ESM (.mjs) e UMD (.js)
 const fs = require('fs');
 const path = require('path');
+
 const root = path.resolve(__dirname, '..');
-const nm = (p) => path.join(root, 'node_modules', 'pdfjs-dist', p);
-const candidates = [
-  'legacy/build/pdf.worker.min.js',
-  'build/pdf.worker.min.js',
-  'legacy/build/pdf.worker.js',
-  'build/pdf.worker.js',
+const nm = (...p) => path.join(root, 'node_modules', ...p);
+
+const candidatesMjs = [
+  ['pdfjs-dist','build','pdf.worker.min.mjs'],
+  ['pdfjs-dist','build','pdf.worker.mjs'],
+];
+const candidatesUmd = [
+  ['pdfjs-dist','legacy','build','pdf.worker.min.js'],
+  ['pdfjs-dist','build','pdf.worker.min.js'],
+  ['pdfjs-dist','build','pdf.worker.js'],
 ];
 
-const outDir = path.join(root, 'public');
-const outFile = path.join(outDir, 'pdf.worker.min.js');
-fs.mkdirSync(outDir, { recursive: true });
-
-const src = candidates.map(nm).find((p) => fs.existsSync(p));
-if (!src) {
-  const mjs = [nm('build/pdf.worker.min.mjs'), nm('build/pdf.worker.mjs')].find(fs.existsSync);
-  if (mjs) {
-    console.error('Só encontrei ESM (mjs). Considere bundlar com ?worker&url.');
+const firstExisting = (arr) => {
+  for (const parts of arr) {
+    const p = nm(...parts);
+    if (fs.existsSync(p)) return p;
   }
-  throw new Error('Nenhum pdf.worker(.min).js encontrado em pdfjs-dist');
+  return null;
+};
+
+const mjsSrc = firstExisting(candidatesMjs);
+const umdSrc = firstExisting(candidatesUmd);
+
+fs.mkdirSync(path.join(root, 'public'), { recursive: true });
+
+if (mjsSrc) {
+  fs.copyFileSync(mjsSrc, path.join(root, 'public', 'pdf.worker.min.mjs'));
+  console.error(`[copy-pdf-worker] Copiado ESM: ${mjsSrc}`);
 }
-fs.copyFileSync(src, outFile);
-console.log(`pdf.js worker copiado: ${path.relative(root, src)} -> ${path.relative(root, outFile)}`);
+if (umdSrc) {
+  fs.copyFileSync(umdSrc, path.join(root, 'public', 'pdf.worker.min.js'));
+  console.error(`[copy-pdf-worker] Copiado UMD: ${umdSrc}`);
+}
+
+// Não aborta o build se não achar (alguns ambientes só terão um dos formatos)
+if (!mjsSrc && !umdSrc) {
+  console.error('[copy-pdf-worker] Aviso: nenhum worker encontrado em pdfjs-dist');
+  process.exit(0);
+}

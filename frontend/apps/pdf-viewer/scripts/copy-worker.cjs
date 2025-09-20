@@ -1,8 +1,17 @@
 const fs = require('fs');
 const path = require('path');
 
-const src = require.resolve('pdfjs-dist/legacy/build/pdf.worker.min.js');
-const dest = path.resolve(__dirname, '..', 'public', 'pdf.worker.min.js');
-fs.mkdirSync(path.dirname(dest), { recursive: true });
-fs.copyFileSync(src, dest);
-console.log('copied legacy pdf.worker.min.js');
+const root = path.resolve(__dirname, '..');
+const nm = (...p) => require.resolve(path.join('pdfjs-dist', ...p));
+fs.mkdirSync(path.join(root, 'public'), { recursive: true });
+
+try {
+	const esm = nm('build/pdf.worker.min.mjs');
+	fs.copyFileSync(esm, path.join(root, 'public', 'pdf.worker.min.mjs'));
+	console.error('[viewer] Copiado ESM worker');
+} catch {}
+try {
+	const umd = nm('legacy/build/pdf.worker.min.js');
+	fs.copyFileSync(umd, path.join(root, 'public', 'pdf.worker.min.js'));
+	console.error('[viewer] Copiado UMD worker');
+} catch {}
