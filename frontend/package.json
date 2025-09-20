@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node -e \"require('fs').existsSync('public/pdf.worker.min.js')||process.exit(2)\" && echo worker OK",
     "build": "vite build && npm run build:viewer",
     "build:viewer": "node apps/pdf-viewer/scripts/copy-worker.cjs && vite build --config apps/pdf-viewer/vite.config.ts --outDir dist/viewer",
     "vercel-build": "npm ci --legacy-peer-deps || npm install --legacy-peer-deps && npm run build",

@@ -42,8 +42,8 @@ export default function PdfAnnotator({
     (async () => {
       try {
   const m = await import(/* @vite-ignore */ "react-pdf");
-        // Configura o worker após carregar o módulo
-        m.pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
+    // Configura o worker após carregar o módulo (legacy UMD copiado em public/)
+    m.pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
         if (active) setRP(m);
       } catch (e) {
         console.error("Falha ao carregar react-pdf", e);

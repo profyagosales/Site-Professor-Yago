@@ -1,7 +1,7 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { pasPreviewFrom } from '@/utils/pas';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchEssayById, gradeEssay, saveAnnotations, renderCorrection } from '@/services/essays.service';
+import { fetchEssayById, gradeEssay, saveAnnotations, renderCorrection, getEssayFileUrl } from '@/services/essays.service';
 import AnnotationEditor from '@/components/redacao/AnnotationEditor';
 import AnnotationEditorRich from '@/components/redacao/AnnotationEditorRich';
 import type { Highlight } from '@/components/redacao/types';
@@ -63,27 +63,23 @@ export default function GradeWorkspace() {
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [iframeError, setIframeError] = useState<string | null>(null);
   // URL segura do PDF (com assinatura curta)
-  const apiBase = import.meta.env.VITE_API_BASE_URL || '';
   const [fileUrlSigned, setFileUrlSigned] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     let active = true;
-    async function fetchSigned() {
+    (async () => {
       const eId = (essay as any)?._id || (essay as any)?.id;
       if (!eId) return;
       try {
-        const res = await fetch(`${apiBase}/api/essays/${eId}/file-signed`, { credentials: 'include' });
-        if (!res.ok) throw new Error(`file-signed ${res.status}`);
-        const data = await res.json();
-        if (active) setFileUrlSigned(data.url);
+        const url = await getEssayFileUrl(String(eId));
+        if (active) setFileUrlSigned(url);
       } catch (e) {
-        console.error('file-signed error, fallback to cookie URL', e);
-        if (active) setFileUrlSigned(`${apiBase}/api/essays/${eId}/file`);
+        console.error('getEssayFileUrl failed', e);
+        if (active) setFileUrlSigned(`/api/essays/${eId}/file`);
       }
-    }
-    fetchSigned();
+    })();
     return () => { active = false; };
-  }, [apiBase, (essay as any)?._id, (essay as any)?.id]);
+  }, [(essay as any)?._id, (essay as any)?.id]);
 
   // Debounce simples 600ms para autosave de anotações ricas
   function useDebounce<T extends (...a:any[])=>any>(fn:T, ms:number) {
@@ -278,20 +274,13 @@ export default function GradeWorkspace() {
     return () => { clearTimeout(debounce); clearTimeout(safety); };
   }, [dirty, essay, annotations, richAnnos, useNewAnnotator]);
 
-  // obter token curto para o viewer em iframe
+  // obter URL curta para o viewer em iframe (sem query gigante)
   useEffect(() => {
     if (!id || !useIframe) return;
     (async () => {
       try {
-        const res = await fetch('/api/file-token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ essayId: id }),
-          credentials: 'include',
-        });
-        if (!res.ok) throw new Error('token');
-        const { token } = await res.json();
-        setFileUrl(`/api/essays/${id}/file?token=${token}`);
+        const url = await getEssayFileUrl(String(id));
+        setFileUrl(url);
       } catch (e) {
         setIframeError('Falha ao carregar PDF');
       }

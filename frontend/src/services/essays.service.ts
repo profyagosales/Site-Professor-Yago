@@ -162,6 +162,24 @@ export async function sendCorrectionEmail(id: string) {
   return res.data;
 }
 
+// Obtém URL curta e segura para o PDF da redação
+// Estratégia: tenta emitir JWT curto em /essays/:id/file-token; se 404, cai para URL assinada curta /essays/:id/file-signed
+export async function getEssayFileUrl(essayId: string): Promise<string> {
+  try {
+    const r = await api.post(`/essays/${essayId}/file-token`);
+    const token = r.data?.token || r.data?.accessToken;
+    if (token) return `/api/essays/${essayId}/file?token=${encodeURIComponent(token)}`;
+  } catch (err: any) {
+    const status = err?.response?.status;
+    if (status && status !== 404) throw err;
+  }
+  const signed = await api.get(`/essays/${essayId}/file-signed`);
+  const url = signed.data?.url || signed.data;
+  if (typeof url === 'string' && url) return url;
+  // Fallback final: cookie-protected streaming
+  return `/api/essays/${essayId}/file`;
+}
+
 // Atualiza anotações ricas da redação
 // Aceita payload com `rich` (legado) ou `richAnnotations` e envia o campo esperado pelo backend
 export async function updateEssayAnnotations(

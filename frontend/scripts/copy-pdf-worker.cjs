@@ -1,16 +1,26 @@
+#!/usr/bin/env node
 const fs = require('fs');
 const path = require('path');
-
-const dst = path.resolve(__dirname, '../public/pdf.worker.mjs');
-const possible = [
-  path.resolve(__dirname, '../node_modules/pdfjs-dist/build/pdf.worker.min.mjs'),
-  path.resolve(__dirname, '../../node_modules/pdfjs-dist/build/pdf.worker.min.mjs')
+const root = path.resolve(__dirname, '..');
+const nm = (p) => path.join(root, 'node_modules', 'pdfjs-dist', p);
+const candidates = [
+  'legacy/build/pdf.worker.min.js',
+  'build/pdf.worker.min.js',
+  'legacy/build/pdf.worker.js',
+  'build/pdf.worker.js',
 ];
-const src = possible.find(fs.existsSync);
+
+const outDir = path.join(root, 'public');
+const outFile = path.join(outDir, 'pdf.worker.min.js');
+fs.mkdirSync(outDir, { recursive: true });
+
+const src = candidates.map(nm).find((p) => fs.existsSync(p));
 if (!src) {
-  console.error('pdf.worker.min.mjs não encontrado');
-  process.exit(1);
+  const mjs = [nm('build/pdf.worker.min.mjs'), nm('build/pdf.worker.mjs')].find(fs.existsSync);
+  if (mjs) {
+    console.error('Só encontrei ESM (mjs). Considere bundlar com ?worker&url.');
+  }
+  throw new Error('Nenhum pdf.worker(.min).js encontrado em pdfjs-dist');
 }
-fs.mkdirSync(path.dirname(dst), { recursive: true });
-fs.copyFileSync(src, dst);
-console.log('pdf.worker.mjs copiado para public/');
+fs.copyFileSync(src, outFile);
+console.log(`pdf.js worker copiado: ${path.relative(root, src)} -> ${path.relative(root, outFile)}`);
