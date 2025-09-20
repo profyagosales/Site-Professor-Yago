@@ -12,6 +12,7 @@
     "test": "jest",
     "lint": "eslint src --max-warnings=0",
     "postinstall": "node ./scripts/copy-pdf-worker.cjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
   "check:pdf-imports": "grep -R 'react-pdf\\|pdfjs-dist\\|react-pdf-highlighter' src | grep -v 'PdfHighlighter.tsx' | grep -v 'PdfAnnotator.tsx' && (echo '\n❌ Encontrado import estático de PDF' && exit 1) || echo 'OK'"
   },
   "dependencies": {
