@@ -6,6 +6,8 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     preserveSymlinks: true,
+    // Garanta uma única instância de React/ReactDOM em todos os chunks
+    dedupe: ['react', 'react-dom'],
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
       react: fileURLToPath(new URL('./node_modules/react', import.meta.url)),
@@ -24,9 +26,6 @@ export default defineConfig({
             // Separe explicitamente os pacotes pesados em chunks nomeados
             if (/(^|\/)react-pdf(\/|$)|pdfjs-dist|react-pdf-highlighter/.test(id)) {
               return 'pdf';
-            }
-            if (/(^|\/)(react-konva|konva)(\/|$)/.test(id)) {
-              return 'konva';
             }
             if (/(^|\/)(react|react-dom|react-router)(\/|$)/.test(id)) {
               return 'vendor';
