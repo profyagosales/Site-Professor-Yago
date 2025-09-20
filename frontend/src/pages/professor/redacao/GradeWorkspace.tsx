@@ -156,6 +156,31 @@ export default function GradeWorkspace() {
   }, [id]);
 
   const enemTotal = useMemo(() => [c1,c2,c3,c4,c5].map(Number).reduce((a,b)=>a+(isNaN(b)?0:b),0), [c1,c2,c3,c4,c5]);
+  // NE automático a partir de anotações ricas: nº de highlights da categoria "ortografia"
+  const NE = useMemo(() => {
+    try {
+      return (Array.isArray(richAnnos) ? richAnnos : []).filter((a:any) => a?.type === 'highlight' && a?.category === 'ortografia').length;
+    } catch { return 0; }
+  }, [richAnnos]);
+  // PAS: NR = max(0, NC - 2*NE/NL)
+  const pasNR = useMemo(() => {
+    const nc = Number(NC) || 0;
+    const nl = Math.max(1, Number(NL) || 1);
+    return Math.max(0, nc - (2 * NE) / nl);
+  }, [NC, NL, NE]);
+  // Nota bruta considerando anulação
+  const rawScore = useMemo(() => {
+    if (annulReason) return 0;
+    return essay?.type === 'ENEM' ? enemTotal : pasNR;
+  }, [annulReason, enemTotal, pasNR, essay?.type]);
+  // Escala por tipo (ENEM: 1000, PAS: 10)
+  const scaleMax = useMemo(() => (essay?.type === 'ENEM' ? 1000 : 10), [essay?.type]);
+  // Valor bimestral computado (normalizado), respeitando o toggle
+  const computedBimester = useMemo(() => {
+    if (!countInBimestral) return 0;
+    const v = Number(bimestralValue) || 1;
+    return (rawScore / scaleMax) * v;
+  }, [countInBimestral, bimestralValue, rawScore, scaleMax]);
   const [forceAnnotator, setForceAnnotator] = useState<null | 'rich' | 'legacy'>(null);
   const useNewAnnotator = forceAnnotator ? forceAnnotator === 'rich' : Boolean((window as any).YS_USE_RICH_ANNOS);
   const pasPreview = useMemo(() => {
@@ -483,7 +508,7 @@ export default function GradeWorkspace() {
                   <input type="number" min={1} value={NL} onChange={e=> setNL(e.target.value)} className="w-full rounded border p-2" />
                 </div>
               </div>
-              <p className="text-sm text-ys-ink-2">Prévia PAS: nota <span className="font-medium text-[#111827]">{pasPreview.raw}</span>/10 • bimestral <span className="font-medium text-[#111827]">{pasPreview.scaled}</span> / {weight} • NE: <span className="font-medium text-[#111827]">{neCount}</span></p>
+              <p className="text-sm text-ys-ink-2">Prévia PAS: nota <span className="font-medium text-[#111827]">{pasNR.toFixed(2)}</span>/10 • bimestral <span className="font-medium text-[#111827]">{computedBimester.toFixed(2)}</span> / {bimestralValue} • NE: <span className="font-medium text-[#111827]">{NE}</span></p>
             </div>
           )}
 
