@@ -10,8 +10,7 @@ export default defineConfig({
     dedupe: ['react', 'react-dom'],
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
-      react: fileURLToPath(new URL('./node_modules/react', import.meta.url)),
-      'react-dom': fileURLToPath(new URL('./node_modules/react-dom', import.meta.url)),
+      // Evite alias diretos para react/react-dom para não quebrar a resolução em dependências
     },
   },
   build: {
@@ -27,7 +26,7 @@ export default defineConfig({
             if (/(^|\/)react-pdf(\/|$)|pdfjs-dist|react-pdf-highlighter/.test(id)) {
               return 'pdf';
             }
-            if (/(^|\/)(react|react-dom|react-router)(\/|$)/.test(id)) {
+            if (/(^|\/)(react|react-dom|react-router)(\/|$)|react\/jsx-runtime/.test(id)) {
               return 'vendor';
             }
           }
