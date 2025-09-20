@@ -163,13 +163,22 @@ export async function sendCorrectionEmail(id: string) {
 }
 
 // Atualiza anotações ricas da redação
-export async function updateEssayAnnotations(essayId: string, payload: { rich: any[] }) {
+// Aceita payload com `rich` (legado) ou `richAnnotations` e envia o campo esperado pelo backend
+export async function updateEssayAnnotations(
+  essayId: string,
+  payload: { rich?: any[]; richAnnotations?: any[] }
+) {
   const base = import.meta.env.VITE_API_BASE_URL || "";
+  const body: any = {};
+  if (Array.isArray(payload.richAnnotations)) body.richAnnotations = payload.richAnnotations;
+  else if (Array.isArray(payload.rich)) body.richAnnotations = payload.rich;
+  else body.richAnnotations = [];
+
   const res = await fetch(`${base}/api/essays/${essayId}/annotations`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`updateEssayAnnotations ${res.status}`);
   return await res.json().catch(() => ({}));
