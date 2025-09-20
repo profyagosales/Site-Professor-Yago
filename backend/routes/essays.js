@@ -48,7 +48,8 @@ router.post('/:id/file-token', authRequired, fileController.issueFileToken);
 router.head('/:id/file', authOptional, async (req, res, next) => {
   try {
     const token = readBearer(req);
-    await fileController.authorizeFileAccess({ essayId: req.params.id, token, user: req.user });
+    const shortToken = req.query.s;
+    await fileController.authorizeFileAccess({ essayId: req.params.id, token, shortToken, user: req.user });
     const meta = await fileController.getFileMeta(req.params.id);
     res.set({
       'Accept-Ranges': 'bytes',
@@ -64,10 +65,14 @@ router.head('/:id/file', authOptional, async (req, res, next) => {
 router.get('/:id/file', authOptional, async (req, res, next) => {
   try {
     const token = readBearer(req);
-    await fileController.authorizeFileAccess({ essayId: req.params.id, token, user: req.user });
+    const shortToken = req.query.s;
+    await fileController.authorizeFileAccess({ essayId: req.params.id, token, shortToken, user: req.user });
     await fileController.streamFile(req, res, req.params.id);
   } catch (err) { next(err); }
 });
 router.post('/:id/send-email', authRequired, sendCorrectionEmail);
+
+// URL assinada curta para PDF (TTL configurado)
+router.get('/:id/file-signed', authRequired, fileController.getSignedFileUrl);
 
 module.exports = router;

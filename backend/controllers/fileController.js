@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { FILE_TOKEN_SECRET, FILE_TOKEN_TTL_SECONDS } = require('../config');
 const Essay = require('../models/Essay');
 const https = require('https');
@@ -23,6 +24,33 @@ function readRemoteHead(url) {
   });
 }
 
+// --- Token curto para PDF inline (HMAC: id.exp.sig) ---
+function signFileShortToken(essayId, ttlSec = FILE_TOKEN_TTL_SECONDS) {
+  const exp = Math.floor(Date.now() / 1000) + (ttlSec || 300);
+  const payload = `${essayId}.${exp}`;
+  const sig = crypto.createHmac('sha256', FILE_TOKEN_SECRET).update(payload).digest('hex');
+  return `${payload}.${sig}`;
+}
+
+function verifyFileShortToken(token, essayId) {
+  try {
+    const parts = String(token || '').split('.');
+    if (parts.length !== 3) return false;
+    const [id, expStr, sig] = parts;
+    if (String(id) !== String(essayId)) return false;
+    const exp = parseInt(expStr, 10);
+    if (!exp || exp < Math.floor(Date.now() / 1000)) return false;
+    const base = `${id}.${exp}`;
+    const expected = crypto.createHmac('sha256', FILE_TOKEN_SECRET).update(base).digest('hex');
+    const a = Buffer.from(sig);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch (e) {
+    return false;
+  }
+}
+
 exports.issueFileToken = async function issueFileToken(req, res) {
   const essay = await Essay.findById(req.params.id).lean();
   if (!essay) throw Object.assign(new Error('not found'), { status: 404 });
@@ -35,9 +63,15 @@ exports.issueFileToken = async function issueFileToken(req, res) {
   res.json({ token, ttl: FILE_TOKEN_TTL_SECONDS });
 };
 
-exports.authorizeFileAccess = async function authorizeFileAccess({ essayId, token, user }) {
+exports.authorizeFileAccess = async function authorizeFileAccess({ essayId, token, user, shortToken }) {
   const essay = await Essay.findById(essayId).lean();
   if (!essay) throw Object.assign(new Error('not found'), { status: 404 });
+  // Short token (query s=...)
+  if (shortToken) {
+    const ok = verifyFileShortToken(shortToken, essayId);
+    if (ok) return true;
+    throw Object.assign(new Error('invalid token'), { status: 401 });
+  }
   if (token) {
     try {
       const payload = jwt.verify(token, FILE_TOKEN_SECRET);
@@ -97,4 +131,25 @@ exports.streamFile = async function streamFile(req, res, essayId) {
   });
   upReq.on('error', () => res.status(502).end());
   upReq.end();
+};
+
+// GET /api/essays/:id/file-signed -> { url, ttl }
+exports.getSignedFileUrl = async function getSignedFileUrl(req, res) {
+  try {
+    const { id } = req.params;
+    // Requer autenticação normal do usuário para emitir URL assinada
+    const essay = await Essay.findById(id).lean();
+    if (!essay) throw Object.assign(new Error('not found'), { status: 404 });
+    await assertUserCanAccessEssay(req.user, essay);
+
+    const token = signFileShortToken(id, FILE_TOKEN_TTL_SECONDS || 300);
+    const base = process.env.APP_DOMAIN_API || process.env.API_BASE_URL || '';
+    const urlBase = base || '';
+    const url = `${urlBase}/api/essays/${id}/file?s=${encodeURIComponent(token)}`;
+    res.json({ url, ttl: FILE_TOKEN_TTL_SECONDS || 300 });
+  } catch (e) {
+    const status = e.status || 500;
+    if (status >= 500) console.error('getSignedFileUrl error', e);
+    res.status(status).json({ error: e.message || 'Falha ao assinar URL' });
+  }
 };
