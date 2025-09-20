@@ -162,4 +162,17 @@ export async function sendCorrectionEmail(id: string) {
   return res.data;
 }
 
+// Atualiza anotações ricas da redação
+export async function updateEssayAnnotations(essayId: string, payload: { rich: any[] }) {
+  const base = import.meta.env.VITE_API_BASE_URL || "";
+  const res = await fetch(`${base}/api/essays/${essayId}/annotations`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`updateEssayAnnotations ${res.status}`);
+  return await res.json().catch(() => ({}));
+}
+
 export default { fetchEssays, gradeEssay, saveAnnotations, renderCorrection, sendCorrectionEmail };

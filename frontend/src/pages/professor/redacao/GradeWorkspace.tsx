@@ -8,6 +8,7 @@ import type { Highlight } from '@/components/redacao/types';
 import type { Anno } from '@/types/annotations';
 import { toast } from 'react-toastify';
 import PdfAnnotator from "@/components/redacao/PdfAnnotator";
+import { updateEssayAnnotations } from '@/services/essays.service';
 
 const useRich = import.meta.env.VITE_USE_RICH_ANNOS === '1' || import.meta.env.VITE_USE_RICH_ANNOS === 'true';
 const useIframe = import.meta.env.VITE_PDF_IFRAME !== '0';
@@ -82,6 +83,24 @@ export default function GradeWorkspace() {
     fetchSigned();
     return () => { active = false; };
   }, [apiBase, (essay as any)?._id, (essay as any)?.id]);
+
+  // Debounce simples 600ms para autosave de anotações ricas
+  function useDebounce<T extends (...a:any[])=>any>(fn:T, ms:number) {
+    const t = useRef<number | undefined>(undefined);
+    return (...args:any[]) => {
+      if (t.current) window.clearTimeout(t.current);
+      t.current = window.setTimeout(()=>fn(...args), ms);
+    };
+  }
+  const debouncedSaveRich = useDebounce(async (list: Anno[]) => {
+    try {
+      const eId = (essay as any)?._id || (essay as any)?.id;
+      if (!eId) return;
+      await updateEssayAnnotations(String(eId), { rich: list as any });
+    } catch (e) {
+      console.error('autosave annotations failed', e);
+    }
+  }, 600);
 
   useEffect(() => {
     let alive = true;
@@ -410,7 +429,7 @@ export default function GradeWorkspace() {
                 { key:'comentario',   label:'Comentário geral',      color:'#ef4444', rgba:'rgba(239,68,68,0.60)'  },
                 { key:'coesao',       label:'Coesão/coerência',      color:'#0ea5e9', rgba:'rgba(14,165,233,0.60)' },
               ]}
-              onChange={(list)=> setRichAnnos(list as any)}
+              onChange={(list)=> { setRichAnnos(list as any); debouncedSaveRich(list as any); }}
             />
           ) : (
             <div className="p-4 text-sm text-ys-ink-2">Carregando PDF…</div>
