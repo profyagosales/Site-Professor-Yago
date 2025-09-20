@@ -17,7 +17,12 @@ export default function Viewer({ fileUrl, meta }: Props) {
       (async () => {
         try {
           const m = await import('react-pdf');
-          m.pdfjs.GlobalWorkerOptions.workerSrc = '/viewer/pdf.worker.min.js';
+          try {
+            const w = new Worker('/viewer/pdf.worker.min.mjs', { type: 'module' });
+            (m.pdfjs.GlobalWorkerOptions as any).workerPort = w as any;
+          } catch {
+            m.pdfjs.GlobalWorkerOptions.workerSrc = '/viewer/pdf.worker.min.js';
+          }
           if (active) setRP(m);
         } catch (e) {
           console.error('Falha ao carregar react-pdf', e);
