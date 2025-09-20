@@ -41,7 +41,7 @@ export default function PdfAnnotator({
     let active = true;
     (async () => {
       try {
-        const m = await import("react-pdf");
+  const m = await import(/* @vite-ignore */ "react-pdf");
         // Configura o worker após carregar o módulo
         m.pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
         if (active) setRP(m);
@@ -53,12 +53,12 @@ export default function PdfAnnotator({
   }, []);
 
   // Carrega react-konva de forma lazy
-  const [RK, setRK] = useState<null | typeof import("react-konva")>(null);
+  const [RK, setRK] = useState<any>(null);
   useEffect(() => {
     let active = true;
     (async () => {
       try {
-        const m = await import("react-konva");
+  const m = await import(/* @vite-ignore */ "react-konva");
         if (active) setRK(m);
       } catch (e) {
         console.error("Falha ao carregar react-konva", e);
@@ -223,8 +223,13 @@ export default function PdfAnnotator({
     return <div className="p-4 text-muted-foreground">Carregando ferramentas…</div>;
   }
 
-  const { Document, Page } = RP;
-  const { Stage, Layer, Rect, Line, Group, Text } = RK;
+  const { Document, Page } = RP as any;
+  const Stage: React.ComponentType<any> = (RK as any).Stage;
+  const Layer: React.ComponentType<any> = (RK as any).Layer;
+  const Rect:  React.ComponentType<any> = (RK as any).Rect;
+  const Line:  React.ComponentType<any> = (RK as any).Line;
+  const Group: React.ComponentType<any> = (RK as any).Group;
+  const Text:  React.ComponentType<any> = (RK as any).Text;
 
   return (
     <div className="flex flex-col h-full">
