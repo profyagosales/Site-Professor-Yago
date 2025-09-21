@@ -3,17 +3,26 @@ import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'no-preload-pdf-konva',
+      transformIndexHtml(html) {
+        // remove modulepreload de assets/pdf-*.js e assets/ReactKonva-*.js
+        return html.replace(/<link rel="modulepreload"[^>]+assets\/(pdf|ReactKonva)-[^>]+>/g, '');
+      },
+    },
+  ],
   resolve: {
     preserveSymlinks: true,
     // Garanta uma única instância de React/ReactDOM em todos os chunks
     dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'scheduler'],
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
-      // Evite alias diretos para react/react-dom para não quebrar a resolução em dependências
     },
   },
   build: {
+    manifest: true,
     modulePreload: { polyfill: false },
     rollupOptions: {
       treeshake: {
@@ -31,6 +40,8 @@ export default defineConfig({
             }
           }
         },
+        // Evita que o Vite gere <link rel="modulepreload"> para imports dinâmicos analisados
+        inlineDynamicImports: false,
       },
       // workaround: evitar resolução fora do workspace por symlink
       external: [],
