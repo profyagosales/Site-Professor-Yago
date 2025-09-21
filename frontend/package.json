@@ -17,7 +17,7 @@
     "postinstall": "node ./scripts/copy-pdf-worker.cjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "check:pdf-imports": "node ./scripts/check-static-pdf-imports.cjs",
-  "check:entry-has-no-pdf-konva": "node ./scripts/check-entry-html-clean.cjs",
+    "check:entry-has-no-pdf-konva": "node ./scripts/check-entry-html-clean.cjs",
     "check:dist:pdf-leak": "bash ./scripts/check-dist-pdf-leak.sh",
     "relink:pdf-annotator": "node ./scripts/relink-pdf-imports.cjs"
   },
@@ -67,5 +67,8 @@
   "overrides": {
     "react": "18.2.0",
     "react-dom": "18.2.0"
+  },
+  "engines": {
+    "node": "20.x"
   }
 }

@@ -38,9 +38,10 @@ export default defineConfig({
         // Evita que o Vite gere <link rel="modulepreload"> para imports dinâmicos analisados
         inlineDynamicImports: false,
       },
-      // workaround: evitar resolução fora do workspace por symlink
+      // Não externalizar React; manter tudo internal
       external: [],
     },
+    commonjsOptions: { transformMixedEsModules: true },
   },
   optimizeDeps: {
     // evita pré-bundle dessas libs no dev, o que costuma “grudar” na entry
