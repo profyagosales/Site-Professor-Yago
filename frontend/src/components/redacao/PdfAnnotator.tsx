@@ -2,12 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { nanoid } from "nanoid";
 
 /**
- * IMPORTANTE:
- * - Não importar 'react-pdf' ou 'react-konva' no topo. Ambos são carregados dinamicamente
- *   para evitar que seus chunks executem antes do vendor/React e quebrem o app.
+ * NÃO importe 'react-pdf' nem 'react-konva' no topo.
+ * Ambos são carregados dinamicamente dentro do componente para evitar preload.
  */
-
-/* ============================== Tipos ============================== */
 
 export type PaletteItem = { key: string; label: string; color: string; rgba: string };
 
@@ -21,18 +18,16 @@ export type AnnHighlight = {
   color: string;
   category?: string;
   comment?: string;
-  rects?: RectNorm[]; // highlight/strike
-  box?: RectNorm; // box
-  pen?: PenPath; // pen
-  at?: { x: number; y: number }; // comment pin
+  rects?: RectNorm[];
+  box?: RectNorm;
+  pen?: PenPath;
+  at?: { x: number; y: number };
   createdAt: number;
 };
 
-/* ============================== Componente ============================== */
-
 export default function PdfAnnotator({
   fileSrc,
-  essayId,
+  essayId, // reservado
   palette,
   onChange,
 }: {
@@ -41,14 +36,13 @@ export default function PdfAnnotator({
   palette: PaletteItem[];
   onChange?: (annos: AnnHighlight[]) => void;
 }) {
-  /* ---------- Carregamento lazy: react-pdf ---------- */
+  /* ========== lazy: react-pdf ========== */
   const [RP, setRP] = useState<any>(null);
   useEffect(() => {
     let active = true;
     (async () => {
       try {
         const m = await import(/* @vite-ignore */ "react-pdf");
-        // Preferir worker ESM (mais leve); fallback para UMD
         try {
           const w = new Worker("/pdf.worker.min.mjs", { type: "module" });
           (m.pdfjs.GlobalWorkerOptions as any).workerPort = w as any;
@@ -65,7 +59,7 @@ export default function PdfAnnotator({
     };
   }, []);
 
-  /* ---------- Carregamento lazy: react-konva ---------- */
+  /* ========== lazy: react-konva ========== */
   const [RK, setRK] = useState<any>(null);
   useEffect(() => {
     let active = true;
@@ -82,7 +76,7 @@ export default function PdfAnnotator({
     };
   }, []);
 
-  /* ---------- Estados gerais ---------- */
+  /* ========== estados ========== */
   const [numPages, setNumPages] = useState<number>(0);
   const [scale, setScale] = useState(1);
   const [tool, setTool] = useState<"highlight" | "strike" | "box" | "pen" | "comment">("highlight");
@@ -90,117 +84,88 @@ export default function PdfAnnotator({
   const [annos, setAnnos] = useState<AnnHighlight[]>([]);
   const [pageSizes, setPageSizes] = useState<Record<number, { w: number; h: number }>>({});
 
-  /* ---------- Loader do PDF: sempre via Blob URL com URL fresca ---------- */
-
-  const [docUrl, setDocUrl] = useState<string | null>(null); // blob:… ou null
+  /* ========== loader seguro do PDF (Blob URL) ========== */
+  const [docUrl, setDocUrl] = useState<string | null>(null);
   const lastBlobUrlRef = useRef<string | null>(null);
 
-  // Uma URL direta é "segura" se for http(s) ou data:
-  const isSafeDirect = (u: string) => /^https?:\/\//.test(u) || u.startsWith("data:");
+  // helper: monta URL resolvida e separa token/query
+  const parseSrc = (src: string) => {
+    const u = new URL(src, window.location.origin);
+    const token = u.searchParams.get("token") || undefined;
+    // nunca deixamos o token no query
+    if (token) u.searchParams.delete("token");
+    const sameOrigin = u.origin === window.location.origin;
+    return { url: u, token, sameOrigin };
+  };
 
   useEffect(() => {
     if (!fileSrc) return;
-
     let alive = true;
-    const ctrl = new AbortController();
+    const ac = new AbortController();
 
-    setDocUrl(null); // reset enquanto preparamos o blob
+    setDocUrl(null); // reset enquanto prepara
 
-    // Descobre o ID da redação a partir do fileSrc (fallback usa a prop essayId)
-    function inferEssayId(src: string): string | undefined {
+    (async () => {
       try {
-        const u = new URL(src, window.location.origin);
-        const m = u.pathname.match(/\/api\/essays\/([^/]+)/);
-        return m?.[1] || essayId || undefined;
-      } catch {
-        return essayId || undefined;
-      }
-    }
+        const { url, token, sameOrigin } = parseSrc(fileSrc);
 
-    async function getFreshFileUrl(src: string): Promise<string> {
-      const id = inferEssayId(src);
-      if (!id) return src;
-
-      try {
-        // Rota que devolve uma URL fresca (tipicamente presign S3) para o PDF
-        const r = await fetch(`/api/essays/${id}/file-token`, {
+        // 1) Tenta com cookie de sessão (preferível em same-origin)
+        let res = await fetch(url.toString(), {
           method: "GET",
+          cache: "no-store",
           credentials: "include",
-          signal: ctrl.signal,
-          cache: "no-store",
+          signal: ac.signal,
         });
-        if (!r.ok) return src;
-        const data = await r.json(); // { url: string }
-        return typeof data?.url === "string" ? data.url : src;
-      } catch {
-        return src;
-      }
-    }
 
-    async function run() {
-      // 1) Obter URL fresca (evita 401 de token velho e 414 de query gigante)
-      const fresh = await getFreshFileUrl(fileSrc);
-
-      try {
-        // 2) Baixar como ArrayBuffer e criar Blob URL
-        const sameOrigin = fresh.startsWith(window.location.origin);
-        const res = await fetch(fresh, {
-          method: "GET",
-          credentials: sameOrigin ? "include" : "omit",
-          signal: ctrl.signal,
-          cache: "no-store",
-        });
-        if (!res.ok) throw new Error(`fetch PDF ${res.status}`);
-
-        const type = res.headers.get("content-type") ?? "application/pdf";
-        const buf = await res.arrayBuffer();
-        const blob = new Blob([buf], { type });
-        const url = URL.createObjectURL(blob);
-
-        if (!alive) {
-          URL.revokeObjectURL(url);
-          return;
+        // 2) Se 401 e houver token, tenta novamente com Authorization bearer (sem cookies)
+        if (res.status === 401 && token) {
+          res = await fetch(url.toString(), {
+            method: "GET",
+            cache: "no-store",
+            credentials: "omit",
+            headers: { Authorization: `Bearer ${token}` },
+            signal: ac.signal,
+          });
         }
 
-        // Revoga blob anterior
+        if (!res.ok || res.redirected) {
+          throw new Error(`fetch PDF ${res.status}`);
+        }
+
+        const type = res.headers.get("content-type") ?? "application/pdf";
+        const ab = await res.arrayBuffer();
+        const blobUrl = URL.createObjectURL(new Blob([ab], { type }));
+
+        if (!alive) {
+          URL.revokeObjectURL(blobUrl);
+          return;
+        }
         if (lastBlobUrlRef.current?.startsWith("blob:")) {
           URL.revokeObjectURL(lastBlobUrlRef.current);
         }
-        lastBlobUrlRef.current = url;
-        setDocUrl(url);
+        lastBlobUrlRef.current = blobUrl;
+        setDocUrl(blobUrl);
       } catch (e) {
-        console.warn("PDF blob fetch falhou; usando fallback somente se seguro", e);
-        // Fallback: apenas se mesma origem ou data:/http(s)
-        try {
-          const u = new URL(fileSrc, window.location.origin);
-          if (u.origin === window.location.origin || isSafeDirect(fileSrc)) {
-            setDocUrl(fileSrc);
-          } else {
-            setDocUrl(null);
-          }
-        } catch {
-          setDocUrl(null);
-        }
+        // fallback final (não empurraremos token gigante pro worker)
+        console.warn("PDF blob fetch falhou; sem blob disponível", e);
+        setDocUrl(null);
       }
-    }
-
-    run();
+    })();
 
     return () => {
       alive = false;
-      ctrl.abort();
+      ac.abort();
       if (lastBlobUrlRef.current?.startsWith("blob:")) {
         URL.revokeObjectURL(lastBlobUrlRef.current);
         lastBlobUrlRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fileSrc, essayId]);
+  }, [fileSrc]);
 
-  // Valor passado ao <Document /> (evita mandar string inválida)
-  const safeFile = useMemo(() => (docUrl ? docUrl : undefined), [docUrl]);
+  // Não entregamos string insegura ao <Document />; só blob (ou nada)
+  const safeFile = useMemo(() => docUrl ?? undefined, [docUrl]);
 
-  /* ---------- Utilitários de geometria ---------- */
+  /* ========== util geom ========== */
   const toNorm = (r: { x: number; y: number; width: number; height: number }, w: number, h: number): RectNorm => ({
     x: r.x / w,
     y: r.y / h,
@@ -214,11 +179,11 @@ export default function PdfAnnotator({
     onChange?.(list);
   };
 
-  /* ---------- Placeholders enquanto carrega libs ---------- */
+  /* ========== placeholders ========== */
   if (!RP) return <div className="p-4 text-muted-foreground">Carregando visualizador…</div>;
   if (!RK) return <div className="p-4 text-muted-foreground">Carregando ferramentas…</div>;
 
-  /* ---------- Componentes das libs (após lazy) ---------- */
+  /* ========== componentes lazy ========== */
   const { Document, Page } = RP as any;
   const Stage: React.ComponentType<any> = (RK as any).Stage;
   const Layer: React.ComponentType<any> = (RK as any).Layer;
@@ -227,7 +192,7 @@ export default function PdfAnnotator({
   const Group: React.ComponentType<any> = (RK as any).Group;
   const Text: React.ComponentType<any> = (RK as any).Text;
 
-  /* ---------- Toolbar ---------- */
+  /* ========== toolbar ========== */
   const Toolbar = () => (
     <div className="flex items-center gap-2 pb-2 border-b">
       <div className="flex gap-1">
@@ -267,7 +232,7 @@ export default function PdfAnnotator({
     </div>
   );
 
-  /* ---------- Overlay por página (desenho/seleção) ---------- */
+  /* ========== overlay por página ========== */
   function PageOverlay({ page }: { page: number }) {
     const size = pageSizes[page];
     const [drag, setDrag] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
@@ -423,7 +388,6 @@ export default function PdfAnnotator({
             return null;
           })}
 
-          {/* seletor enquanto arrasta */}
           {drag && (
             <Rect
               x={Math.min(drag.x, drag.x + drag.width)}
@@ -439,14 +403,13 @@ export default function PdfAnnotator({
     );
   }
 
-  /* ---------- Render ---------- */
+  /* ========== render ========== */
   return (
     <div className="flex flex-col h-full">
       <div className="mb-2">
         <Toolbar />
       </div>
 
-      {/* páginas */}
       <div className="mt-1 space-y-8 overflow-auto" style={{ maxHeight: "calc(100vh - 240px)" }}>
         <Document
           file={safeFile}
@@ -454,28 +417,29 @@ export default function PdfAnnotator({
           error={<div className="p-4 text-destructive">Falha ao carregar PDF</div>}
           onLoadSuccess={({ numPages }: any) => setNumPages(numPages)}
         >
-          {Array.from(new Array(numPages), (_, i) => (
-            <div key={i + 1} className="relative inline-block">
-              <Page
-                pageNumber={i + 1}
-                scale={scale}
-                renderAnnotationLayer={false}
-                renderTextLayer={false}
-                onLoadSuccess={(p: any) => {
-                  // tamanhos renderizados (usados pelo overlay)
-                  const vw = p._pageInfo.view[2] * scale;
-                  const vh = p._pageInfo.view[3] * scale;
-                  setPageSizes((s) => ({ ...s, [i + 1]: { w: vw, h: vh } }));
-                }}
-              />
-              {/* overlay */}
-              {pageSizes[i + 1] && (
-                <div className="absolute inset-0 pointer-events-auto">
-                  <PageOverlay page={i + 1} />
-                </div>
-              )}
-            </div>
-          ))}
+          {Array.from({ length: numPages }, (_, idx) => {
+            const pageNo = idx + 1;
+            return (
+              <div key={pageNo} className="relative inline-block">
+                <Page
+                  pageNumber={pageNo}
+                  scale={scale}
+                  renderAnnotationLayer={false}
+                  renderTextLayer={false}
+                  onLoadSuccess={(p: any) => {
+                    const vw = p._pageInfo.view[2] * scale;
+                    const vh = p._pageInfo.view[3] * scale;
+                    setPageSizes((s) => ({ ...s, [pageNo]: { w: vw, h: vh } }));
+                  }}
+                />
+                {pageSizes[pageNo] && (
+                  <div className="absolute inset-0 pointer-events-auto">
+                    <PageOverlay page={pageNo} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </Document>
       </div>
     </div>
