@@ -2,6 +2,20 @@
   "framework": "vite",
   "buildCommand": "npm install --legacy-peer-deps && npm run build",
   "outputDirectory": "dist",
+  "headers": [
+    {
+      "source": "/pdf.worker.min.mjs",
+      "headers": [
+        { "key": "Content-Type", "value": "text/javascript; charset=utf-8" }
+      ]
+    },
+    {
+      "source": "/pdf.worker.mjs",
+      "headers": [
+        { "key": "Content-Type", "value": "text/javascript; charset=utf-8" }
+      ]
+    }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "https://api.professoryagosales.com.br/api/$1" },
     { "source": "/viewer/(.*)", "destination": "/viewer/$1" },
