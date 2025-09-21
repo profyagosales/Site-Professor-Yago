@@ -7,7 +7,7 @@ export default defineConfig({
   resolve: {
     preserveSymlinks: true,
     // Garanta uma única instância de React/ReactDOM em todos os chunks
-    dedupe: ['react', 'react-dom'],
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'scheduler'],
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
       // Evite alias diretos para react/react-dom para não quebrar a resolução em dependências
@@ -37,6 +37,8 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
+    // evita pré-bundle dessas libs no dev, o que costuma “grudar” na entry
     exclude: ['react-pdf', 'react-pdf-highlighter', 'pdfjs-dist', 'react-konva', 'konva'],
+    include: ['react', 'react-dom'],
   },
 });
