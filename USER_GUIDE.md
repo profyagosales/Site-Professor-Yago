@@ -55,6 +55,12 @@ Este guia descreve os principais fluxos do sistema: login de professor e aluno, 
 
 Quando `VITE_VIRT_PDF=true`, o visualizador utiliza virtualização para renderizar apenas as páginas visíveis, melhorando a fluidez. Ajuste `VITE_VIRT_BUFFER` para controlar o buffer de páginas além da viewport.
 
+### Carregamento de PDF com Blob URL
+
+Para abrir o PDF no anotador inline, o sistema busca o arquivo com credenciais e gera um Blob URL local (ex.: `blob:...`).
+- Benefícios: evita inserir base64 gigante no DOM, reduz risco de erro 414 (URL muito longa) e isola cookies/tokens do worker do PDF.js.
+- Boas práticas: a URL é revogada automaticamente no cleanup ao trocar de arquivo ou ao fechar a página, liberando memória.
+
 ## Visualização de Notas
 - **Aluno**: no `/dashboard-aluno`, acesse **Minhas Notas** para ver o histórico.
   ```
