@@ -1,32 +1,38 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { RectConfig } from "konva/lib/shapes/Rect";
-import type { LineConfig } from "konva/lib/shapes/Line";
 import { nanoid } from "nanoid";
 
-// IMPORTANTE:
-// Não importar 'react-pdf' no topo. Vamos carregar dinamicamente dentro do componente
-// para evitar que o chunk 'pdf-*.js' execute antes do vendor (React) e derrube o app.
+/**
+ * IMPORTANTE:
+ * - Não importar 'react-pdf' ou 'react-konva' no topo. Ambos são carregados dinamicamente
+ *   para evitar que seus chunks executem antes do vendor/React e quebrem o app.
+ */
 
-export type PaletteItem = { key:string; label:string; color:string; rgba:string; };
-type RectNorm = { x:number; y:number; w:number; h:number };
-type PenPath = { points:number[]; width:number };
+/* ============================== Tipos ============================== */
+
+export type PaletteItem = { key: string; label: string; color: string; rgba: string };
+
+type RectNorm = { x: number; y: number; w: number; h: number };
+type PenPath = { points: number[]; width: number };
+
 export type AnnHighlight = {
-  id:string;
-  type:"highlight"|"strike"|"box"|"pen"|"comment";
-  page:number;
-  color:string;
-  category?:string;
-  comment?:string;
-  rects?: RectNorm[];      // highlight/strike
-  box?: RectNorm;          // box
-  pen?: PenPath;           // pen
-  at?: { x:number; y:number }; // comment pin
-  createdAt:number;
+  id: string;
+  type: "highlight" | "strike" | "box" | "pen" | "comment";
+  page: number;
+  color: string;
+  category?: string;
+  comment?: string;
+  rects?: RectNorm[]; // highlight/strike
+  box?: RectNorm; // box
+  pen?: PenPath; // pen
+  at?: { x: number; y: number }; // comment pin
+  createdAt: number;
 };
+
+/* ============================== Componente ============================== */
 
 export default function PdfAnnotator({
   fileSrc,
-  essayId,
+  essayId, // reservado para usos futuros (ex: salvar anotações por redação)
   palette,
   onChange,
 }: {
@@ -35,105 +41,172 @@ export default function PdfAnnotator({
   palette: PaletteItem[];
   onChange?: (annos: AnnHighlight[]) => void;
 }) {
-  // Carrega react-pdf de forma lazy
+  /* ---------- Carregamento lazy: react-pdf ---------- */
   const [RP, setRP] = useState<any>(null);
   useEffect(() => {
     let active = true;
     (async () => {
       try {
-  const m = await import(/* @vite-ignore */ "react-pdf");
-    // Preferir module worker (ESM), com fallback para UMD
-    try {
-  const w = new Worker('/pdf.worker.min.mjs', { type: 'module' });
-  (m.pdfjs.GlobalWorkerOptions as any).workerPort = w as any;
-    } catch {
-      m.pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
-    }
+        const m = await import(/* @vite-ignore */ "react-pdf");
+        // Preferir worker ESM (mais leve e sem eval); fallback para UMD
+        try {
+          const w = new Worker("/pdf.worker.min.mjs", { type: "module" });
+          (m.pdfjs.GlobalWorkerOptions as any).workerPort = w as any;
+        } catch {
+          m.pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
+        }
         if (active) setRP(m);
-      } catch (e) {
-        console.error("Falha ao carregar react-pdf", e);
+      } catch (err) {
+        console.error("Falha ao carregar react-pdf", err);
       }
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
 
-  // Carrega react-konva de forma lazy
+  /* ---------- Carregamento lazy: react-konva ---------- */
   const [RK, setRK] = useState<any>(null);
   useEffect(() => {
     let active = true;
     (async () => {
       try {
-  const m = await import(/* @vite-ignore */ "react-konva");
+        const m = await import(/* @vite-ignore */ "react-konva");
         if (active) setRK(m);
-      } catch (e) {
-        console.error("Falha ao carregar react-konva", e);
+      } catch (err) {
+        console.error("Falha ao carregar react-konva", err);
       }
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
+
+  /* ---------- Estados gerais ---------- */
   const [numPages, setNumPages] = useState<number>(0);
   const [scale, setScale] = useState(1);
-  const [tool, setTool] = useState<"highlight"|"strike"|"box"|"pen"|"comment">("highlight");
-  const [currentCat, setCurrentCat] = useState<PaletteItem>(palette[1] /* verde */);
+  const [tool, setTool] = useState<"highlight" | "strike" | "box" | "pen" | "comment">("highlight");
+  const [currentCat, setCurrentCat] = useState<PaletteItem>(palette[1] ?? palette[0]);
   const [annos, setAnnos] = useState<AnnHighlight[]>([]);
-  const [pageSizes, setPageSizes] = useState<{[p:number]: {w:number; h:number}}>({});
+  const [pageSizes, setPageSizes] = useState<Record<number, { w: number; h: number }>>({});
 
-  // Preferir Blob URL: buscarmos o arquivo com credenciais e entregamos um blob: ao PDF.js,
-  // evitando cookies/token dentro do worker e prevenindo 414/base64 gigante no DOM.
+  /* ---------- Loader do PDF: Blob URL seguro ---------- */
+
+  // Guarda a URL segura (blob: ou http(s)/data:)
   const [docUrl, setDocUrl] = useState<string | null>(null);
+  // Para revogar o blob anterior quando trocar o arquivo
   const lastBlobUrlRef = useRef<string | null>(null);
+
+  // Helpers
+  const isSafeDirect = (u: string) => /^https?:\/\//.test(u) || u.startsWith("data:");
+  const getToken = (u: string) => {
+    try {
+      const url = new URL(u, window.location.origin);
+      return url.searchParams.get("token") ?? undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
   useEffect(() => {
+    if (!fileSrc) return;
     let alive = true;
-    const ctrl = new AbortController();
-    // Reset enquanto prepara a fonte
-    setDocUrl(null);
+    const ac = new AbortController();
+
+    setDocUrl(null); // reset até termos o blob
+
     (async () => {
-      if (!fileSrc) return;
       try {
-        const res = await fetch(fileSrc, { credentials: 'include', signal: ctrl.signal });
-        if (!res.ok) throw new Error(`fetch PDF ${res.status}`);
-        const type = res.headers.get('content-type') || 'application/pdf';
-        const buf = await res.arrayBuffer();
-        const blob = new Blob([buf], { type });
-        const url = URL.createObjectURL(blob);
-        if (!alive) { URL.revokeObjectURL(url); return; }
-        // Revoga blob anterior, se houver
-        if (lastBlobUrlRef.current && lastBlobUrlRef.current.startsWith('blob:')) {
+        const token = getToken(fileSrc);
+        const headers: Record<string, string> = {};
+        if (token) headers.Authorization = `Bearer ${token}`;
+
+        const res = await fetch(fileSrc, {
+          method: "GET",
+          signal: ac.signal,
+          cache: "no-store",
+          // Se a URL já tem token, não envie cookies; senão, inclua cookies para sessão
+          credentials: token ? "omit" : "include",
+          headers,
+        });
+
+        if (!res.ok || res.redirected) {
+          throw new Error(`fetch PDF ${res.status}`);
+        }
+
+        const type = res.headers.get("content-type") ?? "application/pdf";
+        const ab = await res.arrayBuffer();
+        const url = URL.createObjectURL(new Blob([ab], { type }));
+
+        if (!alive) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+
+        // Revoga blob anterior
+        if (lastBlobUrlRef.current?.startsWith("blob:")) {
           URL.revokeObjectURL(lastBlobUrlRef.current);
         }
         lastBlobUrlRef.current = url;
         setDocUrl(url);
       } catch (e) {
-        // Fallback: usa a URL direta caso falhe o fetch com credenciais
-        console.warn('PDF blob fetch falhou, usando URL direta', e);
-        if (alive) setDocUrl(fileSrc);
+        console.warn("PDF blob fetch falhou; usando fallback somente se seguro", e);
+        setDocUrl(isSafeDirect(fileSrc) ? fileSrc : null);
       }
     })();
+
     return () => {
       alive = false;
-      ctrl.abort();
-      if (lastBlobUrlRef.current && lastBlobUrlRef.current.startsWith('blob:')) {
+      ac.abort();
+      if (lastBlobUrlRef.current?.startsWith("blob:")) {
         URL.revokeObjectURL(lastBlobUrlRef.current);
         lastBlobUrlRef.current = null;
       }
     };
   }, [fileSrc]);
 
-  const toNorm = (r:{x:number;y:number;width:number;height:number}, w:number, h:number):RectNorm =>
-    ({ x: r.x / w, y: r.y / h, w: r.width / w, h: r.height / h });
-  const fromNorm = (r:RectNorm, w:number, h:number) =>
-    ({ x: r.x * w, y: r.y * h, width: r.w * w, height: r.h * h });
+  // File passado ao <Document /> (nunca envie string inválida que gere 414)
+  const safeFile = useMemo(
+    () => docUrl ?? (isSafeDirect(fileSrc) ? fileSrc : undefined),
+    [docUrl, fileSrc]
+  );
 
-  const emit = (list:AnnHighlight[]) => { setAnnos(list); onChange?.(list); };
+  /* ---------- Utilitários de geometria ---------- */
+  const toNorm = (r: { x: number; y: number; width: number; height: number }, w: number, h: number): RectNorm => ({
+    x: r.x / w,
+    y: r.y / h,
+    w: r.width / w,
+    h: r.height / h,
+  });
+  const fromNorm = (r: RectNorm, w: number, h: number) => ({ x: r.x * w, y: r.y * h, width: r.w * w, height: r.h * h });
 
+  const emit = (list: AnnHighlight[]) => {
+    setAnnos(list);
+    onChange?.(list);
+  };
+
+  /* ---------- Placeholders enquanto carrega libs ---------- */
+  if (!RP) return <div className="p-4 text-muted-foreground">Carregando visualizador…</div>;
+  if (!RK) return <div className="p-4 text-muted-foreground">Carregando ferramentas…</div>;
+
+  /* ---------- Componentes das libs (após lazy) ---------- */
+  const { Document, Page } = RP as any;
+  const Stage: React.ComponentType<any> = (RK as any).Stage;
+  const Layer: React.ComponentType<any> = (RK as any).Layer;
+  const Rect: React.ComponentType<any> = (RK as any).Rect;
+  const Line: React.ComponentType<any> = (RK as any).Line;
+  const Group: React.ComponentType<any> = (RK as any).Group;
+  const Text: React.ComponentType<any> = (RK as any).Text;
+
+  /* ---------- Toolbar ---------- */
   const Toolbar = () => (
     <div className="flex items-center gap-2 pb-2 border-b">
       <div className="flex gap-1">
-        {(["highlight","strike","box","pen","comment"] as const).map(t => (
+        {(["highlight", "strike", "box", "pen", "comment"] as const).map((t) => (
           <button
             key={t}
-            onClick={()=>setTool(t)}
-            className={`px-2 py-1 rounded ${tool===t?'bg-orange-100 text-orange-700':'bg-muted'}`}
+            onClick={() => setTool(t)}
+            className={`px-2 py-1 rounded ${tool === t ? "bg-orange-100 text-orange-700" : "bg-muted"}`}
             title={t}
           >
             {t}
@@ -141,11 +214,12 @@ export default function PdfAnnotator({
         ))}
       </div>
       <div className="flex gap-1 ml-3">
-        {palette.map(p => (
-          <button key={p.key}
-            onClick={()=>setCurrentCat(p)}
-            style={{ background:p.rgba }}
-            className={`px-2 py-1 rounded border ${currentCat.key===p.key?'ring-2 ring-orange-500':''}`}
+        {palette.map((p) => (
+          <button
+            key={p.key}
+            onClick={() => setCurrentCat(p)}
+            style={{ background: p.rgba }}
+            className={`px-2 py-1 rounded border ${currentCat.key === p.key ? "ring-2 ring-orange-500" : ""}`}
             title={p.label}
           >
             {p.label}
@@ -153,195 +227,222 @@ export default function PdfAnnotator({
         ))}
       </div>
       <div className="ml-auto flex gap-2">
-        <button onClick={()=>setScale(s=>Math.max(0.75, s-0.1))} className="px-2 py-1 rounded border">–</button>
-        <span className="px-2 py-1">{Math.round(scale*100)}%</span>
-        <button onClick={()=>setScale(s=>Math.min(2, s+0.1))} className="px-2 py-1 rounded border">+</button>
+        <button onClick={() => setScale((s) => Math.max(0.75, s - 0.1))} className="px-2 py-1 rounded border">
+          –
+        </button>
+        <span className="px-2 py-1">{Math.round(scale * 100)}%</span>
+        <button onClick={() => setScale((s) => Math.min(2, s + 0.1))} className="px-2 py-1 rounded border">
+          +
+        </button>
       </div>
     </div>
   );
 
-  function PageOverlay({page}:{page:number}) {
+  /* ---------- Overlay por página (desenho/seleção) ---------- */
+  function PageOverlay({ page }: { page: number }) {
     const size = pageSizes[page];
-    const [drag, setDrag] = useState<{x:number;y:number;width:number;height:number}|null>(null);
+    const [drag, setDrag] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
     if (!size) return null;
 
-    const onDown = (e:any) => {
+    const onDown = (e: any) => {
       const pos = e.target.getStage().getPointerPosition();
       if (!pos) return;
-      if (tool==="pen") {
+
+      if (tool === "pen") {
         const id = nanoid();
-        const pen: AnnHighlight = { id, type:"pen", page, color: currentCat.color, category: currentCat.key, pen:{ points:[pos.x,pos.y], width:2 }, createdAt: Date.now() };
+        const pen: AnnHighlight = {
+          id,
+          type: "pen",
+          page,
+          color: currentCat.color,
+          category: currentCat.key,
+          pen: { points: [pos.x, pos.y], width: 2 },
+          createdAt: Date.now(),
+        };
         emit([...annos, pen]);
         return;
       }
-      if (tool==="comment") {
+
+      if (tool === "comment") {
         const id = nanoid();
-        const pin: AnnHighlight = { id, type:"comment", page, color: currentCat.color, category: currentCat.key, at:{ x: pos.x/size.w, y: pos.y/size.h }, createdAt: Date.now(), comment: currentCat.label };
+        const pin: AnnHighlight = {
+          id,
+          type: "comment",
+          page,
+          color: currentCat.color,
+          category: currentCat.key,
+          at: { x: pos.x / size.w, y: pos.y / size.h },
+          createdAt: Date.now(),
+          comment: currentCat.label,
+        };
         emit([...annos, pin]);
         return;
       }
+
       setDrag({ x: pos.x, y: pos.y, width: 0, height: 0 });
     };
 
-    const onMove = (e:any) => {
+    const onMove = (e: any) => {
       if (!drag) {
-        if (tool==="pen") {
+        if (tool === "pen") {
           const pos = e.target.getStage().getPointerPosition();
           if (!pos) return;
-          emit(annos.map(a=>{
-            if (a.type==="pen" && a.page===page && a.pen) {
-              a.pen.points = [...a.pen.points!, pos.x, pos.y];
-            }
-            return a;
-          }));
+          emit(
+            annos.map((a) => {
+              if (a.type === "pen" && a.page === page && a.pen) {
+                a.pen.points = [...a.pen.points!, pos.x, pos.y];
+              }
+              return a;
+            })
+          );
         }
         return;
       }
       const pos = e.target.getStage().getPointerPosition();
       if (!pos) return;
-      setDrag(prev => prev ? ({ ...prev, width: pos.x - prev.x, height: pos.y - prev.y }) : null);
+      setDrag((prev) => (prev ? { ...prev, width: pos.x - prev.x, height: pos.y - prev.y } : null));
     };
 
     const onUp = () => {
-      if (drag) {
-        const rect = {
-          x: Math.min(drag.x, drag.x+drag.width),
-          y: Math.min(drag.y, drag.y+drag.height),
-          width: Math.abs(drag.width),
-          height: Math.abs(drag.height),
+      if (!drag) return;
+
+      const rect = {
+        x: Math.min(drag.x, drag.x + drag.width),
+        y: Math.min(drag.y, drag.y + drag.height),
+        width: Math.abs(drag.width),
+        height: Math.abs(drag.height),
+      };
+      const id = nanoid();
+
+      if (tool === "box") {
+        const a: AnnHighlight = {
+          id,
+          type: "box",
+          page,
+          color: currentCat.color,
+          category: currentCat.key,
+          box: toNorm(rect, size.w, size.h),
+          createdAt: Date.now(),
+          comment: currentCat.label,
         };
-        const id = nanoid();
-        if (tool==="box") {
-          const a: AnnHighlight = { id, type:"box", page, color: currentCat.color, category: currentCat.key, box: toNorm(rect, size.w, size.h), createdAt: Date.now(), comment: currentCat.label };
-          emit([...annos, a]);
-        } else {
-          const a: AnnHighlight = { id, type: tool, page, color: currentCat.color, category: currentCat.key, rects: [toNorm(rect, size.w, size.h)], createdAt: Date.now(), comment: currentCat.label };
-          emit([...annos, a]);
-        }
-        setDrag(null);
+        emit([...annos, a]);
+      } else {
+        const a: AnnHighlight = {
+          id,
+          type: tool,
+          page,
+          color: currentCat.color,
+          category: currentCat.key,
+          rects: [toNorm(rect, size.w, size.h)],
+          createdAt: Date.now(),
+          comment: currentCat.label,
+        };
+        emit([...annos, a]);
       }
+      setDrag(null);
     };
 
-    const annsThis = annos.filter(a=>a.page===page);
+    const annsThis = annos.filter((a) => a.page === page);
 
     return (
       <Stage width={size.w} height={size.h} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp}>
         <Layer>
-          {annsThis.map(a=>{
-            if (a.type==="highlight" && a.rects) return a.rects.map((r,i)=>{
-              const d = fromNorm(r, size.w, size.h);
-              return <Rect key={a.id+"_"+i} x={d.x} y={d.y} width={d.width} height={d.height} fill={currentCat.rgba} opacity={0.6} cornerRadius={3} />;
-            });
-            if (a.type==="strike" && a.rects) return a.rects.map((r,i)=>{
-              const d = fromNorm(r, size.w, size.h);
-              return <Line key={a.id+"_"+i} points={[d.x, d.y+d.height/2, d.x+d.width, d.y+d.height/2]} stroke={a.color} strokeWidth={2} />;
-            });
-            if (a.type==="box" && a.box) {
+          {annsThis.map((a) => {
+            if (a.type === "highlight" && a.rects)
+              return a.rects.map((r, i) => {
+                const d = fromNorm(r, size.w, size.h);
+                return (
+                  <Rect
+                    key={a.id + "_" + i}
+                    x={d.x}
+                    y={d.y}
+                    width={d.width}
+                    height={d.height}
+                    fill={currentCat.rgba}
+                    opacity={0.6}
+                    cornerRadius={3}
+                  />
+                );
+              });
+
+            if (a.type === "strike" && a.rects)
+              return a.rects.map((r, i) => {
+                const d = fromNorm(r, size.w, size.h);
+                return (
+                  <Line key={a.id + "_" + i} points={[d.x, d.y + d.height / 2, d.x + d.width, d.y + d.height / 2]} stroke={a.color} strokeWidth={2} />
+                );
+              });
+
+            if (a.type === "box" && a.box) {
               const d = fromNorm(a.box, size.w, size.h);
-              return <Rect key={a.id} x={d.x} y={d.y} width={d.width} height={d.height} stroke={a.color} strokeWidth={2} dash={[6,4]} />;
+              return <Rect key={a.id} x={d.x} y={d.y} width={d.width} height={d.height} stroke={a.color} strokeWidth={2} dash={[6, 4]} />;
             }
-            if (a.type==="pen" && a.pen) {
-              return <Line key={a.id} points={a.pen.points!} stroke={a.color} strokeWidth={a.pen.width||2} lineCap="round" lineJoin="round" />;
+
+            if (a.type === "pen" && a.pen) {
+              return <Line key={a.id} points={a.pen.points!} stroke={a.color} strokeWidth={a.pen.width || 2} lineCap="round" lineJoin="round" />;
             }
-            if (a.type==="comment" && a.at) {
-              const d = { x: a.at.x*size.w, y: a.at.y*size.h };
+
+            if (a.type === "comment" && a.at) {
+              const d = { x: a.at.x * size.w, y: a.at.y * size.h };
               return (
                 <Group key={a.id}>
                   <Text x={d.x} y={d.y} text="✦" fontSize={16} fill={a.color} />
                 </Group>
               );
             }
+
             return null;
           })}
-          {drag && <Rect x={Math.min(drag.x, drag.x+drag.width)} y={Math.min(drag.y, drag.y+drag.height)} width={Math.abs(drag.width)} height={Math.abs(drag.height)} stroke={currentCat.color} dash={[4,3]} />}
+
+          {/* seletor enquanto arrasta */}
+          {drag && (
+            <Rect
+              x={Math.min(drag.x, drag.x + drag.width)}
+              y={Math.min(drag.y, drag.y + drag.height)}
+              width={Math.abs(drag.width)}
+              height={Math.abs(drag.height)}
+              stroke={currentCat.color}
+              dash={[4, 3]}
+            />
+          )}
         </Layer>
       </Stage>
     );
   }
 
-  // Enquanto o react-pdf não carrega, mostra placeholder
-  if (!RP) {
-    return <div className="p-4 text-muted-foreground">Carregando visualizador…</div>;
-  }
-
-  // Enquanto o react-konva não carrega, mostra placeholder
-  if (!RK) {
-    return <div className="p-4 text-muted-foreground">Carregando ferramentas…</div>;
-  }
-
-  const { Document, Page } = RP as any;
-  const Stage: React.ComponentType<any> = (RK as any).Stage;
-  const Layer: React.ComponentType<any> = (RK as any).Layer;
-  const Rect:  React.ComponentType<any> = (RK as any).Rect;
-  const Line:  React.ComponentType<any> = (RK as any).Line;
-  const Group: React.ComponentType<any> = (RK as any).Group;
-  const Text:  React.ComponentType<any> = (RK as any).Text;
-
+  /* ---------- Render ---------- */
   return (
     <div className="flex flex-col h-full">
-      {/* toolbar */}
       <div className="mb-2">
-        <div className="flex items-center gap-2 pb-2 border-b">
-          <div className="flex gap-1">
-            {(["highlight","strike","box","pen","comment"] as const).map(t => (
-              <button
-                key={t}
-                onClick={()=>setTool(t)}
-                className={`px-2 py-1 rounded ${tool===t?'bg-orange-100 text-orange-700':'bg-muted'}`}
-                title={t}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-1 ml-3">
-            {palette.map(p => (
-              <button key={p.key}
-                onClick={()=>setCurrentCat(p)}
-                style={{ background:p.rgba }}
-                className={`px-2 py-1 rounded border ${currentCat.key===p.key?'ring-2 ring-orange-500':''}`}
-                title={p.label}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-          <div className="ml-auto flex gap-2">
-            <button onClick={()=>setScale(s=>Math.max(0.75, s-0.1))} className="px-2 py-1 rounded border">–</button>
-            <span className="px-2 py-1">{Math.round(scale*100)}%</span>
-            <button onClick={()=>setScale(s=>Math.min(2, s+0.1))} className="px-2 py-1 rounded border">+</button>
-          </div>
-        </div>
+        <Toolbar />
       </div>
 
       {/* páginas */}
       <div className="mt-1 space-y-8 overflow-auto" style={{ maxHeight: "calc(100vh - 240px)" }}>
         <Document
-          file={docUrl || fileSrc}
+          file={safeFile}
           loading={<div className="p-4 text-muted-foreground">Carregando PDF…</div>}
           error={<div className="p-4 text-destructive">Falha ao carregar PDF</div>}
-          onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+          onLoadSuccess={({ numPages }: any) => setNumPages(numPages)}
         >
           {Array.from(new Array(numPages), (_, i) => (
-            <div key={i+1} className="relative inline-block">
+            <div key={i + 1} className="relative inline-block">
               <Page
-                pageNumber={i+1}
+                pageNumber={i + 1}
                 scale={scale}
                 renderAnnotationLayer={false}
                 renderTextLayer={false}
-                onLoadSuccess={(p:any)=>{
+                onLoadSuccess={(p: any) => {
                   // tamanhos renderizados (usados pelo overlay)
                   const vw = p._pageInfo.view[2] * scale;
                   const vh = p._pageInfo.view[3] * scale;
-                  setPageSizes(s => ({ ...s, [i+1]: { w: vw, h: vh } }));
+                  setPageSizes((s) => ({ ...s, [i + 1]: { w: vw, h: vh } }));
                 }}
               />
               {/* overlay */}
-              {pageSizes[i+1] && (
-                <div className="absolute inset-0 pointer-events-auto">
-                  <PageOverlay page={i+1}/>
-                </div>
-              )}
+              {pageSizes[i + 1] && <div className="absolute inset-0 pointer-events-auto">
+                <PageOverlay page={i + 1} />
+              </div>}
             </div>
           ))}
         </Document>
