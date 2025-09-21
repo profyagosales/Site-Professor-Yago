@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "npm run check:pdf-imports && node -e \"require('fs').existsSync('public/pdf.worker.min.js')||process.exit(2)\" && echo worker OK",
+    "prebuild": "npm run check:pdf-imports && node -e \"(require('fs').existsSync('public/pdf.worker.min.js')||require('fs').existsSync('public/pdf.worker.min.mjs'))||process.exit(2)\" && echo worker OK",
     "build": "vite build",
-  "postbuild": "node scripts/guard-no-eager-pdf-konva.cjs",
+    "postbuild": "node scripts/guard-no-eager-pdf-konva.cjs",
     "build:all": "npm run build && npm run build:viewer",
     "build:viewer": "node apps/pdf-viewer/scripts/copy-worker.cjs && vite build --config apps/pdf-viewer/vite.config.ts --outDir dist/viewer",
     "vercel-build": "npm ci --legacy-peer-deps || npm install --legacy-peer-deps && npm run build",
@@ -16,7 +16,8 @@
     "lint": "eslint src --max-warnings=0",
     "postinstall": "node ./scripts/copy-pdf-worker.cjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "check:pdf-imports": "grep -R 'react-pdf\\|pdfjs-dist\\|react-pdf-highlighter' src | grep -v 'PdfHighlighter.tsx' | grep -v 'PdfAnnotator.tsx' && (echo '\n❌ Encontrado import estático de PDF' && exit 1) || echo 'OK'",
+    "check:pdf-imports": "node ./scripts/check-static-pdf-imports.cjs",
+  "check:entry-has-no-pdf-konva": "node ./scripts/check-entry-html-clean.cjs",
     "check:dist:pdf-leak": "bash ./scripts/check-dist-pdf-leak.sh"
   },
   "dependencies": {

@@ -7,8 +7,8 @@ import AnnotationEditorRich from '@/components/redacao/AnnotationEditorRich';
 import type { Highlight } from '@/components/redacao/types';
 import type { Anno } from '@/types/annotations';
 import { toast } from 'react-toastify';
-// Importante: carregar o PdfAnnotator de forma lazy para evitar vincular o chunk de PDF ao chunk da rota
-const LazyPdfAnnotator = React.lazy(() => import(/* @vite-ignore */ '@/components/redacao/PdfAnnotator'));
+// Importante: usar wrapper lazy para evitar vincular o chunk de PDF ao chunk da rota
+import PdfAnnotatorLazy from '@/components/redacao/PdfAnnotator.lazy';
 import { updateEssayAnnotations } from '@/services/essays.service';
 
 const useRich = import.meta.env.VITE_USE_RICH_ANNOS === '1' || import.meta.env.VITE_USE_RICH_ANNOS === 'true';
@@ -435,7 +435,7 @@ export default function GradeWorkspace() {
           {/* PDF inline obrigatório */}
           {fileUrlSigned ? (
             <Suspense fallback={<div className="p-4 text-sm text-ys-ink-2">Carregando visualizador…</div>}>
-              <LazyPdfAnnotator
+              <PdfAnnotatorLazy
                 fileSrc={fileUrlSigned}
                 essayId={(essay as any)._id || (essay as any).id}
                 palette={[
