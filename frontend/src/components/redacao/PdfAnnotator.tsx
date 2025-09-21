@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { nanoid } from "nanoid";
 
 /**
@@ -86,139 +86,121 @@ export default function PdfAnnotator({
 
   /* ============== loader do PDF (Blob URL com fallbacks) ============== */
   const [docUrl, setDocUrl] = useState<string | null>(null);
+  const [docErr, setDocErr] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const lastBlobUrlRef = useRef<string | null>(null);
 
-  const isSafeDirect = (u: string) => /^https?:\/\//.test(u) || u.startsWith("data:");
-  const extractToken = (u: string) => {
+  // Helpers
+  const isSameOrigin = (u: string): boolean => {
     try {
       const url = new URL(u, window.location.origin);
-      return url.searchParams.get("token") ?? undefined;
+      return url.origin === window.location.origin;
+    } catch {
+      return false;
+    }
+  };
+  const getQueryToken = (u: string): string | undefined => {
+    try {
+      const url = new URL(u, window.location.origin);
+      const t = url.searchParams.get("token");
+      return t || undefined;
     } catch {
       return undefined;
     }
   };
-
-  async function tryFetchAsBlob(
-    url: string,
-    opts: RequestInit & { note: string }
-  ): Promise<Blob> {
-    const res = await fetch(url, opts);
-    // >>> NÃO tratar redirect como erro; fetch segue redirecionamentos automaticamente.
-    if (!res.ok) {
-      throw new Error(`${opts.note} -> HTTP ${res.status}`);
+  const fetchWith = async (p: {
+    url: string;
+    useCookies: boolean;
+    bearer?: string;
+    signal: AbortSignal;
+  }): Promise<Blob> => {
+    const headers: Record<string, string> = {};
+    if (p.bearer) headers["Authorization"] = `Bearer ${p.bearer}`;
+    const res = await fetch(p.url, {
+      method: "GET",
+      signal: p.signal,
+      cache: "no-store",
+      credentials: p.useCookies ? "include" : "omit",
+      headers,
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.blob();
+  };
+  const getFreshToken = async (id?: string, signal?: AbortSignal): Promise<string | undefined> => {
+    if (!id) return undefined;
+    try {
+      const res = await fetch(`/api/essays/${id}/file-token`, {
+        method: "GET",
+        credentials: "include",
+        signal,
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        if (res.status === 404) return undefined;
+        throw new Error(`token ${res.status}`);
+      }
+      const ct = res.headers.get("content-type") || "";
+      if (ct.includes("application/json")) {
+        const j = await res.json().catch(() => ({}));
+        return j?.token || j?.accessToken || undefined;
+      }
+      const t = (await res.text()).trim();
+      return t || undefined;
+    } catch (e) {
+      return undefined;
     }
-    // Alguns storages servem "application/octet-stream"; seguimos adiante mesmo assim
-    const blob = await res.blob();
-    return blob;
-  }
+  };
 
   useEffect(() => {
     if (!fileSrc) return;
     let alive = true;
     const ac = new AbortController();
-
-    setDocUrl(null); // reset visual até termos algo
+    setDocUrl(null);
+    setDocErr(null);
 
     (async () => {
-      const token = extractToken(fileSrc);
-
-      // Estratégias de tentativa, na ordem:
-      // 1) Se tem token na query: tentar S/ cookies e COM Authorization (alvos que esperam bearer/anon)
-      // 2) Se falhar 401/403: repetir COM cookies e SEM Authorization (alvos que esperam sessão)
-      // 3) Se ainda falhar e houver essayId: bater em /api/essays/:id/file (sem token) COM cookies
-      // 4) Último chute: /api/essays/:id/file?token=... (sem cookies)
-      // 5) Se nada deu certo: só usamos a URL direta SE for "segura" (http(s)/data:). Senão, erro.
+      const same = isSameOrigin(fileSrc);
+      const qToken = getQueryToken(fileSrc);
 
       const attempts: Array<() => Promise<Blob>> = [];
 
-      if (token) {
-        attempts.push(() =>
-          tryFetchAsBlob(fileSrc, {
-            method: "GET",
-            signal: ac.signal,
-            cache: "no-store",
-            credentials: "omit",
-            headers: { Authorization: `Bearer ${token}` },
-            note: "token+omit",
-          })
-        );
-        attempts.push(() =>
-          tryFetchAsBlob(fileSrc, {
-            method: "GET",
-            signal: ac.signal,
-            cache: "no-store",
-            credentials: "include",
-            // sem Authorization aqui
-            note: "sem token header + include",
-          })
-        );
-      } else {
-        // Sem token na query: primeiro com cookies
-        attempts.push(() =>
-          tryFetchAsBlob(fileSrc, {
-            method: "GET",
-            signal: ac.signal,
-            cache: "no-store",
-            credentials: "include",
-            note: "include sem token",
-          })
-        );
+      // a) mesma origem -> cookies
+      if (same) {
+        attempts.push(() => fetchWith({ url: fileSrc, useCookies: true, signal: ac.signal }));
       }
 
-      if (essayId) {
-        attempts.push(() =>
-          tryFetchAsBlob(`/api/essays/${essayId}/file`, {
-            method: "GET",
-            signal: ac.signal,
-            cache: "no-store",
-            credentials: "include",
-            note: "endpoint /file com sessão",
-          })
-        );
-        if (token) {
-          attempts.push(() =>
-            tryFetchAsBlob(`/api/essays/${essayId}/file?token=${encodeURIComponent(token)}`, {
-              method: "GET",
-              signal: ac.signal,
-              cache: "no-store",
-              credentials: "omit",
-              headers: { Authorization: `Bearer ${token}` },
-              note: "endpoint /file com token bearer",
-            })
-          );
-        }
+      // b) se tiver token na query -> Authorization Bearer sem cookies
+      if (qToken) {
+        attempts.push(() => fetchWith({ url: fileSrc, useCookies: false, bearer: qToken, signal: ac.signal }));
+        // alternativa: mesma URL com cookies (alguns backends aceitam ambos)
+        attempts.push(() => fetchWith({ url: fileSrc, useCookies: true, signal: ac.signal }));
       }
+
+      // endpoint direto com sessão
+      if (essayId) {
+        attempts.push(() => fetchWith({ url: `/api/essays/${essayId}/file`, useCookies: true, signal: ac.signal }));
+      }
+
+      // c) refresh opcional de token e repetir (b)
+      attempts.push(async () => {
+        const fresh = await getFreshToken(essayId, ac.signal);
+        if (!fresh) throw new Error("no fresh token");
+        return await fetchWith({ url: fileSrc, useCookies: false, bearer: fresh, signal: ac.signal });
+      });
 
       let blob: Blob | null = null;
-      let lastErr: unknown = null;
-
-      for (const fn of attempts) {
+      for (const run of attempts) {
         try {
-          blob = await fn();
+          blob = await run();
           break;
         } catch (e: any) {
-          lastErr = e;
-          // 414/404/401/403 nós só registramos e seguimos p/ próximo fallback
-          if (import.meta.env?.DEV) {
-            console.warn("[PDF] tentativa falhou:", e?.message ?? e);
-          }
+          if (import.meta.env?.DEV) console.warn("[PDF] tentativa falhou:", e?.message || e);
           continue;
         }
       }
 
-      // Fallback final: só passe a URL direta se for http(s)/data:
-      if (!blob && isSafeDirect(fileSrc)) {
-        if (!alive) return;
-        setDocUrl(fileSrc);
-        return;
-      }
-
       if (!blob) {
-        // Sem blob e sem URL segura => nada para mostrar
-        if (import.meta.env?.DEV) {
-          console.warn("PDF blob fetch falhou; sem blob disponível", lastErr);
-        }
-        if (alive) setDocUrl(null);
+        if (alive) setDocErr("Falha ao carregar PDF");
         return;
       }
 
@@ -227,9 +209,7 @@ export default function PdfAnnotator({
         URL.revokeObjectURL(url);
         return;
       }
-      if (lastBlobUrlRef.current?.startsWith("blob:")) {
-        URL.revokeObjectURL(lastBlobUrlRef.current);
-      }
+      if (lastBlobUrlRef.current?.startsWith("blob:")) URL.revokeObjectURL(lastBlobUrlRef.current);
       lastBlobUrlRef.current = url;
       setDocUrl(url);
     })();
@@ -241,13 +221,7 @@ export default function PdfAnnotator({
         lastBlobUrlRef.current = null;
       }
     };
-  }, [fileSrc, essayId]);
-
-  // file prop seguro para o <Document />
-  const safeFile = useMemo(
-    () => docUrl ?? (isSafeDirect(fileSrc) ? fileSrc : undefined),
-    [docUrl, fileSrc]
-  );
+  }, [fileSrc, essayId, retryKey]);
 
   /* ============== utils de geometria ============== */
   const toNorm = (r: { x: number; y: number; width: number; height: number }, w: number, h: number): RectNorm => ({
@@ -494,13 +468,29 @@ export default function PdfAnnotator({
         <Toolbar />
       </div>
 
+      {docErr && (
+        <div className="mx-2 mb-2 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700 flex items-center justify-between">
+          <span>{docErr}</span>
+          <button
+            className="ml-3 rounded bg-red-600 px-3 py-1 text-white hover:bg-red-700"
+            onClick={() => setRetryKey((k) => k + 1)}
+          >
+            Tentar novamente
+          </button>
+        </div>
+      )}
+
       <div className="mt-1 space-y-8 overflow-auto" style={{ maxHeight: "calc(100vh - 240px)" }}>
-        <Document
-          file={safeFile}
-          loading={<div className="p-4 text-muted-foreground">Carregando PDF…</div>}
-          error={<div className="p-4 text-destructive">Falha ao carregar PDF</div>}
-          onLoadSuccess={({ numPages }: any) => setNumPages(numPages)}
-        >
+        {!docUrl && !docErr && (
+          <div className="p-4 text-muted-foreground">Preparando arquivo…</div>
+        )}
+        {docUrl && (
+          <Document
+            file={docUrl}
+            loading={<div className="p-4 text-muted-foreground">Carregando PDF…</div>}
+            error={<div className="p-4 text-destructive">Falha ao carregar PDF</div>}
+            onLoadSuccess={({ numPages }: any) => setNumPages(numPages)}
+          >
           {Array.from({ length: numPages }, (_, i) => (
             <div key={i + 1} className="relative inline-block">
               <Page
@@ -521,7 +511,8 @@ export default function PdfAnnotator({
               )}
             </div>
           ))}
-        </Document>
+          </Document>
+        )}
       </div>
     </div>
   );
