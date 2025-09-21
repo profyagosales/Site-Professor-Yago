@@ -4,7 +4,7 @@ import { Table, Th, Td } from "@/components/ui/Table";
 import { useEffect, useState } from "react";
 import EditStudentModal from '@/components/EditStudentModal';
 import { useParams, Link } from "react-router-dom";
-import { listStudents as listStudentsApi, create as createStudent, update as updateStudent, remove as removeStudent } from "@/services/students";
+import studentsService from "@/services/students.js";
 import { getClassById } from "@/services/classes";
 import NewStudentModal from "@/components/NewStudentModal";
 
@@ -22,7 +22,7 @@ export default function TurmaAlunosPage() {
     if (!classId) return;
     try {
       setLoading(true); setErr(null);
-      const res = await listStudentsApi(classId);
+  const res = await studentsService.list(classId);
       setAlunos(Array.isArray(res?.data) ? res.data : res?.data?.data || res || []);
     } catch (e: any) {
       setErr(e?.response?.data?.message || 'Erro ao carregar alunos');
@@ -80,7 +80,7 @@ export default function TurmaAlunosPage() {
                   <Button variant="ghost" onClick={async ()=>{
                     if (!confirm('Remover aluno?')) return;
                     try {
-                      await removeStudent(classId!, a._id || a.id);
+                      await studentsService.remove(classId!, a._id || a.id);
                       await load();
                     } catch (e:any) { alert(e?.response?.data?.message || 'Erro ao remover aluno'); }
                   }}>Remover</Button>

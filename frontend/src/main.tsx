@@ -20,6 +20,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <div className="ys-noise" />
   <RouterProvider router={router} />
-  <ToastContainer position="top-right" autoClose={3000} hideProgressBar theme="light" />
+  <ToastContainer aria-label="notificações" position="top-right" autoClose={3000} hideProgressBar theme="light" />
   </React.StrictMode>
 );
