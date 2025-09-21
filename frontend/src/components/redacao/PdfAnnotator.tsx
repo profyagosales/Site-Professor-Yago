@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { nanoid } from "nanoid";
 
 /**
- * NÃO importe 'react-pdf' nem 'react-konva' no topo.
- * Ambos são carregados dinamicamente dentro do componente para evitar preload.
+ * IMPORTANTE: não importar 'react-pdf' nem 'react-konva' no topo.
+ * Carregamos dinamicamente para não puxar os chunks antes do vendor/React.
  */
 
 export type PaletteItem = { key: string; label: string; color: string; rgba: string };
@@ -27,7 +27,7 @@ export type AnnHighlight = {
 
 export default function PdfAnnotator({
   fileSrc,
-  essayId, // reservado
+  essayId,
   palette,
   onChange,
 }: {
@@ -36,7 +36,7 @@ export default function PdfAnnotator({
   palette: PaletteItem[];
   onChange?: (annos: AnnHighlight[]) => void;
 }) {
-  /* ========== lazy: react-pdf ========== */
+  /* ============== lazy: react-pdf ============== */
   const [RP, setRP] = useState<any>(null);
   useEffect(() => {
     let active = true;
@@ -59,7 +59,7 @@ export default function PdfAnnotator({
     };
   }, []);
 
-  /* ========== lazy: react-konva ========== */
+  /* ============== lazy: react-konva ============== */
   const [RK, setRK] = useState<any>(null);
   useEffect(() => {
     let active = true;
@@ -76,96 +76,180 @@ export default function PdfAnnotator({
     };
   }, []);
 
-  /* ========== estados ========== */
-  const [numPages, setNumPages] = useState<number>(0);
+  /* ============== estados gerais ============== */
+  const [numPages, setNumPages] = useState(0);
   const [scale, setScale] = useState(1);
   const [tool, setTool] = useState<"highlight" | "strike" | "box" | "pen" | "comment">("highlight");
   const [currentCat, setCurrentCat] = useState<PaletteItem>(palette[1] ?? palette[0]);
   const [annos, setAnnos] = useState<AnnHighlight[]>([]);
   const [pageSizes, setPageSizes] = useState<Record<number, { w: number; h: number }>>({});
 
-  /* ========== loader seguro do PDF (Blob URL) ========== */
+  /* ============== loader do PDF (Blob URL com fallbacks) ============== */
   const [docUrl, setDocUrl] = useState<string | null>(null);
   const lastBlobUrlRef = useRef<string | null>(null);
 
-  // helper: monta URL resolvida e separa token/query
-  const parseSrc = (src: string) => {
-    const u = new URL(src, window.location.origin);
-    const token = u.searchParams.get("token") || undefined;
-    // nunca deixamos o token no query
-    if (token) u.searchParams.delete("token");
-    const sameOrigin = u.origin === window.location.origin;
-    return { url: u, token, sameOrigin };
+  const isSafeDirect = (u: string) => /^https?:\/\//.test(u) || u.startsWith("data:");
+  const extractToken = (u: string) => {
+    try {
+      const url = new URL(u, window.location.origin);
+      return url.searchParams.get("token") ?? undefined;
+    } catch {
+      return undefined;
+    }
   };
+
+  async function tryFetchAsBlob(
+    url: string,
+    opts: RequestInit & { note: string }
+  ): Promise<Blob> {
+    const res = await fetch(url, opts);
+    // >>> NÃO tratar redirect como erro; fetch segue redirecionamentos automaticamente.
+    if (!res.ok) {
+      throw new Error(`${opts.note} -> HTTP ${res.status}`);
+    }
+    // Alguns storages servem "application/octet-stream"; seguimos adiante mesmo assim
+    const blob = await res.blob();
+    return blob;
+  }
 
   useEffect(() => {
     if (!fileSrc) return;
     let alive = true;
     const ac = new AbortController();
 
-    setDocUrl(null); // reset enquanto prepara
+    setDocUrl(null); // reset visual até termos algo
 
     (async () => {
-      try {
-        const { url, token, sameOrigin } = parseSrc(fileSrc);
+      const token = extractToken(fileSrc);
 
-        // 1) Tenta com cookie de sessão (preferível em same-origin)
-        let res = await fetch(url.toString(), {
-          method: "GET",
-          cache: "no-store",
-          credentials: "include",
-          signal: ac.signal,
-        });
+      // Estratégias de tentativa, na ordem:
+      // 1) Se tem token na query: tentar S/ cookies e COM Authorization (alvos que esperam bearer/anon)
+      // 2) Se falhar 401/403: repetir COM cookies e SEM Authorization (alvos que esperam sessão)
+      // 3) Se ainda falhar e houver essayId: bater em /api/essays/:id/file (sem token) COM cookies
+      // 4) Último chute: /api/essays/:id/file?token=... (sem cookies)
+      // 5) Se nada deu certo: só usamos a URL direta SE for "segura" (http(s)/data:). Senão, erro.
 
-        // 2) Se 401 e houver token, tenta novamente com Authorization bearer (sem cookies)
-        if (res.status === 401 && token) {
-          res = await fetch(url.toString(), {
+      const attempts: Array<() => Promise<Blob>> = [];
+
+      if (token) {
+        attempts.push(() =>
+          tryFetchAsBlob(fileSrc, {
             method: "GET",
+            signal: ac.signal,
             cache: "no-store",
             credentials: "omit",
             headers: { Authorization: `Bearer ${token}` },
+            note: "token+omit",
+          })
+        );
+        attempts.push(() =>
+          tryFetchAsBlob(fileSrc, {
+            method: "GET",
             signal: ac.signal,
-          });
-        }
-
-        if (!res.ok || res.redirected) {
-          throw new Error(`fetch PDF ${res.status}`);
-        }
-
-        const type = res.headers.get("content-type") ?? "application/pdf";
-        const ab = await res.arrayBuffer();
-        const blobUrl = URL.createObjectURL(new Blob([ab], { type }));
-
-        if (!alive) {
-          URL.revokeObjectURL(blobUrl);
-          return;
-        }
-        if (lastBlobUrlRef.current?.startsWith("blob:")) {
-          URL.revokeObjectURL(lastBlobUrlRef.current);
-        }
-        lastBlobUrlRef.current = blobUrl;
-        setDocUrl(blobUrl);
-      } catch (e) {
-        // fallback final (não empurraremos token gigante pro worker)
-        console.warn("PDF blob fetch falhou; sem blob disponível", e);
-        setDocUrl(null);
+            cache: "no-store",
+            credentials: "include",
+            // sem Authorization aqui
+            note: "sem token header + include",
+          })
+        );
+      } else {
+        // Sem token na query: primeiro com cookies
+        attempts.push(() =>
+          tryFetchAsBlob(fileSrc, {
+            method: "GET",
+            signal: ac.signal,
+            cache: "no-store",
+            credentials: "include",
+            note: "include sem token",
+          })
+        );
       }
+
+      if (essayId) {
+        attempts.push(() =>
+          tryFetchAsBlob(`/api/essays/${essayId}/file`, {
+            method: "GET",
+            signal: ac.signal,
+            cache: "no-store",
+            credentials: "include",
+            note: "endpoint /file com sessão",
+          })
+        );
+        if (token) {
+          attempts.push(() =>
+            tryFetchAsBlob(`/api/essays/${essayId}/file?token=${encodeURIComponent(token)}`, {
+              method: "GET",
+              signal: ac.signal,
+              cache: "no-store",
+              credentials: "omit",
+              headers: { Authorization: `Bearer ${token}` },
+              note: "endpoint /file com token bearer",
+            })
+          );
+        }
+      }
+
+      let blob: Blob | null = null;
+      let lastErr: unknown = null;
+
+      for (const fn of attempts) {
+        try {
+          blob = await fn();
+          break;
+        } catch (e: any) {
+          lastErr = e;
+          // 414/404/401/403 nós só registramos e seguimos p/ próximo fallback
+          if (import.meta.env?.DEV) {
+            console.warn("[PDF] tentativa falhou:", e?.message ?? e);
+          }
+          continue;
+        }
+      }
+
+      // Fallback final: só passe a URL direta se for http(s)/data:
+      if (!blob && isSafeDirect(fileSrc)) {
+        if (!alive) return;
+        setDocUrl(fileSrc);
+        return;
+      }
+
+      if (!blob) {
+        // Sem blob e sem URL segura => nada para mostrar
+        if (import.meta.env?.DEV) {
+          console.warn("PDF blob fetch falhou; sem blob disponível", lastErr);
+        }
+        if (alive) setDocUrl(null);
+        return;
+      }
+
+      const url = URL.createObjectURL(blob);
+      if (!alive) {
+        URL.revokeObjectURL(url);
+        return;
+      }
+      if (lastBlobUrlRef.current?.startsWith("blob:")) {
+        URL.revokeObjectURL(lastBlobUrlRef.current);
+      }
+      lastBlobUrlRef.current = url;
+      setDocUrl(url);
     })();
 
     return () => {
-      alive = false;
       ac.abort();
       if (lastBlobUrlRef.current?.startsWith("blob:")) {
         URL.revokeObjectURL(lastBlobUrlRef.current);
         lastBlobUrlRef.current = null;
       }
     };
-  }, [fileSrc]);
+  }, [fileSrc, essayId]);
 
-  // Não entregamos string insegura ao <Document />; só blob (ou nada)
-  const safeFile = useMemo(() => docUrl ?? undefined, [docUrl]);
+  // file prop seguro para o <Document />
+  const safeFile = useMemo(
+    () => docUrl ?? (isSafeDirect(fileSrc) ? fileSrc : undefined),
+    [docUrl, fileSrc]
+  );
 
-  /* ========== util geom ========== */
+  /* ============== utils de geometria ============== */
   const toNorm = (r: { x: number; y: number; width: number; height: number }, w: number, h: number): RectNorm => ({
     x: r.x / w,
     y: r.y / h,
@@ -179,11 +263,11 @@ export default function PdfAnnotator({
     onChange?.(list);
   };
 
-  /* ========== placeholders ========== */
+  /* ============== placeholders ============== */
   if (!RP) return <div className="p-4 text-muted-foreground">Carregando visualizador…</div>;
   if (!RK) return <div className="p-4 text-muted-foreground">Carregando ferramentas…</div>;
 
-  /* ========== componentes lazy ========== */
+  /* ============== componentes carregados ============== */
   const { Document, Page } = RP as any;
   const Stage: React.ComponentType<any> = (RK as any).Stage;
   const Layer: React.ComponentType<any> = (RK as any).Layer;
@@ -192,7 +276,7 @@ export default function PdfAnnotator({
   const Group: React.ComponentType<any> = (RK as any).Group;
   const Text: React.ComponentType<any> = (RK as any).Text;
 
-  /* ========== toolbar ========== */
+  /* ============== toolbar ============== */
   const Toolbar = () => (
     <div className="flex items-center gap-2 pb-2 border-b">
       <div className="flex gap-1">
@@ -232,7 +316,7 @@ export default function PdfAnnotator({
     </div>
   );
 
-  /* ========== overlay por página ========== */
+  /* ============== overlay por página ============== */
   function PageOverlay({ page }: { page: number }) {
     const size = pageSizes[page];
     const [drag, setDrag] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
@@ -403,7 +487,7 @@ export default function PdfAnnotator({
     );
   }
 
-  /* ========== render ========== */
+  /* ============== render ============== */
   return (
     <div className="flex flex-col h-full">
       <div className="mb-2">
@@ -417,29 +501,26 @@ export default function PdfAnnotator({
           error={<div className="p-4 text-destructive">Falha ao carregar PDF</div>}
           onLoadSuccess={({ numPages }: any) => setNumPages(numPages)}
         >
-          {Array.from({ length: numPages }, (_, idx) => {
-            const pageNo = idx + 1;
-            return (
-              <div key={pageNo} className="relative inline-block">
-                <Page
-                  pageNumber={pageNo}
-                  scale={scale}
-                  renderAnnotationLayer={false}
-                  renderTextLayer={false}
-                  onLoadSuccess={(p: any) => {
-                    const vw = p._pageInfo.view[2] * scale;
-                    const vh = p._pageInfo.view[3] * scale;
-                    setPageSizes((s) => ({ ...s, [pageNo]: { w: vw, h: vh } }));
-                  }}
-                />
-                {pageSizes[pageNo] && (
-                  <div className="absolute inset-0 pointer-events-auto">
-                    <PageOverlay page={pageNo} />
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {Array.from({ length: numPages }, (_, i) => (
+            <div key={i + 1} className="relative inline-block">
+              <Page
+                pageNumber={i + 1}
+                scale={scale}
+                renderAnnotationLayer={false}
+                renderTextLayer={false}
+                onLoadSuccess={(p: any) => {
+                  const vw = p._pageInfo.view[2] * scale;
+                  const vh = p._pageInfo.view[3] * scale;
+                  setPageSizes((s) => ({ ...s, [i + 1]: { w: vw, h: vh } }));
+                }}
+              />
+              {pageSizes[i + 1] && (
+                <div className="absolute inset-0 pointer-events-auto">
+                  <PageOverlay page={i + 1} />
+                </div>
+              )}
+            </div>
+          ))}
         </Document>
       </div>
     </div>
