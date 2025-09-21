@@ -32,7 +32,7 @@ export type AnnHighlight = {
 
 export default function PdfAnnotator({
   fileSrc,
-  essayId, // reservado para usos futuros (ex: salvar anotações por redação)
+  essayId,
   palette,
   onChange,
 }: {
@@ -48,7 +48,7 @@ export default function PdfAnnotator({
     (async () => {
       try {
         const m = await import(/* @vite-ignore */ "react-pdf");
-        // Preferir worker ESM (mais leve e sem eval); fallback para UMD
+        // Preferir worker ESM (mais leve); fallback para UMD
         try {
           const w = new Worker("/pdf.worker.min.mjs", { type: "module" });
           (m.pdfjs.GlobalWorkerOptions as any).workerPort = w as any;
@@ -90,53 +90,72 @@ export default function PdfAnnotator({
   const [annos, setAnnos] = useState<AnnHighlight[]>([]);
   const [pageSizes, setPageSizes] = useState<Record<number, { w: number; h: number }>>({});
 
-  /* ---------- Loader do PDF: Blob URL seguro ---------- */
+  /* ---------- Loader do PDF: sempre via Blob URL com URL fresca ---------- */
 
-  // Guarda a URL segura (blob: ou http(s)/data:)
-  const [docUrl, setDocUrl] = useState<string | null>(null);
-  // Para revogar o blob anterior quando trocar o arquivo
+  const [docUrl, setDocUrl] = useState<string | null>(null); // blob:… ou null
   const lastBlobUrlRef = useRef<string | null>(null);
 
-  // Helpers
+  // Uma URL direta é "segura" se for http(s) ou data:
   const isSafeDirect = (u: string) => /^https?:\/\//.test(u) || u.startsWith("data:");
-  const getToken = (u: string) => {
-    try {
-      const url = new URL(u, window.location.origin);
-      return url.searchParams.get("token") ?? undefined;
-    } catch {
-      return undefined;
-    }
-  };
 
   useEffect(() => {
     if (!fileSrc) return;
+
     let alive = true;
-    const ac = new AbortController();
+    const ctrl = new AbortController();
 
-    setDocUrl(null); // reset até termos o blob
+    setDocUrl(null); // reset enquanto preparamos o blob
 
-    (async () => {
+    // Descobre o ID da redação a partir do fileSrc (fallback usa a prop essayId)
+    function inferEssayId(src: string): string | undefined {
       try {
-        const token = getToken(fileSrc);
-        const headers: Record<string, string> = {};
-        if (token) headers.Authorization = `Bearer ${token}`;
+        const u = new URL(src, window.location.origin);
+        const m = u.pathname.match(/\/api\/essays\/([^/]+)/);
+        return m?.[1] || essayId || undefined;
+      } catch {
+        return essayId || undefined;
+      }
+    }
 
-        const res = await fetch(fileSrc, {
+    async function getFreshFileUrl(src: string): Promise<string> {
+      const id = inferEssayId(src);
+      if (!id) return src;
+
+      try {
+        // Rota que devolve uma URL fresca (tipicamente presign S3) para o PDF
+        const r = await fetch(`/api/essays/${id}/file-token`, {
           method: "GET",
-          signal: ac.signal,
+          credentials: "include",
+          signal: ctrl.signal,
           cache: "no-store",
-          // Se a URL já tem token, não envie cookies; senão, inclua cookies para sessão
-          credentials: token ? "omit" : "include",
-          headers,
         });
+        if (!r.ok) return src;
+        const data = await r.json(); // { url: string }
+        return typeof data?.url === "string" ? data.url : src;
+      } catch {
+        return src;
+      }
+    }
 
-        if (!res.ok || res.redirected) {
-          throw new Error(`fetch PDF ${res.status}`);
-        }
+    async function run() {
+      // 1) Obter URL fresca (evita 401 de token velho e 414 de query gigante)
+      const fresh = await getFreshFileUrl(fileSrc);
+
+      try {
+        // 2) Baixar como ArrayBuffer e criar Blob URL
+        const sameOrigin = fresh.startsWith(window.location.origin);
+        const res = await fetch(fresh, {
+          method: "GET",
+          credentials: sameOrigin ? "include" : "omit",
+          signal: ctrl.signal,
+          cache: "no-store",
+        });
+        if (!res.ok) throw new Error(`fetch PDF ${res.status}`);
 
         const type = res.headers.get("content-type") ?? "application/pdf";
-        const ab = await res.arrayBuffer();
-        const url = URL.createObjectURL(new Blob([ab], { type }));
+        const buf = await res.arrayBuffer();
+        const blob = new Blob([buf], { type });
+        const url = URL.createObjectURL(blob);
 
         if (!alive) {
           URL.revokeObjectURL(url);
@@ -151,25 +170,35 @@ export default function PdfAnnotator({
         setDocUrl(url);
       } catch (e) {
         console.warn("PDF blob fetch falhou; usando fallback somente se seguro", e);
-        setDocUrl(isSafeDirect(fileSrc) ? fileSrc : null);
+        // Fallback: apenas se mesma origem ou data:/http(s)
+        try {
+          const u = new URL(fileSrc, window.location.origin);
+          if (u.origin === window.location.origin || isSafeDirect(fileSrc)) {
+            setDocUrl(fileSrc);
+          } else {
+            setDocUrl(null);
+          }
+        } catch {
+          setDocUrl(null);
+        }
       }
-    })();
+    }
+
+    run();
 
     return () => {
       alive = false;
-      ac.abort();
+      ctrl.abort();
       if (lastBlobUrlRef.current?.startsWith("blob:")) {
         URL.revokeObjectURL(lastBlobUrlRef.current);
         lastBlobUrlRef.current = null;
       }
     };
-  }, [fileSrc]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fileSrc, essayId]);
 
-  // File passado ao <Document /> (nunca envie string inválida que gere 414)
-  const safeFile = useMemo(
-    () => docUrl ?? (isSafeDirect(fileSrc) ? fileSrc : undefined),
-    [docUrl, fileSrc]
-  );
+  // Valor passado ao <Document /> (evita mandar string inválida)
+  const safeFile = useMemo(() => (docUrl ? docUrl : undefined), [docUrl]);
 
   /* ---------- Utilitários de geometria ---------- */
   const toNorm = (r: { x: number; y: number; width: number; height: number }, w: number, h: number): RectNorm => ({
@@ -440,9 +469,11 @@ export default function PdfAnnotator({
                 }}
               />
               {/* overlay */}
-              {pageSizes[i + 1] && <div className="absolute inset-0 pointer-events-auto">
-                <PageOverlay page={i + 1} />
-              </div>}
+              {pageSizes[i + 1] && (
+                <div className="absolute inset-0 pointer-events-auto">
+                  <PageOverlay page={i + 1} />
+                </div>
+              )}
             </div>
           ))}
         </Document>
