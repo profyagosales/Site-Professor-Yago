@@ -29,17 +29,12 @@ export default defineConfig({
         moduleSideEffects: (id) => (/pdfjs-dist/).test(id) ? false : null,
       },
       output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            // Separe explicitamente os pacotes pesados em chunks nomeados
-            if (/(^|\/)react-pdf(\/|$)|pdfjs-dist|react-pdf-highlighter/.test(id)) {
-              return 'pdf';
-            }
-            if (/(^|\/)(react|react-dom|react-router)(\/|$)|react\/jsx-runtime/.test(id)) {
-              return 'vendor';
-            }
-          }
+        manualChunks: {
+          pdf: ['react-pdf', 'pdfjs-dist', 'react-pdf-highlighter'],
+          ReactKonva: ['react-konva', 'konva'],
         },
+        // Garante que react/react-dom ficam no vendor separado
+        // (o Vite ainda pode criar vendor automaticamente; mantemos dedupe para singleton)
         // Evita que o Vite gere <link rel="modulepreload"> para imports dinâmicos analisados
         inlineDynamicImports: false,
       },
