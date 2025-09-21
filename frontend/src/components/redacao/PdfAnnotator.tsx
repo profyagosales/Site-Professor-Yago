@@ -78,6 +78,47 @@ export default function PdfAnnotator({
   const [annos, setAnnos] = useState<AnnHighlight[]>([]);
   const [pageSizes, setPageSizes] = useState<{[p:number]: {w:number; h:number}}>({});
 
+  // Preferir Blob URL: buscarmos o arquivo com credenciais e entregamos um blob: ao PDF.js,
+  // evitando cookies/token dentro do worker e prevenindo 414/base64 gigante no DOM.
+  const [docUrl, setDocUrl] = useState<string | null>(null);
+  const lastBlobUrlRef = useRef<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const ctrl = new AbortController();
+    // Reset enquanto prepara a fonte
+    setDocUrl(null);
+    (async () => {
+      if (!fileSrc) return;
+      try {
+        const res = await fetch(fileSrc, { credentials: 'include', signal: ctrl.signal });
+        if (!res.ok) throw new Error(`fetch PDF ${res.status}`);
+        const type = res.headers.get('content-type') || 'application/pdf';
+        const buf = await res.arrayBuffer();
+        const blob = new Blob([buf], { type });
+        const url = URL.createObjectURL(blob);
+        if (!alive) { URL.revokeObjectURL(url); return; }
+        // Revoga blob anterior, se houver
+        if (lastBlobUrlRef.current && lastBlobUrlRef.current.startsWith('blob:')) {
+          URL.revokeObjectURL(lastBlobUrlRef.current);
+        }
+        lastBlobUrlRef.current = url;
+        setDocUrl(url);
+      } catch (e) {
+        // Fallback: usa a URL direta caso falhe o fetch com credenciais
+        console.warn('PDF blob fetch falhou, usando URL direta', e);
+        if (alive) setDocUrl(fileSrc);
+      }
+    })();
+    return () => {
+      alive = false;
+      ctrl.abort();
+      if (lastBlobUrlRef.current && lastBlobUrlRef.current.startsWith('blob:')) {
+        URL.revokeObjectURL(lastBlobUrlRef.current);
+        lastBlobUrlRef.current = null;
+      }
+    };
+  }, [fileSrc]);
+
   const toNorm = (r:{x:number;y:number;width:number;height:number}, w:number, h:number):RectNorm =>
     ({ x: r.x / w, y: r.y / h, w: r.width / w, h: r.height / h });
   const fromNorm = (r:RectNorm, w:number, h:number) =>
@@ -276,7 +317,7 @@ export default function PdfAnnotator({
       {/* páginas */}
       <div className="mt-1 space-y-8 overflow-auto" style={{ maxHeight: "calc(100vh - 240px)" }}>
         <Document
-          file={fileSrc}
+          file={docUrl || fileSrc}
           loading={<div className="p-4 text-muted-foreground">Carregando PDF…</div>}
           error={<div className="p-4 text-destructive">Falha ao carregar PDF</div>}
           onLoadSuccess={({ numPages }) => setNumPages(numPages)}
