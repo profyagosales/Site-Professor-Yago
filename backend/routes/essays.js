@@ -43,8 +43,9 @@ router.patch('/:id/annotations', authRequired, updateAnnotations);
 router.get('/:id/annotations', authRequired, getAnnotationsCompat);
 router.put('/:id/annotations', authRequired, putAnnotationsCompat);
 router.post('/:id/render-correction', authRequired, renderCorrection);
-// Token curto para baixar arquivo
+// Token curto para baixar arquivo (POST legacy + GET para loaders)
 router.post('/:id/file-token', authRequired, fileController.issueFileToken);
+router.get('/:id/file-token', authRequired, fileController.issueFileToken);
 
 // Preflight sem corpo
 router.head('/:id/file', authOptional, async (req, res, next) => {

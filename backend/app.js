@@ -22,6 +22,8 @@ const notificationRoutes = require('./routes/notifications');
 const announcementsRoutes = require('./routes/announcements');
 const teachersUpcomingRoutes = require('./routes/teachers');
 const studentsUpcomingRoutes = require('./routes/studentsUpcoming');
+const agendaRoutes = require('./routes/agenda');
+const telemetryRoutes = require('./routes/telemetry');
 const dashboardRoutes = require('./routes/dashboard');
 const contentsRoutes = require('./routes/contents');
 const themesRoutes = require('./routes/themes');
@@ -101,6 +103,8 @@ api.use('/notifications', notificationRoutes);
 app.use('/api/announcements', announcementsRoutes);
 app.use('/api/teachers', teachersUpcomingRoutes);
 app.use('/api/students', studentsUpcomingRoutes);
+app.use('/api/agenda', agendaRoutes);
+app.use('/api/telemetry', telemetryRoutes);
 api.use('/contents', contentsRoutes);
 // dev utilities (guarded by SEED_TOKEN)
 api.use('/dev', devSeedRoutes);
