@@ -13,7 +13,7 @@ router.post('/', authRequired, async (req, res, next) => {
       const err = new Error('Apenas professores podem criar avisos');
       err.status = 403; throw err;
     }
-    const { message, classIds, extraEmails, scheduledFor } = req.body || {};
+  const { message, classIds, extraEmails, scheduledFor } = req.body || {};
     if (!message || typeof message !== 'string' || !message.trim()) {
       const err = new Error('Campo "message" é obrigatório');
       err.status = 400; throw err;
@@ -29,7 +29,7 @@ router.post('/', authRequired, async (req, res, next) => {
       teacher: req.user.id,
       classIds: Array.isArray(classIds) ? classIds : [],
       extraEmails: Array.isArray(extraEmails) ? extraEmails : [],
-      scheduledFor: scheduledFor ? new Date(scheduledFor) : null,
+      scheduledFor: scheduledFor ? new Date(scheduledFor) : new Date(),
     });
     res.status(201).json({ success: true, data: doc });
   } catch (err) {
@@ -42,11 +42,14 @@ router.post('/', authRequired, async (req, res, next) => {
 router.get('/teacher/:teacherId', authRequired, async (req, res, next) => {
   try {
     const { teacherId } = req.params;
-    const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
+    const includeScheduled = String(req.query.includeScheduled || 'false') === 'true';
+    const now = new Date();
+    const limit = Math.min(parseInt(req.query.limit, 10) || 10, 50);
     const skip = parseInt(req.query.skip, 10) || 0;
-    const q = { teacher: teacherId };
+    const base = { teacher: teacherId };
+    const q = includeScheduled ? base : { ...base, $or: [ { scheduledFor: { $lte: now } }, { scheduledFor: { $exists: false } } ] };
     const [items, total] = await Promise.all([
-      Announcement.find(q).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Announcement.find(q).sort({ scheduledFor: -1 }).skip(skip).limit(limit).lean(),
       Announcement.countDocuments(q),
     ]);
     res.json({ success: true, data: items, total, limit, skip });
@@ -60,17 +63,17 @@ router.get('/teacher/:teacherId', authRequired, async (req, res, next) => {
 router.get('/student/:studentId', authRequired, async (req, res, next) => {
   try {
     const { studentId } = req.params;
+    const includeScheduled = String(req.query.includeScheduled || 'false') === 'true';
+    const now = new Date();
     const student = await Student.findById(studentId).select('class').lean();
-    if (!student) {
-      const err = new Error('Aluno não encontrado');
-      err.status = 404; throw err;
-    }
-    const classId = student.class; // campo único de turma do aluno
-    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
+    if (!student) { const err = new Error('Aluno não encontrado'); err.status = 404; throw err; }
+    const classId = student.class;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 10, 50);
     const skip = parseInt(req.query.skip, 10) || 0;
-    const q = { $or: [ { classIds: { $size: 0 } }, { classIds: classId } ] };
+    const visibility = includeScheduled ? {} : { $or: [ { scheduledFor: { $lte: now } }, { scheduledFor: { $exists: false } } ] };
+    const q = { $and: [ { $or: [ { classIds: { $exists: true, $size: 0 } }, { classIds: classId } ] }, visibility ] };
     const [items, total] = await Promise.all([
-      Announcement.find(q).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Announcement.find(q).sort({ scheduledFor: -1 }).skip(skip).limit(limit).lean(),
       Announcement.countDocuments(q),
     ]);
     res.json({ success: true, data: items, total, limit, skip });

@@ -95,7 +95,8 @@ api.use('/redactions', redactionsRoutes);
 api.use('/essays', essaysRoutes);
 api.use('/uploads', uploadsRoutes);
 api.use('/notifications', notificationRoutes);
-api.use('/announcements', announcementsRoutes);
+// Montado diretamente em /api/announcements para padronizar (fora do sub-router API_PREFIX)
+app.use('/api/announcements', announcementsRoutes);
 api.use('/contents', contentsRoutes);
 // dev utilities (guarded by SEED_TOKEN)
 api.use('/dev', devSeedRoutes);
