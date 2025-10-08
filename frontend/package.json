@@ -7,7 +7,7 @@
     "dev": "vite",
     "prebuild": "npm run check:pdf-imports && node -e \"(require('fs').existsSync('public/pdf.worker.min.js')||require('fs').existsSync('public/pdf.worker.min.mjs'))||process.exit(2)\" && echo worker OK",
     "build": "vite build",
-    "postbuild": "node scripts/guard-no-eager-pdf-konva.cjs",
+  "postbuild": "node scripts/guard-no-eager-pdf-konva.cjs && node scripts/verify-manifest-no-pdf-konva.cjs",
     "build:all": "npm run build && npm run build:viewer",
     "build:viewer": "node apps/pdf-viewer/scripts/copy-worker.cjs && vite build --config apps/pdf-viewer/vite.config.ts --outDir dist/viewer",
     "vercel-build": "npm ci --legacy-peer-deps || npm install --legacy-peer-deps && npm run build",
@@ -19,7 +19,9 @@
     "check:pdf-imports": "node ./scripts/check-static-pdf-imports.cjs",
     "check:entry-has-no-pdf-konva": "node ./scripts/check-entry-html-clean.cjs",
     "check:dist:pdf-leak": "bash ./scripts/check-dist-pdf-leak.sh",
-    "relink:pdf-annotator": "node ./scripts/relink-pdf-imports.cjs"
+  "relink:pdf-annotator": "node ./scripts/relink-pdf-imports.cjs",
+  "smoke:pdf": "node ./scripts/smoke-pdf.cjs --essay $ESSAY_ID || node ./scripts/smoke-pdf.cjs --url $SMOKE_PDF_URL",
+  "guard:manifest": "node ./scripts/verify-manifest-no-pdf-konva.cjs"
   },
   "dependencies": {
     "axios": "^1.11.0",
