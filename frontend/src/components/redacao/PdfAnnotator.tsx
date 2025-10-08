@@ -1,6 +1,8 @@
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { nanoid } from "nanoid";
+import { emitPdfEvent } from '@/services/telemetry.service';
+import { getEssayFileUrl } from '@/services/essays.service';
 
 /** NÃO importar 'react-pdf' nem 'react-konva' no topo — são carregados dinamicamente. */
 
@@ -161,7 +163,7 @@ export default function PdfAnnotator({
     setDocUrl(url);
   };
 
-  /** --------- carrega o PDF como Blob URL com tentativas --------- */
+  /** --------- carrega o PDF como Blob URL com tentativas (cookies -> bearer(query) -> bearer(fresh token) -> nova URL e repete) --------- */
   useEffect(() => {
     if (!fileSrc) return;
     let alive = true;
@@ -171,44 +173,68 @@ export default function PdfAnnotator({
     setDocUrl(null);
 
     (async () => {
-      try {
-        // 1) mesma rota com cookies (se sessão estiver ok, resolve aqui)
-        const blob1 = await fetchWithCookies(fileSrc, ac.signal);
-        if (!alive) return;
-        setBlobUrl(blob1, alive);
-        return;
-      } catch (e) {
-        // continua tentando…
-      }
-
-      try {
-        // 2) tentar bearer com token presente na própria URL (se houver)
-        const fromUrl = getQueryToken(fileSrc);
-        if (fromUrl) {
-          const blob2 = await fetchWithBearer(fileSrc.split("?")[0], fromUrl, ac.signal);
-          if (!alive) return;
-          setBlobUrl(blob2, alive);
-          return;
+      const baseAttempt = async (src: string, allowTokenRefresh = true): Promise<boolean> => {
+        // Passo 1: tentar cookies
+        try {
+          const blob1 = await fetchWithCookies(src, ac.signal);
+          if (!alive) return true;
+          setBlobUrl(blob1, alive);
+          emitPdfEvent('pdf_load_success', { essayId, srcType: 'blob', step: 1 });
+          return true;
+        } catch (e: any) {
+          emitPdfEvent('pdf_load_error', { essayId, step: 1, message: String(e?.message||e) });
         }
-      } catch (e) {
-        // continua tentando…
-      }
 
-      try {
-        // 3) pedir um token novo e usar Authorization: Bearer
-        const fresh = await getFreshToken(essayId, ac.signal);
-        if (fresh) {
-          const blob3 = await fetchWithBearer(fileSrc.split("?")[0], fresh, ac.signal);
-          if (!alive) return;
-          setBlobUrl(blob3, alive);
-          return;
+        // Passo 2: bearer direto se houver ?token=
+        try {
+          const tokenQ = getQueryToken(src);
+            if (tokenQ) {
+              const blob2 = await fetchWithBearer(src.split('?')[0], tokenQ, ac.signal);
+              if (!alive) return true;
+              setBlobUrl(blob2, alive);
+              emitPdfEvent('pdf_load_success', { essayId, srcType: 'blob', step: 2 });
+              return true;
+            }
+        } catch (e: any) {
+          emitPdfEvent('pdf_load_error', { essayId, step: 2, message: String(e?.message||e) });
         }
-      } catch (e) {
-        // segue para erro final
+
+        // Passo 3: pedir fresh token (rota interna de token leve) se permitido
+        if (allowTokenRefresh) {
+          try {
+            const fresh = await getFreshToken(essayId, ac.signal);
+            if (fresh) {
+              const blob3 = await fetchWithBearer(src.split('?')[0], fresh, ac.signal);
+              if (!alive) return true;
+              setBlobUrl(blob3, alive);
+              emitPdfEvent('pdf_load_success', { essayId, srcType: 'blob', step: 3 });
+              return true;
+            }
+          } catch (e: any) {
+            emitPdfEvent('pdf_load_error', { essayId, step: 3, message: String(e?.message||e) });
+          }
+        }
+        return false;
+      };
+
+      const firstOk = await baseAttempt(fileSrc, true);
+      if (firstOk || !alive) return;
+
+      // Passo 4: tentar conseguir URL curta nova via service (getEssayFileUrl) e repetir sem refresh (pois já usamos acima)
+      try {
+        if (essayId) {
+          const refreshed = await getEssayFileUrl(essayId);
+          if (refreshed && refreshed !== fileSrc) {
+            const secondOk = await baseAttempt(refreshed, false);
+            if (secondOk || !alive) return;
+          }
+        }
+      } catch (e: any) {
+        emitPdfEvent('pdf_load_error', { essayId, step: 'url_refresh', message: String(e?.message||e) });
       }
 
       if (alive) {
-        setDocErr("Não foi possível carregar o PDF (sessão expirada ou token inválido).");
+        setDocErr('Não foi possível carregar o PDF (sessão expirada ou token inválido).');
       }
     })();
 
