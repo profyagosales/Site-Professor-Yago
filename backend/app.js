@@ -19,6 +19,7 @@ const redactionsRoutes = require('./routes/redactions');
 const essaysRoutes = require('./routes/essays');
 const uploadsRoutes = require('./routes/uploads');
 const notificationRoutes = require('./routes/notifications');
+const announcementsRoutes = require('./routes/announcements');
 const dashboardRoutes = require('./routes/dashboard');
 const contentsRoutes = require('./routes/contents');
 const themesRoutes = require('./routes/themes');
@@ -94,6 +95,7 @@ api.use('/redactions', redactionsRoutes);
 api.use('/essays', essaysRoutes);
 api.use('/uploads', uploadsRoutes);
 api.use('/notifications', notificationRoutes);
+api.use('/announcements', announcementsRoutes);
 api.use('/contents', contentsRoutes);
 // dev utilities (guarded by SEED_TOKEN)
 api.use('/dev', devSeedRoutes);
