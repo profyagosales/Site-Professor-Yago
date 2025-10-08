@@ -20,6 +20,8 @@ const essaysRoutes = require('./routes/essays');
 const uploadsRoutes = require('./routes/uploads');
 const notificationRoutes = require('./routes/notifications');
 const announcementsRoutes = require('./routes/announcements');
+const teachersUpcomingRoutes = require('./routes/teachers');
+const studentsUpcomingRoutes = require('./routes/studentsUpcoming');
 const dashboardRoutes = require('./routes/dashboard');
 const contentsRoutes = require('./routes/contents');
 const themesRoutes = require('./routes/themes');
@@ -97,6 +99,8 @@ api.use('/uploads', uploadsRoutes);
 api.use('/notifications', notificationRoutes);
 // Montado diretamente em /api/announcements para padronizar (fora do sub-router API_PREFIX)
 app.use('/api/announcements', announcementsRoutes);
+app.use('/api/teachers', teachersUpcomingRoutes);
+app.use('/api/students', studentsUpcomingRoutes);
 api.use('/contents', contentsRoutes);
 // dev utilities (guarded by SEED_TOKEN)
 api.use('/dev', devSeedRoutes);
