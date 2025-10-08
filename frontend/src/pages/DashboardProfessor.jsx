@@ -13,6 +13,12 @@ import { listUpcomingExams } from '@/services/exams'
 import { listAnnouncements } from '@/services/announcements'
 import { getTeacherWeeklySchedule } from '@/services/schedule'
 
+/*
+// Snippet opcional para habilitar o widget da agenda semanal
+// Basta remover este comentário e garantir VITE_FEATURE_AGENDA_WIDGET=1
+// import AgendaWeekWidget from '@/components/agenda/AgendaWeekWidget';
+*/
+
 function DashboardProfessor(){
   const [user, setUser] = useState(null)
   const [contents, setContents] = useState([])
@@ -137,6 +143,14 @@ function DashboardProfessor(){
       <SendEmailModal isOpen={showEmail} onClose={() => setShowEmail(false)} />
       <QuickContentModal open={contentOpen} onClose={() => setContentOpen(false)} onSaved={reloadContents} />
       <AnnouncementModal open={announcementOpen} onClose={() => setAnnouncementOpen(false)} onSaved={reloadAnnouncements} />
+
+      {/*
+      <AgendaWeekWidget
+        scope="teacher"
+        entityId={user?.id || user?._id}
+        days={7}
+      />
+      */}
     </div>
   )
 }
