@@ -88,6 +88,8 @@ export default function PdfAnnotator({
   const [docErr, setDocErr] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
   const lastBlobUrlRef = useRef<string | null>(null);
+  const [debugMeta, setDebugMeta] = useState<{ step?: string | number; size?: number; srcType?: string } | null>(null);
+  const PDF_DEBUG = (import.meta as any).env?.VITE_PDF_DEBUG === '1';
 
   const emit = (list: AnnHighlight[]) => {
     setAnnos(list);
@@ -180,6 +182,7 @@ export default function PdfAnnotator({
           if (!alive) return true;
           setBlobUrl(blob1, alive);
           emitPdfEvent('pdf_load_success', { essayId, srcType: 'blob', step: 1 });
+          if (PDF_DEBUG) setDebugMeta({ step: 1, size: blob1.size, srcType: 'blob' });
           return true;
         } catch (e: any) {
           emitPdfEvent('pdf_load_error', { essayId, step: 1, message: String(e?.message||e) });
@@ -193,6 +196,7 @@ export default function PdfAnnotator({
               if (!alive) return true;
               setBlobUrl(blob2, alive);
               emitPdfEvent('pdf_load_success', { essayId, srcType: 'blob', step: 2 });
+              if (PDF_DEBUG) setDebugMeta({ step: 2, size: blob2.size, srcType: 'blob' });
               return true;
             }
         } catch (e: any) {
@@ -208,6 +212,7 @@ export default function PdfAnnotator({
               if (!alive) return true;
               setBlobUrl(blob3, alive);
               emitPdfEvent('pdf_load_success', { essayId, srcType: 'blob', step: 3 });
+              if (PDF_DEBUG) setDebugMeta({ step: 3, size: blob3.size, srcType: 'blob' });
               return true;
             }
           } catch (e: any) {
@@ -491,7 +496,15 @@ export default function PdfAnnotator({
       {!docUrl && !docErr && <div className="p-4 text-muted-foreground">Preparando arquivo…</div>}
 
       {docUrl && (
-        <div className="mt-1 space-y-8 overflow-auto" style={{ maxHeight: "calc(100vh - 240px)" }}>
+        <div className="mt-1 space-y-8 overflow-auto relative" style={{ maxHeight: "calc(100vh - 240px)" }}>
+          {PDF_DEBUG && debugMeta && (
+            <div className="absolute top-1 right-2 z-50 text-[10px] bg-black/70 text-white px-2 py-1 rounded shadow">
+              <div>PDF debug</div>
+              <div>step: {debugMeta.step}</div>
+              {typeof debugMeta.size === 'number' && <div>size: {(debugMeta.size/1024/1024).toFixed(2)} MB</div>}
+              <div>src: {debugMeta.srcType}</div>
+            </div>
+          )}
           <Document
             file={docUrl}
             loading={<div className="p-4 text-muted-foreground">Carregando PDF…</div>}

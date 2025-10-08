@@ -180,6 +180,20 @@ export async function getEssayFileUrl(essayId: string): Promise<string> {
   return `/api/essays/${essayId}/file`;
 }
 
+// Novo service: obtém token ou URL curta via GET (utilizado pelo loader resiliente)
+export async function getEssayFileToken(essayId: string): Promise<{ url?: string; token?: string; expiresAt?: string; ttl?: number }> {
+  try {
+    const r = await api.get(`/essays/${essayId}/file-token`);
+    return r.data || {};
+  } catch (err: any) {
+    const status = err?.response?.status;
+    if (status === 401 || status === 403) {
+      throw new Error('Não autorizado a obter token do arquivo');
+    }
+    throw new Error('Falha ao obter token do arquivo');
+  }
+}
+
 // Atualiza anotações ricas da redação
 // Aceita payload com `rich` (legado) ou `richAnnotations` e envia o campo esperado pelo backend
 export async function updateEssayAnnotations(
