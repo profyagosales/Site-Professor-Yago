@@ -50,9 +50,9 @@ const isProd = process.env.NODE_ENV === 'production';
 
 // --- CORS (múltiplas origens) ---
 const allowList = [
-  'https://professoryagosales.com.br',
-  'https://www.professoryagosales.com.br',
-  'https://site-professor-yago-frontend.vercel.app',
+  /^https:\/\/(www\.)?professoryagosales\.com\.br$/,
+  /^https:\/\/frontend-[a-z0-9-]+-profyagosales-projects\.vercel\.app$/,
+  /^http:\/\/localhost(:\d+)?$/,
 ];
 
 const allowedMethods = 'GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD';
@@ -61,8 +61,9 @@ const allowedHeaders = 'Content-Type,Authorization,Range';
 const corsMiddleware = cors({
   origin(origin, cb) {
     if (!origin) return cb(null, true);
-    const ok = allowList.includes(origin);
-    return cb(ok ? null : new Error(`CORS: origem não permitida: ${origin}`), ok);
+    const ok = allowList.some((re) => re.test(origin));
+    if (ok) return cb(null, true);
+    return cb(new Error(`CORS: origem não permitida: ${origin}`), false);
   },
   credentials: true,
   methods: allowedMethods,
