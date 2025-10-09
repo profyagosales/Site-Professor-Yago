@@ -22,6 +22,8 @@ import AlunoCaderno from '@/pages/aluno/Caderno';
 import AlunoGabarito from '@/pages/aluno/Gabarito';
 import AlunoRedacoes from '@/pages/aluno/Redacoes';
 import AlunoNotas from '@/pages/aluno/Notas';
+// Opcional: console de telemetria em dev/admin (só monta quando VITE_FEATURE_TELEMETRY_VIEW=1)
+const DevTelemetryConsole = lazy(() => import(/* @vite-ignore */ '@/pages/DevTelemetryConsole'));
 
 export const router = createBrowserRouter([
   {
@@ -58,6 +60,8 @@ export const router = createBrowserRouter([
           { path: '/professor/redacao/:id', element: <Suspense fallback={<div className="p-6">Carregando…</div>}><GradeWorkspace /></Suspense> },
           { path: '/professor/alunos', element: <ListaAlunos /> },
           { path: '/professor/alunos/:id', element: <PerfilAluno /> },
+          // Rota dev: console de telemetria (apenas se flag no frontend estiver ativa)
+          { path: '/dev/telemetry', element: <Suspense fallback={<div className="p-6">Carregando…</div>}><DevTelemetryConsole /></Suspense> },
         ],
       },
       {

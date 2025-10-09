@@ -21,6 +21,9 @@ Consulte o [Guia do Usuário](./USER_GUIDE.md) para entender os fluxos de login,
 | `VITE_VIRT_PDF` | (Frontend) Enable virtualized PDF viewer for performance. |
 | `VITE_VIRT_BUFFER` | (Frontend) Virtualization buffer in viewport heights (e.g., 1-3). |
 | `ALLOW_DIRECT_FILE_URL` | (Backend) Allows creating essays with a direct `fileUrl` when Cloudinary isn't configured. |
+| `TELEMETRY_STORE` | (Backend) When `1`, stores telemetry events for debugging. Default `0` (off). |
+| `TELEMETRY_TTL_DAYS` | (Backend) Retention in days for telemetry events. Default `7`. |
+| `VITE_FEATURE_TELEMETRY_VIEW` | (Frontend) When `1`, enables a simple telemetry console at `/dev/telemetry`. Default `0`. |
 
 ## Exemplo de .env (Produção)
 
@@ -113,6 +116,12 @@ npm run build
    - Carga é virtualizada quando `VITE_VIRT_PDF=true` para melhor performance em PDFs longos. Ajuste o buffer com `VITE_VIRT_BUFFER`.
    - Detecção de PDF mais robusta: além de verificar `.pdf` no link, o frontend usa `originalMimeType` vindo do backend (salvo no momento do upload ou via HEAD best-effort) para decidir o viewer inline. Assim, URLs sem extensão também abrem no editor.
 
+   ### Telemetria (observabilidade opcional)
+
+   - Off por padrão. Para depuração temporária, habilite `TELEMETRY_STORE=1` no backend.
+   - Retenção curta controlada por `TELEMETRY_TTL_DAYS` (padrão 7 dias); expurgo roda automaticamente uma vez por dia.
+   - Para visualizar rapidamente em ambientes de dev/admin, defina `VITE_FEATURE_TELEMETRY_VIEW=1` no frontend e acesse `/dev/telemetry` (somente admins conseguem ver dados; a API `GET /api/telemetry/latest` exige papel `admin`).
+
 ## Hosting Tips
 
 - **Backend**: Platforms like Heroku or Render work well for hosting the Node.js server.
@@ -123,3 +132,31 @@ npm run build
 ## Deployment Checklist
 
 Refer to [DEPLOY_CHECKLIST.md](./DEPLOY_CHECKLIST.md) for steps to validate navigation, gabarito handling, redação workflows, notifications, and branding before deploying to staging or production.
+
+## CI: Smoke test de PDF (Preview)
+
+O repositório contém um workflow GitHub Actions que roda um smoke test de PDF contra um ambiente de preview/homolog antes da aprovação de PRs.
+
+- Workflow: `.github/workflows/pdf-smoke.yml`
+- Disparos: `pull_request` e `workflow_dispatch`
+
+Secrets necessários (Settings → Secrets and variables → Actions):
+
+- `SMOKE_BASE_URL`: Base do backend de preview (ex.: `https://api-preview.seudominio.com`).
+- `SMOKE_PDF_ESSAY_ID`: ID de uma redação existente nesse ambiente para teste.
+- Opcional `SMOKE_PDF_URL`: URL direta do PDF (usada como fallback se não houver ID).
+- Opcional `SMOKE_PDF_BEARER`: Token Bearer para autorização, se necessário.
+
+Fluxo do job:
+
+1) Instala dependências na raiz e em `frontend/`.
+2) Se houver `SMOKE_PDF_ESSAY_ID`, executa:
+   - `node frontend/scripts/smoke-pdf.cjs --essay $SMOKE_PDF_ESSAY_ID` com `VITE_API_BASE_URL` apontando para `SMOKE_BASE_URL`.
+3) Caso contrário, se houver `SMOKE_PDF_URL`, executa:
+   - `node frontend/scripts/smoke-pdf.cjs --url $SMOKE_PDF_URL`.
+4) Se nenhum for definido, falha o job.
+
+Resultados:
+
+- Sucesso: imprime `SMOKE OK: <bytes> <content-type> via cookies|bearer`.
+- Erro: 401/403/timeout ou content-type inesperado causam falha (exit 1).

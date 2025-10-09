@@ -24,5 +24,7 @@ const evaluationSchema = new mongoose.Schema({
   link: { type: String }
 });
 
+evaluationSchema.index({ 'classes.classId': 1, 'classes.date': 1 });
+
 module.exports = mongoose.model('Evaluation', evaluationSchema);
 

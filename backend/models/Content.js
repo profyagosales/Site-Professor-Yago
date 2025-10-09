@@ -13,4 +13,6 @@ const contentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+contentSchema.index({ classId: 1, date: 1 });
+
 module.exports = mongoose.model('Content', contentSchema);

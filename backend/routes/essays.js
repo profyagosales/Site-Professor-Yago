@@ -58,9 +58,10 @@ router.head('/:id/file', authOptional, async (req, res, next) => {
       'Accept-Ranges': 'bytes',
       'Content-Type': meta.contentType || 'application/pdf',
       ...(meta.length ? { 'Content-Length': meta.length } : {}),
-      'Content-Disposition': `inline; filename="${meta.filename || 'redacao.pdf'}"`
+      'Cache-Control': 'private, max-age=60'
     });
-    res.status(200).end();
+    // Retorna 204 (No Content) para padronizar como health/light HEAD
+    res.status(204).end();
   } catch (err) { next(err); }
 });
 

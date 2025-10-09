@@ -23,7 +23,8 @@ describe('Essay file streaming', () => {
       passwordHash: await bcrypt.hash('123456', 10),
       class: cls._id,
     });
-    studentToken = jwt.sign({ id: student._id }, process.env.JWT_SECRET);
+  // Incluir role 'student' para compatibilidade com nova checagem de acesso a essays
+  studentToken = jwt.sign({ id: student._id, role: 'student' }, process.env.JWT_SECRET);
 
     pdfBuffer = Buffer.alloc(200, 0);
     server = http.createServer((req, res) => {
@@ -73,11 +74,11 @@ describe('Essay file streaming', () => {
     if (server) server.close();
   });
 
-  it('HEAD /essays/:id/file returns 200 with Accept-Ranges header', async () => {
+  it('HEAD /essays/:id/file returns 204 with Accept-Ranges header', async () => {
     const res = await request(app)
       .head(`/essays/${essayId}/file`)
       .set('Authorization', `Bearer ${fileToken}`);
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
     expect(res.headers['accept-ranges']).toBe('bytes');
     expect(res.headers['content-type']).toBe('application/pdf');
   });

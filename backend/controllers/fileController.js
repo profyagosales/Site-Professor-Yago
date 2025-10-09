@@ -6,10 +6,7 @@ const https = require('https');
 const http = require('http');
 const path = require('path');
 
-async function assertUserCanAccessEssay(user, essay) {
-  if (!user) throw Object.assign(new Error('unauthorized'), { status: 401 });
-  return true;
-}
+const { assertUserCanAccessEssay } = require('../utils/assertUserCanAccessEssay');
 
 function readRemoteHead(url) {
   return new Promise((resolve) => {
@@ -78,6 +75,12 @@ exports.authorizeFileAccess = async function authorizeFileAccess({ essayId, toke
       if (String(payload.essayId) !== String(essay._id)) throw new Error('essay mismatch');
       return true;
     } catch (e) {
+      // Se recebeu um token que não é assinado com FILE_TOKEN_SECRET, pode ser um JWT de login.
+      // Nesse caso, se houver usuário autenticado (via authOptional), fazemos fallback para ACL padrão.
+      if (user) {
+        await assertUserCanAccessEssay(user, essay);
+        return true;
+      }
       throw Object.assign(new Error('invalid token'), { status: 401 });
     }
   }
@@ -91,7 +94,8 @@ exports.getFileMeta = async function getFileMeta(essayId) {
     return { length: 0, contentType: 'application/pdf', filename: 'redacao.pdf' };
   }
   const head = await readRemoteHead(essay.originalUrl);
-  const contentType = head.headers['content-type'] || essay.originalMimeType || 'application/pdf';
+  // Não confiar no content-type do upstream (muitos hosts retornam text/html para HEAD)
+  const contentType = essay.originalMimeType || 'application/pdf';
   const length = Number(head.headers['content-length'] || 0);
   const filename = path.basename(essay.originalUrl.split('?')[0]) || 'redacao.pdf';
   return { length, contentType, filename };
@@ -140,7 +144,7 @@ exports.getSignedFileUrl = async function getSignedFileUrl(req, res) {
     // Requer autenticação normal do usuário para emitir URL assinada
     const essay = await Essay.findById(id).lean();
     if (!essay) throw Object.assign(new Error('not found'), { status: 404 });
-    await assertUserCanAccessEssay(req.user, essay);
+  await assertUserCanAccessEssay(req.user, essay);
 
     const token = signFileShortToken(id, FILE_TOKEN_TTL_SECONDS || 300);
     const base = process.env.APP_DOMAIN_API || process.env.API_BASE_URL || '';

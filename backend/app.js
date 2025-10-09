@@ -24,6 +24,7 @@ const teachersUpcomingRoutes = require('./routes/teachers');
 const studentsUpcomingRoutes = require('./routes/studentsUpcoming');
 const agendaRoutes = require('./routes/agenda');
 const telemetryRoutes = require('./routes/telemetry');
+const pdfHealthRoutes = require('./routes/pdfHealth');
 const dashboardRoutes = require('./routes/dashboard');
 const contentsRoutes = require('./routes/contents');
 const themesRoutes = require('./routes/themes');
@@ -105,6 +106,7 @@ app.use('/api/teachers', teachersUpcomingRoutes);
 app.use('/api/students', studentsUpcomingRoutes);
 app.use('/api/agenda', agendaRoutes);
 app.use('/api/telemetry', telemetryRoutes);
+app.use('/api', pdfHealthRoutes);
 api.use('/contents', contentsRoutes);
 // dev utilities (guarded by SEED_TOKEN)
 api.use('/dev', devSeedRoutes);
@@ -113,6 +115,8 @@ api.use('/themes', themesRoutes);
 // Em ambiente de teste, monte as rotas na raiz para compatibilidade com a suíte existente
 if (process.env.NODE_ENV === 'test') {
   app.use('/', api);
+  // Montar health PDF também na raiz para testes
+  app.use('/', pdfHealthRoutes);
 } else {
   app.use(API_PREFIX, api);
 }
