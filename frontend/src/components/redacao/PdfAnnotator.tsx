@@ -77,6 +77,10 @@ export default function PdfAnnotator({
 
   /** --------- estados e helpers --------- */
   const [numPages, setNumPages] = useState<number>(0);
+  // Safe-Mode: começar só com a 1ª página e liberar as demais sob demanda
+  const [safeMode, setSafeMode] = useState<boolean>(() => ((import.meta as any).env?.VITE_PDF_SAFE_MODE === '1'));
+  const [pagesGateOpen, setPagesGateOpen] = useState<boolean>(false);
+  const pagesToRender = (safeMode && !pagesGateOpen) ? Math.min(1, numPages || 1) : numPages;
   const [scale, setScale] = useState(1);
   const [tool, setTool] = useState<"highlight" | "strike" | "box" | "pen" | "comment">("highlight");
   const [currentCat, setCurrentCat] = useState<PaletteItem>(palette[1] ?? palette[0]);
@@ -505,33 +509,49 @@ export default function PdfAnnotator({
               <div>src: {debugMeta.srcType}</div>
             </div>
           )}
-          <Document
-            file={docUrl}
-            loading={<div className="p-4 text-muted-foreground">Carregando PDF…</div>}
-            error={<div className="p-4 text-destructive">Falha ao carregar PDF</div>}
-            onLoadSuccess={({ numPages: n }: any) => setNumPages(n)}
-          >
-            {Array.from(new Array(numPages), (_, i) => (
-              <div key={i + 1} className="relative inline-block">
-                <Page
-                  pageNumber={i + 1}
-                  scale={scale}
-                  renderAnnotationLayer={false}
-                  renderTextLayer={false}
-                  onLoadSuccess={(p: any) => {
-                    const vw = p._pageInfo.view[2] * scale;
-                    const vh = p._pageInfo.view[3] * scale;
-                    setPageSizes((s) => ({ ...s, [i + 1]: { w: vw, h: vh } }));
-                  }}
-                />
-                {pageSizes[i + 1] && (
-                  <div className="absolute inset-0 pointer-events-auto">
-                    <PageOverlay page={i + 1} />
-                  </div>
-                )}
-              </div>
-            ))}
-          </Document>
+          {safeMode && !pagesGateOpen && (
+            <div className="mx-0 mb-2 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              Modo seguro: renderizando somente a 1ª página para iniciar mais rápido.
+              <button className="ml-2 underline" onClick={() => setPagesGateOpen(true)}>Carregar todas</button>
+            </div>
+          )}
+          {docUrl ? (
+            <Document
+              file={docUrl}
+              loading={<div className="p-4 text-muted-foreground">Carregando PDF…</div>}
+              error={<div className="p-4 text-destructive">Falha ao carregar PDF</div>}
+              onLoadSuccess={({ numPages }: any) => {
+                setNumPages(numPages);
+                if (!pagesGateOpen) {
+                  const auto = ((import.meta as any).env?.VITE_PDF_SAFE_MODE === '1');
+                  if (auto || numPages >= 12) setSafeMode(true);
+                }
+              }}
+            >
+              {Array.from(new Array(pagesToRender), (_, i) => (
+                <div key={i + 1} className="relative inline-block">
+                  <Page
+                    pageNumber={i + 1}
+                    scale={scale}
+                    renderAnnotationLayer={false}
+                    renderTextLayer={false}
+                    onLoadSuccess={(p: any) => {
+                      const vw = p._pageInfo.view[2] * scale;
+                      const vh = p._pageInfo.view[3] * scale;
+                      setPageSizes((s) => ({ ...s, [i + 1]: { w: vw, h: vh } }));
+                    }}
+                  />
+                  {pageSizes[i + 1] && (
+                    <div className="absolute inset-0 pointer-events-auto">
+                      <PageOverlay page={i + 1} />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </Document>
+          ) : (
+            <div className="p-4 text-muted-foreground">Preparando PDF…</div>
+          )}
         </div>
       )}
     </div>
