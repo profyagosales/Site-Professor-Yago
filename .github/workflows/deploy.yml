@@ -43,6 +43,13 @@ jobs:
             --token "${{ secrets.VERCEL_TOKEN }}" \
             --scope "${{ secrets.VERCEL_ORG_ID }}"
 
+      - name: Vercel Build (prod)
+        working-directory: frontend
+        run: |
+          npx -y vercel@25 build --prod \
+            --token "${{ secrets.VERCEL_TOKEN }}" \
+            --scope "${{ secrets.VERCEL_ORG_ID }}"
+
       - name: Deploy prebuilt to Vercel (prod)
         working-directory: frontend
         run: |
