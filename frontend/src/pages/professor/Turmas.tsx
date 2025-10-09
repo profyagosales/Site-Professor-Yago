@@ -2,7 +2,7 @@ import { Page } from "@/components/Page";
 import { Card, CardBody, CardTitle, CardSub } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { listClasses, createClass, updateClass, joinClassAsTeacher } from "@/services/classes";
 import { useAuth } from "@/store/AuthContext";
 import ClassModal from '@/components/ClassModal';
@@ -10,7 +10,22 @@ import { toast } from 'react-toastify';
 
 export default function TurmasPage() {
   const nav = useNavigate();
-  const { user } = useAuth();
+  const location = useLocation();
+  const auth = useAuth();
+
+  if (!auth || auth.loading) {
+    return (
+      <Page title="Turmas" subtitle="Gerencie turmas, alunos e avaliações.">
+        <p className="text-ys-ink-2">Carregando…</p>
+      </Page>
+    );
+  }
+
+  if (!auth.user) {
+    return <Navigate to="/login-professor" replace state={{ from: location }} />;
+  }
+
+  const user = auth.user;
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [turmas, setTurmas] = useState<any[]>([]);
@@ -69,7 +84,6 @@ export default function TurmasPage() {
   }, [fetchClasses]);
 
   const isTeacherOf = useCallback((cls: any) => {
-    if (!user) return false;
     const teachers = Array.isArray(cls?.teachers) ? cls.teachers : [];
     return teachers.some((t: any) => {
       if (!t) return false;

@@ -10,7 +10,7 @@ type AuthCtx = {
   logout(): Promise<void>;
 };
 
-const Ctx = createContext<AuthCtx>(null as any);
+const Ctx = createContext<AuthCtx | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -51,5 +51,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <Ctx.Provider value={{ user, loading, loginTeacher, logout }}>{children}</Ctx.Provider>;
 }
 
-export const useAuth = () => useContext(Ctx);
+export const useAuth = (): AuthCtx => {
+  const ctx = useContext(Ctx);
+  if (!ctx) {
+    if (import.meta.env.DEV) {
+      console.warn('useAuth() usado fora de AuthProvider — retornando fallback neutro.');
+    }
+    return {
+      user: null,
+      loading: true,
+      async loginTeacher() {
+        throw new Error('AuthProvider ausente: loginTeacher indisponível');
+      },
+      async logout() {
+        throw new Error('AuthProvider ausente: logout indisponível');
+      },
+    };
+  }
+  return ctx;
+};
 
