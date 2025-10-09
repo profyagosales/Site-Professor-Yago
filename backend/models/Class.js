@@ -18,6 +18,9 @@ const classSchema = new mongoose.Schema({
   students: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Student' }]
 });
 
+classSchema.path('teachers').default(() => []);
+classSchema.path('students').default(() => []);
+
 classSchema.virtual('scheduleSummary').get(function () {
   if (!this.schedule || this.schedule.length === 0) {
     return '';

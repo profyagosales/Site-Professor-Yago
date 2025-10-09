@@ -30,11 +30,13 @@ export default function PdfAnnotator({
   essayId,
   palette,
   onChange,
+  onJoinAsTeacher,
 }: {
   fileSrc: string;
   essayId: string;
   palette: PaletteItem[];
   onChange?: (annos: AnnHighlight[]) => void;
+  onJoinAsTeacher?: () => Promise<void> | void;
 }) {
   /** --------- lazy import das libs --------- */
   const [RP, setRP] = useState<any>(null);
@@ -90,8 +92,12 @@ export default function PdfAnnotator({
   // arquivo
   const [docUrl, setDocUrl] = useState<string | null>(null);
   const [docErr, setDocErr] = useState<string | null>(null);
+  const [lastStatus, setLastStatus] = useState<number | null>(null);
   const [retryKey, setRetryKey] = useState(0);
   const lastBlobUrlRef = useRef<string | null>(null);
+  const lastStatusRef = useRef<number | null>(null);
+  const [joinErr, setJoinErr] = useState<string | null>(null);
+  const [joinLoading, setJoinLoading] = useState(false);
   const [debugMeta, setDebugMeta] = useState<{ step?: string | number; size?: number; srcType?: string } | null>(null);
   const PDF_DEBUG = (import.meta as any).env?.VITE_PDF_DEBUG === '1';
 
@@ -119,7 +125,12 @@ export default function PdfAnnotator({
 
   const fetchWithCookies = async (url: string, signal: AbortSignal): Promise<Blob> => {
     const res = await fetch(url, { credentials: "include", cache: "no-store", signal, redirect: "follow" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      const error: any = new Error(`HTTP ${res.status}`);
+      error.status = res.status;
+      lastStatusRef.current = res.status;
+      throw error;
+    }
     return await res.blob();
   };
 
@@ -131,7 +142,12 @@ export default function PdfAnnotator({
       headers: { Authorization: `Bearer ${token}` },
       redirect: "follow",
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      const error: any = new Error(`HTTP ${res.status}`);
+      error.status = res.status;
+      lastStatusRef.current = res.status;
+      throw error;
+    }
     return await res.blob();
   };
 
@@ -177,6 +193,10 @@ export default function PdfAnnotator({
 
     setDocErr(null);
     setDocUrl(null);
+  setJoinErr(null);
+  setJoinLoading(false);
+  lastStatusRef.current = null;
+  setLastStatus(null);
 
     (async () => {
       const baseAttempt = async (src: string, allowTokenRefresh = true): Promise<boolean> => {
@@ -243,7 +263,17 @@ export default function PdfAnnotator({
       }
 
       if (alive) {
-        setDocErr('Não foi possível carregar o PDF (sessão expirada ou token inválido).');
+        const status = lastStatusRef.current ?? null;
+        setLastStatus(status);
+        let message = 'Não foi possível carregar o PDF (sessão expirada ou token inválido).';
+        if (status === 403) {
+          message = 'Seu usuário não está vinculado à turma desta redação. Entre como professor da turma e tente novamente.';
+        } else if (status === 404) {
+          message = 'Arquivo não encontrado. Verifique se a redação possui PDF anexado ou reenvie o arquivo.';
+        } else if (status === 401) {
+          message = 'Sessão expirada. Faça login novamente para continuar.';
+        }
+        setDocErr(message);
       }
     })();
 
@@ -478,6 +508,22 @@ export default function PdfAnnotator({
     );
   }
 
+  const handleJoinClass = async () => {
+    if (!onJoinAsTeacher) return;
+    setJoinErr(null);
+    setJoinLoading(true);
+    try {
+      await Promise.resolve(onJoinAsTeacher());
+      setDocErr(null);
+      setRetryKey((k) => k + 1);
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || 'Não foi possível entrar na turma.';
+      setJoinErr(msg);
+    } finally {
+      setJoinLoading(false);
+    }
+  };
+
   /** --------- render --------- */
   return (
     <div className="flex flex-col h-full">
@@ -487,10 +533,22 @@ export default function PdfAnnotator({
 
       {docErr && (
         <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">
-          {docErr}{" "}
+          <p>{docErr}</p>
+          {lastStatus === 403 && onJoinAsTeacher && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                onClick={handleJoinClass}
+                className="rounded border border-orange-300 bg-orange-100 px-3 py-1 text-sm font-medium text-orange-800 hover:bg-orange-200 disabled:opacity-60"
+                disabled={joinLoading}
+              >
+                {joinLoading ? 'Entrando…' : 'Entrar como professor desta turma'}
+              </button>
+              {joinErr && <span className="text-xs text-red-600">{joinErr}</span>}
+            </div>
+          )}
           <button
             onClick={() => setRetryKey((k) => k + 1)}
-            className="ml-2 rounded border border-red-300 bg-white px-2 py-1 text-sm hover:bg-red-100"
+            className="mt-2 rounded border border-red-300 bg-white px-2 py-1 text-sm hover:bg-red-100"
           >
             Tentar novamente
           </button>

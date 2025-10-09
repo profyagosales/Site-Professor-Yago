@@ -7,6 +7,7 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
   const [discipline, setDiscipline] = useState('');
   const [schedules, setSchedules] = useState([{ day: '', slot: '', time: '' }]);
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (initialData) {
@@ -34,7 +35,18 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
     setErrors({});
   }, [initialData, isOpen]);
 
-  const handleSubmit = (e) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = {};
     if (!series) newErrors.series = 'Selecione a série';
@@ -53,19 +65,31 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
       slot: Number(s.slot),
       time: s.time,
     }));
-    onSubmit({
-      series: Number(series),
-      letter,
-      discipline,
-      schedule: normalizedSchedule,
-    });
+    try {
+      setSubmitting(true);
+      await Promise.resolve(onSubmit({
+        series: Number(series),
+        letter,
+        discipline,
+        schedule: normalizedSchedule,
+      }));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/50">
-      <div className="ys-card w-full max-w-md p-md">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="ys-card pointer-events-auto w-full max-w-md p-md shadow-xl" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-xl text-orange">
           {initialData ? 'Editar Turma' : 'Nova Turma'}
         </h2>
@@ -148,15 +172,17 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border rounded"
+              className="px-4 py-2 border rounded disabled:opacity-50"
+              disabled={submitting}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="ys-btn-primary"
+              className="ys-btn-primary disabled:opacity-50"
+              disabled={submitting}
             >
-              {initialData ? 'Salvar' : 'Criar'}
+              {submitting ? 'Salvando…' : initialData ? 'Salvar' : 'Criar'}
             </button>
           </div>
         </form>

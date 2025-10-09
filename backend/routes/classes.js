@@ -66,9 +66,9 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // Create class
-router.post('/', async (req, res, next) => {
+router.post('/', authRequired, async (req, res, next) => {
   try {
-    const { series, letter, discipline, schedule } = req.body;
+    const { series, letter, discipline, schedule, teachers: teachersRaw, ...rest } = req.body || {};
     if (
       !Array.isArray(schedule) ||
       schedule.length === 0 ||
@@ -88,11 +88,18 @@ router.post('/', async (req, res, next) => {
       slot: s.slot,
       time: slotTimes[s.slot],
     }));
+    const ownerId = req.user && req.user._id;
+    let teachers = Array.isArray(teachersRaw) ? teachersRaw.filter(Boolean) : [];
+    if (ownerId && !teachers.some((t) => String(t) === String(ownerId))) {
+      teachers.push(ownerId);
+    }
     const newClass = await Class.create({
       series,
       letter,
       discipline,
       schedule: normalizedSchedule,
+      teachers,
+      ...rest,
     });
     res.status(200).json({
       success: true,
@@ -174,6 +181,23 @@ router.delete('/:id', async (req, res, next) => {
       err.status = 500;
       err.message = 'Erro ao remover turma';
     }
+    next(err);
+  }
+});
+
+// Join class as teacher
+router.post('/:id/join-as-teacher', authRequired, async (req, res, next) => {
+  try {
+    const cls = await Class.findByIdAndUpdate(
+      req.params.id,
+      { $addToSet: { teachers: req.user._id } },
+      { new: true }
+    ).populate('teachers');
+    if (!cls) {
+      return res.status(404).json({ success: false, message: 'Turma não encontrada' });
+    }
+    res.json({ success: true, message: 'Agora você é professor desta turma', data: cls });
+  } catch (err) {
     next(err);
   }
 });

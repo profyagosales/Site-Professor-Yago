@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { pasPreviewFrom } from '@/utils/pas';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchEssayById, gradeEssay, saveAnnotations, renderCorrection, getEssayFileUrl } from '@/services/essays.service';
@@ -10,6 +10,7 @@ import { toast } from 'react-toastify';
 // Importante: usar wrapper lazy para evitar vincular o chunk de PDF ao chunk da rota
 import PdfAnnotatorLazy from '@/components/redacao/PdfAnnotator.lazy';
 import { updateEssayAnnotations } from '@/services/essays.service';
+import { joinClassAsTeacher } from '@/services/classes';
 
 const useRich = import.meta.env.VITE_USE_RICH_ANNOS === '1' || import.meta.env.VITE_USE_RICH_ANNOS === 'true';
 const useIframe = import.meta.env.VITE_PDF_IFRAME !== '0';
@@ -65,21 +66,48 @@ export default function GradeWorkspace() {
   // URL segura do PDF (com assinatura curta)
   const [fileUrlSigned, setFileUrlSigned] = useState<string | undefined>(undefined);
 
+  const essayId = (essay as any)?._id || (essay as any)?.id;
+  const classId = (essay as any)?.classId?._id
+    || (essay as any)?.classId?.id
+    || (typeof (essay as any)?.classId === 'string' ? (essay as any).classId : undefined);
+
+  const fetchSignedUrl = useCallback(async (): Promise<string | undefined> => {
+    if (!essayId) return undefined;
+    try {
+      const url = await getEssayFileUrl(String(essayId));
+      return url;
+    } catch (e) {
+      console.error('getEssayFileUrl failed', e);
+      return `/api/essays/${essayId}/file`;
+    }
+  }, [essayId]);
+
+  const refreshFileUrl = useCallback(async (showLoading = false) => {
+    if (!essayId) return;
+    if (showLoading) setFileUrlSigned(undefined);
+    const url = await fetchSignedUrl();
+    if (url !== undefined) setFileUrlSigned(url);
+  }, [essayId, fetchSignedUrl]);
+
   useEffect(() => {
     let active = true;
     (async () => {
-      const eId = (essay as any)?._id || (essay as any)?.id;
-      if (!eId) return;
-      try {
-        const url = await getEssayFileUrl(String(eId));
-        if (active) setFileUrlSigned(url);
-      } catch (e) {
-        console.error('getEssayFileUrl failed', e);
-        if (active) setFileUrlSigned(`/api/essays/${eId}/file`);
-      }
+      if (!essayId) return;
+      const url = await fetchSignedUrl();
+      if (!active) return;
+      if (url !== undefined) setFileUrlSigned(url);
     })();
     return () => { active = false; };
-  }, [(essay as any)?._id, (essay as any)?.id]);
+  }, [essayId, fetchSignedUrl]);
+
+  const joinClassAndRefresh = useCallback(async () => {
+    if (!classId) {
+      throw new Error('Turma desta redação não encontrada.');
+    }
+    await joinClassAsTeacher(classId);
+    toast.success('Você agora é professor desta turma.');
+    await refreshFileUrl(true);
+  }, [classId, refreshFileUrl]);
 
   // Debounce simples 600ms para autosave de anotações ricas
   function useDebounce<T extends (...a:any[])=>any>(fn:T, ms:number) {
@@ -451,7 +479,7 @@ export default function GradeWorkspace() {
             <Suspense fallback={<div className="p-4 text-sm text-ys-ink-2">Carregando visualizador…</div>}>
               <PdfAnnotatorLazy
                 fileSrc={fileUrlSigned}
-                essayId={(essay as any)._id || (essay as any).id}
+                essayId={essayId}
                 palette={[
                   { key:'apresentacao', label:'Apresentação',          color:'#f97316', rgba:'rgba(249,115,22,0.60)' },
                   { key:'ortografia',   label:'Ortografia/gramática',  color:'#22c55e', rgba:'rgba(34,197,94,0.60)'  },
@@ -460,6 +488,7 @@ export default function GradeWorkspace() {
                   { key:'coesao',       label:'Coesão/coerência',      color:'#0ea5e9', rgba:'rgba(14,165,233,0.60)' },
                 ]}
                 onChange={(list)=> { setRichAnnos(list as any); debouncedSaveRich(list as any); }}
+                onJoinAsTeacher={classId ? joinClassAndRefresh : undefined}
               />
             </Suspense>
           ) : (

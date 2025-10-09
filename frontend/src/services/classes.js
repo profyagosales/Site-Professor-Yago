@@ -21,6 +21,9 @@ export const updateClass = (id, payload) =>
 
 export const deleteClass = (id) => api.delete(`/classes/${id}`).then(pickData);
 
+export const joinClassAsTeacher = (id) =>
+  api.post(`/classes/${id}/join-as-teacher`).then(pickData);
+
 export const listStudents = (classId) =>
   api.get(`/classes/${classId}/students`).then(pickData);
 
@@ -30,5 +33,6 @@ export default {
   createClass,
   updateClass,
   deleteClass,
+  joinClassAsTeacher,
   listStudents,
 };
