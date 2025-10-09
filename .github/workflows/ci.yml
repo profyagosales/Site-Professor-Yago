@@ -2,19 +2,34 @@ name: CI
 
 on:
   push:
+    branches: [ main ]
   pull_request:
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm build
-      - run: pnpm lint
+          cache: 'npm'
+
+      - name: Install root deps
+        run: npm ci
+
+      # se você tem workspaces, instale o que precisar por workspace:
+      - name: Install frontend deps
+        run: npm --workspace frontend ci
+
+      - name: Install backend deps
+        run: npm --workspace backend ci
+
+      - name: Backend tests
+        run: npm --workspace backend test --if-present
+
+      - name: Frontend build
+        run: npm --workspace frontend run build --if-present

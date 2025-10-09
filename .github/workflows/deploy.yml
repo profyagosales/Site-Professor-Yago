@@ -32,6 +32,10 @@ jobs:
           # Se quiser, pode configurar variáveis de build aqui via secrets
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
 
+      - name: Garantir link limpo do Vercel
+        working-directory: frontend
+        run: rm -rf .vercel
+
       - name: Deploy to Vercel (Production)
         uses: amondnet/vercel-action@v25
         with:
