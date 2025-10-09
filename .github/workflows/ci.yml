@@ -26,10 +26,10 @@ jobs:
         run: npm --workspace frontend ci
 
       - name: Install backend deps
-        run: npm --workspace backend ci
+        run: npm --prefix backend ci
 
       - name: Backend tests
-        run: npm --workspace backend test --if-present
+        run: npm --prefix backend test --if-present
 
       - name: Frontend build
         run: npm --workspace frontend run build --if-present
