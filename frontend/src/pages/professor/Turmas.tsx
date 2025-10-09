@@ -26,23 +26,28 @@ export default function TurmasPage() {
   }
 
   const user = auth.user;
-  const [loading, setLoading] = useState(true);
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [err, setErr] = useState<string | null>(null);
   const [turmas, setTurmas] = useState<any[]>([]);
   const [modalState, setModalState] = useState<{ mode: 'create' | 'edit'; data: any | null } | null>(null);
 
   const fetchClasses = useCallback(async () => {
     try {
-      setLoading(true);
+      setState('loading');
       const data = await listClasses();
       setTurmas(Array.isArray(data) ? data : data?.items || data?.data || []);
       setErr(null);
+      setState('ready');
     } catch (e: any) {
+      const status = e?.response?.status;
+      if (status === 401) {
+        nav('/login-professor?next=/professor/turmas', { replace: true });
+        return;
+      }
       setErr(e?.response?.data?.message || 'Erro ao carregar turmas');
-    } finally {
-      setLoading(false);
+      setState('error');
     }
-  }, []);
+  }, [nav]);
 
   useEffect(() => {
     fetchClasses();
@@ -104,9 +109,9 @@ export default function TurmasPage() {
         <Button onClick={() => setModalState({ mode: 'create', data: null })}>Nova Turma</Button>
       </div>
 
-      {err && <p className="text-red-600 mb-4">{err}</p>}
-      {loading && <p className="text-ys-ink-2">Carregando turmas…</p>}
-      {!loading && (
+      {err && state === 'error' && <p className="text-red-600 mb-4">{err}</p>}
+      {state === 'loading' && <p className="text-ys-ink-2">Carregando turmas…</p>}
+      {state === 'ready' && (
         <div className="grid sm:grid-cols-2 gap-4">
           {turmas.map((t: any) => {
             const key = t?._id || t?.id;

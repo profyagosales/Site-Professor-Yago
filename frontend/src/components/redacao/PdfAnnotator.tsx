@@ -2,7 +2,7 @@ import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { nanoid } from "nanoid";
 import { emitPdfEvent } from '@/services/telemetry.service';
-import { getEssayFileUrl } from '@/services/essays.service';
+import { api } from '@/lib/api';
 
 /** NÃO importar 'react-pdf' nem 'react-konva' no topo — são carregados dinamicamente. */
 
@@ -114,62 +114,11 @@ export default function PdfAnnotator({
   });
   const fromNorm = (r: RectNorm, w: number, h: number) => ({ x: r.x * w, y: r.y * h, width: r.w * w, height: r.h * h });
 
-  const getQueryToken = (u: string): string | undefined => {
-    try {
-      const url = new URL(u, window.location.origin);
-      return url.searchParams.get("token") ?? undefined;
-    } catch {
-      return undefined;
-    }
-  };
-
-  const fetchWithCookies = async (url: string, signal: AbortSignal): Promise<Blob> => {
-    const res = await fetch(url, { credentials: "include", cache: "no-store", signal, redirect: "follow" });
-    if (!res.ok) {
-      const error: any = new Error(`HTTP ${res.status}`);
-      error.status = res.status;
-      lastStatusRef.current = res.status;
-      throw error;
-    }
-    return await res.blob();
-  };
-
-  const fetchWithBearer = async (url: string, token: string, signal: AbortSignal): Promise<Blob> => {
-    const res = await fetch(url, {
-      credentials: "omit",
-      cache: "no-store",
-      signal,
-      headers: { Authorization: `Bearer ${token}` },
-      redirect: "follow",
-    });
-    if (!res.ok) {
-      const error: any = new Error(`HTTP ${res.status}`);
-      error.status = res.status;
-      lastStatusRef.current = res.status;
-      throw error;
-    }
-    return await res.blob();
-  };
-
-  const getFreshToken = async (id: string, signal: AbortSignal): Promise<string | undefined> => {
-    try {
-      const res = await fetch(`/api/essays/${id}/file-token`, {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-        signal,
-      });
-      if (!res.ok) return undefined;
-      const ct = res.headers.get("content-type") || "";
-      if (ct.includes("application/json")) {
-        const j = await res.json().catch(() => ({}));
-        return j?.token as string | undefined;
-      }
-      const t = await res.text();
-      return t?.trim() || undefined;
-    } catch {
-      return undefined;
-    }
+  const resolveApiBase = (): string => {
+    const raw = (import.meta as any).env?.VITE_API_BASE_URL || (import.meta as any).env?.VITE_API_URL || '';
+    if (!raw) return '/api';
+    const clean = String(raw).replace(/\/+$/, '');
+    return clean.endsWith('/api') ? clean : `${clean}/api`;
   };
 
   const setBlobUrl = (blob: Blob, alive: boolean) => {
@@ -185,107 +134,92 @@ export default function PdfAnnotator({
     setDocUrl(url);
   };
 
-  /** --------- carrega o PDF como Blob URL com tentativas (cookies -> bearer(query) -> bearer(fresh token) -> nova URL e repete) --------- */
+  /** --------- carrega o PDF como Blob URL usando token temporário --------- */
   useEffect(() => {
-    if (!fileSrc) return;
+    if (!essayId) return;
     let alive = true;
     const ac = new AbortController();
 
     setDocErr(null);
     setDocUrl(null);
-  setJoinErr(null);
-  setJoinLoading(false);
-  lastStatusRef.current = null;
-  setLastStatus(null);
+    setJoinErr(null);
+    setJoinLoading(false);
+    lastStatusRef.current = null;
+    setLastStatus(null);
 
-    (async () => {
-      const baseAttempt = async (src: string, allowTokenRefresh = true): Promise<boolean> => {
-        // Passo 1: tentar cookies
-        try {
-          const blob1 = await fetchWithCookies(src, ac.signal);
-          if (!alive) return true;
-          setBlobUrl(blob1, alive);
-          emitPdfEvent('pdf_load_success', { essayId, srcType: 'blob', step: 1 });
-          if (PDF_DEBUG) setDebugMeta({ step: 1, size: blob1.size, srcType: 'blob' });
-          return true;
-        } catch (e: any) {
-          emitPdfEvent('pdf_load_error', { essayId, step: 1, message: String(e?.message||e) });
-        }
-
-        // Passo 2: bearer direto se houver ?token=
-        try {
-          const tokenQ = getQueryToken(src);
-            if (tokenQ) {
-              const blob2 = await fetchWithBearer(src.split('?')[0], tokenQ, ac.signal);
-              if (!alive) return true;
-              setBlobUrl(blob2, alive);
-              emitPdfEvent('pdf_load_success', { essayId, srcType: 'blob', step: 2 });
-              if (PDF_DEBUG) setDebugMeta({ step: 2, size: blob2.size, srcType: 'blob' });
-              return true;
-            }
-        } catch (e: any) {
-          emitPdfEvent('pdf_load_error', { essayId, step: 2, message: String(e?.message||e) });
-        }
-
-        // Passo 3: pedir fresh token (rota interna de token leve) se permitido
-        if (allowTokenRefresh) {
-          try {
-            const fresh = await getFreshToken(essayId, ac.signal);
-            if (fresh) {
-              const blob3 = await fetchWithBearer(src.split('?')[0], fresh, ac.signal);
-              if (!alive) return true;
-              setBlobUrl(blob3, alive);
-              emitPdfEvent('pdf_load_success', { essayId, srcType: 'blob', step: 3 });
-              if (PDF_DEBUG) setDebugMeta({ step: 3, size: blob3.size, srcType: 'blob' });
-              return true;
-            }
-          } catch (e: any) {
-            emitPdfEvent('pdf_load_error', { essayId, step: 3, message: String(e?.message||e) });
-          }
-        }
-        return false;
-      };
-
-      const firstOk = await baseAttempt(fileSrc, true);
-      if (firstOk || !alive) return;
-
-      // Passo 4: tentar conseguir URL curta nova via service (getEssayFileUrl) e repetir sem refresh (pois já usamos acima)
+    const downloadPdf = async () => {
       try {
-        if (essayId) {
-          const refreshed = await getEssayFileUrl(essayId);
-          if (refreshed && refreshed !== fileSrc) {
-            const secondOk = await baseAttempt(refreshed, false);
-            if (secondOk || !alive) return;
-          }
+        const { data } = await api.post<{ token?: string }>(`/essays/${essayId}/file-token`);
+        const token = data?.token;
+        if (!token) {
+          const error: any = new Error('Token ausente.');
+          error.status = 500;
+          throw error;
         }
-      } catch (e: any) {
-        emitPdfEvent('pdf_load_error', { essayId, step: 'url_refresh', message: String(e?.message||e) });
-      }
 
-      if (alive) {
-        const status = lastStatusRef.current ?? null;
+        const base = resolveApiBase();
+        const url = `${base}/essays/${essayId}/file?file-token=${encodeURIComponent(token)}`;
+        const res = await fetch(url, {
+          credentials: 'omit',
+          cache: 'no-store',
+          signal: ac.signal,
+          redirect: 'follow',
+        });
+
+        lastStatusRef.current = res.status;
+        if (res.status === 401) {
+          const error: any = new Error('Sessão expirada.');
+          error.status = 401;
+          throw error;
+        }
+        if (res.status === 403) {
+          const error: any = new Error('Sem permissão.');
+          error.status = 403;
+          throw error;
+        }
+        if (!res.ok) {
+          const error: any = new Error(`HTTP ${res.status}`);
+          error.status = res.status;
+          throw error;
+        }
+
+        const blob = await res.blob();
+        if (!alive) return;
+        setBlobUrl(blob, alive);
+        emitPdfEvent('pdf_load_success', { essayId, srcType: 'blob', step: 'token-download' });
+        if (PDF_DEBUG) {
+          setDebugMeta({ step: 'token-download', size: blob.size, srcType: 'blob' });
+        }
+      } catch (error: any) {
+        if (!alive) return;
+        const status = error?.status ?? error?.response?.status ?? lastStatusRef.current ?? null;
+        lastStatusRef.current = status;
         setLastStatus(status);
+        emitPdfEvent('pdf_load_error', { essayId, step: 'token-download', message: String(error?.message || error) });
+
         let message = 'Não foi possível carregar o PDF (sessão expirada ou token inválido).';
-        if (status === 403) {
+        if (status === 401) {
+          message = 'Sessão expirada. Faça login novamente.';
+        } else if (status === 403) {
           message = 'Seu usuário não está vinculado à turma desta redação. Entre como professor da turma e tente novamente.';
         } else if (status === 404) {
           message = 'Arquivo não encontrado. Verifique se a redação possui PDF anexado ou reenvie o arquivo.';
-        } else if (status === 401) {
-          message = 'Sessão expirada. Faça login novamente para continuar.';
         }
         setDocErr(message);
       }
-    })();
+    };
+
+    downloadPdf();
 
     return () => {
       alive = false;
       ac.abort();
-      if (lastBlobUrlRef.current?.startsWith("blob:")) {
+      if (lastBlobUrlRef.current?.startsWith('blob:')) {
         URL.revokeObjectURL(lastBlobUrlRef.current);
         lastBlobUrlRef.current = null;
       }
     };
-  }, [fileSrc, essayId, retryKey]);
+  }, [essayId, fileSrc, retryKey]);
 
   /** --------- lib components (após lazy) --------- */
   if (!RP) return <div className="p-4 text-muted-foreground">Carregando visualizador…</div>;
