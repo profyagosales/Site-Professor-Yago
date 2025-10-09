@@ -7,6 +7,7 @@ const http = require('http');
 const path = require('path');
 
 const { assertUserCanAccessEssay } = require('../utils/assertUserCanAccessEssay');
+const { canUserAccessEssay, toId } = require('../services/acl');
 
 function readRemoteHead(url) {
   return new Promise((resolve) => {
@@ -60,32 +61,65 @@ exports.issueFileToken = async function issueFileToken(req, res) {
   res.json({ token, ttl: FILE_TOKEN_TTL_SECONDS });
 };
 
+function logAclDeny({ essayId, user, reason, context }) {
+  if (process.env.DEBUG_ACL !== '1') return;
+  const userId = user ? toId(user) : undefined;
+  const role = user ? user.role || user.profile : undefined;
+  console.warn('[ACL] deny', {
+    essayId: essayId != null ? String(essayId) : undefined,
+    userId,
+    role,
+    reason,
+    context,
+    at: new Date().toISOString(),
+  });
+}
+
 exports.authorizeFileAccess = async function authorizeFileAccess({ essayId, token, user, shortToken }) {
   const essay = await Essay.findById(essayId).lean();
   if (!essay) throw Object.assign(new Error('not found'), { status: 404 });
-  // Short token (query s=...)
+
+  const essayIdStr = String(essay._id);
+
   if (shortToken) {
-    const ok = verifyFileShortToken(shortToken, essayId);
+    const ok = verifyFileShortToken(shortToken, essayIdStr);
     if (ok) return true;
     throw Object.assign(new Error('invalid token'), { status: 401 });
   }
+
   if (token) {
     try {
       const payload = jwt.verify(token, FILE_TOKEN_SECRET);
-      if (String(payload.essayId) !== String(essay._id)) throw new Error('essay mismatch');
+      if (String(payload.essayId) !== essayIdStr) throw new Error('essay mismatch');
       return true;
     } catch (e) {
-      // Se recebeu um token que não é assinado com FILE_TOKEN_SECRET, pode ser um JWT de login.
-      // Nesse caso, se houver usuário autenticado (via authOptional), fazemos fallback para ACL padrão.
       if (user) {
-        await assertUserCanAccessEssay(user, essay);
-        return true;
+        const acl = await canUserAccessEssay(user, essay);
+        if (acl.ok) return true;
+        logAclDeny({ essayId: essayIdStr, user, reason: acl.reason, context: 'jwt-fallback' });
+        const err = new Error('Forbidden');
+        err.status = 403;
+        err.reason = acl.reason;
+        throw err;
       }
       throw Object.assign(new Error('invalid token'), { status: 401 });
     }
   }
-  await assertUserCanAccessEssay(user, essay);
-  return true;
+
+  if (!user) {
+    const err = new Error('Unauthorized');
+    err.status = 401;
+    throw err;
+  }
+
+  const acl = await canUserAccessEssay(user, essay);
+  if (acl.ok) return true;
+
+  logAclDeny({ essayId: essayIdStr, user, reason: acl.reason, context: 'acl' });
+  const err = new Error('Forbidden');
+  err.status = 403;
+  err.reason = acl.reason;
+  throw err;
 };
 
 exports.getFileMeta = async function getFileMeta(essayId) {
