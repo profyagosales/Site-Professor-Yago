@@ -36,11 +36,16 @@ jobs:
         working-directory: frontend
         run: rm -rf .vercel
 
-      - name: Deploy to Vercel (Production)
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}          # REQUIRED
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}        # REQUIRED
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}# REQUIRED
-          working-directory: ./frontend
-          vercel-args: "--prod"
+      - name: Vercel Pull (production settings)
+        working-directory: frontend
+        run: |
+          npx -y vercel@25 pull --yes --environment=production \
+            --token "${{ secrets.VERCEL_TOKEN }}" \
+            --scope "${{ secrets.VERCEL_ORG_ID }}"
+
+      - name: Deploy prebuilt to Vercel (prod)
+        working-directory: frontend
+        run: |
+          npx -y vercel@25 deploy --prebuilt --prod \
+            --token "${{ secrets.VERCEL_TOKEN }}" \
+            --scope "${{ secrets.VERCEL_ORG_ID }}"
