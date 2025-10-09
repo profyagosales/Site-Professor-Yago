@@ -5,57 +5,43 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-frontend:
-    name: Build frontend
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - name: Install deps (root)
-        run: npm ci
-      - name: Install deps (frontend)
-        run: npm --workspace frontend ci
-      - name: Build
-        run: npm run build
-
   smoke:
-    name: Smoke PDF
     runs-on: ubuntu-latest
-    needs: [build-frontend]
     env:
       SMOKE_BASE_URL: ${{ secrets.SMOKE_BASE_URL }}
       SMOKE_PDF_ESSAY_ID: ${{ secrets.SMOKE_PDF_ESSAY_ID }}
       SMOKE_PDF_URL: ${{ secrets.SMOKE_PDF_URL }}
       SMOKE_PDF_BEARER: ${{ secrets.SMOKE_PDF_BEARER }}
+      # Passa base da API pro script
+      VITE_API_BASE_URL: ${{ secrets.SMOKE_BASE_URL }}
+      API_BASE_URL: ${{ secrets.SMOKE_BASE_URL }}
+      BASE_URL: ${{ secrets.SMOKE_BASE_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup Node
+
+      - name: Setup Node 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
+
       - name: Install root deps
         run: npm ci
-      - name: Install frontend deps
+
+      - name: Install frontend deps (for scripts)
         run: npm --workspace frontend ci
-      - name: Resolve and fetch PDF by essay ID
+
+      - name: "Smoke: try with essay id"
         if: env.SMOKE_PDF_ESSAY_ID != '' && env.SMOKE_PDF_ESSAY_ID != null
-        run: node frontend/scripts/smoke-pdf.cjs --essay "$SMOKE_PDF_ESSAY_ID"
-        env:
-          VITE_API_BASE_URL: ${{ env.SMOKE_BASE_URL }}
-          API_BASE_URL: ${{ env.SMOKE_BASE_URL }}
-          BASE_URL: ${{ env.SMOKE_BASE_URL }}
-      - name: Fallback: fetch by direct URL
-        if: (env.SMOKE_PDF_ESSAY_ID == '' || env.SMOKE_PDF_ESSAY_ID == null) && env.SMOKE_PDF_URL != ''
-        run: node frontend/scripts/smoke-pdf.cjs --url "$SMOKE_PDF_URL"
-      - name: Fail if neither ID nor URL provided
-        if: (env.SMOKE_PDF_ESSAY_ID == '' || env.SMOKE_PDF_ESSAY_ID == null) && (env.SMOKE_PDF_URL == '' || env.SMOKE_PDF_URL == null)
         run: |
-          echo "No SMOKE_PDF_ESSAY_ID or SMOKE_PDF_URL provided" >&2
-          exit 1
+          node frontend/scripts/smoke-pdf.cjs --essay "$SMOKE_PDF_ESSAY_ID"
+
+      - name: "Fallback: fetch by direct URL"
+        if: env.SMOKE_PDF_ESSAY_ID == '' || env.SMOKE_PDF_ESSAY_ID == null
+        run: |
+          if [ -z "${SMOKE_PDF_URL:-}" ]; then
+            echo "No SMOKE_PDF_ESSAY_ID or SMOKE_PDF_URL provided."
+            exit 1
+          fi
+          node frontend/scripts/smoke-pdf.cjs --url "$SMOKE_PDF_URL"

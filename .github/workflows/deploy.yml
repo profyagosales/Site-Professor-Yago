@@ -1,53 +1,42 @@
-name: Deploy
+name: Deploy Frontend (Vercel)
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
-    env:
-      MONGO_URI: ${{ secrets.MONGO_URI }}
-      JWT_SECRET: ${{ secrets.JWT_SECRET }}
-      SMTP: ${{ secrets.SMTP }}
-      APP_DOMAIN: ${{ secrets.APP_DOMAIN }}
-      MONGOMS_VERSION: 8.12.2
+    permissions:
+      contents: read
+      deployments: write
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v3
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install backend dependencies
-        run: npm install --prefix backend
-      - name: Install frontend dependencies
-        run: npm install --prefix frontend
-      - name: Clean MongoDB cache
-        run: rm -rf ~/.cache/mongodb-binaries
-      - run: npm test --prefix backend
-      - run: npm test --prefix frontend
-      - name: Build project
-        run: npm run build --prefix frontend
-      - run: npm run build
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v3
+          cache: npm
+
+      # Se o repositório for monorepo, instale na raiz (mantém lockfiles atualizados)
+      - name: Install root deps
+        run: npm ci
+
+      # Build opcional antes do deploy (Vercel também builda, mas mantemos como sanity)
+      - name: Build frontend (sanity)
+        run: npm --workspace frontend run build
+        env:
+          # Se quiser, pode configurar variáveis de build aqui via secrets
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+
+      - name: Deploy to Vercel (Production)
+        uses: amondnet/vercel-action@v25
         with:
-          name: frontend-build
-          path: frontend/dist
-      - name: Deploy frontend
-        uses: amondnet/vercel-action@v20
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: frontend
-      - name: Deploy backend
-        run: |
-          curl -X POST "https://api.render.com/deploy/srv-${{ secrets.RENDER_SERVICE_ID }}" \
-            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}"
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}          # REQUIRED
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}        # REQUIRED
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}# REQUIRED
+          working-directory: ./frontend
+          vercel-args: "--prod"
