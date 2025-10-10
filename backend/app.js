@@ -28,6 +28,7 @@ const pdfHealthRoutes = require('./routes/pdfHealth');
 const dashboardRoutes = require('./routes/dashboard');
 const contentsRoutes = require('./routes/contents');
 const themesRoutes = require('./routes/themes');
+const professorAlias = require('./routes/professor.alias.routes');
 const devSeedRoutes = require('./routes/devSeed');
 const fileTokenCompat = require('./middleware/fileTokenCompat');
 
@@ -88,6 +89,7 @@ app.get(`${API_PREFIX}/healthz`, (req, res) => res.json({ ok: true }));
 
 // ---------- API ----------
 const api = express.Router();
+app.use('/api/professor', professorAlias);
 // Rota raiz da API para evitar 404 em chamadas para "/api" diretamente
 api.get('/', (_req, res) => res.json({ success: true, message: 'API ready', prefix: API_PREFIX }));
 api.use('/auth', authRoutes);
