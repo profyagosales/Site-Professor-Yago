@@ -20,12 +20,6 @@ const {
 } = require('../controllers/essaysController');
 const fileController = require('../controllers/fileController');
 
-function readBearer(req) {
-  const h = req.get('authorization');
-  if (h && /^bearer /i.test(h)) return h.slice(7).trim();
-  return req.query.token;
-}
-
 const router = express.Router();
 
 // Themes
@@ -48,11 +42,8 @@ router.post('/:id/file-token', authRequired, fileController.issueFileToken);
 router.get('/:id/file-token', authRequired, fileController.issueFileToken);
 
 // Preflight sem corpo
-router.head('/:id/file', authOptional, async (req, res, next) => {
+router.head('/:id/file', authOptional, fileController.authorizeFileAccess, async (req, res, next) => {
   try {
-    const token = readBearer(req);
-    const shortToken = req.query.s;
-    await fileController.authorizeFileAccess({ essayId: req.params.id, token, shortToken, user: req.user });
     const meta = await fileController.getFileMeta(req.params.id);
     res.set({
       'Accept-Ranges': 'bytes',
@@ -66,11 +57,8 @@ router.head('/:id/file', authOptional, async (req, res, next) => {
 });
 
 // Streaming com Range
-router.get('/:id/file', authOptional, async (req, res, next) => {
+router.get('/:id/file', authOptional, fileController.authorizeFileAccess, async (req, res, next) => {
   try {
-    const token = readBearer(req);
-    const shortToken = req.query.s;
-    await fileController.authorizeFileAccess({ essayId: req.params.id, token, shortToken, user: req.user });
     await fileController.streamFile(req, res, req.params.id);
   } catch (err) { next(err); }
 });

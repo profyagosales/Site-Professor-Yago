@@ -43,7 +43,7 @@ export default function TurmasPage() {
     } catch (e: any) {
       const status = e?.response?.status;
       if (status === 401) {
-        nav('/login-professor?next=/professor/turmas', { replace: true });
+        nav('/login-professor?next=/professor/classes', { replace: true });
         return;
       }
       setErr(e?.response?.data?.message || 'Erro ao carregar turmas');
@@ -125,7 +125,7 @@ export default function TurmasPage() {
                   <CardTitle>{t.name || t.nome || `${t.series || ''} ${t.letter || ''}`}</CardTitle>
                   <CardSub>Disciplina: {t.discipline || t.disciplina || '-'}</CardSub>
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <Button onClick={() => nav(`/professor/turmas/${key}/alunos`)}>Ver alunos</Button>
+                    <Button onClick={() => nav(`/professor/classes/${key}/alunos`)}>Ver alunos</Button>
                     <Button onClick={() => setModalState({ mode: 'edit', data: t })}>
                       Editar
                     </Button>

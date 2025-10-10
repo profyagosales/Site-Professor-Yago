@@ -35,7 +35,7 @@ export default function App() {
           }
         />
         <Route
-          path="/turmas"
+          path="/professor/classes"
           element={
             <ProtectedRoute>
               <AppShell>
@@ -45,7 +45,7 @@ export default function App() {
           }
         />
         <Route
-          path="/turmas/:id/alunos"
+          path="/professor/classes/:id/alunos"
           element={
             <ProtectedRoute>
               <AppShell>

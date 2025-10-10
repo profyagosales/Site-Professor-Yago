@@ -1,17 +1,40 @@
-import { api as coreApi, pickData, toArray } from '@/lib/api';
+// @ts-nocheck
+import axios from 'axios';
 
-const rawBase = (import.meta as any)?.env?.VITE_API_BASE_URL ?? (import.meta as any)?.env?.VITE_API_URL ?? '';
-const trimmed = String(rawBase || '').replace(/\/$/, '');
-const baseURL = trimmed
-  ? trimmed.endsWith('/api')
-    ? trimmed
-    : `${trimmed}/api`
-  : '/api';
+function normalizeBase(url?: string | null): string {
+  let u = typeof url === 'string' ? url.trim() : '';
+  if (!u) u = '/api';
+  const trailingSlash = /\/+$/;
+  u = u.replace(trailingSlash, '');
+  const ensureApi = /\/api$/i;
+  if (!ensureApi.test(u)) u = `${u}/api`;
+  return u;
+}
 
-coreApi.defaults.baseURL = baseURL;
+type EnvShape = { VITE_API_BASE_URL?: string };
+const env = (import.meta as unknown as { env?: EnvShape }).env;
+const baseURL = normalizeBase(env?.VITE_API_BASE_URL ?? null);
+export const api = axios.create({
+  baseURL,
+  withCredentials: true,
+});
 
-export const api = coreApi;
-export { pickData, toArray };
+api.interceptors.response.use(
+  (r) => r,
+  (err) => {
+    if (err?.response?.status === 401) {
+      const w = typeof window !== 'undefined' ? window : undefined;
+      if (w?.location) {
+        try {
+          const next = encodeURIComponent(`${w.location.pathname}${w.location.search}`);
+          w.location.assign(`/login-professor?next=${next}`);
+        } catch (_) {}
+      }
+    }
+    return Promise.reject(err);
+  }
+);
+
 export default api;
 
 export const Themes = {

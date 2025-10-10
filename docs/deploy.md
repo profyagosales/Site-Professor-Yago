@@ -1,14 +1,16 @@
-# Deploy do Frontend (Vercel)
+# Deploy (Frontend + Backend)
 
-Este projeto **não usa mais GitHub Actions para deploy**.  
-Escolha **uma** destas formas:
+Este monorepo contém **frontend em Vite + React** e **backend em Express**.  
+Não existem testes automatizados ativos; o deploy é manual em ambos os casos.
+
+Para o frontend, escolha **uma** destas formas:
 
 - **A) Vercel Git (recomendado)** — a Vercel builda todo push na `main`.
 - **B) Vercel CLI via Codespaces** — você dispara o deploy manualmente.
 
 ---
 
-## Pré-requisitos (válidos para A e B)
+## Pré-requisitos (Vercel)
 
 - Projeto único na Vercel: **site-professor-yago-frontend**  
   (se existir um projeto chamado apenas **frontend**, delete no painel para evitar confusões)
@@ -17,13 +19,14 @@ Escolha **uma** destas formas:
 - Variável de ambiente presente no projeto Vercel:
   - `VITE_API_BASE_URL=https://api.professoryagosales.com.br`
   - marcada para **Production / Preview / Development**
+- O backend Express deve estar acessível nesse mesmo domínio (`https://api.professoryagosales.com.br`).
 
 > **Dica CORS (backend)**: aceite também *previews* do Vercel (p. ex. `https://*-site-professor-yago-frontend-*.vercel.app`).  
 > Uma regex comum é: `^https:\/\/.*\.vercel\.app$`
 
 ---
 
-## A) Deploy automático com **Vercel Git** (recomendado)
+## A) Deploy automático com **Vercel Git** (frontend)
 
 1. Painel Vercel → **site-professor-yago-frontend → Settings → Git**
 2. **Connect Git Repository** → `profyagosales/Site-Professor-Yago`
@@ -35,7 +38,7 @@ Escolha **uma** destas formas:
 
 ---
 
-## B) Deploy manual com **Vercel CLI** (Codespaces)
+## B) Deploy manual com **Vercel CLI** (frontend)
 
 > Rode **dentro de `frontend/`**. Não use `--prebuilt` (deixe a Vercel buildar).
 
@@ -89,7 +92,7 @@ npx -y vercel@25 \
 
 ---
 
-## Erros comuns e soluções
+## Erros comuns e soluções (frontend)
 
 **“Could not retrieve Project Settings”**  
 → `rm -rf .vercel && vercel pull` com ORG/PROJECT corretos. Certifique os IDs do projeto `site-professor-yago-frontend`.
@@ -109,7 +112,7 @@ npx -y vercel@25 \
 
 ---
 
-## Scripts úteis (opcional)
+## Scripts úteis (frontend, opcional)
 
 Adicione no `package.json` raiz:
 
@@ -134,10 +137,15 @@ npm run vercel:deploy
 
 ---
 
+## Backend Express (deploy manual)
+
+- Hospedagem atual: servidor próprio / Render / Docker (dependendo do ambiente). Não há automação registrada aqui; suba manualmente conforme o provedor escolhido.
+- Gere build apenas se necessário; o backend fica em `backend/` e roda com `node server.js` (Node 20 recomendado).
+- Certifique-se de expor o endpoint público configurado em `VITE_API_BASE_URL`.
+
 ## TL;DR
 
-Recomendado: Vercel Git conectado à `main` com root `frontend/`.
-
-Manual: `vercel pull` (limpo) → `vercel deploy --prod`.
-
-Evite `--prebuilt`/`vercel build`. Use Node 20.x no projeto Vercel.
+- Stack: Vite + React no frontend, Express no backend. Sem pipeline de testes.
+- Frontend: use Vercel Git na `main` (root `frontend/`) ou `vercel deploy --prod` manual.
+- Backend: mantenha servidor Express (Node 20) acessível em `https://api.professoryagosales.com.br`.
+- Evite `--prebuilt`/`vercel build`; deixe a Vercel buildar.

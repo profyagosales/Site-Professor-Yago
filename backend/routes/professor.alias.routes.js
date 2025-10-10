@@ -1,8 +1,11 @@
-const r = require('express').Router();
-// GET /api/professor/turmas => /api/professor/classes (mesma query)
-r.get('/turmas', (req, res, next) => {
-  const q = req.url.includes('?') ? '?' + req.url.split('?')[1] : '';
-  req.url = '/classes' + q;
+const express = require('express');
+const router = express.Router();
+
+const passthru = (req, _res, next) => {
+  req.url = req.url.replace(/^\/turmas\b/, '/classes');
   next();
-});
-module.exports = r;
+};
+
+router.use('/turmas', passthru);
+
+module.exports = router;

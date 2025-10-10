@@ -8,10 +8,7 @@ function getRole(): "teacher" | "student" | "guest" {
 
 const NAV_TEACHER: NavItem[] = [
   { label: "Resumo", to: "/professor/resumo", primary: true },
-  { label: "Turmas", to: "/professor/turmas" },
-  { label: "Notas da Classe", to: "/professor/notas-da-classe" },
-  { label: "Caderno", to: "/professor/caderno" },
-  { label: "Gabarito", to: "/professor/gabarito" },
+  { label: "Turmas", to: "/professor/classes" },
   { label: "Redação", to: "/professor/redacao" },
 ];
 

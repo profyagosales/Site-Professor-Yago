@@ -12,9 +12,6 @@ const RedacaoProfessorPage = lazy(() => import(/* @vite-ignore */ '@/pages/profe
 const GradeWorkspace = lazy(() => import(/* @vite-ignore */ '@/pages/professor/redacao/GradeWorkspace'));
 import NotFound from '@/pages/NotFound';
 import TurmasPage from '@/pages/professor/Turmas';
-import NotasDaClasse from '@/pages/professor/NotasDaClasse';
-import CadernoProf from '@/pages/professor/Caderno';
-import GabaritoProf from '@/pages/professor/Gabarito';
 import TurmaAlunosPage from '@/pages/professor/TurmaAlunos';
 import ListaAlunos from '@/pages/professor/alunos/ListaAlunos';
 import PerfilAluno from '@/pages/professor/alunos/PerfilAluno';
@@ -46,16 +43,17 @@ export const router = createBrowserRouter([
           // Compat: rotas antigas/curtas
           { path: '/dashboard', element: <Navigate to="/professor/resumo" replace /> },
           { path: '/professor/dashboard', element: <Navigate to="/professor/resumo" replace /> },
-          { path: '/turmas', element: <Navigate to="/professor/turmas" replace /> },
-          { path: '/caderno', element: <Navigate to="/professor/caderno" replace /> },
-          { path: '/gabarito', element: <Navigate to="/professor/gabarito" replace /> },
-          { path: '/notas-da-classe', element: <Navigate to="/professor/notas-da-classe" replace /> },
+          { path: '/turmas', element: <Navigate to="/professor/classes" replace /> },
+          { path: '/caderno', element: <Navigate to="/professor/resumo" replace /> },
+          { path: '/gabarito', element: <Navigate to="/professor/resumo" replace /> },
+          { path: '/notas-da-classe', element: <Navigate to="/professor/resumo" replace /> },
           { path: '/redacao', element: <Navigate to="/professor/redacao" replace /> },
-          { path: '/professor/turmas', element: <TurmasPage /> },
-          { path: '/professor/turmas/:id/alunos', element: <TurmaAlunosPage /> },
-          { path: '/professor/notas-da-classe', element: <NotasDaClasse /> },
-          { path: '/professor/caderno', element: <CadernoProf /> },
-          { path: '/professor/gabarito', element: <GabaritoProf /> },
+          { path: '/professor/turmas', element: <Navigate to="/professor/classes" replace /> },
+          { path: '/professor/gabarito', element: <Navigate to="/professor/resumo" replace /> },
+          { path: '/professor/notas-da-classe', element: <Navigate to="/professor/resumo" replace /> },
+          { path: '/professor/caderno', element: <Navigate to="/professor/resumo" replace /> },
+          { path: '/professor/classes', element: <TurmasPage /> },
+          { path: '/professor/classes/:id/alunos', element: <TurmaAlunosPage /> },
           { path: '/professor/redacao', element: <Suspense fallback={<div className="p-6">Carregando…</div>}><RedacaoProfessorPage /></Suspense> },
           { path: '/professor/redacao/:id', element: <Suspense fallback={<div className="p-6">Carregando…</div>}><GradeWorkspace /></Suspense> },
           { path: '/professor/alunos', element: <ListaAlunos /> },

@@ -7,7 +7,6 @@ const http = require('http');
 const path = require('path');
 
 const { assertUserCanAccessEssay } = require('../utils/assertUserCanAccessEssay');
-const { canUserAccessEssay, toId } = require('../services/acl');
 
 function readRemoteHead(url) {
   return new Promise((resolve) => {
@@ -30,25 +29,6 @@ function signFileShortToken(essayId, ttlSec = FILE_TOKEN_TTL_SECONDS) {
   return `${payload}.${sig}`;
 }
 
-function verifyFileShortToken(token, essayId) {
-  try {
-    const parts = String(token || '').split('.');
-    if (parts.length !== 3) return false;
-    const [id, expStr, sig] = parts;
-    if (String(id) !== String(essayId)) return false;
-    const exp = parseInt(expStr, 10);
-    if (!exp || exp < Math.floor(Date.now() / 1000)) return false;
-    const base = `${id}.${exp}`;
-    const expected = crypto.createHmac('sha256', FILE_TOKEN_SECRET).update(base).digest('hex');
-    const a = Buffer.from(sig);
-    const b = Buffer.from(expected);
-    if (a.length !== b.length) return false;
-    return crypto.timingSafeEqual(a, b);
-  } catch (e) {
-    return false;
-  }
-}
-
 exports.issueFileToken = async function issueFileToken(req, res) {
   const essay = await Essay.findById(req.params.id).lean();
   if (!essay) throw Object.assign(new Error('not found'), { status: 404 });
@@ -61,66 +41,26 @@ exports.issueFileToken = async function issueFileToken(req, res) {
   res.json({ token, ttl: FILE_TOKEN_TTL_SECONDS });
 };
 
-function logAclDeny({ essayId, user, reason, context }) {
-  if (process.env.DEBUG_ACL !== '1') return;
-  const userId = user ? toId(user) : undefined;
-  const role = user ? user.role || user.profile : undefined;
-  console.warn('[ACL] deny', {
-    essayId: essayId != null ? String(essayId) : undefined,
-    userId,
-    role,
-    reason,
-    context,
-    at: new Date().toISOString(),
-  });
-}
-
-exports.authorizeFileAccess = async function authorizeFileAccess({ essayId, token, user, shortToken }) {
-  const essay = await Essay.findById(essayId).lean();
-  if (!essay) throw Object.assign(new Error('not found'), { status: 404 });
-
-  const essayIdStr = String(essay._id);
-
-  if (shortToken) {
-    const ok = verifyFileShortToken(shortToken, essayIdStr);
-    if (ok) return true;
-    throw Object.assign(new Error('invalid token'), { status: 401 });
-  }
-
-  if (token) {
-    try {
-      const payload = jwt.verify(token, FILE_TOKEN_SECRET);
-      if (String(payload.essayId) !== essayIdStr) throw new Error('essay mismatch');
-      return true;
-    } catch (e) {
-      if (user) {
-        const acl = await canUserAccessEssay(user, essay);
-        if (acl.ok) return true;
-        logAclDeny({ essayId: essayIdStr, user, reason: acl.reason, context: 'jwt-fallback' });
-        const err = new Error('Forbidden');
-        err.status = 403;
-        err.reason = acl.reason;
-        throw err;
-      }
-      throw Object.assign(new Error('invalid token'), { status: 401 });
+async function authorizeFileAccess(req, res, next) {
+  try {
+    // já logado por cookie/sessão
+    if (req.user) return next();
+    // token por header ou query (middleware já normaliza)
+    const auth = req.headers.authorization || '';
+    const raw = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+    if (!raw) return res.status(401).json({ message: 'Unauthorized' });
+    const payload = jwt.verify(raw, process.env.JWT_SECRET);
+    // se o token trouxer essayId, valide contra a rota
+    if (payload.essayId && payload.essayId !== req.params.id) {
+      return res.status(403).json({ message: 'Forbidden' });
     }
+    req.fileAccess = { fromToken: true, sub: payload.sub, essayId: payload.essayId };
+    return next();
+  } catch (e) {
+    return res.status(401).json({ message: 'Unauthorized' });
   }
-
-  if (!user) {
-    const err = new Error('Unauthorized');
-    err.status = 401;
-    throw err;
-  }
-
-  const acl = await canUserAccessEssay(user, essay);
-  if (acl.ok) return true;
-
-  logAclDeny({ essayId: essayIdStr, user, reason: acl.reason, context: 'acl' });
-  const err = new Error('Forbidden');
-  err.status = 403;
-  err.reason = acl.reason;
-  throw err;
-};
+}
+module.exports.authorizeFileAccess = authorizeFileAccess;
 
 exports.getFileMeta = async function getFileMeta(essayId) {
   const essay = await Essay.findById(essayId).lean();
@@ -178,7 +118,7 @@ exports.getSignedFileUrl = async function getSignedFileUrl(req, res) {
     // Requer autenticação normal do usuário para emitir URL assinada
     const essay = await Essay.findById(id).lean();
     if (!essay) throw Object.assign(new Error('not found'), { status: 404 });
-  await assertUserCanAccessEssay(req.user, essay);
+    await assertUserCanAccessEssay(req.user, essay);
 
     const token = signFileShortToken(id, FILE_TOKEN_TTL_SECONDS || 300);
     const base = process.env.APP_DOMAIN_API || process.env.API_BASE_URL || '';
