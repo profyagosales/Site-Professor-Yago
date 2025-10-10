@@ -1,6 +1,17 @@
-import { api, pickData, toArray } from '@/lib/api';
+import { api as coreApi, pickData, toArray } from '@/lib/api';
 
-export { api, pickData, toArray };
+const rawBase = (import.meta as any)?.env?.VITE_API_BASE_URL ?? (import.meta as any)?.env?.VITE_API_URL ?? '';
+const trimmed = String(rawBase || '').replace(/\/$/, '');
+const baseURL = trimmed
+  ? trimmed.endsWith('/api')
+    ? trimmed
+    : `${trimmed}/api`
+  : '/api';
+
+coreApi.defaults.baseURL = baseURL;
+
+export const api = coreApi;
+export { pickData, toArray };
 export default api;
 
 export const Themes = {

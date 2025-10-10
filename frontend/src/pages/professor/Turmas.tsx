@@ -7,6 +7,8 @@ import { listClasses, createClass, updateClass, joinClassAsTeacher } from "@/ser
 import { useAuth } from "@/store/AuthContext";
 import ClassModal from '@/components/ClassModal';
 import { toast } from 'react-toastify';
+// provisório: habilite se precisar inspecionar a resposta da API durante debug
+// import { logClassesOnce } from '@/devtools/log-classes';
 
 export default function TurmasPage() {
   const nav = useNavigate();
@@ -50,6 +52,7 @@ export default function TurmasPage() {
   }, [nav]);
 
   useEffect(() => {
+    // logClassesOnce();
     fetchClasses();
   }, [fetchClasses]);
 

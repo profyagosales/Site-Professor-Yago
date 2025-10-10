@@ -28,7 +28,9 @@ const pdfHealthRoutes = require('./routes/pdfHealth');
 const dashboardRoutes = require('./routes/dashboard');
 const contentsRoutes = require('./routes/contents');
 const themesRoutes = require('./routes/themes');
+const professorAlias = require('./routes/professor.alias.routes');
 const devSeedRoutes = require('./routes/devSeed');
+const fileTokenCompat = require('./middleware/fileTokenCompat');
 
 const app = express();
 
@@ -87,6 +89,7 @@ app.get(`${API_PREFIX}/healthz`, (req, res) => res.json({ ok: true }));
 
 // ---------- API ----------
 const api = express.Router();
+app.use('/api/professor', professorAlias);
 // Rota raiz da API para evitar 404 em chamadas para "/api" diretamente
 api.get('/', (_req, res) => res.json({ success: true, message: 'API ready', prefix: API_PREFIX }));
 api.use('/auth', authRoutes);
@@ -103,7 +106,7 @@ api.use('/omr', omrRoutes);
 // Monta o router compat sob ambos os caminhos (pt-BR e en)
 api.use('/redacoes', redactionsRoutes);
 api.use('/redactions', redactionsRoutes);
-api.use('/essays', essaysRoutes);
+api.use('/essays', fileTokenCompat, essaysRoutes);
 api.use('/uploads', uploadsRoutes);
 api.use('/notifications', notificationRoutes);
 // Montado diretamente em /api/announcements para padronizar (fora do sub-router API_PREFIX)
