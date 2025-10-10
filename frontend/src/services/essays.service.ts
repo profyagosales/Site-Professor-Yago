@@ -164,20 +164,45 @@ export async function sendCorrectionEmail(id: string) {
 
 // Obtém URL curta e segura para o PDF da redação
 // Estratégia: tenta emitir JWT curto em /essays/:id/file-token; se 404, cai para URL assinada curta /essays/:id/file-signed
+function resolveApiBase() {
+  const env = ((import.meta as any) || {}).env || {};
+  const raw = env.VITE_API_BASE_URL || env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+  return String(raw || '').replace(/\/$/, '');
+}
+
+function buildEssayFileUrl(id: string, suffix: string) {
+  const base = resolveApiBase();
+  return `${base}/api/essays/${id}/${suffix}`;
+}
+
+function tokenUrl(id: string, token: string) {
+  const base = resolveApiBase();
+  return `${base}/api/essays/${id}/file?file-token=${encodeURIComponent(token)}`;
+}
+
 export async function getEssayFileUrl(essayId: string): Promise<string> {
   try {
     const r = await api.post(`/essays/${essayId}/file-token`);
     const token = r.data?.token || r.data?.accessToken;
-    if (token) return `/api/essays/${essayId}/file?token=${encodeURIComponent(token)}`;
+    if (token) return tokenUrl(essayId, token);
   } catch (err: any) {
     const status = err?.response?.status;
+    if (status === 401) throw new Error('Sessão expirada. Faça login novamente.');
+    if (status === 403) throw new Error('Sem permissão para ler este arquivo.');
     if (status && status !== 404) throw err;
   }
-  const signed = await api.get(`/essays/${essayId}/file-signed`);
-  const url = signed.data?.url || signed.data;
-  if (typeof url === 'string' && url) return url;
+  try {
+    const signed = await api.get(`/essays/${essayId}/file-signed`);
+    const url = signed.data?.url || signed.data;
+    if (typeof url === 'string' && url) return url;
+  } catch (err: any) {
+    const status = err?.response?.status;
+    if (status === 401) throw new Error('Sessão expirada. Faça login novamente.');
+    if (status === 403) throw new Error('Sem permissão para ler este arquivo.');
+    if (status && status !== 404) throw err;
+  }
   // Fallback final: cookie-protected streaming
-  return `/api/essays/${essayId}/file`;
+  return buildEssayFileUrl(essayId, 'file');
 }
 
 // Novo service: obtém token ou URL curta via GET (utilizado pelo loader resiliente)
@@ -187,9 +212,8 @@ export async function getEssayFileToken(essayId: string): Promise<{ url?: string
     return r.data || {};
   } catch (err: any) {
     const status = err?.response?.status;
-    if (status === 401 || status === 403) {
-      throw new Error('Não autorizado a obter token do arquivo');
-    }
+    if (status === 401) throw new Error('Sessão expirada. Faça login novamente.');
+    if (status === 403) throw new Error('Sem permissão para ler este arquivo.');
     throw new Error('Falha ao obter token do arquivo');
   }
 }

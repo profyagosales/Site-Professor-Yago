@@ -52,9 +52,9 @@ const isProd = process.env.NODE_ENV === 'production';
 const allowedOrigins = [
   'https://professoryagosales.com.br',
   'https://www.professoryagosales.com.br',
+  'http://localhost:5173',
 ];
-const previewPattern = /^https:\/\/.*\.vercel\.app$/i;
-const localhostPattern = /^http:\/\/localhost(:\d+)?$/;
+const previewPattern = /^https:\/\/([^.]+\.)*vercel\.app$/i;
 
 const allowedMethods = 'GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD';
 const allowedHeaders = 'Content-Type,Authorization,Range';
@@ -64,8 +64,7 @@ const corsMiddleware = cors({
     if (!origin) return cb(null, true);
     if (
       allowedOrigins.includes(origin) ||
-      previewPattern.test(origin) ||
-      localhostPattern.test(origin)
+      previewPattern.test(origin)
     ) {
       return cb(null, true);
     }

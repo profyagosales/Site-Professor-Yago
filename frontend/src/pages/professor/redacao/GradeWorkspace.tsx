@@ -76,9 +76,11 @@ export default function GradeWorkspace() {
     try {
       const url = await getEssayFileUrl(String(essayId));
       return url;
-    } catch (e) {
+    } catch (e: any) {
+      const message = e?.message || 'Falha ao gerar link do PDF.';
       console.error('getEssayFileUrl failed', e);
-      return `/api/essays/${essayId}/file`;
+      toast.error(message);
+      return undefined;
     }
   }, [essayId]);
 
@@ -309,8 +311,10 @@ export default function GradeWorkspace() {
       try {
         const url = await getEssayFileUrl(String(id));
         setFileUrl(url);
-      } catch (e) {
-        setIframeError('Falha ao carregar PDF');
+      } catch (e: any) {
+        const message = e?.message || 'Falha ao carregar PDF';
+        setIframeError(message);
+        toast.error(message);
       }
     })();
   }, [id, useIframe]);
