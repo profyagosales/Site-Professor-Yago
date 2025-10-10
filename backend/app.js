@@ -29,6 +29,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const contentsRoutes = require('./routes/contents');
 const themesRoutes = require('./routes/themes');
 const devSeedRoutes = require('./routes/devSeed');
+const fileTokenCompat = require('./middleware/fileTokenCompat');
 
 const app = express();
 
@@ -103,7 +104,7 @@ api.use('/omr', omrRoutes);
 // Monta o router compat sob ambos os caminhos (pt-BR e en)
 api.use('/redacoes', redactionsRoutes);
 api.use('/redactions', redactionsRoutes);
-api.use('/essays', essaysRoutes);
+api.use('/essays', fileTokenCompat, essaysRoutes);
 api.use('/uploads', uploadsRoutes);
 api.use('/notifications', notificationRoutes);
 // Montado diretamente em /api/announcements para padronizar (fora do sub-router API_PREFIX)
