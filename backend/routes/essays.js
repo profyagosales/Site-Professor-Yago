@@ -42,6 +42,7 @@ router.post('/:id/file-token', authRequired, fileController.issueFileToken);
 router.get('/:id/file-token', authRequired, fileController.issueFileToken);
 
 // Preflight sem corpo
+const fileTokenCompat = require('../middlewares/fileTokenCompat');
 router.head('/:id/file', authOptional, fileController.authorizeFileAccess, async (req, res, next) => {
   try {
     const meta = await fileController.getFileMeta(req.params.id);
@@ -57,7 +58,7 @@ router.head('/:id/file', authOptional, fileController.authorizeFileAccess, async
 });
 
 // Streaming com Range
-router.get('/:id/file', authOptional, fileController.authorizeFileAccess, async (req, res, next) => {
+router.get('/:id/file', fileTokenCompat, authOptional, fileController.authorizeFileAccess, async (req, res, next) => {
   try {
     await fileController.streamFile(req, res, req.params.id);
   } catch (err) { next(err); }

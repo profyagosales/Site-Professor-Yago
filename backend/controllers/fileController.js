@@ -33,33 +33,28 @@ exports.issueFileToken = async function issueFileToken(req, res) {
 };
 
 async function authorizeFileAccess(req, res, next) {
+  const dbg = process.env.DEBUG_FILE_TOKEN === '1';
+  const essayId = req.params.id;
   try {
-    // 1) primeiro, aceite token curto via query/header (sem cookies)
-    const hdr = req.headers.authorization;
-    const bearer = hdr && hdr.startsWith('Bearer ') ? hdr.slice(7) : null;
-    const tokenToCheck = req.fileToken || bearer || req.query['file-token'] || req.query.token;
-    if (tokenToCheck) {
-      const secret = process.env.FILE_TOKEN_SECRET || process.env.JWT_SECRET;
-      let payload;
-      try {
-        payload = jwt.verify(String(tokenToCheck), secret);
-      } catch (err) {
-        if (process.env.DEBUG_FILE_TOKEN === '1') console.warn('[file:authorize] bad token', err?.message);
-        return res.status(401).json({ success: false, message: 'Token inválido.' });
+    if (req.fileTokenPayload) {
+      const { essayId: tokenEssayId, sub } = req.fileTokenPayload || {};
+      if (tokenEssayId && String(tokenEssayId) === String(essayId)) {
+        if (dbg) console.log('[auth:file]', 'granted by short token', { essayId, sub });
+        return next();
       }
-      if (!payload?.essayId || String(payload.essayId) !== String(req.params.id)) {
-        return res.status(403).json({ success: false, message: 'Sem permissão.' });
-      }
-      // token curto válido -> autorizado
-      return next();
+      if (dbg) console.warn('[auth:file]', 'token/essay mismatch', { tokenEssayId, essayId });
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
-    // 2) fallback: sessão/cookies normais
-    if (!req.user) return res.status(401).json({ success: false, message: 'Não autenticado.' });
-    const ok = await canUserAccessEssay(req.user, req.params.id);
-    if (!ok) return res.status(403).json({ success: false, message: 'Sem permissão.' });
-    return next();
+    if (req.user) {
+      const ok = await canUserAccessEssay(req.user, essayId);
+      if (ok) {
+        if (dbg) console.log('[auth:file]', 'granted by session', { essayId, user: req.user._id });
+        return next();
+      }
+    }
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
   } catch (e) {
-    if (process.env.DEBUG_FILE_TOKEN === '1') console.error('[file:authorize]', e);
+    if (dbg) console.warn('[auth:file]', 'error', e.message);
     return res.status(401).json({ success: false, message: 'Unauthorized' });
   }
 }

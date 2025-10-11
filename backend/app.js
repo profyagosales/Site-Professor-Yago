@@ -86,7 +86,8 @@ const api = express.Router();
 app.use('/api/professor', require('./routes/professor.alias.routes'));
 // espelhar as rotas de /api/classes em /api/professor/classes
 app.use('/api/professor/classes', classesRoutes);
-app.use('/api/essays', require('./middlewares/fileTokenCompat'));
+// compat de token precisa vir antes das rotas de essays
+app.use(['/api/essays', '/essays'], require('./middlewares/fileTokenCompat'));
 // Rota raiz da API para evitar 404 em chamadas para "/api" diretamente
 api.get('/', (_req, res) => res.json({ success: true, message: 'API ready', prefix: API_PREFIX }));
 api.use('/auth', authRoutes);

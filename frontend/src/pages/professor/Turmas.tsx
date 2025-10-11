@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { useCallback, useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { listClasses, createClass, updateClass, joinClassAsTeacher } from "@/services/classes";
+import { fetchProfessorClasses } from '@/services/classes.service';
 import { useAuth } from "@/store/AuthContext";
 import ClassModal from '@/components/ClassModal';
 import { toast } from 'react-toastify';
@@ -36,13 +37,17 @@ export default function TurmasPage() {
   const fetchClasses = useCallback(async () => {
     try {
       setState('loading');
-      const data = await listClasses();
-      setTurmas(Array.isArray(data) ? data : data?.items || data?.data || []);
+      const data = await fetchProfessorClasses();
+      setTurmas(Array.isArray(data) ? data : []);
       setErr(null);
       setState('ready');
     } catch (e: any) {
+      console.error('turmas: falha ao carregar', e);
+      setTurmas([]);
       const status = e?.response?.status;
       if (status === 401) {
+        setErr('Sessão expirada. Faça login novamente.');
+        setState('error');
         nav('/login-professor?next=/professor/classes', { replace: true });
         return;
       }
