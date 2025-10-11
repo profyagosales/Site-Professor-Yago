@@ -8,9 +8,11 @@ export async function getFileToken(essayId: string): Promise<string> {
 }
 
 export function buildEssayFileUrl(essayId: string, token: string) {
-  const base = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
-  const origin = base || '';
-  return `${origin}/api/essays/${essayId}/file?file-token=${encodeURIComponent(token)}`;
+  // sempre retorna URL ABSOLUTA apontando para a API
+  const raw = import.meta.env.VITE_API_BASE_URL || '';
+  const base = String(raw).replace(/\/+$/, '') || '';
+  const root = /\/api$/i.test(base) ? base : `${base}/api`;
+  return `${root}/essays/${essayId}/file?file-token=${encodeURIComponent(token)}`;
 }
 
 // Themes
