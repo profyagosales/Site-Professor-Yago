@@ -44,7 +44,7 @@ export default function TurmaAlunosPage() {
     <Page title={titulo} subtitle="Alunos cadastrados">
       <div className="mb-4">
         <div className="mb-2 flex items-center justify-between">
-          <Link to="/professor/turmas" className="text-sm text-ys-ink-2 hover:text-ys-ink">← Voltar para Turmas</Link>
+          <Link to="/professor/classes" className="text-sm text-ys-ink-2 hover:text-ys-ink">← Voltar para Turmas</Link>
         </div>
         <Button disabled={!classId} onClick={() => setModalOpen(true)}>Novo Aluno</Button>
       </div>

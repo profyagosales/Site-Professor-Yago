@@ -7,13 +7,13 @@ const Landing = lazy(() => import("@/pages/Landing"));
 const Turmas = lazy(() => import("@/pages/professor/Turmas"));
 const TurmaAlunos = lazy(() => import("@/pages/professor/TurmaAlunos"));
 const RedacoesProf = lazy(() => import("@/pages/redacao/DashboardRedacoes"));
+// @ts-expect-error legacy JSX module
 const DashboardProfessor = lazy(() => import("@/pages/DashboardProfessor"));
+// @ts-expect-error legacy JSX module
 const DashboardAluno = lazy(() => import("@/pages/DashboardAluno"));
 const LoginProf = lazy(() => import("@/pages/auth/LoginProfessor"));
 const LoginAluno = lazy(() => import("@/pages/auth/LoginAluno"));
 const AlunoNotas = lazy(() => import("@/pages/aluno/Notas"));
-const AlunoCaderno = lazy(() => import("@/pages/aluno/Caderno"));
-const AlunoGabarito = lazy(() => import("@/pages/aluno/Gabarito"));
 const AlunoRedacoes = lazy(() => import("@/pages/aluno/Redacoes"));
 
 export default function App() {
@@ -35,7 +35,7 @@ export default function App() {
           }
         />
         <Route
-          path="/turmas"
+          path="/professor/classes"
           element={
             <ProtectedRoute>
               <AppShell>
@@ -45,7 +45,7 @@ export default function App() {
           }
         />
         <Route
-          path="/turmas/:id/alunos"
+          path="/professor/classes/:id/alunos"
           element={
             <ProtectedRoute>
               <AppShell>
@@ -81,26 +81,6 @@ export default function App() {
             <ProtectedRoute>
               <AppShell>
                 <AlunoNotas />
-              </AppShell>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/aluno/caderno"
-          element={
-            <ProtectedRoute>
-              <AppShell>
-                <AlunoCaderno />
-              </AppShell>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/aluno/gabarito"
-          element={
-            <ProtectedRoute>
-              <AppShell>
-                <AlunoGabarito />
               </AppShell>
             </ProtectedRoute>
           }

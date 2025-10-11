@@ -1,7 +1,15 @@
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { pasPreviewFrom } from '@/utils/pas';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchEssayById, gradeEssay, saveAnnotations, renderCorrection, getEssayFileUrl } from '@/services/essays.service';
+import {
+  fetchEssayById,
+  gradeEssay,
+  saveAnnotations,
+  renderCorrection,
+  updateEssayAnnotations,
+  getFileToken,
+  buildEssayFileUrl,
+} from '@/services/essays.service';
 import AnnotationEditor from '@/components/redacao/AnnotationEditor';
 import AnnotationEditorRich from '@/components/redacao/AnnotationEditorRich';
 import type { Highlight } from '@/components/redacao/types';
@@ -9,7 +17,6 @@ import type { Anno } from '@/types/annotations';
 import { toast } from 'react-toastify';
 // Importante: usar wrapper lazy para evitar vincular o chunk de PDF ao chunk da rota
 import PdfAnnotatorLazy from '@/components/redacao/PdfAnnotator.lazy';
-import { updateEssayAnnotations } from '@/services/essays.service';
 import { joinClassAsTeacher } from '@/services/classes';
 
 const useRich = import.meta.env.VITE_USE_RICH_ANNOS === '1' || import.meta.env.VITE_USE_RICH_ANNOS === 'true';
@@ -71,18 +78,45 @@ export default function GradeWorkspace() {
     || (essay as any)?.classId?.id
     || (typeof (essay as any)?.classId === 'string' ? (essay as any).classId : undefined);
 
+  const resolveFileUrl = useCallback(async (targetId: string): Promise<{ url?: string; error?: string }> => {
+    try {
+      const token = await getFileToken(targetId);
+      if (!token) {
+        const message = 'Falha ao gerar link do PDF.';
+        toast.error(message);
+        return { error: message };
+      }
+      return { url: buildEssayFileUrl(targetId, token) };
+    } catch (e: any) {
+      const status = e?.response?.status;
+      if (status === 401) {
+        const message = 'Sessão expirada. Faça login novamente.';
+        toast.error(message);
+        if (typeof window !== 'undefined') {
+          const next = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
+          navigate(`/login-professor?next=${next}`, { replace: true });
+        } else {
+          navigate('/login-professor', { replace: true });
+        }
+        return { error: message };
+      }
+      if (status === 403) {
+        const message = 'Sem permissão para este arquivo.';
+        toast.error(message);
+        return { error: message };
+      }
+      console.error('getFileToken failed', e);
+      const message = 'Falha ao gerar link do PDF.';
+      toast.error(message);
+      return { error: message };
+    }
+  }, [navigate]);
+
   const fetchSignedUrl = useCallback(async (): Promise<string | undefined> => {
     if (!essayId) return undefined;
-    try {
-      const url = await getEssayFileUrl(String(essayId));
-      return url;
-    } catch (e: any) {
-      const message = e?.message || 'Falha ao gerar link do PDF.';
-      console.error('getEssayFileUrl failed', e);
-      toast.error(message);
-      return undefined;
-    }
-  }, [essayId]);
+    const { url } = await resolveFileUrl(String(essayId));
+    return url;
+  }, [essayId, resolveFileUrl]);
 
   const refreshFileUrl = useCallback(async (showLoading = false) => {
     if (!essayId) return;
@@ -308,16 +342,15 @@ export default function GradeWorkspace() {
   useEffect(() => {
     if (!id || !useIframe) return;
     (async () => {
-      try {
-        const url = await getEssayFileUrl(String(id));
+      const { url, error } = await resolveFileUrl(String(id));
+      if (url) {
         setFileUrl(url);
-      } catch (e: any) {
-        const message = e?.message || 'Falha ao carregar PDF';
-        setIframeError(message);
-        toast.error(message);
+        setIframeError(null);
+      } else if (error) {
+        setIframeError(error);
       }
     })();
-  }, [id, useIframe]);
+  }, [id, useIframe, resolveFileUrl]);
 
   useEffect(() => {
     function onMessage(e: MessageEvent) {

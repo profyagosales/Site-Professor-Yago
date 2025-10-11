@@ -1,6 +1,17 @@
-import { api } from './api';
+import api from './api';
 import { EssaysPage, EssayStatus, Annotation } from '@/types/redacao';
 import type { Anno } from '@/types/annotations';
+
+export async function getFileToken(essayId: string): Promise<string> {
+  const { data } = await api.get(`/essays/${essayId}/file-token`);
+  return data?.token;
+}
+
+export function buildEssayFileUrl(essayId: string, token: string) {
+  const base = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+  const origin = base || '';
+  return `${origin}/api/essays/${essayId}/file?file-token=${encodeURIComponent(token)}`;
+}
 
 // Themes
 export async function fetchThemes(params?: { type?: 'ENEM'|'PAS'; active?: boolean }) {
@@ -160,62 +171,6 @@ export async function renderCorrection(id: string, opts?: { sendEmail?: boolean;
 export async function sendCorrectionEmail(id: string) {
   const res = await api.post(`/essays/${id}/send-email`);
   return res.data;
-}
-
-// Obtém URL curta e segura para o PDF da redação
-// Estratégia: tenta emitir JWT curto em /essays/:id/file-token; se 404, cai para URL assinada curta /essays/:id/file-signed
-function resolveApiBase() {
-  const env = ((import.meta as any) || {}).env || {};
-  const raw = env.VITE_API_BASE_URL || env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
-  return String(raw || '').replace(/\/$/, '');
-}
-
-function buildEssayFileUrl(id: string, suffix: string) {
-  const base = resolveApiBase();
-  return `${base}/api/essays/${id}/${suffix}`;
-}
-
-function tokenUrl(id: string, token: string) {
-  const base = resolveApiBase();
-  return `${base}/api/essays/${id}/file?file-token=${encodeURIComponent(token)}`;
-}
-
-export async function getEssayFileUrl(essayId: string): Promise<string> {
-  try {
-    const r = await api.post(`/essays/${essayId}/file-token`);
-    const token = r.data?.token || r.data?.accessToken;
-    if (token) return tokenUrl(essayId, token);
-  } catch (err: any) {
-    const status = err?.response?.status;
-    if (status === 401) throw new Error('Sessão expirada. Faça login novamente.');
-    if (status === 403) throw new Error('Sem permissão para ler este arquivo.');
-    if (status && status !== 404) throw err;
-  }
-  try {
-    const signed = await api.get(`/essays/${essayId}/file-signed`);
-    const url = signed.data?.url || signed.data;
-    if (typeof url === 'string' && url) return url;
-  } catch (err: any) {
-    const status = err?.response?.status;
-    if (status === 401) throw new Error('Sessão expirada. Faça login novamente.');
-    if (status === 403) throw new Error('Sem permissão para ler este arquivo.');
-    if (status && status !== 404) throw err;
-  }
-  // Fallback final: cookie-protected streaming
-  return buildEssayFileUrl(essayId, 'file');
-}
-
-// Novo service: obtém token ou URL curta via GET (utilizado pelo loader resiliente)
-export async function getEssayFileToken(essayId: string): Promise<{ url?: string; token?: string; expiresAt?: string; ttl?: number }> {
-  try {
-    const r = await api.get(`/essays/${essayId}/file-token`);
-    return r.data || {};
-  } catch (err: any) {
-    const status = err?.response?.status;
-    if (status === 401) throw new Error('Sessão expirada. Faça login novamente.');
-    if (status === 403) throw new Error('Sem permissão para ler este arquivo.');
-    throw new Error('Falha ao obter token do arquivo');
-  }
 }
 
 // Atualiza anotações ricas da redação

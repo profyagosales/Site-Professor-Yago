@@ -22,7 +22,7 @@ export default function LoginProfessor() {
         const t = data?.data?.token;
         if (t) localStorage.setItem('auth_token', t);
         localStorage.setItem("role", "teacher");
-        navigate("/professor/turmas", { replace: true });
+        navigate("/professor/classes", { replace: true });
       } else {
         setErro(data?.message ?? "Erro no login do professor");
       }

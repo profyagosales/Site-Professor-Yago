@@ -28,9 +28,7 @@ const pdfHealthRoutes = require('./routes/pdfHealth');
 const dashboardRoutes = require('./routes/dashboard');
 const contentsRoutes = require('./routes/contents');
 const themesRoutes = require('./routes/themes');
-const professorAlias = require('./routes/professor.alias.routes');
 const devSeedRoutes = require('./routes/devSeed');
-const fileTokenCompat = require('./middleware/fileTokenCompat');
 
 const app = express();
 
@@ -51,31 +49,23 @@ const serveFrontend = process.env.SERVE_FRONTEND === 'true';
 const isProd = process.env.NODE_ENV === 'production';
 
 // --- CORS (múltiplas origens) ---
-const allowedOrigins = [
+const allowlist = [
   'https://professoryagosales.com.br',
   'https://www.professoryagosales.com.br',
   'http://localhost:5173',
 ];
-const previewPattern = /^https:\/\/([^.]+\.)*vercel\.app$/i;
-
-const allowedMethods = 'GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD';
-const allowedHeaders = 'Content-Type,Authorization,Range';
+const vercelPreview = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
 
 const corsMiddleware = cors({
   origin(origin, cb) {
     if (!origin) return cb(null, true);
-    if (
-      allowedOrigins.includes(origin) ||
-      previewPattern.test(origin)
-    ) {
-      return cb(null, true);
-    }
-    return cb(new Error(`CORS: origem não permitida: ${origin}`), false);
+    if (allowlist.includes(origin) || vercelPreview.test(origin)) return cb(null, true);
+    return cb(new Error('CORS: origem não permitida: ' + origin));
   },
   credentials: true,
-  methods: allowedMethods,
-  allowedHeaders,
-  exposedHeaders: ['Content-Range','Accept-Ranges','Content-Disposition'],
+  methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Accept-Ranges', 'Content-Type', 'Cache-Control', 'Content-Length', 'ETag'],
   maxAge: 86400,
 });
 app.use(corsMiddleware);
@@ -89,7 +79,10 @@ app.get(`${API_PREFIX}/healthz`, (req, res) => res.json({ ok: true }));
 
 // ---------- API ----------
 const api = express.Router();
-app.use('/api/professor', professorAlias);
+app.use('/api/professor', require('./routes/professor.alias.routes'));
+// espelhar as rotas de /api/classes em /api/professor/classes
+app.use('/api/professor/classes', classesRoutes);
+app.use('/api/essays', require('./middlewares/fileTokenCompat'));
 // Rota raiz da API para evitar 404 em chamadas para "/api" diretamente
 api.get('/', (_req, res) => res.json({ success: true, message: 'API ready', prefix: API_PREFIX }));
 api.use('/auth', authRoutes);
@@ -106,7 +99,7 @@ api.use('/omr', omrRoutes);
 // Monta o router compat sob ambos os caminhos (pt-BR e en)
 api.use('/redacoes', redactionsRoutes);
 api.use('/redactions', redactionsRoutes);
-api.use('/essays', fileTokenCompat, essaysRoutes);
+api.use('/essays', essaysRoutes);
 api.use('/uploads', uploadsRoutes);
 api.use('/notifications', notificationRoutes);
 // Montado diretamente em /api/announcements para padronizar (fora do sub-router API_PREFIX)
