@@ -48,6 +48,10 @@ const API_PREFIX = (() => {
 const serveFrontend = process.env.SERVE_FRONTEND === 'true';
 const isProd = process.env.NODE_ENV === 'production';
 
+if (!process.env.FILE_TOKEN_SECRET) {
+  console.warn('[boot] FILE_TOKEN_SECRET ausente – usando JWT_SECRET como fallback para file-token. Recomenda-se definir um segredo dedicado.');
+}
+
 // --- CORS (múltiplas origens) ---
 const allowlist = [
   'https://professoryagosales.com.br',
