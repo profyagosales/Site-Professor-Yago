@@ -143,6 +143,10 @@ npm run vercel:deploy
 - Gere build apenas se necessário; o backend fica em `backend/` e roda com `node server.js` (Node 20 recomendado).
 - Certifique-se de expor o endpoint público configurado em `VITE_API_BASE_URL`.
 
+### Environment Variables
+
+- `FILE_TOKEN_SECRET` – segredo para tokens curtos de PDF (distinto do `JWT_SECRET`).
+
 ## TL;DR
 
 - Stack: Vite + React no frontend, Express no backend. Sem pipeline de testes.
