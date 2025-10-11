@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: site-professor-yago-api
+    env: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci
+    startCommand: node server.js
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
