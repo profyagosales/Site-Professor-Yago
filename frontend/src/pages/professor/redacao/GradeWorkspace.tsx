@@ -68,10 +68,11 @@ export default function GradeWorkspace() {
   const [pdfCheck, setPdfCheck] = useState<'unknown' | 'ok' | 'fail'>('unknown');
   const [ready, setReady] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [iframeUrl, setIframeUrl] = useState<string | null>(null);
   const [iframeError, setIframeError] = useState<string | null>(null);
   // URL segura do PDF (com assinatura curta)
   const [fileUrlSigned, setFileUrlSigned] = useState<string | undefined>(undefined);
+  const [fileUrl, setFileUrl] = useState<string>('');
 
   const essayId = (essay as any)?._id || (essay as any)?.id;
   const classId = (essay as any)?.classId?._id
@@ -344,7 +345,7 @@ export default function GradeWorkspace() {
     (async () => {
       const { url, error } = await resolveFileUrl(String(id));
       if (url) {
-        setFileUrl(url);
+        setIframeUrl(url);
         setIframeError(null);
       } else if (error) {
         setIframeError(error);
@@ -371,9 +372,9 @@ export default function GradeWorkspace() {
   }, []);
 
   function handleIframeLoad() {
-    if (!iframeRef.current || !fileUrl) return;
+    if (!iframeRef.current || !iframeUrl) return;
     iframeRef.current.contentWindow?.postMessage(
-      { type: 'open', fileUrl, meta: { essayId: id, commentsRequired: true } },
+      { type: 'open', fileUrl: iframeUrl, meta: { essayId: id, commentsRequired: true } },
       window.location.origin,
     );
   }
@@ -425,7 +426,28 @@ export default function GradeWorkspace() {
   if (err) return <div className="p-6 text-red-600">{err}</div>;
   if (!essay) return null;
 
-  const openOriginalUrl = useMemo(() => fileUrlSigned || fileUrl || null, [fileUrlSigned, fileUrl]);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      if (!essayId) {
+        if (active) setFileUrl('');
+        return;
+      }
+      try {
+        const token = await getFileToken(String(essayId));
+        if (token && active) {
+          setFileUrl(buildEssayFileUrl(String(essayId), token));
+        } else if (active) {
+          setFileUrl('');
+        }
+      } catch {
+        if (active) setFileUrl('');
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [essayId]);
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -500,8 +522,8 @@ export default function GradeWorkspace() {
             <div className="text-xs text-ys-ink-2">
               {!fileUrlSigned ? 'Carregando URL segura…' : 'PDF pronto'}
             </div>
-            {!!openOriginalUrl && (
-              <a href={openOriginalUrl} target="_blank" rel="noopener noreferrer" className="text-xs underline">Abrir original</a>
+            {fileUrl && (
+              <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-xs underline">Abrir original</a>
             )}
           </div>
           {/* PDF inline obrigatório */}

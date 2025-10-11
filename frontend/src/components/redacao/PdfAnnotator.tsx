@@ -2,8 +2,7 @@ import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { nanoid } from "nanoid";
 import { emitPdfEvent } from '@/services/telemetry.service';
-import { api } from '@/lib/api';
-import { buildEssayFileUrl } from '@/services/essays.service';
+import { buildEssayFileUrl, getFileToken } from '@/services/essays.service';
 
 /** NÃO importar 'react-pdf' nem 'react-konva' no topo — são carregados dinamicamente. */
 
@@ -143,8 +142,7 @@ export default function PdfAnnotator({
 
     const downloadPdf = async () => {
       try {
-        const { data } = await api.post<{ token?: string }>(`/essays/${essayId}/file-token`);
-        const token = data?.token;
+        const token = await getFileToken(essayId);
         if (!token) {
           const error: any = new Error('Token ausente.');
           error.status = 500;

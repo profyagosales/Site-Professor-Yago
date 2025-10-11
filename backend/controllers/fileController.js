@@ -43,8 +43,9 @@ async function authorizeFileAccess(req, res, next) {
         return next();
       }
       if (dbg) console.warn('[auth:file]', 'token/essay mismatch', { tokenEssayId, essayId });
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
+      return res.status(401).json({ error: 'invalid file token' });
     }
+
     if (req.user) {
       const ok = await canUserAccessEssay(req.user, essayId);
       if (ok) {
@@ -52,6 +53,7 @@ async function authorizeFileAccess(req, res, next) {
         return next();
       }
     }
+
     return res.status(401).json({ success: false, message: 'Unauthorized' });
   } catch (e) {
     if (dbg) console.warn('[auth:file]', 'error', e.message);

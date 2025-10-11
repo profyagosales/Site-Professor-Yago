@@ -3,8 +3,7 @@ import { Card, CardBody, CardTitle, CardSub } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useCallback, useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { listClasses, createClass, updateClass, joinClassAsTeacher } from "@/services/classes";
-import { fetchProfessorClasses } from '@/services/classes.service';
+import { listClasses, createClass, updateClass, joinClassAsTeacher, fetchProfessorClasses } from "@/services/classes";
 import { useAuth } from "@/store/AuthContext";
 import ClassModal from '@/components/ClassModal';
 import { toast } from 'react-toastify';
@@ -30,50 +29,42 @@ export default function TurmasPage() {
 
   const user = auth.user;
   const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
   const [turmas, setTurmas] = useState<any[]>([]);
+  const [message, setMessage] = useState<string | null>(null);
   const [modalState, setModalState] = useState<{ mode: 'create' | 'edit'; data: any | null } | null>(null);
 
-  const fetchClasses = useCallback(async (options?: { skipFinally?: boolean }) => {
+  const loadClasses = useCallback(() => {
     setLoading(true);
-    try {
-      const data = await fetchProfessorClasses();
-      setTurmas(Array.isArray(data) ? data : []);
-      setErr(null);
-    } catch (e: any) {
-      console.error('turmas: falha ao carregar', e);
-      setTurmas([]);
-      const status = e?.response?.status;
-      if (status === 401) {
-        setErr('Sessão expirada. Faça login novamente.');
-        nav('/login-professor?next=/professor/classes', { replace: true });
-      } else {
-        setErr(e?.response?.data?.message || 'Erro ao carregar turmas');
-      }
-      throw e;
-    } finally {
-      if (!options?.skipFinally) {
+    setMessage(null);
+    return fetchProfessorClasses()
+      .then((data) => {
+        const list = Array.isArray(data) ? data : [];
+        setTurmas(list);
+        if (list.length === 0) {
+          setMessage('Nenhuma turma encontrada.');
+        }
+      })
+      .catch((e: any) => {
+        console.error('classes', e);
+        setTurmas([]);
+        const status = e?.response?.status;
+        const friendly = status === 401
+          ? 'Sessão expirada, faça login novamente.'
+          : 'Não foi possível carregar as turmas agora.';
+        setMessage(friendly);
+        if (status === 401) {
+          nav('/login-professor?next=/professor/classes', { replace: true });
+        }
+        throw e;
+      })
+      .finally(() => {
         setLoading(false);
-      }
-    }
+      });
   }, [nav]);
 
   useEffect(() => {
-    // logClassesOnce();
-    let active = true;
-
-    fetchClasses({ skipFinally: true })
-      .catch(() => undefined)
-      .finally(() => {
-        if (active) {
-          setLoading(false);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [fetchClasses]);
+    loadClasses();
+  }, [loadClasses]);
 
   const closeModal = () => setModalState(null);
 
@@ -89,7 +80,7 @@ export default function TurmasPage() {
         toast.success('Turma criada com sucesso');
       }
       closeModal();
-      await fetchClasses();
+      await loadClasses();
     } catch (e: any) {
       const message = e?.response?.data?.message || 'Erro ao salvar turma';
       toast.error(message);
@@ -103,7 +94,7 @@ export default function TurmasPage() {
     try {
       await joinClassAsTeacher(id);
       toast.success('Você agora é professor desta turma.');
-      await fetchClasses();
+      await loadClasses();
     } catch (e: any) {
       const message = e?.response?.data?.message || 'Não foi possível entrar na turma.';
       toast.error(message);
@@ -131,9 +122,11 @@ export default function TurmasPage() {
         <Button onClick={() => setModalState({ mode: 'create', data: null })}>Nova Turma</Button>
       </div>
 
-      {err && !loading && <p className="text-red-600 mb-4">{err}</p>}
       {loading && <p className="text-ys-ink-2">Carregando turmas…</p>}
-      {!loading && !err && (
+      {!loading && message && (
+        <p className="text-ys-ink-2 mb-4">{message}</p>
+      )}
+      {!loading && (!message || turmas.length > 0) && (
         <div className="grid sm:grid-cols-2 gap-4">
           {turmas.map((t: any) => {
             const key = t?._id || t?.id;
@@ -160,7 +153,7 @@ export default function TurmasPage() {
               </Card>
             );
           })}
-          {turmas.length === 0 && <p className="text-ys-ink-2">Nenhuma turma encontrada.</p>}
+          {turmas.length === 0 && !message && <p className="text-ys-ink-2">Nenhuma turma encontrada.</p>}
         </div>
   )}
       <ClassModal

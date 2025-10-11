@@ -2,26 +2,24 @@ import api from './api';
 import { EssaysPage, EssayStatus, Annotation } from '@/types/redacao';
 import type { Anno } from '@/types/annotations';
 
-function normalizeApiOrigin(): string {
-  const env = (import.meta as any)?.env?.VITE_API_BASE_URL || (import.meta as any)?.env?.VITE_API_URL || '';
-  const candidate = env && String(env).trim() ? String(env).trim() : (typeof window !== 'undefined' && window.location?.origin ? window.location.origin : 'http://localhost:5050');
-  let sanitized = candidate;
-  while (sanitized.endsWith('/')) {
-    sanitized = sanitized.slice(0, -1);
-  }
-  return sanitized.endsWith('/api') ? sanitized : `${sanitized}/api`;
+export function normalizeApiOrigin(): string {
+  const env = (import.meta as any)?.env || {};
+  let base = (env?.VITE_API_BASE_URL || '').trim();
+  if (!base) base = typeof window !== 'undefined' ? `${window.location.origin}` : '';
+  base = base.replace(/\/+$/, '');
+  if (!/\/api$/i.test(base)) base += '/api';
+  return base;
+}
+
+export function buildEssayFileUrl(essayId: string, token: string): string {
+  const u = new URL(`/essays/${essayId}/file`, normalizeApiOrigin());
+  u.searchParams.set('file-token', token);
+  return u.toString();
 }
 
 export async function getFileToken(essayId: string): Promise<string> {
   const { data } = await api.post(`/essays/${essayId}/file-token`);
   return data?.token;
-}
-
-export function buildEssayFileUrl(essayId: string, token: string): string {
-  const base = normalizeApiOrigin(); // ex.: https://api.professoryagosales.com.br/api
-  const u = new URL(`/essays/${essayId}/file`, base);
-  u.searchParams.set('file-token', token);
-  return u.toString();
 }
 
 // Themes
@@ -190,7 +188,7 @@ export async function updateEssayAnnotations(
   essayId: string,
   payload: { rich?: any[]; richAnnotations?: any[] }
 ) {
-  const base = import.meta.env.VITE_API_BASE_URL || "";
+  const base = (import.meta as any)?.env?.VITE_API_BASE_URL || "";
   const body: any = {};
   if (Array.isArray(payload.richAnnotations)) body.richAnnotations = payload.richAnnotations;
   else if (Array.isArray(payload.rich)) body.richAnnotations = payload.rich;

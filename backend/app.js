@@ -29,6 +29,8 @@ const dashboardRoutes = require('./routes/dashboard');
 const contentsRoutes = require('./routes/contents');
 const themesRoutes = require('./routes/themes');
 const devSeedRoutes = require('./routes/devSeed');
+const fileTokenCompat = require('./middlewares/fileTokenCompat');
+const professorAlias = require('./routes/professor.alias.routes');
 
 const app = express();
 
@@ -45,6 +47,7 @@ const API_PREFIX = (() => {
   p = p.length > 1 ? p.replace(/\/+$/, '') : '/';
   return p || '/api';
 })();
+const API_BASE = (API_PREFIX || '/api').replace(/\/$/, '') || '/api';
 const serveFrontend = process.env.SERVE_FRONTEND === 'true';
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -83,17 +86,24 @@ app.get(`${API_PREFIX}/healthz`, (req, res) => res.json({ ok: true }));
 
 // ---------- API ----------
 const api = express.Router();
-app.use('/api/professor', require('./routes/professor.alias.routes'));
+
+// professor aliases antigos
+app.use('/api/professor', professorAlias);
 // espelhar as rotas de /api/classes em /api/professor/classes
 app.use('/api/professor/classes', classesRoutes);
-// compat de token precisa vir antes das rotas de essays
-app.use(['/api/essays', '/essays'], require('./middlewares/fileTokenCompat'));
+
+// ENSAIO/PDF com compat de token — em /api/essays E /essays
+app.use('/api/essays', fileTokenCompat, essaysRoutes);
+app.use('/essays', fileTokenCompat, essaysRoutes);
+
+// demais rotas de API…
+app.use('/api/classes', classesRoutes);
+
 // Rota raiz da API para evitar 404 em chamadas para "/api" diretamente
 api.get('/', (_req, res) => res.json({ success: true, message: 'API ready', prefix: API_PREFIX }));
 api.use('/auth', authRoutes);
 api.use('/dashboard', dashboardRoutes);
 api.use('/email', emailRoutes);
-api.use('/classes', classesRoutes);
 api.use('/students', studentsRoutes);
 api.use('/students2', studentsRoutes2);
 api.use('/evaluations', evaluationRoutes);
@@ -104,7 +114,6 @@ api.use('/omr', omrRoutes);
 // Monta o router compat sob ambos os caminhos (pt-BR e en)
 api.use('/redacoes', redactionsRoutes);
 api.use('/redactions', redactionsRoutes);
-api.use('/essays', essaysRoutes);
 api.use('/uploads', uploadsRoutes);
 api.use('/notifications', notificationRoutes);
 // Montado diretamente em /api/announcements para padronizar (fora do sub-router API_PREFIX)
@@ -125,14 +134,17 @@ if (process.env.NODE_ENV === 'test') {
   // Montar health PDF também na raiz para testes
   app.use('/', pdfHealthRoutes);
 } else {
-  app.use(API_PREFIX, api);
+  if (API_BASE !== '/api') {
+    app.use(API_BASE, api);
+  }
 }
+
+app.use('/api', api);
 
 // 404 JSON apenas para caminhos sob o prefixo da API
 app.use((req, res, next) => {
   const p = req.path || '';
-  const apiBase = API_PREFIX.replace(/\/$/, '') || '/api';
-  const isApi = p === apiBase || p.startsWith(apiBase + '/');
+  const isApi = p === API_BASE || p.startsWith(API_BASE + '/');
   if (isApi) {
     return res.status(404).json({ success: false, message: 'API route not found' });
   }
@@ -144,8 +156,7 @@ if (isProd && serveFrontend) {
   const distPath = path.join(__dirname, '../frontend/dist');
   app.use(express.static(distPath));
   // Evita o bug do path-to-regexp: usa RegExp e ignora caminhos da API dinamicamente
-  const apiBase = (API_PREFIX || '/api').replace(/\/$/, '');
-  const escaped = apiBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escaped = API_BASE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const excludeApi = new RegExp(`^(?!${escaped}(?:\/|$)).*`);
   app.get(excludeApi, (_req, res) => {
     res.sendFile(path.join(distPath, 'index.html'));
