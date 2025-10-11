@@ -29,36 +29,50 @@ export default function TurmasPage() {
   }
 
   const user = auth.user;
-  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [turmas, setTurmas] = useState<any[]>([]);
   const [modalState, setModalState] = useState<{ mode: 'create' | 'edit'; data: any | null } | null>(null);
 
-  const fetchClasses = useCallback(async () => {
+  const fetchClasses = useCallback(async (options?: { skipFinally?: boolean }) => {
+    setLoading(true);
     try {
-      setState('loading');
       const data = await fetchProfessorClasses();
       setTurmas(Array.isArray(data) ? data : []);
       setErr(null);
-      setState('ready');
     } catch (e: any) {
       console.error('turmas: falha ao carregar', e);
       setTurmas([]);
       const status = e?.response?.status;
       if (status === 401) {
         setErr('Sessão expirada. Faça login novamente.');
-        setState('error');
         nav('/login-professor?next=/professor/classes', { replace: true });
-        return;
+      } else {
+        setErr(e?.response?.data?.message || 'Erro ao carregar turmas');
       }
-      setErr(e?.response?.data?.message || 'Erro ao carregar turmas');
-      setState('error');
+      throw e;
+    } finally {
+      if (!options?.skipFinally) {
+        setLoading(false);
+      }
     }
   }, [nav]);
 
   useEffect(() => {
     // logClassesOnce();
-    fetchClasses();
+    let active = true;
+
+    fetchClasses({ skipFinally: true })
+      .catch(() => undefined)
+      .finally(() => {
+        if (active) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, [fetchClasses]);
 
   const closeModal = () => setModalState(null);
@@ -117,9 +131,9 @@ export default function TurmasPage() {
         <Button onClick={() => setModalState({ mode: 'create', data: null })}>Nova Turma</Button>
       </div>
 
-      {err && state === 'error' && <p className="text-red-600 mb-4">{err}</p>}
-      {state === 'loading' && <p className="text-ys-ink-2">Carregando turmas…</p>}
-      {state === 'ready' && (
+      {err && !loading && <p className="text-red-600 mb-4">{err}</p>}
+      {loading && <p className="text-ys-ink-2">Carregando turmas…</p>}
+      {!loading && !err && (
         <div className="grid sm:grid-cols-2 gap-4">
           {turmas.map((t: any) => {
             const key = t?._id || t?.id;
@@ -148,7 +162,7 @@ export default function TurmasPage() {
           })}
           {turmas.length === 0 && <p className="text-ys-ink-2">Nenhuma turma encontrada.</p>}
         </div>
-      )}
+  )}
       <ClassModal
         isOpen={hasModalOpen}
         onClose={closeModal}
