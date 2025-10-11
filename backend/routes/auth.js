@@ -12,7 +12,7 @@ function setSessionCookie(res, payload) {
   res.cookie('token', token, {
     httpOnly: true,
     secure: true,
-    sameSite: 'None',
+  sameSite: 'none',
     domain: '.professoryagosales.com.br',
     path: '/',
   });
@@ -113,7 +113,7 @@ router.post('/logout', (req, res) => {
   res.clearCookie('token', {
     httpOnly: true,
     secure: true,
-    sameSite: 'None',
+  sameSite: 'none',
     domain: '.professoryagosales.com.br',
     path: '/',
   });
