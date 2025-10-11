@@ -66,9 +66,10 @@ async function authorizeFileAccess(req, res, next) {
 module.exports.authorizeFileAccess = authorizeFileAccess;
 
 function issueShortFileToken({ sub, essayId }) {
+  const ttl = Number(process.env.FILE_TOKEN_TTL_SECONDS || 300);
   const secret = process.env.FILE_TOKEN_SECRET || process.env.JWT_SECRET;
   if (!secret) throw new Error('FILE_TOKEN_SECRET or JWT_SECRET must be configured');
-  return jwt.sign({ sub, essayId }, secret, { expiresIn: '5m' });
+  return jwt.sign({ sub, essayId }, secret, { expiresIn: ttl });
 }
 module.exports.issueShortFileToken = issueShortFileToken;
 
