@@ -2,15 +2,25 @@ import api from './api';
 import { EssaysPage, EssayStatus, Annotation } from '@/types/redacao';
 import type { Anno } from '@/types/annotations';
 
+function normalizeApiOrigin(): string {
+  const envUrl = (import.meta as any)?.env?.VITE_API_BASE_URL || (import.meta as any)?.env?.VITE_API_URL || '';
+  const baseCandidate = envUrl && envUrl.trim().length > 0
+    ? envUrl.trim()
+    : (typeof window !== 'undefined' && window.location?.origin ? window.location.origin : 'http://localhost:5050');
+  const clean = baseCandidate.replace(/\/+$/, '');
+  return clean.endsWith('/api') ? clean : `${clean}/api`;
+}
+
 export async function getFileToken(essayId: string): Promise<string> {
-  const { data } = await api.get(`/essays/${essayId}/file-token`);
+  const { data } = await api.post(`/essays/${essayId}/file-token`);
   return data?.token;
 }
 
 export function buildEssayFileUrl(essayId: string, token: string) {
-  const base = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
-  const origin = base || '';
-  return `${origin}/api/essays/${essayId}/file?file-token=${encodeURIComponent(token)}`;
+  const origin = normalizeApiOrigin();
+  const url = new URL(`/essays/${essayId}/file`, origin);
+  url.searchParams.set('file-token', token);
+  return url.toString();
 }
 
 // Themes

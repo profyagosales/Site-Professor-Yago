@@ -73,6 +73,25 @@ export default function GradeWorkspace() {
   // URL segura do PDF (com assinatura curta)
   const [fileUrlSigned, setFileUrlSigned] = useState<string | undefined>(undefined);
 
+  const openOriginalUrl = useMemo(() => {
+    if (fileUrlSigned) {
+      try {
+        return new URL(fileUrlSigned).toString();
+      } catch {
+        return fileUrlSigned;
+      }
+    }
+    if (fileUrl) {
+      try {
+        const base = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : 'http://localhost:5173';
+        return new URL(fileUrl, base).toString();
+      } catch {
+        return fileUrl;
+      }
+    }
+    return null;
+  }, [fileUrlSigned, fileUrl]);
+
   const essayId = (essay as any)?._id || (essay as any)?.id;
   const classId = (essay as any)?.classId?._id
     || (essay as any)?.classId?.id
@@ -425,15 +444,6 @@ export default function GradeWorkspace() {
   if (err) return <div className="p-6 text-red-600">{err}</div>;
   if (!essay) return null;
 
-  // Abre PDF em nova aba: prioriza URL assinada curta; faz fallback para URL do iframe
-  async function openPdfInNewTab() {
-    if (fileUrlSigned) {
-      window.open(fileUrlSigned, '_blank', 'noopener,noreferrer');
-      return;
-    }
-    if (fileUrl) window.open(fileUrl, '_blank', 'noopener,noreferrer');
-  }
-
   return (
     <div className="p-4 md:p-6 space-y-4">
       {import.meta.env.DEV && (
@@ -507,8 +517,8 @@ export default function GradeWorkspace() {
             <div className="text-xs text-ys-ink-2">
               {!fileUrlSigned ? 'Carregando URL segura…' : 'PDF pronto'}
             </div>
-            {!!fileUrlSigned && (
-              <button onClick={openPdfInNewTab} className="text-xs underline">Abrir original</button>
+            {!!openOriginalUrl && (
+              <a href={openOriginalUrl} target="_blank" rel="noopener noreferrer" className="text-xs underline">Abrir original</a>
             )}
           </div>
           {/* PDF inline obrigatório */}
@@ -524,7 +534,7 @@ export default function GradeWorkspace() {
                   { key:'comentario',   label:'Comentário geral',      color:'#ef4444', rgba:'rgba(239,68,68,0.60)'  },
                   { key:'coesao',       label:'Coesão/coerência',      color:'#0ea5e9', rgba:'rgba(14,165,233,0.60)' },
                 ]}
-                onChange={(list)=> { setRichAnnos(list as any); debouncedSaveRich(list as any); }}
+                onChange={(list: any)=> { setRichAnnos(list as any); debouncedSaveRich(list as any); }}
                 onJoinAsTeacher={classId ? joinClassAndRefresh : undefined}
               />
             </Suspense>

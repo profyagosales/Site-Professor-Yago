@@ -34,33 +34,37 @@ exports.issueFileToken = async function issueFileToken(req, res) {
 
 async function authorizeFileAccess(req, res, next) {
   try {
-    // 1) primeiro, aceite token curto via query/header (sem cookies)
-    const hdr = req.headers.authorization;
-    const bearer = hdr && hdr.startsWith('Bearer ') ? hdr.slice(7) : null;
-    const tokenToCheck = req.fileToken || bearer || req.query['file-token'] || req.query.token;
-    if (tokenToCheck) {
-      const secret = process.env.FILE_TOKEN_SECRET || process.env.JWT_SECRET;
-      let payload;
-      try {
-        payload = jwt.verify(String(tokenToCheck), secret);
-      } catch (err) {
-        if (process.env.DEBUG_FILE_TOKEN === '1') console.warn('[file:authorize] bad token', err?.message);
-        return res.status(401).json({ success: false, message: 'Token inválido.' });
+    const dbg = process.env.DEBUG_FILE_TOKEN === '1';
+
+    if (req.fileTokenPayload) {
+      if (dbg) console.log('[file-token] payload', req.fileTokenPayload);
+      const { essayId } = req.fileTokenPayload;
+      if (essayId && String(essayId) === String(req.params.id)) {
+        if (dbg) console.log('[file-token] ok → bypass cookie/session');
+        return next();
       }
-      if (!payload?.essayId || String(payload.essayId) !== String(req.params.id)) {
-        return res.status(403).json({ success: false, message: 'Sem permissão.' });
-      }
-      // token curto válido -> autorizado
-      return next();
+      if (dbg) console.warn('[file-token] mismatch id', { tokenEssayId: essayId, paramId: req.params.id });
+      return res.status(401).json({ success: false, message: 'Token de arquivo inválido para este recurso.' });
     }
-    // 2) fallback: sessão/cookies normais
-    if (!req.user) return res.status(401).json({ success: false, message: 'Não autenticado.' });
-    const ok = await canUserAccessEssay(req.user, req.params.id);
-    if (!ok) return res.status(403).json({ success: false, message: 'Sem permissão.' });
-    return next();
-  } catch (e) {
-    if (process.env.DEBUG_FILE_TOKEN === '1') console.error('[file:authorize]', e);
-    return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+    if (req.fileToken) {
+      if (dbg) console.warn('[file-token] token presente sem payload decodificada');
+      return res.status(401).json({ success: false, message: 'Token de arquivo inválido.' });
+    }
+
+    if (req.user && req.user._id) {
+      if (dbg) console.log('[file-token] fallback via sessão', { userId: req.user._id, essayId: req.params.id });
+      const allowed = await canUserAccessEssay(req.user, req.params.id);
+      if (allowed) return next();
+      if (dbg) console.warn('[file-token] fallback negado', { userId: req.user._id, essayId: req.params.id });
+      return res.status(403).json({ success: false, message: 'Sem permissão.' });
+    }
+
+    if (dbg) console.warn('[file-token] nenhuma credencial fornecida');
+    return res.status(401).json({ success: false, message: 'Não autorizado.' });
+  } catch (err) {
+    if (process.env.DEBUG_FILE_TOKEN === '1') console.error('[file-token] erro authorize', err);
+    return res.status(401).json({ success: false, message: 'Não autorizado.' });
   }
 }
 module.exports.authorizeFileAccess = authorizeFileAccess;

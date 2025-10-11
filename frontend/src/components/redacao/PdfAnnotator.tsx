@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { nanoid } from "nanoid";
 import { emitPdfEvent } from '@/services/telemetry.service';
 import { api } from '@/lib/api';
+import { buildEssayFileUrl } from '@/services/essays.service';
 
 /** NÃO importar 'react-pdf' nem 'react-konva' no topo — são carregados dinamicamente. */
 
@@ -114,13 +115,6 @@ export default function PdfAnnotator({
   });
   const fromNorm = (r: RectNorm, w: number, h: number) => ({ x: r.x * w, y: r.y * h, width: r.w * w, height: r.h * h });
 
-  const resolveApiBase = (): string => {
-    const raw = (import.meta as any).env?.VITE_API_BASE_URL || (import.meta as any).env?.VITE_API_URL || '';
-    if (!raw) return '/api';
-    const clean = String(raw).replace(/\/+$/, '');
-    return clean.endsWith('/api') ? clean : `${clean}/api`;
-  };
-
   const setBlobUrl = (blob: Blob, alive: boolean) => {
     const url = URL.createObjectURL(blob);
     if (!alive) {
@@ -157,9 +151,8 @@ export default function PdfAnnotator({
           throw error;
         }
 
-        const base = resolveApiBase();
-        const url = `${base}/essays/${essayId}/file?file-token=${encodeURIComponent(token)}`;
-        const res = await fetch(url, {
+  const url = buildEssayFileUrl(essayId, token);
+  const res = await fetch(url, {
           credentials: 'omit',
           cache: 'no-store',
           signal: ac.signal,
