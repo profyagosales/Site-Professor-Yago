@@ -14,8 +14,6 @@ const NAV_TEACHER: NavItem[] = [
 
 const NAV_STUDENT: NavItem[] = [
   { label: "Minhas Notas", to: "/aluno/notas" },
-  { label: "Caderno", to: "/aluno/caderno" },
-  { label: "Gabarito", to: "/aluno/gabaritos" },
   { label: "Redação", to: "/aluno/redacoes" },
 ];
 

@@ -64,13 +64,14 @@ async function doLogin({ Model, role, req, res }) {
     const token = signToken({ sub: String(doc._id), role });
     const user = { id: String(doc._id), nome: doc.nome || doc.name || '', email: doc.email, role };
 
-    // Cookie opcional
+    // Cookie opcional (compat cross-site)
     if (String(process.env.USE_COOKIE_AUTH).toLowerCase() === 'true') {
+      const cookieDomain = process.env.COOKIE_DOMAIN || '.professoryagosales.com.br';
       res.cookie('token', token, {
         httpOnly: true,
         secure: true,
-        sameSite: 'None',
-        domain: '.professoryagosales.com.br',
+        sameSite: 'none',
+        domain: cookieDomain,
         path: '/',
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });

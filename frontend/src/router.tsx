@@ -5,7 +5,9 @@ import PrivateRoute from '@/routes/PrivateRoute';
 import Landing from '@/pages/Landing';
 import LoginProfessor from '@/pages/auth/LoginProfessor';
 import LoginAluno from '@/pages/auth/LoginAluno';
+// @ts-expect-error legacy JSX module
 import DashboardProfessor from '@/pages/DashboardProfessor';
+// @ts-expect-error legacy JSX module
 import DashboardAluno from '@/pages/DashboardAluno';
 import { lazy, Suspense } from 'react';
 const RedacaoProfessorPage = lazy(() => import(/* @vite-ignore */ '@/pages/professor/redacao/RedacaoProfessorPage'));
@@ -15,8 +17,6 @@ import TurmasPage from '@/pages/professor/Turmas';
 import TurmaAlunosPage from '@/pages/professor/TurmaAlunos';
 import ListaAlunos from '@/pages/professor/alunos/ListaAlunos';
 import PerfilAluno from '@/pages/professor/alunos/PerfilAluno';
-import AlunoCaderno from '@/pages/aluno/Caderno';
-import AlunoGabarito from '@/pages/aluno/Gabarito';
 import AlunoRedacoes from '@/pages/aluno/Redacoes';
 import AlunoNotas from '@/pages/aluno/Notas';
 // Opcional: console de telemetria em dev/admin (só monta quando VITE_FEATURE_TELEMETRY_VIEW=1)
@@ -44,14 +44,8 @@ export const router = createBrowserRouter([
           { path: '/dashboard', element: <Navigate to="/professor/resumo" replace /> },
           { path: '/professor/dashboard', element: <Navigate to="/professor/resumo" replace /> },
           { path: '/turmas', element: <Navigate to="/professor/classes" replace /> },
-          { path: '/caderno', element: <Navigate to="/professor/resumo" replace /> },
-          { path: '/gabarito', element: <Navigate to="/professor/resumo" replace /> },
-          { path: '/notas-da-classe', element: <Navigate to="/professor/resumo" replace /> },
           { path: '/redacao', element: <Navigate to="/professor/redacao" replace /> },
           { path: '/professor/turmas', element: <Navigate to="/professor/classes" replace /> },
-          { path: '/professor/gabarito', element: <Navigate to="/professor/resumo" replace /> },
-          { path: '/professor/notas-da-classe', element: <Navigate to="/professor/resumo" replace /> },
-          { path: '/professor/caderno', element: <Navigate to="/professor/resumo" replace /> },
           { path: '/professor/classes', element: <TurmasPage /> },
           { path: '/professor/classes/:id/alunos', element: <TurmaAlunosPage /> },
           { path: '/professor/redacao', element: <Suspense fallback={<div className="p-6">Carregando…</div>}><RedacaoProfessorPage /></Suspense> },
@@ -65,10 +59,8 @@ export const router = createBrowserRouter([
       {
         element: <AppShellLayout />,
         children: [
-          { path: '/aluno', element: <Navigate to="/aluno/caderno" replace /> },
+          { path: '/aluno', element: <Navigate to="/aluno/notas" replace /> },
           { path: '/aluno/dashboard', element: <DashboardAluno /> },
-          { path: '/aluno/caderno', element: <AlunoCaderno /> },
-          { path: '/aluno/gabaritos', element: <AlunoGabarito /> },
           { path: '/aluno/redacoes', element: <AlunoRedacoes /> },
           { path: '/aluno/notas', element: <AlunoNotas /> },
         ],

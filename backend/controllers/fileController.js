@@ -1,12 +1,12 @@
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
-const { FILE_TOKEN_SECRET, FILE_TOKEN_TTL_SECONDS } = require('../config');
+const { FILE_TOKEN_TTL_SECONDS } = require('../config');
 const Essay = require('../models/Essay');
 const https = require('https');
 const http = require('http');
 const path = require('path');
 
 const { assertUserCanAccessEssay } = require('../utils/assertUserCanAccessEssay');
+const { canUserAccessEssay } = require('../services/acl');
 
 function readRemoteHead(url) {
   return new Promise((resolve) => {
@@ -21,46 +21,81 @@ function readRemoteHead(url) {
   });
 }
 
-// --- Token curto para PDF inline (HMAC: id.exp.sig) ---
-function signFileShortToken(essayId, ttlSec = FILE_TOKEN_TTL_SECONDS) {
-  const exp = Math.floor(Date.now() / 1000) + (ttlSec || 300);
-  const payload = `${essayId}.${exp}`;
-  const sig = crypto.createHmac('sha256', FILE_TOKEN_SECRET).update(payload).digest('hex');
-  return `${payload}.${sig}`;
-}
-
 exports.issueFileToken = async function issueFileToken(req, res) {
   const essay = await Essay.findById(req.params.id).lean();
   if (!essay) throw Object.assign(new Error('not found'), { status: 404 });
   await assertUserCanAccessEssay(req.user, essay);
-  const token = jwt.sign(
-    { sub: String(req.user._id || req.user.id), essayId: String(essay._id) },
-    FILE_TOKEN_SECRET,
-    { expiresIn: FILE_TOKEN_TTL_SECONDS }
-  );
-  res.json({ token, ttl: FILE_TOKEN_TTL_SECONDS });
+  const token = issueShortFileToken({
+    sub: String(req.user._id || req.user.id),
+    essayId: String(essay._id),
+  });
+  res.json({ token });
 };
 
 async function authorizeFileAccess(req, res, next) {
   try {
-    // já logado por cookie/sessão
+    // 1) sessão via cookie
     if (req.user) return next();
-    // token por header ou query (middleware já normaliza)
+
+    // 2) token via header/query (fileTokenCompat já normaliza para header)
     const auth = req.headers.authorization || '';
     const raw = auth.startsWith('Bearer ') ? auth.slice(7) : null;
     if (!raw) return res.status(401).json({ message: 'Unauthorized' });
-    const payload = jwt.verify(raw, process.env.JWT_SECRET);
-    // se o token trouxer essayId, valide contra a rota
+
+    let payload = null;
+    const fileSecret = process.env.FILE_TOKEN_SECRET;
+    if (fileSecret) {
+      try {
+        payload = jwt.verify(raw, fileSecret);
+      } catch (_) {
+        payload = null;
+      }
+    }
+
+    if (!payload) {
+      const loginSecret = process.env.JWT_SECRET;
+      if (!loginSecret) throw new Error('missing-jwt-secret');
+      payload = jwt.verify(raw, loginSecret);
+    }
+
     if (payload.essayId && payload.essayId !== req.params.id) {
       return res.status(403).json({ message: 'Forbidden' });
     }
-    req.fileAccess = { fromToken: true, sub: payload.sub, essayId: payload.essayId };
+
+    if (!payload.essayId && req.params?.id) {
+      const essay = await Essay.findById(req.params.id).lean();
+      if (!essay) return res.status(404).json({ message: 'Essay not found' });
+      const userShape = {
+        _id: payload.sub,
+        id: payload.sub,
+        role: payload.role || payload.profile,
+      };
+      const access = await canUserAccessEssay(userShape, essay);
+      if (!access.ok) {
+        return res.status(403).json({ message: 'Forbidden' });
+      }
+      req.user = req.user || userShape;
+    }
+
+    req.fileAccess = {
+      sub: payload.sub,
+      essayId: payload.essayId,
+      from: payload.essayId ? 'file-token' : 'login-jwt',
+    };
+
     return next();
   } catch (e) {
     return res.status(401).json({ message: 'Unauthorized' });
   }
 }
 module.exports.authorizeFileAccess = authorizeFileAccess;
+
+function issueShortFileToken({ sub, essayId }) {
+  const secret = process.env.FILE_TOKEN_SECRET || process.env.JWT_SECRET;
+  if (!secret) throw new Error('FILE_TOKEN_SECRET or JWT_SECRET must be configured');
+  return jwt.sign({ sub, essayId }, secret, { expiresIn: '5m' });
+}
+module.exports.issueShortFileToken = issueShortFileToken;
 
 exports.getFileMeta = async function getFileMeta(essayId) {
   const essay = await Essay.findById(essayId).lean();
@@ -120,10 +155,13 @@ exports.getSignedFileUrl = async function getSignedFileUrl(req, res) {
     if (!essay) throw Object.assign(new Error('not found'), { status: 404 });
     await assertUserCanAccessEssay(req.user, essay);
 
-    const token = signFileShortToken(id, FILE_TOKEN_TTL_SECONDS || 300);
+    const token = issueShortFileToken({
+      sub: String(req.user._id || req.user.id),
+      essayId: String(id),
+    });
     const base = process.env.APP_DOMAIN_API || process.env.API_BASE_URL || '';
     const urlBase = base || '';
-    const url = `${urlBase}/api/essays/${id}/file?s=${encodeURIComponent(token)}`;
+    const url = `${urlBase}/api/essays/${id}/file?file-token=${encodeURIComponent(token)}`;
     res.json({ url, ttl: FILE_TOKEN_TTL_SECONDS || 300 });
   } catch (e) {
     const status = e.status || 500;
