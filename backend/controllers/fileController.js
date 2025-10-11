@@ -34,58 +34,33 @@ exports.issueFileToken = async function issueFileToken(req, res) {
 
 async function authorizeFileAccess(req, res, next) {
   try {
-    // 1) sessão via cookie
-    if (req.user) return next();
-
-    // 2) token via header/query (fileTokenCompat já normaliza para header)
-    const auth = req.headers.authorization || '';
-    const raw = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-    if (!raw) return res.status(401).json({ message: 'Unauthorized' });
-
-    let payload = null;
-    const fileSecret = process.env.FILE_TOKEN_SECRET;
-    if (fileSecret) {
+    // 1) primeiro, aceite token curto via query/header (sem cookies)
+    const hdr = req.headers.authorization;
+    const bearer = hdr && hdr.startsWith('Bearer ') ? hdr.slice(7) : null;
+    const tokenToCheck = req.fileToken || bearer || req.query['file-token'] || req.query.token;
+    if (tokenToCheck) {
+      const secret = process.env.FILE_TOKEN_SECRET || process.env.JWT_SECRET;
+      let payload;
       try {
-        payload = jwt.verify(raw, fileSecret);
-      } catch (_) {
-        payload = null;
+        payload = jwt.verify(String(tokenToCheck), secret);
+      } catch (err) {
+        if (process.env.DEBUG_FILE_TOKEN === '1') console.warn('[file:authorize] bad token', err?.message);
+        return res.status(401).json({ success: false, message: 'Token inválido.' });
       }
-    }
-
-    if (!payload) {
-      const loginSecret = process.env.JWT_SECRET;
-      if (!loginSecret) throw new Error('missing-jwt-secret');
-      payload = jwt.verify(raw, loginSecret);
-    }
-
-    if (payload.essayId && payload.essayId !== req.params.id) {
-      return res.status(403).json({ message: 'Forbidden' });
-    }
-
-    if (!payload.essayId && req.params?.id) {
-      const essay = await Essay.findById(req.params.id).lean();
-      if (!essay) return res.status(404).json({ message: 'Essay not found' });
-      const userShape = {
-        _id: payload.sub,
-        id: payload.sub,
-        role: payload.role || payload.profile,
-      };
-      const access = await canUserAccessEssay(userShape, essay);
-      if (!access.ok) {
-        return res.status(403).json({ message: 'Forbidden' });
+      if (!payload?.essayId || String(payload.essayId) !== String(req.params.id)) {
+        return res.status(403).json({ success: false, message: 'Sem permissão.' });
       }
-      req.user = req.user || userShape;
+      // token curto válido -> autorizado
+      return next();
     }
-
-    req.fileAccess = {
-      sub: payload.sub,
-      essayId: payload.essayId,
-      from: payload.essayId ? 'file-token' : 'login-jwt',
-    };
-
+    // 2) fallback: sessão/cookies normais
+    if (!req.user) return res.status(401).json({ success: false, message: 'Não autenticado.' });
+    const ok = await canUserAccessEssay(req.user, req.params.id);
+    if (!ok) return res.status(403).json({ success: false, message: 'Sem permissão.' });
     return next();
   } catch (e) {
-    return res.status(401).json({ message: 'Unauthorized' });
+    if (process.env.DEBUG_FILE_TOKEN === '1') console.error('[file:authorize]', e);
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
   }
 }
 module.exports.authorizeFileAccess = authorizeFileAccess;
