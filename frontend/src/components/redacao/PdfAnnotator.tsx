@@ -2,7 +2,6 @@ import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { nanoid } from "nanoid";
 import { emitPdfEvent } from '@/services/telemetry.service';
-import { buildEssayFileUrl, getFileToken } from '@/services/essays.service';
 
 /** NÃO importar 'react-pdf' nem 'react-konva' no topo — são carregados dinamicamente. */
 
@@ -26,17 +25,19 @@ export type AnnHighlight = {
 };
 
 export default function PdfAnnotator({
-  fileSrc,
+  fileUrl,
   essayId,
   palette,
   onChange,
   onJoinAsTeacher,
+  onRefreshFileUrl,
 }: {
-  fileSrc: string;
+  fileUrl: string;
   essayId: string;
   palette: PaletteItem[];
   onChange?: (annos: AnnHighlight[]) => void;
   onJoinAsTeacher?: () => Promise<void> | void;
+  onRefreshFileUrl?: () => Promise<void> | void;
 }) {
   /** --------- lazy import das libs --------- */
   const [RP, setRP] = useState<any>(null);
@@ -129,7 +130,11 @@ export default function PdfAnnotator({
 
   /** --------- carrega o PDF como Blob URL usando token temporário --------- */
   useEffect(() => {
-    if (!essayId) return;
+    if (!essayId || !fileUrl) {
+      setDocUrl(null);
+      if (!fileUrl) setDocErr(null);
+      return;
+    }
     let alive = true;
     const ac = new AbortController();
 
@@ -142,15 +147,7 @@ export default function PdfAnnotator({
 
     const downloadPdf = async () => {
       try {
-        const token = await getFileToken(essayId);
-        if (!token) {
-          const error: any = new Error('Token ausente.');
-          error.status = 500;
-          throw error;
-        }
-
-        const url = buildEssayFileUrl(essayId, token);
-        const res = await fetch(url, {
+        const res = await fetch(fileUrl, {
           credentials: 'omit',
           cache: 'no-store',
           signal: ac.signal,
@@ -177,16 +174,16 @@ export default function PdfAnnotator({
         const blob = await res.blob();
         if (!alive) return;
         setBlobUrl(blob, alive);
-        emitPdfEvent('pdf_load_success', { essayId, srcType: 'blob', step: 'token-download' });
+        emitPdfEvent('pdf_load_success', { essayId, srcType: 'blob', step: 'file-download' });
         if (PDF_DEBUG) {
-          setDebugMeta({ step: 'token-download', size: blob.size, srcType: 'blob' });
+          setDebugMeta({ step: 'file-download', size: blob.size, srcType: 'blob' });
         }
       } catch (error: any) {
         if (!alive) return;
         const status = error?.status ?? error?.response?.status ?? lastStatusRef.current ?? null;
         lastStatusRef.current = status;
         setLastStatus(status);
-        emitPdfEvent('pdf_load_error', { essayId, step: 'token-download', message: String(error?.message || error) });
+        emitPdfEvent('pdf_load_error', { essayId, step: 'file-download', message: String(error?.message || error) });
 
         let message = 'Não foi possível carregar o PDF (sessão expirada ou token inválido).';
         if (status === 401) {
@@ -197,6 +194,14 @@ export default function PdfAnnotator({
           message = 'Arquivo não encontrado. Verifique se a redação possui PDF anexado ou reenvie o arquivo.';
         }
         setDocErr(message);
+
+        if (status === 401 && onRefreshFileUrl) {
+          try {
+            await Promise.resolve(onRefreshFileUrl());
+          } catch (refreshError) {
+            console.error('refreshFileUrl failed', refreshError);
+          }
+        }
       }
     };
 
@@ -210,7 +215,9 @@ export default function PdfAnnotator({
         lastBlobUrlRef.current = null;
       }
     };
-  }, [essayId, fileSrc, retryKey]);
+  }, [essayId, fileUrl, retryKey, onRefreshFileUrl]);
+
+
 
   /** --------- lib components (após lazy) --------- */
   if (!RP) return <div className="p-4 text-muted-foreground">Carregando visualizador…</div>;
@@ -440,6 +447,13 @@ export default function PdfAnnotator({
     try {
       await Promise.resolve(onJoinAsTeacher());
       setDocErr(null);
+      if (onRefreshFileUrl) {
+        try {
+          await Promise.resolve(onRefreshFileUrl());
+        } catch (refreshError) {
+          console.error('refreshFileUrl failed', refreshError);
+        }
+      }
       setRetryKey((k) => k + 1);
     } catch (e: any) {
       const msg = e?.response?.data?.message || e?.message || 'Não foi possível entrar na turma.';
@@ -472,7 +486,12 @@ export default function PdfAnnotator({
             </div>
           )}
           <button
-            onClick={() => setRetryKey((k) => k + 1)}
+            onClick={() => {
+              if (onRefreshFileUrl) {
+                Promise.resolve(onRefreshFileUrl()).catch((err) => console.error('refreshFileUrl failed', err));
+              }
+              setRetryKey((k) => k + 1);
+            }}
             className="mt-2 rounded border border-red-300 bg-white px-2 py-1 text-sm hover:bg-red-100"
           >
             Tentar novamente

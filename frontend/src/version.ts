@@ -1,1 +1,1 @@
-export const APP_VERSION = "pdf-url-hardening-1";
+export const APP_VERSION = "1760229417334";

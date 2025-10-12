@@ -1,9 +1,9 @@
 import { Page } from "@/components/Page";
 import { Card, CardBody, CardTitle, CardSub } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { listClasses, createClass, updateClass, joinClassAsTeacher, fetchProfessorClasses } from "@/services/classes";
+import { createClass, fetchProfessorClasses, joinClassAsTeacher, updateClass, ProfessorClass } from "@/services/classes";
 import { useAuth } from "@/store/AuthContext";
 import ClassModal from '@/components/ClassModal';
 import { toast } from 'react-toastify';
@@ -28,42 +28,44 @@ export default function TurmasPage() {
   }
 
   const user = auth.user;
+  const [turmas, setTurmas] = useState<ProfessorClass[]>([]);
   const [loading, setLoading] = useState(true);
-  const [turmas, setTurmas] = useState<any[]>([]);
-  const [message, setMessage] = useState<string | null>(null);
-  const [modalState, setModalState] = useState<{ mode: 'create' | 'edit'; data: any | null } | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [modalState, setModalState] = useState<{ mode: 'create' | 'edit'; data: ProfessorClass | null } | null>(null);
+  const abortRef = useRef(false);
 
-  const loadClasses = useCallback(() => {
+  const loadClasses = useCallback(async () => {
+    if (abortRef.current) return;
     setLoading(true);
-    setMessage(null);
-    return fetchProfessorClasses()
-      .then((data) => {
-        const list = Array.isArray(data) ? data : [];
+    setErrorMsg(null);
+    try {
+      const list = await fetchProfessorClasses();
+      if (!abortRef.current) {
         setTurmas(list);
-        if (list.length === 0) {
-          setMessage('Nenhuma turma encontrada.');
-        }
-      })
-      .catch((e: any) => {
-        console.error('classes', e);
+        setErrorMsg(null);
+      }
+    } catch (e: any) {
+      console.error('[Turmas] fetch failed', e);
+      if (!abortRef.current) {
         setTurmas([]);
-        const status = e?.response?.status;
-        const friendly = status === 401
-          ? 'Sessão expirada, faça login novamente.'
-          : 'Não foi possível carregar as turmas agora.';
-        setMessage(friendly);
-        if (status === 401) {
-          nav('/login-professor?next=/professor/classes', { replace: true });
+        setErrorMsg('Não foi possível carregar suas turmas. Faça login novamente.');
+        if (e?.response?.status === 401) {
+          nav('/login-professor?next=/professor/turmas', { replace: true });
         }
-        throw e;
-      })
-      .finally(() => {
+      }
+    } finally {
+      if (!abortRef.current) {
         setLoading(false);
-      });
+      }
+    }
   }, [nav]);
 
   useEffect(() => {
-    loadClasses();
+    abortRef.current = false;
+    void loadClasses();
+    return () => {
+      abortRef.current = true;
+    };
   }, [loadClasses]);
 
   const closeModal = () => setModalState(null);
@@ -86,9 +88,9 @@ export default function TurmasPage() {
       toast.error(message);
       throw e;
     }
-  }, [modalState, fetchClasses]);
+  }, [modalState, loadClasses]);
 
-  const handleJoin = useCallback(async (cls: any) => {
+  const handleJoin = useCallback(async (cls: ProfessorClass) => {
     const id = cls?._id || cls?.id;
     if (!id) return;
     try {
@@ -99,7 +101,7 @@ export default function TurmasPage() {
       const message = e?.response?.data?.message || 'Não foi possível entrar na turma.';
       toast.error(message);
     }
-  }, [fetchClasses]);
+  }, [loadClasses]);
 
   const isTeacherOf = useCallback((cls: any) => {
     const teachers = Array.isArray(cls?.teachers) ? cls.teachers : [];
@@ -116,46 +118,76 @@ export default function TurmasPage() {
   const modalInitialData = modalState?.mode === 'edit' ? modalState.data : null;
   const hasModalOpen = Boolean(modalState);
 
+  if (loading) {
+    return (
+      <Page title="Turmas" subtitle="Gerencie turmas, alunos e avaliações.">
+        <p>Carregando…</p>
+      </Page>
+    );
+  }
+
+  if (errorMsg) {
+    return (
+      <Page title="Turmas" subtitle="Gerencie turmas, alunos e avaliações.">
+        <p className="text-red-600">{errorMsg}</p>
+        <div className="mt-4">
+          <Button onClick={() => void loadClasses()}>Tentar novamente</Button>
+        </div>
+      </Page>
+    );
+  }
+
+  if (!turmas.length) {
+    return (
+      <Page title="Turmas" subtitle="Gerencie turmas, alunos e avaliações.">
+        <div className="mb-4">
+          <Button onClick={() => setModalState({ mode: 'create', data: null })}>Nova Turma</Button>
+        </div>
+        <p>Nenhuma turma.</p>
+        <ClassModal
+          isOpen={hasModalOpen}
+          onClose={closeModal}
+          onSubmit={handleSubmit}
+          initialData={modalInitialData}
+        />
+      </Page>
+    );
+  }
+
   return (
     <Page title="Turmas" subtitle="Gerencie turmas, alunos e avaliações.">
       <div className="mb-4">
         <Button onClick={() => setModalState({ mode: 'create', data: null })}>Nova Turma</Button>
       </div>
 
-      {loading && <p className="text-ys-ink-2">Carregando turmas…</p>}
-      {!loading && message && (
-        <p className="text-ys-ink-2 mb-4">{message}</p>
-      )}
-      {!loading && (!message || turmas.length > 0) && (
-        <div className="grid sm:grid-cols-2 gap-4">
-          {turmas.map((t: any) => {
-            const key = t?._id || t?.id;
-            const alreadyTeacher = isTeacherOf(t);
-            return (
-              <Card key={key || `${t.series}-${t.letter}`}>
-                <CardBody>
-                  <CardTitle>{t.name || t.nome || `${t.series || ''} ${t.letter || ''}`}</CardTitle>
-                  <CardSub>Disciplina: {t.discipline || t.disciplina || '-'}</CardSub>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <Button onClick={() => nav(`/professor/classes/${key}/alunos`)}>Ver alunos</Button>
-                    <Button onClick={() => setModalState({ mode: 'edit', data: t })}>
-                      Editar
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => handleJoin(t)}
-                      disabled={alreadyTeacher}
-                    >
-                      {alreadyTeacher ? 'Você é professor' : 'Tornar-me professor'}
-                    </Button>
-                  </div>
-                </CardBody>
-              </Card>
-            );
-          })}
-          {turmas.length === 0 && !message && <p className="text-ys-ink-2">Nenhuma turma encontrada.</p>}
-        </div>
-  )}
+      <div className="grid sm:grid-cols-2 gap-4">
+        {turmas.map((t) => {
+          const key = t?._id || t?.id || `${t.series || ''}-${t.letter || ''}`;
+          const alreadyTeacher = isTeacherOf(t);
+          return (
+            <Card key={key}>
+              <CardBody>
+                <CardTitle>{t.name || t.nome || `${t.series || ''} ${t.letter || ''}`}</CardTitle>
+                <CardSub>Disciplina: {t.discipline || t.disciplina || '-'}</CardSub>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button onClick={() => nav(`/professor/classes/${key}/alunos`)}>Ver alunos</Button>
+                  <Button onClick={() => setModalState({ mode: 'edit', data: t })}>
+                    Editar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => handleJoin(t)}
+                    disabled={alreadyTeacher}
+                  >
+                    {alreadyTeacher ? 'Você é professor' : 'Tornar-me professor'}
+                  </Button>
+                </div>
+              </CardBody>
+            </Card>
+          );
+        })}
+      </div>
+
       <ClassModal
         isOpen={hasModalOpen}
         onClose={closeModal}
