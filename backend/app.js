@@ -33,6 +33,29 @@ const fileTokenCompat = require('./middlewares/fileTokenCompat');
 
 const app = express();
 
+// #### Sessão estável em produção atrás de proxy (Render/Cloudflare)
+// Garante req.secure correto e permite cookies "secure" atrás de proxy HTTPS
+app.set('trust proxy', 1);
+
+// #### Força cookies compatíveis com cross-site (api.<domínio> <-> <domínio>)
+// Qualquer res.cookie/clearCookie herdará estes defaults.
+app.use((req, res, next) => {
+  const isProd = process.env.NODE_ENV === 'production';
+  const domain = process.env.COOKIE_DOMAIN || (isProd ? '.professoryagosales.com.br' : undefined);
+  const base = {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'none',
+    secure: isProd,
+    ...(domain ? { domain } : {}),
+  };
+  const origCookie = res.cookie.bind(res);
+  res.cookie = (name, value, options = {}) => origCookie(name, value, { ...base, ...options });
+  const origClear = res.clearCookie.bind(res);
+  res.clearCookie = (name, options = {}) => origClear(name, { ...base, ...options, maxAge: 0 });
+  next();
+});
+
 // --- API: desabilita ETag e cache para evitar 304 em endpoints como /api/me e /api/professor/classes
 app.set('etag', false);
 const apiNoStore = (_req, res, next) => {
