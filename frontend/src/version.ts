@@ -1,1 +1,1 @@
-export const APP_VERSION = "1760229417334";
+export const APP_VERSION = "hardfix-1760232034795";

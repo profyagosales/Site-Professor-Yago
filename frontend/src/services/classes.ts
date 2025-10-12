@@ -2,8 +2,8 @@ import api, { pickData } from '@/lib/api';
 
 export type ProfessorClass = {
   _id: string;
+  name: string;
   id?: string;
-  name?: string;
   nome?: string;
   series?: string;
   letter?: string;
@@ -15,8 +15,11 @@ export type ProfessorClass = {
 
 export async function fetchProfessorClasses(): Promise<ProfessorClass[]> {
   const { data } = await api.get('/professor/classes', { withCredentials: true });
-  const raw = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-  return raw as ProfessorClass[];
+  const list = Array.isArray(data?.data) ? data.data : [];
+  if (import.meta.env.DEV) {
+    console.log('[classes] fetchProfessorClasses response', list.length);
+  }
+  return list as ProfessorClass[];
 }
 
 const normalizeSchedulePayload = (payload: any) => ({
@@ -46,15 +49,4 @@ export const joinClassAsTeacher = (id: string) =>
 export const listStudents = (classId: string) =>
   api.get(`/classes/${classId}/students`).then(pickData);
 
-const classesService = {
-  fetchProfessorClasses,
-  listClasses,
-  getClassById,
-  createClass,
-  updateClass,
-  deleteClass,
-  joinClassAsTeacher,
-  listStudents,
-};
-
-export default classesService;
+export default { fetchProfessorClasses };

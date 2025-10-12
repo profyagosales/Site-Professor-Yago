@@ -64,62 +64,57 @@ export default function GradeWorkspace() {
   }>(null);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
-  const [fileErrorCode, setFileErrorCode] = useState<number | null>(null);
-  const [fileRevision, setFileRevision] = useState(0);
+  const [fileErrorCode, setFileErrorCode] = useState<number | undefined>(undefined);
+  const [refreshTick, setRefreshTick] = useState(0);
+  const navigateRef = useRef(navigate);
+
+  useEffect(() => {
+    navigateRef.current = navigate;
+  }, [navigate]);
 
   const essayId = (essay as any)?._id || (essay as any)?.id;
   const classId = (essay as any)?.classId?._id
     || (essay as any)?.classId?.id
     || (typeof (essay as any)?.classId === 'string' ? (essay as any).classId : undefined);
 
-  const refreshFileUrl = useCallback(() => {
-    setFileUrl(null);
-    setFileError(null);
-    setFileErrorCode(null);
-    setFileRevision((rev) => rev + 1);
-  }, []);
+  const refreshFileUrl = useCallback(() => setRefreshTick((tick) => tick + 1), []);
 
   useEffect(() => {
     if (!essayId) {
       setFileUrl(null);
       setFileError(null);
-      setFileErrorCode(null);
+      setFileErrorCode(undefined);
       return;
     }
 
-    let active = true;
     setFileUrl(null);
     setFileError(null);
-    setFileErrorCode(null);
+    setFileErrorCode(undefined);
 
-    const fetchUrl = async () => {
+    let abort = false;
+    (async () => {
       try {
-        const token = await getFileToken(String(essayId));
-        if (!token) {
-          const err = new Error('Token ausente.');
-          (err as any).status = 500;
-          throw err;
-        }
-        const url = buildEssayFileUrl(String(essayId), token);
-        if (!active) return;
-        setFileUrl(url);
         setFileError(null);
-        setFileErrorCode(null);
-      } catch (e: any) {
-        if (!active) return;
-        const status = e?.response?.status ?? e?.status ?? null;
-        setFileUrl(null);
-        setFileErrorCode(typeof status === 'number' ? status : null);
+        setFileErrorCode(undefined);
 
-        let message = 'Falha ao gerar link do PDF.';
+        const token = await getFileToken(String(essayId));
+        const url = buildEssayFileUrl(String(essayId), token);
+        if (!abort) setFileUrl(url);
+      } catch (e: any) {
+        if (abort) return;
+        const status = typeof e?.response?.status === 'number' ? e.response.status : e?.status;
+        let message = e?.message || 'Falha ao preparar o PDF.';
+        setFileUrl(null);
+        setFileErrorCode(typeof status === 'number' ? status : undefined);
+
         if (status === 401) {
           message = 'Sessão expirada. Faça login novamente.';
           toast.error(message);
           if (typeof window !== 'undefined') {
             const next = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
-            navigate(`/login-professor?next=${next}`, { replace: true });
+            navigateRef.current(`/login-professor?next=${next}`, { replace: true });
           } else {
-            navigate('/login-professor', { replace: true });
+            navigateRef.current('/login-professor', { replace: true });
           }
         } else if (status === 403) {
           message = 'Seu usuário não está vinculado à turma desta redação.';
@@ -133,14 +128,12 @@ export default function GradeWorkspace() {
         }
         setFileError(message);
       }
-    };
-
-    fetchUrl();
+    })();
 
     return () => {
-      active = false;
+      abort = true;
     };
-  }, [essayId, fileRevision, navigate]);
+  }, [essayId, refreshTick]);
 
   const joinClassAndRefresh = useCallback(async () => {
     if (!classId) {

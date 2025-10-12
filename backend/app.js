@@ -92,12 +92,12 @@ app.use('/api/professor', professorAlias);
 // espelhar as rotas de /api/classes em /api/professor/classes
 app.use('/api/professor/classes', classesRoutes);
 
+// Rotas principais que precisam vir antes dos demais mounts
+app.use('/api/classes', classesRoutes);
+
 // ENSAIO/PDF com compat de token — em /api/essays E /essays
 app.use('/api/essays', fileTokenCompat, essaysRoutes);
 app.use('/essays', fileTokenCompat, essaysRoutes);
-
-// demais rotas de API…
-app.use('/api/classes', classesRoutes);
 
 // Rota raiz da API para evitar 404 em chamadas para "/api" diretamente
 api.get('/', (_req, res) => res.json({ success: true, message: 'API ready', prefix: API_PREFIX }));

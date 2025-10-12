@@ -37,24 +37,25 @@ export default function TurmasPage() {
   const loadClasses = useCallback(async () => {
     if (abortRef.current) return;
     setLoading(true);
+    console.log('[Turmas] fetching…');
     setErrorMsg(null);
     try {
       const list = await fetchProfessorClasses();
-      if (!abortRef.current) {
-        setTurmas(list);
-        setErrorMsg(null);
-      }
+      if (abortRef.current) return;
+      console.log('[Turmas] fetched', list.length);
+      setTurmas(list);
+      setErrorMsg(null);
     } catch (e: any) {
+      if (abortRef.current) return;
       console.error('[Turmas] fetch failed', e);
-      if (!abortRef.current) {
-        setTurmas([]);
-        setErrorMsg('Não foi possível carregar suas turmas. Faça login novamente.');
-        if (e?.response?.status === 401) {
-          nav('/login-professor?next=/professor/turmas', { replace: true });
-        }
+      setTurmas([]);
+      setErrorMsg('Não foi possível carregar suas turmas. Faça login novamente.');
+      if (e?.response?.status === 401) {
+        nav('/login-professor?next=/professor/turmas', { replace: true });
       }
     } finally {
       if (!abortRef.current) {
+        console.log('[Turmas] done');
         setLoading(false);
       }
     }
@@ -62,6 +63,8 @@ export default function TurmasPage() {
 
   useEffect(() => {
     abortRef.current = false;
+    setLoading(true);
+    console.log('[Turmas] mount');
     void loadClasses();
     return () => {
       abortRef.current = true;
@@ -118,14 +121,7 @@ export default function TurmasPage() {
   const modalInitialData = modalState?.mode === 'edit' ? modalState.data : null;
   const hasModalOpen = Boolean(modalState);
 
-  if (loading) {
-    return (
-      <Page title="Turmas" subtitle="Gerencie turmas, alunos e avaliações.">
-        <p>Carregando…</p>
-      </Page>
-    );
-  }
-
+  if (loading) return <Page title="Turmas" subtitle="Gerencie turmas, alunos e avaliações."><p>Carregando…</p></Page>;
   if (errorMsg) {
     return (
       <Page title="Turmas" subtitle="Gerencie turmas, alunos e avaliações.">

@@ -5,7 +5,7 @@ module.exports = function fileTokenCompat(req, _res, next) {
   const h = req.headers || {};
   const raw =
     (typeof q['file-token'] === 'string' && q['file-token']) ||
-    (typeof q['token'] === 'string' && q['token']) ||
+    (typeof q.token === 'string' && q.token) ||
     (typeof h['x-file-token'] === 'string' && h['x-file-token']) ||
     null;
 
@@ -19,10 +19,10 @@ module.exports = function fileTokenCompat(req, _res, next) {
         const dec = jwt.verify(raw, secret);
         req.fileTokenPayload = dec && typeof dec === 'object' ? dec : null;
         if (process.env.DEBUG_FILE_TOKEN === '1') {
-          console.log('[file-token] decoded', { essayId: dec?.essayId, sub: dec?.sub, exp: dec?.exp });
+          console.log('[file-token] ok', { essayId: dec?.essayId, sub: dec?.sub });
         }
       } catch (e) {
-        if (process.env.DEBUG_FILE_TOKEN === '1') console.warn('[file-token] invalid:', e.message);
+        if (process.env.DEBUG_FILE_TOKEN === '1') console.warn('[file-token] invalid', e.message);
       }
     }
   } else {
