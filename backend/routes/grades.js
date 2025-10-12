@@ -1,7 +1,6 @@
 const express = require('express');
 const Grade = require('../models/Grade');
 const Evaluation = require('../models/Evaluation');
-const CadernoCheck = require('../models/CadernoCheck');
 const Student = require('../models/Student');
 const Class = require('../models/Class');
 const pdfReport = require('../utils/pdfReport');
@@ -134,9 +133,9 @@ router.post('/', async (req, res, next) => {
       error.status = 403;
       throw error;
     }
-    const { studentId, evaluationId, cadernoCheckId, score } = req.body;
+    const { studentId, evaluationId, score } = req.body;
 
-    if (!studentId || (!evaluationId && !cadernoCheckId) || score === undefined) {
+    if (!studentId || !evaluationId || score === undefined) {
       const error = new Error('Dados inválidos');
       error.status = 400;
       throw error;
@@ -145,51 +144,28 @@ router.post('/', async (req, res, next) => {
     let bimester;
     let grade;
 
-    if (evaluationId) {
-      const evaluation = await Evaluation.findById(evaluationId);
-      if (!evaluation) {
-        const error = new Error('Avaliação não encontrada');
-        error.status = 404;
-        throw error;
-      }
-      bimester = evaluation.bimester;
-      grade = await Grade.findOne({ student: studentId, evaluation: evaluationId });
-      if (grade) {
-        grade.score = score;
-        grade.bimester = bimester;
-      } else {
-        grade = new Grade({ student: studentId, evaluation: evaluationId, score, bimester });
-      }
-      grade.status = 'corrected';
-      await grade.save();
+    const evaluation = await Evaluation.findById(evaluationId);
+    if (!evaluation) {
+      const error = new Error('Avaliação não encontrada');
+      error.status = 404;
+      throw error;
+    }
 
-      // Link grade to evaluation
-      if (!evaluation.grades.find((g) => g.toString() === grade._id.toString())) {
-        evaluation.grades.push(grade._id);
-        await evaluation.save();
-      }
+    bimester = evaluation.bimester;
+    grade = await Grade.findOne({ student: studentId, evaluation: evaluationId });
+    if (grade) {
+      grade.score = score;
+      grade.bimester = bimester;
     } else {
-      const cadernoCheck = await CadernoCheck.findById(cadernoCheckId);
-      if (!cadernoCheck) {
-        const error = new Error('Visto não encontrado');
-        error.status = 404;
-        throw error;
-      }
-      bimester = cadernoCheck.term;
-      grade = await Grade.findOne({ student: studentId, cadernoCheck: cadernoCheckId });
-      if (grade) {
-        grade.score = score;
-        grade.bimester = bimester;
-      } else {
-        grade = new Grade({
-          student: studentId,
-          cadernoCheck: cadernoCheckId,
-          score,
-          bimester
-        });
-      }
-      grade.status = 'corrected';
-      await grade.save();
+      grade = new Grade({ student: studentId, evaluation: evaluationId, score, bimester });
+    }
+    grade.status = 'corrected';
+    await grade.save();
+
+    // Link grade to evaluation
+    if (!evaluation.grades.find((g) => g.toString() === grade._id.toString())) {
+      evaluation.grades.push(grade._id);
+      await evaluation.save();
     }
 
     const grades = await Grade.find({ student: studentId, bimester });
