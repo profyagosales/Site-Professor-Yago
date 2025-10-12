@@ -1,168 +1,63 @@
+// backend/middleware/auth.js
 const jwt = require('jsonwebtoken');
-const Student = require('../models/Student');
-const Teacher = require('../models/Teacher');
 
-async function authRequired(req, res, next) {
+function extractToken(req) {
+  const h = req.headers || {};
+  const c = req.cookies || {};
+  const name = process.env.AUTH_COOKIE_NAME || 'token';
+
+  // Preferir cookie quando o app usa cookies cross-site
+  if (process.env.USE_COOKIE_AUTH === 'true' && typeof c[name] === 'string' && c[name]) {
+    return c[name];
+  }
+
+  // Authorization: Bearer <token>
+  const auth = h.authorization || h.Authorization;
+  if (typeof auth === 'string') {
+    const m = auth.match(/^Bearer\s+(.+)$/i);
+    if (m) return m[1].trim();
+  }
+
+  // Header alternativo
+  if (typeof h['x-access-token'] === 'string' && h['x-access-token']) {
+    return h['x-access-token'];
+  }
+
+  return null;
+}
+
+function decodeUser(req) {
+  const token = extractToken(req);
+  const secret = process.env.JWT_SECRET;
+  if (!token || !secret) return null;
+
   try {
-    // Aceita token via cookie ('token' atual, 'session' legado ou 'auth' anterior) ou via Authorization: Bearer
-    // Permitir múltiplas origens de token: cookie, Authorization, X-Auth-Token e, em último caso,
-    // query ?token= para caminhos específicos (ex.: stream de PDF), para reduzir 401 em clients embutidos
-    let token =
-      req.cookies?.token ||
-      req.cookies?.session ||
-      req.cookies?.auth ||
-      (req.headers.authorization?.startsWith('Bearer ')
-        ? req.headers.authorization.slice(7)
-        : null) ||
-      (req.headers['x-auth-token'] ? String(req.headers['x-auth-token']) : null);
-
-    // Fallback controlado: aceita token na query apenas para stream de arquivos de redação
-    if (!token && req.method && /^(GET|HEAD)$/i.test(req.method)) {
-      const p = req.path || '';
-      if (/\/essays\/.+\/file$/i.test(p) || /\/redacoes\/.+\/arquivo$/i.test(p)) {
-        if (req.query && typeof req.query.token === 'string' && req.query.token.trim()) {
-          token = req.query.token.trim();
-        }
-      }
-    }
-
-    if (!token) {
-      return res.status(401).json({ success: false, message: 'Unauthenticated' });
-    }
-    // Verifica o token com o segredo atual; se falhar por assinatura inválida,
-    // tenta um segredo legado (JWT_SECRET_FALLBACK), útil após rotações de chave.
-    let payload;
-    try {
-      payload = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (err) {
-      const fb = process.env.JWT_SECRET_FALLBACK;
-      if (fb) {
-        try {
-          payload = jwt.verify(token, fb);
-        } catch (_) {
-          return res.status(401).json({ success: false, message: 'Unauthenticated' });
-        }
-      } else {
-        return res.status(401).json({ success: false, message: 'Unauthenticated' });
-      }
-    }
-
-    // Tokens específicos para arquivos de redação: exigem que o caminho corresponda
-    if (payload.essayId) {
-      const fullPath = `${req.baseUrl || ''}${req.path || ''}`;
-      const match =
-        fullPath.match(/\/essays\/([^/]+)\/file$/i) ||
-        fullPath.match(/\/redacoes\/([^/]+)\/arquivo$/i);
-      if (!match || String(match[1]) !== String(payload.essayId)) {
-        return res.status(403).json({ success: false, message: 'Forbidden' });
-      }
-    }
-
-    // Enriquecer perfil/usuário para suportar tokens simples usados nos testes
-  let profile = payload.role || null;
-  const id = payload.id || payload._id || payload.sub || null;
-    let userClass = payload.class || null;
-
-    if (!profile && id) {
-      // Tenta identificar se é professor ou aluno a partir do id
-      const teacher = await Teacher.findById(id).select('_id').lean();
-      if (teacher) {
-        profile = 'teacher';
-      } else {
-        const student = await Student.findById(id).select('_id class').lean();
-        if (student) {
-          profile = 'student';
-          userClass = userClass || student.class;
-        }
-      }
-    }
-
-    req.profile = profile || req.profile;
-    req.user = {
-      ...payload,
-      _id: id || payload._id || payload.sub,
-      id: id || payload.id || payload.sub,
-      class: userClass || payload.class,
+    const payload = jwt.verify(token, secret);
+    const id = payload?.sub || payload?.id || payload?._id;
+    if (!id) return null;
+    return {
+      _id: String(id),
+      role: payload?.role || payload?.type || 'user',
+      payload,
     };
-    return next();
-  } catch (e) {
-    return res.status(401).json({ success: false, message: 'Unauthenticated' });
+  } catch {
+    return null;
   }
 }
 
-// Compatibilidade: permitir require(module).authRequired ou require(module)
-module.exports = authRequired;
-module.exports.authRequired = authRequired;
-
-async function authOptional(req, res, next) {
-  try {
-    let token =
-      req.cookies?.token ||
-      req.cookies?.session ||
-      req.cookies?.auth ||
-      (req.headers.authorization?.startsWith('Bearer ')
-        ? req.headers.authorization.slice(7)
-        : null) ||
-      (req.headers['x-auth-token'] ? String(req.headers['x-auth-token']) : null);
-
-    if (!token) return next();
-
-    let payload;
-    try {
-      payload = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (err) {
-      const fb = process.env.JWT_SECRET_FALLBACK;
-      if (fb) {
-        try {
-          payload = jwt.verify(token, fb);
-        } catch (_) {
-          return next();
-        }
-      } else {
-        return next();
-      }
-    }
-
-    // Tokens específicos para arquivos
-    if (payload.essayId) {
-      const fullPath = `${req.baseUrl || ''}${req.path || ''}`;
-      const match =
-        fullPath.match(/\/essays\/([^/]+)\/file$/i) ||
-        fullPath.match(/\/redacoes\/([^/]+)\/arquivo$/i);
-      if (!match || String(match[1]) !== String(payload.essayId)) {
-        return next();
-      }
-    }
-
-    let profile = payload.role || null;
-    const id = payload.id || payload._id || payload.sub || null;
-    let userClass = payload.class || null;
-
-    if (!profile && id) {
-      const teacher = await Teacher.findById(id).select('_id').lean();
-      if (teacher) {
-        profile = 'teacher';
-      } else {
-        const student = await Student.findById(id).select('_id class').lean();
-        if (student) {
-          profile = 'student';
-          userClass = userClass || student.class;
-        }
-      }
-    }
-
-    req.profile = profile || req.profile;
-    req.user = {
-      ...payload,
-      _id: id || payload._id || payload.sub,
-      id: id || payload.id || payload.sub,
-      class: userClass || payload.class,
-    };
-    return next();
-  } catch (e) {
-    return next();
-  }
+function authOptional(req, _res, next) {
+  req.user = decodeUser(req);
+  return next();
 }
 
-module.exports.authOptional = authOptional;
+function authRequired(req, res, next) {
+  const u = decodeUser(req);
+  if (u) {
+    req.user = u;
+    return next();
+  }
+  return res.status(401).json({ message: 'Unauthorized' });
+}
 
+// Compat: este arquivo pode ser importado como função ou objeto
+module.exports = Object.assign(authRequired, { authRequired, authOptional });
