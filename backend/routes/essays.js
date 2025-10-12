@@ -1,14 +1,51 @@
-// backend/router/essays.js
 const express = require('express');
 
-// Auth (compat com export default ou nomeado)
+// Auth (compat: função única ou objeto com helpers)
 const authMod = require('../middleware/auth');
 const authRequired = typeof authMod === 'function' ? authMod : authMod.authRequired;
 const authOptional = authMod?.authOptional || ((req, _res, next) => next());
 
-// Short token (?file-token=...) compat
+const {
+  upload,
+  getThemes,
+  createTheme,
+  updateTheme,
+  createEssay,
+  updateEssay,
+  listEssays,
+  gradeEssay,
+  updateAnnotations,
+  renderCorrection,
+  sendCorrectionEmail,
+  getAnnotationsCompat,
+  putAnnotationsCompat
+} = require('../controllers/essaysController');
+
+const fileController = require('../controllers/fileController');
 const fileTokenCompat = require('../middlewares/fileTokenCompat');
 
+const router = express.Router();
+
+/** Permite acesso se:
+ *  - houver usuário autenticado (cookie `token`), ou
+ *  - houver short token válido cujo `essayId` === :id
+ */
+const allowShortTokenOrAuth = (req, res, next) => {
+  if (req.user) return next();
+  const p = req.fileTokenPayload;
+  if (p && p.essayId === req.params.id) return next();
+  return res.status(401).json({ success: false, message: 'Unauthorized' });
+};
+
+// ---------- Themes ----------
+const express = require('express');
+
+// Auth middleware (suporta default export ou nomeados)
+const authMod = require('../middleware/auth');
+const authRequired = typeof authMod === 'function' ? authMod : authMod.authRequired;
+const authOptional = authMod.authOptional || ((req, _res, next) => next());
+
+// Controllers
 const {
   upload,
   getThemes,
@@ -24,62 +61,42 @@ const {
   getAnnotationsCompat,
   putAnnotationsCompat,
 } = require('../controllers/essaysController');
-
 const fileController = require('../controllers/fileController');
+
+// Compat de file-token (decodifica token curto e injeta req.fileTokenPayload)
+const fileTokenCompat = require('../middlewares/fileTokenCompat');
 
 const router = express.Router();
 
-/**
- * Permite acesso se:
- * - houver usuário autenticado (cookie de sessão) OU
- * - houver token curto válido cujo essayId == :id
- * Se vier token curto, sintetiza req.user para controllers que esperam user.
- */
-function allowShortTokenOrAuth(req, res, next) {
-  if (req.user && (req.user.id || req.user._id)) return next();
-
-  const t = req.fileTokenPayload; // << usa payload decodificada
-  if (t && t.essayId === req.params.id) {
-    if (!req.user) {
-      const uid = t.sub;
-      req.user = { id: uid, _id: uid, from: 'file-token' };
-    }
-    return next();
-  }
-
-  return res.status(401).json({ success: false, message: 'Unauthorized' });
-}
-
-// ----------------- Themes -----------------
+/** ------------------- THEMES ------------------- */
 router.get('/themes', authRequired, getThemes);
 router.post('/themes', authRequired, createTheme);
 router.patch('/themes/:id', authRequired, updateTheme);
 
-// ----------------- Essays -----------------
+/** ------------------- ESSAYS CRUD/LIST ------------------- */
 router.post('/', authRequired, upload.single('file'), createEssay);
 router.get('/', authRequired, listEssays);
 router.put('/:id', authRequired, upload.single('file'), updateEssay);
 router.patch('/:id/grade', authRequired, upload.single('correctedFile'), gradeEssay);
 
-// Anotações (sessão OU token curto)
-router.patch('/:id/annotations', fileTokenCompat, allowShortTokenOrAuth, updateAnnotations);
-// Compat: estrutura { highlights:[], comments:[] }
-router.get('/:id/annotations', fileTokenCompat, allowShortTokenOrAuth, getAnnotationsCompat);
-router.put('/:id/annotations', fileTokenCompat, allowShortTokenOrAuth, putAnnotationsCompat);
+/** ------------------- ANOTAÇÕES (estrutura nova + compat) ------------------- */
+// Nova estrutura
+router.patch('/:id/annotations', authRequired, updateAnnotations);
+// Compat: { highlights:[], comments:[] }
+router.get('/:id/annotations', authRequired, getAnnotationsCompat);
+router.put('/:id/annotations', authRequired, putAnnotationsCompat);
 
-router.post('/:id/render-correction', authRequired, renderCorrection);
-
-// Token curto para baixar arquivo (emissão exige sessão)
+/** ------------------- EMISSÃO DE TOKEN CURTO ------------------- */
+// POST (usado pelo front) e GET (loader/inspeção), ambos exigem sessão
 router.post('/:id/file-token', authRequired, fileController.issueFileToken);
 router.get('/:id/file-token', authRequired, fileController.issueFileToken);
 
-// ----------------- Arquivo (PDF) -----------------
-
-// HEAD leve (preflight; sessão OU token curto)
+/** ------------------- HEAD DO PDF (health/preflight sem corpo) ------------------- */
+// IMPORTANTE: authOptional ANTES de authorizeFileAccess, para que req.user exista se houver cookie
 router.head(
   '/:id/file',
-  fileTokenCompat,
-  allowShortTokenOrAuth,
+  authOptional,
+  fileController.authorizeFileAccess,
   async (req, res, next) => {
     try {
       const meta = await fileController.getFileMeta(req.params.id);
@@ -89,19 +106,20 @@ router.head(
         ...(meta.length ? { 'Content-Length': meta.length } : {}),
         'Cache-Control': 'private, max-age=60',
       });
-      res.status(204).end();
+      res.status(204).end(); // No Content
     } catch (err) {
       next(err);
     }
   }
 );
 
-// GET com streaming e suporte a Range (sessão OU token curto)
+/** ------------------- STREAM DO PDF (suporta Range) ------------------- */
+// ORDEM CRÍTICA: fileTokenCompat -> authOptional -> authorizeFileAccess -> stream
 router.get(
   '/:id/file',
   fileTokenCompat,
-  allowShortTokenOrAuth,
-  fileController.authorizeFileAccess,  // mantém a checagem centralizada
+  authOptional,
+  fileController.authorizeFileAccess,
   async (req, res, next) => {
     try {
       await fileController.streamFile(req, res, req.params.id);
@@ -111,11 +129,8 @@ router.get(
   }
 );
 
-// E-mail de correção
+/** ------------------- OUTROS ------------------- */
 router.post('/:id/send-email', authRequired, sendCorrectionEmail);
-
-// URL assinada curta (só com sessão)
 router.get('/:id/file-signed', authRequired, fileController.getSignedFileUrl);
 
 module.exports = router;
-
