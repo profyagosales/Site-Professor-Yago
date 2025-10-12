@@ -30,7 +30,6 @@ const contentsRoutes = require('./routes/contents');
 const themesRoutes = require('./routes/themes');
 const devSeedRoutes = require('./routes/devSeed');
 const fileTokenCompat = require('./middlewares/fileTokenCompat');
-const professorAlias = require('./routes/professor.alias.routes');
 
 const app = express();
 
@@ -87,13 +86,10 @@ app.get(`${API_PREFIX}/healthz`, (req, res) => res.json({ ok: true }));
 // ---------- API ----------
 const api = express.Router();
 
-// professor aliases antigos
-app.use('/api/professor', professorAlias);
-// espelhar as rotas de /api/classes em /api/professor/classes
-app.use('/api/professor/classes', classesRoutes);
-
 // Rotas principais que precisam vir antes dos demais mounts
 app.use('/api/classes', classesRoutes);
+// Espelha /api/professor/classes diretamente para evitar alias genérico interceptando
+app.use('/api/professor/classes', classesRoutes);
 
 // ENSAIO/PDF com compat de token — em /api/essays E /essays
 app.use('/api/essays', fileTokenCompat, essaysRoutes);

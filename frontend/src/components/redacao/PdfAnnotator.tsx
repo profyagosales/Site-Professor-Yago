@@ -29,8 +29,6 @@ export type PdfAnnotatorProps = {
   essayId: string;
   palette: PaletteItem[];
   onChange?: (annos: AnnHighlight[]) => void;
-  onJoinAsTeacher?: () => Promise<void> | void;
-  onRefreshFileUrl?: () => Promise<void> | void;
 };
 
 export default function PdfAnnotator({
@@ -38,8 +36,6 @@ export default function PdfAnnotator({
   essayId,
   palette,
   onChange,
-  onJoinAsTeacher,
-  onRefreshFileUrl,
 }: PdfAnnotatorProps) {
   /** --------- lazy import das libs --------- */
   const [RP, setRP] = useState<any>(null);
@@ -91,18 +87,6 @@ export default function PdfAnnotator({
   const [currentCat, setCurrentCat] = useState<PaletteItem>(palette[1] ?? palette[0]);
   const [annos, setAnnos] = useState<AnnHighlight[]>([]);
   const [pageSizes, setPageSizes] = useState<Record<number, { w: number; h: number }>>({});
-
-  // arquivo
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [lastStatus, setLastStatus] = useState<number | null>(null);
-  const [retryKey, setRetryKey] = useState(0);
-  const lastStatusRef = useRef<number | null>(null);
-  const ctrlRef = useRef<AbortController | null>(null);
-  const revokeRef = useRef<string | null>(null);
-  const [joinErr, setJoinErr] = useState<string | null>(null);
-  const [joinLoading, setJoinLoading] = useState(false);
-  const [debugMeta, setDebugMeta] = useState<{ step?: string | number; size?: number; srcType?: string } | null>(null);
   const PDF_DEBUG = (import.meta as any).env?.VITE_PDF_DEBUG === '1';
 
   const emit = (list: AnnHighlight[]) => {
@@ -117,98 +101,14 @@ export default function PdfAnnotator({
     h: r.height / h,
   });
   const fromNorm = (r: RectNorm, w: number, h: number) => ({ x: r.x * w, y: r.y * h, width: r.w * w, height: r.h * h });
-  /** --------- carrega o PDF como Blob URL usando token temporário --------- */
   useEffect(() => {
-    if (ctrlRef.current) {
-      ctrlRef.current.abort();
-      ctrlRef.current = null;
-    }
-    if (revokeRef.current) {
-      URL.revokeObjectURL(revokeRef.current);
-      revokeRef.current = null;
-    }
-
-    setError(null);
-    setBlobUrl(null);
-    setJoinErr(null);
-    setJoinLoading(false);
-    lastStatusRef.current = null;
-    setLastStatus(null);
-
-    if (!essayId || !fileUrl) {
-      return;
-    }
-
-    const ctrl = new AbortController();
-    ctrlRef.current = ctrl;
-
-    (async () => {
-      try {
-        const res = await fetch(fileUrl, {
-          method: 'GET',
-          credentials: 'omit',
-          cache: 'no-store',
-          signal: ctrl.signal,
-          redirect: 'follow',
-        });
-
-        lastStatusRef.current = res.status;
-        setLastStatus(res.status);
-
-        if (!res.ok) {
-          const status = res.status;
-          if ((status === 401 || status === 403) && onRefreshFileUrl) {
-            try {
-              await Promise.resolve(onRefreshFileUrl());
-            } catch (refreshErr) {
-              console.error('refreshFileUrl failed', refreshErr);
-            }
-          }
-          let message = `HTTP ${status}`;
-          if (status === 401) {
-            message = 'Sessão expirada. Faça login novamente.';
-          } else if (status === 403) {
-            message = 'Seu usuário não está vinculado à turma desta redação. Entre como professor da turma e tente novamente.';
-          } else if (status === 404) {
-            message = 'Arquivo não encontrado. Verifique se a redação possui PDF anexado ou reenvie o arquivo.';
-          }
-          setError(message);
-          emitPdfEvent('pdf_load_error', { essayId, step: 'file-download', message });
-          return;
-        }
-
-        const blob = await res.blob();
-        const objectUrl = URL.createObjectURL(blob);
-        revokeRef.current = objectUrl;
-        setBlobUrl(objectUrl);
-        emitPdfEvent('pdf_load_success', { essayId, srcType: 'blob', step: 'file-download' });
-        if (PDF_DEBUG) {
-          setDebugMeta({ step: 'file-download', size: blob.size, srcType: 'blob' });
-        }
-      } catch (err: any) {
-        if (err?.name === 'AbortError') return;
-        const status = err?.status ?? err?.response?.status ?? lastStatusRef.current ?? null;
-        lastStatusRef.current = status;
-        setLastStatus(status);
-        const message = typeof err?.message === 'string' && err.message
-          ? err.message
-          : 'Não foi possível carregar o PDF (sessão expirada ou token inválido).';
-        setError(message);
-        emitPdfEvent('pdf_load_error', { essayId, step: 'file-download', message });
-      }
-    })();
-
-    return () => {
-      ctrl.abort();
-      if (ctrlRef.current === ctrl) {
-        ctrlRef.current = null;
-      }
-      if (revokeRef.current) {
-        URL.revokeObjectURL(revokeRef.current);
-        revokeRef.current = null;
-      }
-    };
-  }, [essayId, fileUrl, retryKey, onRefreshFileUrl]);
+    if (!fileUrl) return;
+    emitPdfEvent('pdf_load_success', {
+      essayId,
+      step: 'prepared-url',
+      srcType: fileUrl.startsWith('blob:') ? 'blob' : 'url',
+    });
+  }, [essayId, fileUrl]);
 
 
 
@@ -433,75 +333,20 @@ export default function PdfAnnotator({
     );
   }
 
-  const handleJoinClass = async () => {
-    if (!onJoinAsTeacher) return;
-    setJoinErr(null);
-    setJoinLoading(true);
-    try {
-      await Promise.resolve(onJoinAsTeacher());
-  setError(null);
-      if (onRefreshFileUrl) {
-        try {
-          await Promise.resolve(onRefreshFileUrl());
-        } catch (refreshError) {
-          console.error('refreshFileUrl failed', refreshError);
-        }
-      }
-      setRetryKey((k) => k + 1);
-    } catch (e: any) {
-      const msg = e?.response?.data?.message || e?.message || 'Não foi possível entrar na turma.';
-      setJoinErr(msg);
-    } finally {
-      setJoinLoading(false);
-    }
-  };
-
   /** --------- render --------- */
   return (
     <div className="flex flex-col h-full">
       <div className="mb-2">
         <Toolbar />
       </div>
+      {!fileUrl && <div className="p-4 text-muted-foreground">Preparando arquivo…</div>}
 
-      {error && (
-        <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">
-          <p>{error}</p>
-          {lastStatus === 403 && onJoinAsTeacher && (
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <button
-                onClick={handleJoinClass}
-                className="rounded border border-orange-300 bg-orange-100 px-3 py-1 text-sm font-medium text-orange-800 hover:bg-orange-200 disabled:opacity-60"
-                disabled={joinLoading}
-              >
-                {joinLoading ? 'Entrando…' : 'Entrar como professor desta turma'}
-              </button>
-              {joinErr && <span className="text-xs text-red-600">{joinErr}</span>}
-            </div>
-          )}
-          <button
-            onClick={() => {
-              if (onRefreshFileUrl) {
-                Promise.resolve(onRefreshFileUrl()).catch((err) => console.error('refreshFileUrl failed', err));
-              }
-              setRetryKey((k) => k + 1);
-            }}
-            className="mt-2 rounded border border-red-300 bg-white px-2 py-1 text-sm hover:bg-red-100"
-          >
-            Tentar novamente
-          </button>
-        </div>
-      )}
-
-  {!blobUrl && !error && <div className="p-4 text-muted-foreground">Preparando arquivo…</div>}
-
-      {blobUrl && (
+      {fileUrl && (
         <div className="mt-1 space-y-8 overflow-auto relative" style={{ maxHeight: "calc(100vh - 240px)" }}>
-          {PDF_DEBUG && debugMeta && (
+          {PDF_DEBUG && (
             <div className="absolute top-1 right-2 z-50 text-[10px] bg-black/70 text-white px-2 py-1 rounded shadow">
               <div>PDF debug</div>
-              <div>step: {debugMeta.step}</div>
-              {typeof debugMeta.size === 'number' && <div>size: {(debugMeta.size/1024/1024).toFixed(2)} MB</div>}
-              <div>src: {debugMeta.srcType}</div>
+              <div>src: {fileUrl.startsWith('blob:') ? 'blob' : 'url'}</div>
             </div>
           )}
           {safeMode && !pagesGateOpen && (
@@ -511,7 +356,7 @@ export default function PdfAnnotator({
             </div>
           )}
           <Document
-            file={blobUrl}
+            file={fileUrl}
             loading={<div className="p-4 text-muted-foreground">Carregando PDF…</div>}
             error={<div className="p-4 text-destructive">Falha ao carregar PDF</div>}
             onLoadSuccess={({ numPages }: any) => {

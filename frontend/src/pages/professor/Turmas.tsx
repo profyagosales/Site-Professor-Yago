@@ -28,54 +28,48 @@ export default function TurmasPage() {
   }
 
   const user = auth.user;
-  const [turmas, setTurmas] = useState<ProfessorClass[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [items, setItems] = useState<ProfessorClass[]>([]);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [errorMsg, setErrorMsg] = useState<string | undefined>();
   const [modalState, setModalState] = useState<{ mode: 'create' | 'edit'; data: ProfessorClass | null } | null>(null);
 
-  const reloadClasses = useCallback(async () => {
-    console.log('[Turmas] GET /professor/classes');
-    setLoading(true);
-    setErrorMsg(null);
-    try {
-      const list = await fetchProfessorClasses();
-      console.log('[Turmas] ok', (list as any[]).length ?? 0);
-      setTurmas(list as any);
-    } catch (e: any) {
-      console.error('[Turmas] fail', e?.response?.status, e);
-      setTurmas([]);
-      setErrorMsg(e?.response?.status === 401 ? 'Sessão expirada. Faça login.' : 'Falha ao carregar turmas.');
-    } finally {
-      setLoading(false);
-      console.log('[Turmas] done');
-    }
-  }, []);
+  const controllerRef = useRef<AbortController | null>(null);
+
+  const startFetch = useCallback(() => {
+    if (!auth?.user) return;
+    if (controllerRef.current) controllerRef.current.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
+    setStatus('loading');
+    setErrorMsg(undefined);
+
+    fetchProfessorClasses()
+      .then((list) => {
+        if (controller.signal.aborted) return;
+        setItems(list);
+        setErrorMsg(undefined);
+        setStatus('ready');
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setItems([]);
+        setErrorMsg('Falha ao carregar turmas.');
+        setStatus('error');
+      });
+  }, [auth?.user]);
+
+  const reload = useCallback(() => {
+    startFetch();
+  }, [startFetch]);
 
   useEffect(() => {
-    let abort = false;
-    console.log('[Turmas] mount');
-    (async () => {
-      try {
-        console.log('[Turmas] GET /professor/classes');
-        const list = await fetchProfessorClasses();
-        if (abort) return;
-        console.log('[Turmas] ok', (list as any[]).length ?? 0);
-        setTurmas(list as any);
-        setErrorMsg(null);
-      } catch (e: any) {
-        if (abort) return;
-        console.error('[Turmas] fail', e?.response?.status, e);
-        setTurmas([]);
-        setErrorMsg(e?.response?.status === 401 ? 'Sessão expirada. Faça login.' : 'Falha ao carregar turmas.');
-      } finally {
-        if (!abort) {
-          setLoading(false);
-          console.log('[Turmas] done');
-        }
-      }
-    })();
-    return () => { abort = true; };
-  }, []);
+    if (!auth || auth.loading || !auth.user) return;
+    startFetch();
+    return () => {
+      controllerRef.current?.abort();
+    };
+  }, [auth, startFetch]);
 
   const closeModal = () => setModalState(null);
 
@@ -91,14 +85,13 @@ export default function TurmasPage() {
         toast.success('Turma criada com sucesso');
       }
       closeModal();
-      console.log('[Turmas] reloading after save');
-      await reloadClasses();
+      await reload();
     } catch (e: any) {
       const message = e?.response?.data?.message || 'Erro ao salvar turma';
       toast.error(message);
       throw e;
     }
-  }, [modalState, reloadClasses]);
+  }, [modalState, reload]);
 
   const handleJoin = useCallback(async (cls: ProfessorClass) => {
     const id = cls?._id || cls?.id;
@@ -106,13 +99,12 @@ export default function TurmasPage() {
     try {
       await joinClassAsTeacher(id);
       toast.success('Você agora é professor desta turma.');
-      console.log('[Turmas] reloading after join');
-      await reloadClasses();
+      await reload();
     } catch (e: any) {
       const message = e?.response?.data?.message || 'Não foi possível entrar na turma.';
       toast.error(message);
     }
-  }, [reloadClasses]);
+  }, [reload]);
 
   const isTeacherOf = useCallback((cls: any) => {
     const teachers = Array.isArray(cls?.teachers) ? cls.teachers : [];
@@ -129,25 +121,40 @@ export default function TurmasPage() {
   const modalInitialData = modalState?.mode === 'edit' ? modalState.data : null;
   const hasModalOpen = Boolean(modalState);
 
-  if (loading) return <Page title="Turmas" subtitle="Gerencie turmas, alunos e avaliações."><p>Carregando…</p></Page>;
-  if (errorMsg) {
+  if (status === 'loading') {
     return (
       <Page title="Turmas" subtitle="Gerencie turmas, alunos e avaliações.">
-        <p className="text-red-600">{errorMsg}</p>
-        <div className="mt-4">
-          <Button onClick={() => void reloadClasses()}>Tentar novamente</Button>
+        <p>Carregando…</p>
+      </Page>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <Page title="Turmas" subtitle="Gerencie turmas, alunos e avaliações.">
+        <div className="space-y-4">
+          <p>{errorMsg ?? 'Falha ao carregar turmas.'}</p>
+          <div>
+            <button
+              type="button"
+              className="rounded bg-ys-ink text-white px-4 py-2"
+              onClick={reload}
+            >
+              Tentar novamente
+            </button>
+          </div>
         </div>
       </Page>
     );
   }
 
-  if (!turmas.length) {
+  if (!items.length) {
     return (
       <Page title="Turmas" subtitle="Gerencie turmas, alunos e avaliações.">
         <div className="mb-4">
           <Button onClick={() => setModalState({ mode: 'create', data: null })}>Nova Turma</Button>
         </div>
-        <p>Nenhuma turma.</p>
+        <p>Nenhuma turma encontrada.</p>
         <ClassModal
           isOpen={hasModalOpen}
           onClose={closeModal}
@@ -165,7 +172,7 @@ export default function TurmasPage() {
       </div>
 
       <div className="grid sm:grid-cols-2 gap-4">
-        {turmas.map((t) => {
+        {items.map((t) => {
           const key = t?._id || t?.id || `${t.series || ''}-${t.letter || ''}`;
           const alreadyTeacher = isTeacherOf(t);
           return (

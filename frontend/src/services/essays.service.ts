@@ -2,24 +2,58 @@ import api from './api';
 import { EssaysPage, EssayStatus, Annotation } from '@/types/redacao';
 import type { Anno } from '@/types/annotations';
 
-export function normalizeApiOrigin(): string {
+export function normalizeApiOrigin(origin?: string): string {
   const env = (import.meta as any)?.env || {};
-  let base = (env?.VITE_API_BASE_URL || '').trim();
+  let base = (origin || env?.VITE_API_BASE_URL || '').trim();
   if (!base) base = typeof window !== 'undefined' ? `${window.location.origin}` : '';
   base = base.replace(/\/+$/, '');
   if (!/\/api$/i.test(base)) base += '/api';
   return base;
 }
 
-export function buildEssayFileUrl(essayId: string, token: string): string {
-  const u = new URL(`/essays/${essayId}/file`, normalizeApiOrigin());
+export function buildEssayFileUrl(essayId: string, token: string, origin?: string): string {
+  const u = new URL(`/essays/${essayId}/file`, normalizeApiOrigin(origin));
   u.searchParams.set('file-token', token);
   return u.toString();
 }
 
-export async function getFileToken(essayId: string): Promise<string> {
-  const { data } = await api.post(`/essays/${essayId}/file-token`);
+export async function getFileToken(essayId: string, options?: { signal?: AbortSignal }): Promise<string> {
+  const { data } = await api.post(`/essays/${essayId}/file-token`, undefined, {
+    signal: options?.signal,
+  });
   return data?.token;
+}
+
+export async function prepareEssayFileToken(essayId: string, options?: { signal?: AbortSignal; apiOrigin?: string }) {
+  const token = await getFileToken(essayId, { signal: options?.signal });
+  return buildEssayFileUrl(essayId, token, options?.apiOrigin);
+}
+
+export async function fetchEssayPdfUrl(essayId: string, options?: { signal?: AbortSignal; apiOrigin?: string }) {
+  const preparedUrl = await prepareEssayFileToken(essayId, options);
+  try {
+    const res = await fetch(preparedUrl, {
+      method: 'GET',
+      credentials: 'omit',
+      cache: 'no-store',
+      signal: options?.signal,
+      redirect: 'follow',
+    });
+
+    if (!res.ok) {
+      const error = new Error(`HTTP ${res.status}`) as Error & { status?: number };
+      error.status = res.status;
+      throw error;
+    }
+
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      throw err;
+    }
+    throw err;
+  }
 }
 
 // Themes

@@ -1,19 +1,17 @@
-// @ts-nocheck
 import axios from 'axios';
 
 function normalizeBase(url?: string | null): string {
-  let u = typeof url === 'string' ? url.trim() : '';
-  if (!u) u = '/api';
-  const trailingSlash = /\/+$/;
-  u = u.replace(trailingSlash, '');
-  const ensureApi = /\/api$/i;
-  if (!ensureApi.test(u)) u = `${u}/api`;
-  return u;
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  return trimmed.replace(/\/+$/, '');
 }
 
 type EnvShape = { VITE_API_BASE_URL?: string };
 const env = (import.meta as unknown as { env?: EnvShape }).env;
-const baseURL = normalizeBase(env?.VITE_API_BASE_URL ?? null);
+const apiBase = normalizeBase(env?.VITE_API_BASE_URL ?? null);
+const baseURL = apiBase ? `${apiBase}/api` : '/api';
+
 export const api = axios.create({
   baseURL,
   withCredentials: true,

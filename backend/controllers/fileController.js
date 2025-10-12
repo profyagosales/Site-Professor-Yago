@@ -47,11 +47,12 @@ async function authorizeFileAccess(req, res, next) {
     }
 
     if (req.user) {
-      const ok = await canUserAccessEssay(req.user, essayId);
-      if (ok) {
+      const check = await canUserAccessEssay(req.user, essayId);
+      if (check?.ok === true) {
         if (dbg) console.log('[auth:file]', 'granted by session', { essayId, user: req.user._id });
         return next();
       }
+      return res.status(403).json({ error: check?.reason ?? 'forbidden' });
     }
 
     return res.status(401).json({ success: false, message: 'Unauthorized' });

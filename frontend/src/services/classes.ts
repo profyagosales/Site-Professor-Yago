@@ -1,4 +1,4 @@
-import api, { pickData } from '@/lib/api';
+import api from '@/services/api';
 
 export type ProfessorClass = {
   _id: string;
@@ -10,14 +10,19 @@ export type ProfessorClass = {
   discipline?: string;
   disciplina?: string;
   teachers?: any[];
-  [key: string]: any;
 };
 
+type ClassesResp =
+  | { success: true; data: ProfessorClass[] }
+  | { success?: boolean; message?: string; data?: ProfessorClass[] };
+
 export async function fetchProfessorClasses(): Promise<ProfessorClass[]> {
-  const { data } = await api.get('/professor/classes', { withCredentials: true });
-  const list = Array.isArray(data?.data) ? data.data : [];
-  return list as ProfessorClass[];
+  const { data } = await api.get<ClassesResp>('/professor/classes', { withCredentials: true });
+  if (Array.isArray((data as any)?.data)) return (data as any).data as ProfessorClass[];
+  return [];
 }
+
+const pickData = (r: any) => r?.data?.data ?? r?.data ?? r;
 
 const normalizeSchedulePayload = (payload: any) => ({
   ...payload,
@@ -28,7 +33,10 @@ const normalizeSchedulePayload = (payload: any) => ({
     : [],
 });
 
-export const listClasses = () => api.get('/classes').then(pickData);
+// compat: alguns componentes antigos ainda importam listClasses
+export async function listClasses() {
+  return fetchProfessorClasses();
+}
 
 export const getClassById = (id: string) => api.get(`/classes/${id}`).then(pickData);
 

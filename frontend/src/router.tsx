@@ -45,7 +45,6 @@ export const router = createBrowserRouter([
           { path: '/professor/dashboard', element: <Navigate to="/professor/resumo" replace /> },
           { path: '/turmas', element: <Navigate to="/professor/classes" replace /> },
           { path: '/redacao', element: <Navigate to="/professor/redacao" replace /> },
-          { path: '/professor/turmas', element: <Navigate to="/professor/classes" replace /> },
           { path: '/professor/classes', element: <TurmasPage /> },
           { path: '/professor/classes/:id/alunos', element: <TurmaAlunosPage /> },
           { path: '/professor/redacao', element: <Suspense fallback={<div className="p-6">Carregando…</div>}><RedacaoProfessorPage /></Suspense> },

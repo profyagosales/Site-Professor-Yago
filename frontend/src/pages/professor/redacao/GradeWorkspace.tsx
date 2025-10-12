@@ -7,8 +7,7 @@ import {
   saveAnnotations,
   renderCorrection,
   updateEssayAnnotations,
-  getFileToken,
-  buildEssayFileUrl,
+  fetchEssayPdfUrl,
 } from '@/services/essays.service';
 import AnnotationEditor from '@/components/redacao/AnnotationEditor';
 import AnnotationEditorRich from '@/components/redacao/AnnotationEditorRich';
@@ -67,6 +66,7 @@ export default function GradeWorkspace() {
   const [fileErrorCode, setFileErrorCode] = useState<number | undefined>(undefined);
   const [refreshTick, setRefreshTick] = useState(0);
   const navigateRef = useRef(navigate);
+  const pdfObjectUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     navigateRef.current = navigate;
@@ -81,24 +81,43 @@ export default function GradeWorkspace() {
 
   useEffect(() => {
     let aborted = false;
+    const controller = new AbortController();
+
+    setFileError(null);
+    setFileErrorCode(undefined);
+
+    if (pdfObjectUrlRef.current) {
+      URL.revokeObjectURL(pdfObjectUrlRef.current);
+      pdfObjectUrlRef.current = null;
+    }
+    setFileUrl(null);
+
+    if (!essayId) {
+      return () => {
+        aborted = true;
+        controller.abort();
+      };
+    }
 
     (async () => {
       try {
-        setFileError(null);
-        setFileErrorCode(undefined);
-        setFileUrl(null);
-
-        if (!essayId) return;
-
-        const token = await getFileToken(String(essayId));
-        const url = buildEssayFileUrl(String(essayId), token);
-        if (!aborted) setFileUrl(url);
+        const objectUrl = await fetchEssayPdfUrl(String(essayId), { signal: controller.signal });
+        if (aborted) {
+          URL.revokeObjectURL(objectUrl);
+          return;
+        }
+        pdfObjectUrlRef.current = objectUrl;
+        setFileUrl(objectUrl);
       } catch (e: any) {
-        if (aborted) return;
-        const status = typeof e?.response?.status === 'number' ? e.response.status : e?.status;
+        if (aborted || e?.name === 'AbortError') return;
+
+        const status = typeof e?.status === 'number'
+          ? e.status
+          : typeof e?.response?.status === 'number'
+            ? e.response.status
+            : undefined;
         let message = e?.message || 'Falha ao preparar o PDF.';
 
-        setFileUrl(null);
         setFileErrorCode(typeof status === 'number' ? status : undefined);
 
         if (status === 401) {
@@ -117,7 +136,7 @@ export default function GradeWorkspace() {
           message = 'Arquivo não encontrado. Reenvie o PDF da redação.';
           toast.error(message);
         } else {
-          console.error('getFileToken failed', e);
+          console.error('fetchEssayPdfUrl failed', e);
           toast.error(message);
         }
 
@@ -127,8 +146,16 @@ export default function GradeWorkspace() {
 
     return () => {
       aborted = true;
+      controller.abort();
     };
   }, [essayId, refreshTick]);
+
+  useEffect(() => () => {
+    if (pdfObjectUrlRef.current) {
+      URL.revokeObjectURL(pdfObjectUrlRef.current);
+      pdfObjectUrlRef.current = null;
+    }
+  }, []);
 
   const joinClassAndRefresh = useCallback(async () => {
     if (!classId) {
@@ -485,8 +512,6 @@ export default function GradeWorkspace() {
                   { key:'coesao',       label:'Coesão/coerência',      color:'#0ea5e9', rgba:'rgba(14,165,233,0.60)' },
                 ]}
                 onChange={(list: any)=> { setRichAnnos(list as any); debouncedSaveRich(list as any); }}
-                onJoinAsTeacher={classId ? joinClassAndRefresh : undefined}
-                onRefreshFileUrl={refreshFileUrl}
               />
             </Suspense>
           ) : (
