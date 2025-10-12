@@ -17,6 +17,7 @@ const teachersUpcomingRoutes = require('./routes/teachers');
 const agendaRoutes = require('./routes/agenda');
 const telemetryRoutes = require('./routes/telemetry');
 const pdfHealthRoutes = require('./routes/pdfHealth');
+const sessionRoutes = require('./routes/session');
 const dashboardRoutes = require('./routes/dashboard');
 const contentsRoutes = require('./routes/contents');
 const themesRoutes = require('./routes/themes');
@@ -136,6 +137,7 @@ app.use('/api/teachers', teachersUpcomingRoutes);
 app.use('/api/students', studentsUpcomingRoutes);
 app.use('/api/agenda', agendaRoutes);
 app.use('/api', pdfHealthRoutes);
+app.use('/api', sessionRoutes);
 
 // Em ambiente de teste, monte as rotas na raiz para compatibilidade com a suíte existente
 if (process.env.NODE_ENV === 'test') {
