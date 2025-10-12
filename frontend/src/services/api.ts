@@ -20,14 +20,20 @@ export const api = axios.create({
 api.interceptors.response.use(
   (r) => r,
   (err) => {
-    if (err?.response?.status === 401) {
-      const w = typeof window !== 'undefined' ? window : undefined;
-      if (w?.location) {
-        try {
-          const next = encodeURIComponent(`${w.location.pathname}${w.location.search}`);
-          w.location.assign(`/login-professor?next=${next}`);
-        } catch (_) {}
+      const status = err?.response?.status;
+      const url = String(err?.config?.url || '');
+      // Deixa o GradeWorkspace decidir o que fazer com 401 do file-token
+      if (status === 401 && /\/essays\/[^/]+\/file-token(?:\?|$)/.test(url)) {
+        return Promise.reject(err);
       }
+      if (status === 401) {
+        const w = typeof window !== 'undefined' ? window : undefined;
+        if (w?.location) {
+          try {
+            const next = encodeURIComponent(`${w.location.pathname}${w.location.search}`);
+            w.location.assign(`/login-professor?next=${next}`);
+          } catch (_) {}
+        }
     }
     return Promise.reject(err);
   }

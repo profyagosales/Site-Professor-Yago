@@ -33,6 +33,17 @@ const fileTokenCompat = require('./middlewares/fileTokenCompat');
 
 const app = express();
 
+// --- API: desabilita ETag e cache para evitar 304 em endpoints como /api/me e /api/professor/classes
+app.set('etag', false);
+const apiNoStore = (_req, res, next) => {
+  // Evita cache/condicionais (If-None-Match → 304)
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+};
+app.use('/api', apiNoStore);
+
 // *** NOVO: confiar no proxy (Render/Cloudflare) para cookies secure
 app.set('trust proxy', 1);
 
