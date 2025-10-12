@@ -32,44 +32,50 @@ export default function TurmasPage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [modalState, setModalState] = useState<{ mode: 'create' | 'edit'; data: ProfessorClass | null } | null>(null);
-  const abortRef = useRef(false);
 
-  const loadClasses = useCallback(async () => {
-    if (abortRef.current) return;
+  const reloadClasses = useCallback(async () => {
+    console.log('[Turmas] GET /professor/classes');
     setLoading(true);
-    console.log('[Turmas] fetching…');
     setErrorMsg(null);
     try {
       const list = await fetchProfessorClasses();
-      if (abortRef.current) return;
-      console.log('[Turmas] fetched', list.length);
-      setTurmas(list);
-      setErrorMsg(null);
+      console.log('[Turmas] ok', (list as any[]).length ?? 0);
+      setTurmas(list as any);
     } catch (e: any) {
-      if (abortRef.current) return;
-      console.error('[Turmas] fetch failed', e);
+      console.error('[Turmas] fail', e?.response?.status, e);
       setTurmas([]);
-      setErrorMsg('Não foi possível carregar suas turmas. Faça login novamente.');
-      if (e?.response?.status === 401) {
-        nav('/login-professor?next=/professor/turmas', { replace: true });
-      }
+      setErrorMsg(e?.response?.status === 401 ? 'Sessão expirada. Faça login.' : 'Falha ao carregar turmas.');
     } finally {
-      if (!abortRef.current) {
-        console.log('[Turmas] done');
-        setLoading(false);
-      }
+      setLoading(false);
+      console.log('[Turmas] done');
     }
-  }, [nav]);
+  }, []);
 
   useEffect(() => {
-    abortRef.current = false;
-    setLoading(true);
+    let abort = false;
     console.log('[Turmas] mount');
-    void loadClasses();
-    return () => {
-      abortRef.current = true;
-    };
-  }, [loadClasses]);
+    (async () => {
+      try {
+        console.log('[Turmas] GET /professor/classes');
+        const list = await fetchProfessorClasses();
+        if (abort) return;
+        console.log('[Turmas] ok', (list as any[]).length ?? 0);
+        setTurmas(list as any);
+        setErrorMsg(null);
+      } catch (e: any) {
+        if (abort) return;
+        console.error('[Turmas] fail', e?.response?.status, e);
+        setTurmas([]);
+        setErrorMsg(e?.response?.status === 401 ? 'Sessão expirada. Faça login.' : 'Falha ao carregar turmas.');
+      } finally {
+        if (!abort) {
+          setLoading(false);
+          console.log('[Turmas] done');
+        }
+      }
+    })();
+    return () => { abort = true; };
+  }, []);
 
   const closeModal = () => setModalState(null);
 
@@ -85,13 +91,14 @@ export default function TurmasPage() {
         toast.success('Turma criada com sucesso');
       }
       closeModal();
-      await loadClasses();
+      console.log('[Turmas] reloading after save');
+      await reloadClasses();
     } catch (e: any) {
       const message = e?.response?.data?.message || 'Erro ao salvar turma';
       toast.error(message);
       throw e;
     }
-  }, [modalState, loadClasses]);
+  }, [modalState, reloadClasses]);
 
   const handleJoin = useCallback(async (cls: ProfessorClass) => {
     const id = cls?._id || cls?.id;
@@ -99,12 +106,13 @@ export default function TurmasPage() {
     try {
       await joinClassAsTeacher(id);
       toast.success('Você agora é professor desta turma.');
-      await loadClasses();
+      console.log('[Turmas] reloading after join');
+      await reloadClasses();
     } catch (e: any) {
       const message = e?.response?.data?.message || 'Não foi possível entrar na turma.';
       toast.error(message);
     }
-  }, [loadClasses]);
+  }, [reloadClasses]);
 
   const isTeacherOf = useCallback((cls: any) => {
     const teachers = Array.isArray(cls?.teachers) ? cls.teachers : [];
@@ -127,7 +135,7 @@ export default function TurmasPage() {
       <Page title="Turmas" subtitle="Gerencie turmas, alunos e avaliações.">
         <p className="text-red-600">{errorMsg}</p>
         <div className="mt-4">
-          <Button onClick={() => void loadClasses()}>Tentar novamente</Button>
+          <Button onClick={() => void reloadClasses()}>Tentar novamente</Button>
         </div>
       </Page>
     );

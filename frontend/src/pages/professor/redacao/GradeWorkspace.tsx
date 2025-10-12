@@ -80,30 +80,24 @@ export default function GradeWorkspace() {
   const refreshFileUrl = useCallback(() => setRefreshTick((tick) => tick + 1), []);
 
   useEffect(() => {
-    if (!essayId) {
-      setFileUrl(null);
-      setFileError(null);
-      setFileErrorCode(undefined);
-      return;
-    }
+    let aborted = false;
 
-    setFileUrl(null);
-    setFileError(null);
-    setFileErrorCode(undefined);
-
-    let abort = false;
     (async () => {
       try {
         setFileError(null);
         setFileErrorCode(undefined);
+        setFileUrl(null);
+
+        if (!essayId) return;
 
         const token = await getFileToken(String(essayId));
         const url = buildEssayFileUrl(String(essayId), token);
-        if (!abort) setFileUrl(url);
+        if (!aborted) setFileUrl(url);
       } catch (e: any) {
-        if (abort) return;
+        if (aborted) return;
         const status = typeof e?.response?.status === 'number' ? e.response.status : e?.status;
         let message = e?.message || 'Falha ao preparar o PDF.';
+
         setFileUrl(null);
         setFileErrorCode(typeof status === 'number' ? status : undefined);
 
@@ -126,12 +120,13 @@ export default function GradeWorkspace() {
           console.error('getFileToken failed', e);
           toast.error(message);
         }
+
         setFileError(message);
       }
     })();
 
     return () => {
-      abort = true;
+      aborted = true;
     };
   }, [essayId, refreshTick]);
 

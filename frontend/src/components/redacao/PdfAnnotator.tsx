@@ -94,11 +94,12 @@ export default function PdfAnnotator({
 
   // arquivo
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
-  const [docErr, setDocErr] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [lastStatus, setLastStatus] = useState<number | null>(null);
   const [retryKey, setRetryKey] = useState(0);
-  const lastBlobUrlRef = useRef<string | null>(null);
   const lastStatusRef = useRef<number | null>(null);
+  const ctrlRef = useRef<AbortController | null>(null);
+  const revokeRef = useRef<string | null>(null);
   const [joinErr, setJoinErr] = useState<string | null>(null);
   const [joinLoading, setJoinLoading] = useState(false);
   const [debugMeta, setDebugMeta] = useState<{ step?: string | number; size?: number; srcType?: string } | null>(null);
@@ -116,43 +117,34 @@ export default function PdfAnnotator({
     h: r.height / h,
   });
   const fromNorm = (r: RectNorm, w: number, h: number) => ({ x: r.x * w, y: r.y * h, width: r.w * w, height: r.h * h });
-
-  const assignBlobUrl = (url: string) => {
-    if (lastBlobUrlRef.current?.startsWith("blob:")) {
-      URL.revokeObjectURL(lastBlobUrlRef.current);
-    }
-    lastBlobUrlRef.current = url;
-    setBlobUrl(url);
-  };
-
   /** --------- carrega o PDF como Blob URL usando token temporário --------- */
   useEffect(() => {
-    if (!essayId || !fileUrl) {
-      setBlobUrl(null);
-      if (!fileUrl) setDocErr(null);
-      return;
+    if (ctrlRef.current) {
+      ctrlRef.current.abort();
+      ctrlRef.current = null;
+    }
+    if (revokeRef.current) {
+      URL.revokeObjectURL(revokeRef.current);
+      revokeRef.current = null;
     }
 
-    let abort = false;
-    let ctrl: AbortController | null = null;
-    let revoke: string | null = null;
-
-    setDocErr(null);
-    if (lastBlobUrlRef.current?.startsWith('blob:')) {
-      URL.revokeObjectURL(lastBlobUrlRef.current);
-      lastBlobUrlRef.current = null;
-    }
+    setError(null);
     setBlobUrl(null);
     setJoinErr(null);
     setJoinLoading(false);
     lastStatusRef.current = null;
     setLastStatus(null);
 
-    async function load() {
-      ctrl = new AbortController();
-      const url = fileUrl!;
+    if (!essayId || !fileUrl) {
+      return;
+    }
+
+    const ctrl = new AbortController();
+    ctrlRef.current = ctrl;
+
+    (async () => {
       try {
-        const res = await fetch(url, {
+        const res = await fetch(fileUrl, {
           method: 'GET',
           credentials: 'omit',
           cache: 'no-store',
@@ -161,57 +153,59 @@ export default function PdfAnnotator({
         });
 
         lastStatusRef.current = res.status;
+        setLastStatus(res.status);
+
         if (!res.ok) {
           const status = res.status;
           if ((status === 401 || status === 403) && onRefreshFileUrl) {
-            await Promise.resolve(onRefreshFileUrl());
+            try {
+              await Promise.resolve(onRefreshFileUrl());
+            } catch (refreshErr) {
+              console.error('refreshFileUrl failed', refreshErr);
+            }
           }
-          const error: any = new Error(`HTTP ${status}`);
-          error.status = status;
-          throw error;
+          let message = `HTTP ${status}`;
+          if (status === 401) {
+            message = 'Sessão expirada. Faça login novamente.';
+          } else if (status === 403) {
+            message = 'Seu usuário não está vinculado à turma desta redação. Entre como professor da turma e tente novamente.';
+          } else if (status === 404) {
+            message = 'Arquivo não encontrado. Verifique se a redação possui PDF anexado ou reenvie o arquivo.';
+          }
+          setError(message);
+          emitPdfEvent('pdf_load_error', { essayId, step: 'file-download', message });
+          return;
         }
 
         const blob = await res.blob();
-        if (abort) return;
         const objectUrl = URL.createObjectURL(blob);
-        revoke = objectUrl;
-        assignBlobUrl(objectUrl);
+        revokeRef.current = objectUrl;
+        setBlobUrl(objectUrl);
         emitPdfEvent('pdf_load_success', { essayId, srcType: 'blob', step: 'file-download' });
         if (PDF_DEBUG) {
           setDebugMeta({ step: 'file-download', size: blob.size, srcType: 'blob' });
         }
-      } catch (error: any) {
-        if (abort) return;
-        const status = error?.status ?? error?.response?.status ?? lastStatusRef.current ?? null;
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return;
+        const status = err?.status ?? err?.response?.status ?? lastStatusRef.current ?? null;
         lastStatusRef.current = status;
         setLastStatus(status);
-        emitPdfEvent('pdf_load_error', { essayId, step: 'file-download', message: String(error?.message || error) });
-
-        let message = 'Não foi possível carregar o PDF (sessão expirada ou token inválido).';
-        if (status === 401) {
-          message = 'Sessão expirada. Faça login novamente.';
-        } else if (status === 403) {
-          message = 'Seu usuário não está vinculado à turma desta redação. Entre como professor da turma e tente novamente.';
-        } else if (status === 404) {
-          message = 'Arquivo não encontrado. Verifique se a redação possui PDF anexado ou reenvie o arquivo.';
-        } else if (typeof error?.message === 'string' && error.message) {
-          message = error.message;
-        }
-        setDocErr(message);
+        const message = typeof err?.message === 'string' && err.message
+          ? err.message
+          : 'Não foi possível carregar o PDF (sessão expirada ou token inválido).';
+        setError(message);
+        emitPdfEvent('pdf_load_error', { essayId, step: 'file-download', message });
       }
-    }
-
-    load();
+    })();
 
     return () => {
-      abort = true;
-      if (ctrl) ctrl.abort();
-      const currentBlob = revoke;
-      if (currentBlob) {
-        URL.revokeObjectURL(currentBlob);
-        if (lastBlobUrlRef.current === currentBlob) {
-          lastBlobUrlRef.current = null;
-        }
+      ctrl.abort();
+      if (ctrlRef.current === ctrl) {
+        ctrlRef.current = null;
+      }
+      if (revokeRef.current) {
+        URL.revokeObjectURL(revokeRef.current);
+        revokeRef.current = null;
       }
     };
   }, [essayId, fileUrl, retryKey, onRefreshFileUrl]);
@@ -445,7 +439,7 @@ export default function PdfAnnotator({
     setJoinLoading(true);
     try {
       await Promise.resolve(onJoinAsTeacher());
-      setDocErr(null);
+  setError(null);
       if (onRefreshFileUrl) {
         try {
           await Promise.resolve(onRefreshFileUrl());
@@ -469,9 +463,9 @@ export default function PdfAnnotator({
         <Toolbar />
       </div>
 
-      {docErr && (
+      {error && (
         <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">
-          <p>{docErr}</p>
+          <p>{error}</p>
           {lastStatus === 403 && onJoinAsTeacher && (
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <button
@@ -498,7 +492,7 @@ export default function PdfAnnotator({
         </div>
       )}
 
-      {!blobUrl && !docErr && <div className="p-4 text-muted-foreground">Preparando arquivo…</div>}
+  {!blobUrl && !error && <div className="p-4 text-muted-foreground">Preparando arquivo…</div>}
 
       {blobUrl && (
         <div className="mt-1 space-y-8 overflow-auto relative" style={{ maxHeight: "calc(100vh - 240px)" }}>

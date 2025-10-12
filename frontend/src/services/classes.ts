@@ -16,9 +16,6 @@ export type ProfessorClass = {
 export async function fetchProfessorClasses(): Promise<ProfessorClass[]> {
   const { data } = await api.get('/professor/classes', { withCredentials: true });
   const list = Array.isArray(data?.data) ? data.data : [];
-  if (import.meta.env.DEV) {
-    console.log('[classes] fetchProfessorClasses response', list.length);
-  }
   return list as ProfessorClass[];
 }
 
