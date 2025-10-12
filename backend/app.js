@@ -7,26 +7,20 @@ const cookieParser = require('cookie-parser');
 const authRoutes = require('./routes/auth');
 const emailRoutes = require('./routes/email');
 const classesRoutes = require('./routes/classes');
-const studentsRoutes = require('./routes/students');
-const studentsRoutes2 = require('./routes/students2');
+const studentsUpcomingRoutes = require('./routes/studentsUpcoming');
 const evaluationRoutes = require('./routes/evaluations');
 const gradesRoutes = require('./routes/grades');
 const cadernoRoutes = require('./routes/caderno');
-// Compatível com a especificação de Redações: usar o router compat
-const redactionsRoutes = require('./routes/redactions');
 const essaysRoutes = require('./routes/essays');
-const uploadsRoutes = require('./routes/uploads');
 const notificationRoutes = require('./routes/notifications');
 const announcementsRoutes = require('./routes/announcements');
 const teachersUpcomingRoutes = require('./routes/teachers');
-const studentsUpcomingRoutes = require('./routes/studentsUpcoming');
 const agendaRoutes = require('./routes/agenda');
 const telemetryRoutes = require('./routes/telemetry');
 const pdfHealthRoutes = require('./routes/pdfHealth');
 const dashboardRoutes = require('./routes/dashboard');
 const contentsRoutes = require('./routes/contents');
 const themesRoutes = require('./routes/themes');
-const devSeedRoutes = require('./routes/devSeed');
 const fileTokenCompat = require('./middlewares/fileTokenCompat');
 
 const app = express();
@@ -132,27 +126,18 @@ api.get('/', (_req, res) => res.json({ success: true, message: 'API ready', pref
 api.use('/auth', authRoutes);
 api.use('/dashboard', dashboardRoutes);
 api.use('/email', emailRoutes);
-api.use('/students', studentsRoutes);
-api.use('/students2', studentsRoutes2);
-api.use('/evaluations', evaluationRoutes);
+api.use('/students', studentsUpcomingRoutes);
+api.use('/classes', classesRoutes);
 api.use('/grades', gradesRoutes);
+api.use('/announcements', announcementsRoutes);
 api.use('/caderno', cadernoRoutes);
-// Monta o router compat sob ambos os caminhos (pt-BR e en)
-api.use('/redacoes', redactionsRoutes);
-api.use('/redactions', redactionsRoutes);
-api.use('/uploads', uploadsRoutes);
-api.use('/notifications', notificationRoutes);
-// Montado diretamente em /api/announcements para padronizar (fora do sub-router API_PREFIX)
-app.use('/api/announcements', announcementsRoutes);
+api.use('/evaluations', evaluationRoutes);
+api.use('/', pdfHealthRoutes);
+api.use('/telemetry', telemetryRoutes);
 app.use('/api/teachers', teachersUpcomingRoutes);
 app.use('/api/students', studentsUpcomingRoutes);
 app.use('/api/agenda', agendaRoutes);
-app.use('/api/telemetry', telemetryRoutes);
 app.use('/api', pdfHealthRoutes);
-api.use('/contents', contentsRoutes);
-// dev utilities (guarded by SEED_TOKEN)
-api.use('/dev', devSeedRoutes);
-api.use('/themes', themesRoutes);
 
 // Em ambiente de teste, monte as rotas na raiz para compatibilidade com a suíte existente
 if (process.env.NODE_ENV === 'test') {
