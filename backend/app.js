@@ -99,17 +99,21 @@ app.use('/api/classes', classesRoutes);
 app.use('/api/professor/classes', classesRoutes);
 
 // ENSAIO/PDF com compat de token — em /api/essays E /essays
+// --- Safe rewrite de /redacoes -> /essays (sem usar path nos métodos do Express)
+app.use((req, _res, next) => {
+  if (typeof req.url === 'string') {
+    if (req.url.startsWith('/api/redacoes')) {
+      // /api/redacoes/... -> /api/essays/...
+      req.url = req.url.replace(/^\/api\/redacoes\b/, '/api/essays');
+    } else if (req.url.startsWith('/redacoes')) {
+      // /redacoes/... -> /essays/...
+      req.url = req.url.replace(/^\/redacoes\b/, '/essays');
+    }
+  }
+  next();
+});
 app.use('/api/essays', essaysRoutes);
 app.use('/essays', essaysRoutes);
-// --- Aliases legados (redireciona /redacoes -> /essays com 308, de forma segura)
-app.all(/^\/api\/redacoes(\/.*)?$/i, (req, res) => {
-  const to = req.originalUrl.replace(/^\/api\/redacoes/i, '/api/essays');
-  return res.redirect(308, to);
-});
-app.all(/^\/redacoes(\/.*)?$/i, (req, res) => {
-  const to = req.originalUrl.replace(/^\/redacoes/i, '/essays');
-  return res.redirect(308, to);
-});
 
 // Rota raiz da API para evitar 404 em chamadas para "/api" diretamente
 api.get('/', (_req, res) => res.json({ success: true, message: 'API ready', prefix: API_PREFIX }));
