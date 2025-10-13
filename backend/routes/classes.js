@@ -5,12 +5,16 @@ const crypto = require('crypto');
 const { body, validationResult } = require('express-validator');
 const { isValidObjectId } = require('mongoose');
 const authRequired = require('../middleware/auth');
+const ensureTeacher = require('../middleware/ensureTeacher');
 const Class = require('../models/Class');
 const Student = require('../models/Student');
 const Teacher = require('../models/Teacher');
 const { sendEmail } = require('../services/emailService');
 const classesController = require('../controllers/classesController');
 const studentGradesController = require('../controllers/studentGradesController');
+const studentNotesController = require('../controllers/studentNotesController');
+const studentEmailController = require('../controllers/studentEmailController');
+const classQuickActionsController = require('../controllers/classQuickActionsController');
 
 const router = express.Router();
 const upload = multer();
@@ -31,6 +35,39 @@ function sanitizeStudent(student) {
     rollNumber: student.rollNumber,
     phone: student.phone,
     photo: student.photo,
+  };
+}
+
+function sanitizeActivityRecord(entry) {
+  if (!entry) return null;
+  const createdAt = entry.createdAt instanceof Date ? entry.createdAt.toISOString() : entry.createdAt;
+  return {
+    id: String(entry._id),
+    _id: String(entry._id),
+    title: typeof entry.title === 'string' ? entry.title : '',
+    dateISO: typeof entry.dateISO === 'string' && entry.dateISO ? entry.dateISO : null,
+    createdAt: typeof createdAt === 'string' ? createdAt : new Date().toISOString(),
+  };
+}
+
+function sanitizeMilestoneRecord(entry) {
+  if (!entry) return null;
+  return {
+    id: String(entry._id),
+    _id: String(entry._id),
+    label: typeof entry.label === 'string' ? entry.label : '',
+    dateISO: typeof entry.dateISO === 'string' && entry.dateISO ? entry.dateISO : null,
+  };
+}
+
+function sanitizeNoticeRecord(entry) {
+  if (!entry) return null;
+  const createdAt = entry.createdAt instanceof Date ? entry.createdAt.toISOString() : entry.createdAt;
+  return {
+    id: String(entry._id),
+    _id: String(entry._id),
+    message: typeof entry.message === 'string' ? entry.message : '',
+    createdAt: typeof createdAt === 'string' ? createdAt : new Date().toISOString(),
   };
 }
 
@@ -103,7 +140,7 @@ router.get('/:id', async (req, res, next) => {
     }
 
     const cls = await Class.findById(id)
-      .select('name subject year series letter discipline schedule teachers studentsCount')
+      .select('name subject year series letter discipline schedule teachers studentsCount activities milestones notices')
       .lean();
     if (!cls) {
       const error = new Error('Turma não encontrada');
@@ -134,6 +171,15 @@ router.get('/:id', async (req, res, next) => {
       letter: cls.letter,
   discipline: cls.discipline || cls.subject,
       schedule: cls.schedule || [],
+      activities: Array.isArray(cls.activities)
+        ? cls.activities.map(sanitizeActivityRecord).filter(Boolean)
+        : [],
+      milestones: Array.isArray(cls.milestones)
+        ? cls.milestones.map(sanitizeMilestoneRecord).filter(Boolean)
+        : [],
+      notices: Array.isArray(cls.notices)
+        ? cls.notices.map(sanitizeNoticeRecord).filter(Boolean)
+        : [],
       students: students.map((s) => ({
         id: String(s._id),
         name: s.name,
@@ -454,13 +500,92 @@ router.patch(
 router.get(
   '/:classId/students/:studentId/grades',
   authRequired,
+  ensureTeacher,
   studentGradesController.listStudentGrades
 );
 
 router.post(
   '/:classId/students/:studentId/grades',
   authRequired,
+  ensureTeacher,
   studentGradesController.upsertStudentGrade
+);
+
+router.get(
+  '/:classId/students/:studentId/notes',
+  authRequired,
+  ensureTeacher,
+  studentNotesController.listStudentNotes
+);
+
+router.post(
+  '/:classId/students/:studentId/notes',
+  authRequired,
+  ensureTeacher,
+  studentNotesController.createStudentNote
+);
+
+router.patch(
+  '/:classId/students/:studentId/notes/:noteId',
+  authRequired,
+  ensureTeacher,
+  studentNotesController.updateStudentNote
+);
+
+router.delete(
+  '/:classId/students/:studentId/notes/:noteId',
+  authRequired,
+  ensureTeacher,
+  studentNotesController.deleteStudentNote
+);
+
+router.post(
+  '/:classId/activities',
+  authRequired,
+  ensureTeacher,
+  classQuickActionsController.addActivity
+);
+
+router.delete(
+  '/:classId/activities/:activityId',
+  authRequired,
+  ensureTeacher,
+  classQuickActionsController.removeActivity
+);
+
+router.post(
+  '/:classId/milestones',
+  authRequired,
+  ensureTeacher,
+  classQuickActionsController.addMilestone
+);
+
+router.delete(
+  '/:classId/milestones/:milestoneId',
+  authRequired,
+  ensureTeacher,
+  classQuickActionsController.removeMilestone
+);
+
+router.post(
+  '/:classId/notices',
+  authRequired,
+  ensureTeacher,
+  classQuickActionsController.addNotice
+);
+
+router.delete(
+  '/:classId/notices/:noticeId',
+  authRequired,
+  ensureTeacher,
+  classQuickActionsController.removeNotice
+);
+
+router.post(
+  '/:classId/students/:studentId/email',
+  authRequired,
+  ensureTeacher,
+  studentEmailController.sendStudentEmail
 );
 
 // Delete student from a class

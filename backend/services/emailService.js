@@ -53,17 +53,23 @@ async function createTransporter() {
   return transporter;
 }
 
-async function sendEmail({ to, subject, html, attachments } = {}) {
+async function sendEmail({ to, subject, html, text, attachments } = {}) {
   const transport = await createTransporter();
+
+  const recipients = Array.isArray(to) ? to.filter(Boolean) : [to].filter(Boolean);
+  if (recipients.length === 0) {
+    throw new Error('Nenhum destinatário informado');
+  }
 
   const mailOptions = {
     from:
       process.env.SMTP_FROM ||
       process.env.ZOHO_FROM ||
       (transport.options.auth && transport.options.auth.user),
-    to,
+  to: recipients.join(', '),
     subject,
     html,
+    text,
     attachments
   };
 

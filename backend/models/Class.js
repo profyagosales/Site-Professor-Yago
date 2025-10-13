@@ -1,5 +1,30 @@
 const mongoose = require('mongoose');
 
+const activitySubSchema = new mongoose.Schema(
+  {
+    title: { type: String, trim: true, required: true },
+    dateISO: { type: String, trim: true },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: true }
+);
+
+const milestoneSubSchema = new mongoose.Schema(
+  {
+    label: { type: String, trim: true, required: true },
+    dateISO: { type: String, trim: true },
+  },
+  { _id: true }
+);
+
+const noticeSubSchema = new mongoose.Schema(
+  {
+    message: { type: String, trim: true, required: true },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: true }
+);
+
 const classSchema = new mongoose.Schema({
   name: { type: String, trim: true },
   subject: { type: String, trim: true },
@@ -18,11 +43,17 @@ const classSchema = new mongoose.Schema({
     },
   ],
   teachers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' }],
-  students: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Student' }]
+  students: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Student' }],
+  activities: { type: [activitySubSchema], default: [] },
+  milestones: { type: [milestoneSubSchema], default: [] },
+  notices: { type: [noticeSubSchema], default: [] },
 });
 
 classSchema.path('teachers').default(() => []);
 classSchema.path('students').default(() => []);
+classSchema.path('activities').default(() => []);
+classSchema.path('milestones').default(() => []);
+classSchema.path('notices').default(() => []);
 
 classSchema.add({
   studentsCount: { type: Number, default: 0 }
