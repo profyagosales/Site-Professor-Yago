@@ -23,7 +23,10 @@ const contentsRoutes = require('./routes/contents');
 const themesRoutes = require('./routes/themes');
 const fileTokenCompat = require('./middlewares/fileTokenCompat');
 
+const { cors, corsOptions } = require('./corsConfig');
 const app = express();
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // #### Sessão estável em produção atrás de proxy (Render/Cloudflare)
 // Garante req.secure correto e permite cookies "secure" atrás de proxy HTTPS
@@ -118,6 +121,13 @@ app.use('/api/classes', classesRoutes);
 app.use('/api/professor/classes', classesRoutes);
 
 // ENSAIO/PDF com compat de token — em /api/essays E /essays
+/* legacy alias: /redacoes -> /essays */
+app.use(['/api/redacoes','/redacoes'], (req, res) => {
+  const to = req.originalUrl
+    .replace(/^\/api\/redacoes/, '/api/essays')
+    .replace(/^\/redacoes/, '/essays');
+  return res.redirect(308, to);
+});
 app.use('/api/essays', fileTokenCompat, essaysRoutes);
 app.use('/essays', fileTokenCompat, essaysRoutes);
 
