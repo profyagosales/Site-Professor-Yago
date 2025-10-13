@@ -10,6 +10,7 @@ const { recordEssayScore } = require('../services/gradesIntegration');
 const { renderEssayCorrectionPdf } = require('../services/pdfService');
 const https = require('https');
 const http = require('http');
+const { assertUserCanAccessEssay } = require('../utils/assertUserCanAccessEssay');
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -44,6 +45,41 @@ function fileFilter(req, file, cb) {
   else cb(new Error('Invalid file type'));
 }
 const upload = multer({ storage, limits: { fileSize: 15 * 1024 * 1024 }, fileFilter });
+
+async function getEssay(req, res) {
+  const { id } = req.params;
+  try {
+    const essay = await Essay.findById(id)
+      .populate('studentId', 'name email photo rollNumber class')
+      .populate('classId', 'series letter discipline name')
+      .populate('teacherId', 'name email')
+      .populate('themeId', 'name type active')
+      .lean();
+
+    if (!essay) {
+      return res.status(404).json({ message: 'Redação não encontrada' });
+    }
+
+    await assertUserCanAccessEssay(req.user, essay);
+
+    const normalized = {
+      ...essay,
+      id: essay._id ? String(essay._id) : undefined,
+      studentId: essay.studentId,
+      classId: essay.classId,
+      themeId: essay.themeId,
+      teacherId: essay.teacherId,
+    };
+
+    return res.json(normalized);
+  } catch (err) {
+    const status = err?.status || 500;
+    if (status >= 500) {
+      console.error('getEssay error', err);
+    }
+    return res.status(status).json({ message: err?.message || 'Erro ao buscar redação' });
+  }
+}
 
 // Theme endpoints
 async function getThemes(req, res) {
@@ -490,6 +526,7 @@ async function sendCorrectionEmail(req, res) {
 
 module.exports = {
   upload,
+  getEssay,
   getThemes,
   createTheme,
   updateTheme,

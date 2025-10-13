@@ -8,6 +8,7 @@ const authOptional = authMod.authOptional || ((req, _res, next) => next());
 // Controllers
 const {
   upload,
+  getEssay,
   getThemes,
   createTheme,
   updateTheme,
@@ -35,6 +36,7 @@ router.patch('/themes/:id', authRequired, updateTheme);
 /** --------- Essays CRUD + listas --------- */
 router.post('/', authRequired, upload.single('file'), createEssay);
 router.get('/', authRequired, listEssays);
+router.get('/:id', authRequired, getEssay);
 router.put('/:id', authRequired, upload.single('file'), updateEssay);
 router.patch('/:id/grade', authRequired, upload.single('correctedFile'), gradeEssay);
 
