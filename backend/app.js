@@ -1,5 +1,6 @@
 // backend/app.js
 const express = require('express');
+require('./boot/routeGuards').install();
 const cors = require('cors');
 const path = require('path');
 const cookieParser = require('cookie-parser');
@@ -28,7 +29,7 @@ const app = express();
 
 // CORS (centralizado)
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 
 // #### Sessão estável em produção atrás de proxy (Render/Cloudflare)
 app.set('trust proxy', 1);
