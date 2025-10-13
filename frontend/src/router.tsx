@@ -15,6 +15,7 @@ const GradeWorkspace = lazy(() => import(/* @vite-ignore */ '@/pages/professor/r
 import NotFound from '@/pages/NotFound';
 import TurmasPage from '@/pages/professor/Turmas';
 import TurmaAlunosPage from '@/pages/professor/TurmaAlunos';
+import ClassDetailPage from '@/pages/professor/ClassDetail';
 import ListaAlunos from '@/pages/professor/alunos/ListaAlunos';
 import PerfilAluno from '@/pages/professor/alunos/PerfilAluno';
 import AlunoRedacoes from '@/pages/aluno/Redacoes';
@@ -46,6 +47,7 @@ export const router = createBrowserRouter([
           { path: '/turmas', element: <Navigate to="/professor/classes" replace /> },
           { path: '/redacao', element: <Navigate to="/professor/redacao" replace /> },
           { path: '/professor/classes', element: <TurmasPage /> },
+          { path: '/professor/classes/:id', element: <ClassDetailPage /> },
           { path: '/professor/classes/:id/alunos', element: <TurmaAlunosPage /> },
           { path: '/professor/redacao', element: <Suspense fallback={<div className="p-6">Carregando…</div>}><RedacaoProfessorPage /></Suspense> },
           { path: '/professor/redacao/:id', element: <Suspense fallback={<div className="p-6">Carregando…</div>}><GradeWorkspace /></Suspense> },

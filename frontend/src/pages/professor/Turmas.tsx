@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
-import { listProfessorClasses, ClassItem } from '@/services/classes.service';
+import { useNavigate } from 'react-router-dom';
+import { listClasses, ClassSummary } from '@/services/classes.service';
+import { Button } from '@/components/ui/Button';
 
 export default function TurmasPage() {
   const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<ClassItem[]>([]);
+  const [items, setItems] = useState<ClassSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let alive = true;
@@ -12,7 +15,7 @@ export default function TurmasPage() {
       setLoading(true);
       setError(null);
       try {
-        const list = await listProfessorClasses();
+  const list = await listClasses();
         if (alive) setItems(list);
       } catch (e: any) {
         console.error('Falha ao carregar turmas', e);
@@ -36,12 +39,27 @@ export default function TurmasPage() {
       {!loading && !error && items.length > 0 && (
         <div className="grid gap-3">
           {items.map((t) => (
-            <div key={t._id} className="border rounded-lg p-3 bg-white">
-              <div className="font-medium">
-                {t.series ?? '—'}{t.letter ?? ''} • {t.discipline ?? 'Disciplina'}
+            <div
+              key={t.id}
+              className="border rounded-xl p-4 bg-white shadow-ys-sm hover:shadow-ys-md transition-shadow"
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="text-lg font-semibold text-ys-ink">
+                    {t.series ?? '—'}{t.letter ?? ''}
+                  </div>
+                  <div className="text-sm text-ys-graphite">{t.discipline ?? 'Disciplina'}</div>
+                </div>
+                <Button
+                  variant="ghost"
+                  onClick={() => navigate(`/professor/classes/${t.id}`)}
+                >
+                  Ver detalhes
+                </Button>
               </div>
-              <div className="text-sm text-gray-500">
-                Alunos: {t.students?.length ?? 0} • Professores: {t.teachers?.length ?? 0}
+              <div className="mt-3 text-sm text-ys-graphite">
+                <span className="mr-4">Alunos: {t.studentsCount}</span>
+                <span>Professores: {t.teachersCount}</span>
               </div>
             </div>
           ))}

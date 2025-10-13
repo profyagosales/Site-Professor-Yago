@@ -21,6 +21,12 @@ const classSchema = new mongoose.Schema({
 classSchema.path('teachers').default(() => []);
 classSchema.path('students').default(() => []);
 
+classSchema.add({
+  studentsCount: { type: Number, default: 0 }
+});
+
+classSchema.path('studentsCount').default(0);
+
 classSchema.virtual('scheduleSummary').get(function () {
   if (!this.schedule || this.schedule.length === 0) {
     return '';

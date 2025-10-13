@@ -1,10 +1,14 @@
 const express = require('express');
 const multer = require('multer');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const { body, validationResult } = require('express-validator');
+const { isValidObjectId } = require('mongoose');
 const authRequired = require('../middleware/auth');
 const Class = require('../models/Class');
 const Student = require('../models/Student');
+const Teacher = require('../models/Teacher');
+const { sendEmail } = require('../services/emailService');
 
 const router = express.Router();
 const upload = multer();
@@ -24,11 +28,39 @@ const slotTimes = {
   3: '11:00',
 };
 
+async function syncStudentsCount(classId) {
+  if (!isValidObjectId(classId)) return 0;
+  const count = await Student.countDocuments({ class: classId });
+  await Class.findByIdAndUpdate(classId, { studentsCount: count });
+  return count;
+}
+
+function sanitizeStudent(student) {
+  if (!student) return null;
+  return {
+    id: String(student._id),
+    name: student.name,
+    email: student.email,
+    rollNumber: student.rollNumber,
+    phone: student.phone,
+    photo: student.photo,
+  };
+}
+
+function toBoolean(value) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value === 1;
+  if (typeof value === 'string') {
+    return ['true', '1', 'yes', 'on'].includes(value.trim().toLowerCase());
+  }
+  return false;
+}
+
 // Get all classes
 router.get('/', async (req, res, next) => {
   try {
     const [classes, counts] = await Promise.all([
-      Class.find().select('-students').lean({ virtuals: true }),
+      Class.find().select('series letter discipline schedule teachers studentsCount').lean({ virtuals: true }),
       Student.aggregate([
         { $match: { class: { $ne: null } } },
         { $group: { _id: '$class', count: { $sum: 1 } } }
@@ -42,10 +74,18 @@ router.get('/', async (req, res, next) => {
       return acc;
     }, {});
 
-    const enriched = classes.map((cls) => ({
-      ...cls,
-      studentsCount: countMap[String(cls._id)] || 0
-    }));
+    const enriched = classes.map((cls) => {
+      const teachersCount = Array.isArray(cls.teachers) ? cls.teachers.length : 0;
+      const { teachers, _id, studentsCount, ...rest } = cls;
+      const storedCount = typeof studentsCount === 'number' ? studentsCount : undefined;
+      const computedCount = countMap[String(_id)];
+      return {
+        id: String(_id),
+        ...rest,
+        teachersCount,
+        studentsCount: storedCount ?? computedCount ?? 0,
+      };
+    });
 
     res.status(200).json({
       success: true,
@@ -62,18 +102,61 @@ router.get('/', async (req, res, next) => {
 // Get class by id
 router.get('/:id', async (req, res, next) => {
   try {
-    const cls = await Class.findById(req.params.id)
-      .populate('students')
-      .populate('teachers');
+    const { id } = req.params;
+    if (!isValidObjectId(id)) {
+      const error = new Error('ID inválido');
+      error.status = 400;
+      throw error;
+    }
+
+    const cls = await Class.findById(id)
+      .select('series letter discipline schedule teachers studentsCount')
+      .lean();
     if (!cls) {
       const error = new Error('Turma não encontrada');
       error.status = 404;
       throw error;
     }
+
+    const [students, teachers] = await Promise.all([
+      Student.find({ class: id })
+        .select('name rollNumber email photo')
+        .sort('name')
+        .lean(),
+      (Array.isArray(cls.teachers) && cls.teachers.length
+        ? Teacher.find({ _id: { $in: cls.teachers } })
+            .select('name email subjects')
+            .lean()
+        : Promise.resolve([]))
+    ]);
+
+    const storedCount = typeof cls.studentsCount === 'number' ? cls.studentsCount : undefined;
+    const data = {
+      id: String(cls._id),
+      series: cls.series,
+      letter: cls.letter,
+      discipline: cls.discipline,
+      schedule: cls.schedule || [],
+      students: students.map((s) => ({
+        id: String(s._id),
+        name: s.name,
+        rollNumber: s.rollNumber,
+        email: s.email,
+        photo: s.photo,
+      })),
+      teachers: teachers.map((t) => ({
+        id: String(t._id),
+        name: t.name,
+        email: t.email,
+        subjects: Array.isArray(t.subjects) ? t.subjects : [],
+      })),
+      studentsCount: storedCount ?? students.length,
+      teachersCount: Array.isArray(cls.teachers) ? cls.teachers.length : 0,
+    };
     res.status(200).json({
       success: true,
       message: 'Turma obtida com sucesso',
-      data: cls
+      data
     });
   } catch (err) {
     if (!err.status) {
@@ -224,11 +307,20 @@ router.post('/:id/join-as-teacher', authRequired, async (req, res, next) => {
 // List students of a class
 router.get('/:id/students', authRequired, async (req, res, next) => {
   try {
-    const students = await Student.find({ class: req.params.id });
+    const { id } = req.params;
+    if (!isValidObjectId(id)) {
+      const error = new Error('ID inválido');
+      error.status = 400;
+      throw error;
+    }
+    const students = await Student.find({ class: id })
+      .select('name email rollNumber phone photo')
+      .sort('name')
+      .lean();
     res.status(200).json({
       success: true,
       message: 'Alunos obtidos com sucesso',
-      data: students || []
+      data: Array.isArray(students) ? students.map(sanitizeStudent).filter(Boolean) : []
     });
   } catch (err) {
     err.status = 400;
@@ -239,25 +331,56 @@ router.get('/:id/students', authRequired, async (req, res, next) => {
 
 // Create student for a class
 router.post(
-  '/:id/students',
+  '/:classId/students',
   authRequired,
   upload.single('photo'),
-  [body('email').isEmail(), body('password').isLength({ min: 6 })],
+  [
+    body('name').trim().notEmpty().withMessage('Nome é obrigatório'),
+    body('email').isEmail().withMessage('Email inválido'),
+    body('password').optional({ checkFalsy: true }).isLength({ min: 6 }).withMessage('Senha deve ter pelo menos 6 caracteres'),
+    body('rollNumber').optional({ checkFalsy: true }).isInt({ min: 0 }),
+  ],
   async (req, res, next) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        const error = new Error('Dados inválidos');
+        const error = new Error(errors.array()[0]?.msg || 'Dados inválidos');
         error.status = 400;
         throw error;
       }
-      const { number, name, email, password, phone } = req.body;
-      if (!number || !name) {
-        const error = new Error('Campos obrigatórios: number, name');
+      const { classId } = req.params;
+      if (!isValidObjectId(classId)) {
+        const error = new Error('ID inválido');
         error.status = 400;
         throw error;
       }
-      const existing = await Student.findOne({ email: email.toLowerCase() });
+
+      const rollNumberRaw = req.body.rollNumber ?? req.body.number;
+      const rollNumber = rollNumberRaw !== undefined && String(rollNumberRaw).trim() !== ''
+        ? Number(rollNumberRaw)
+        : undefined;
+      if (rollNumber !== undefined && Number.isNaN(rollNumber)) {
+        const error = new Error('Número de chamada inválido');
+        error.status = 400;
+        throw error;
+      }
+
+      const name = req.body.name?.trim();
+      const phone = req.body.phone ? String(req.body.phone).trim() : undefined;
+      const lowerEmail = req.body.email.toLowerCase();
+      const generatePassword = toBoolean(req.body.generatePassword);
+      const sendInvite = toBoolean(req.body.sendInvite);
+      let plainPassword = req.body.password;
+      if (!plainPassword && generatePassword) {
+        plainPassword = crypto.randomBytes(6).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10);
+      }
+      if (!plainPassword) {
+        const error = new Error('Informe uma senha ou selecione gerar senha automaticamente');
+        error.status = 400;
+        throw error;
+      }
+
+      const existing = await Student.findOne({ email: lowerEmail });
       if (existing) {
         const error = new Error('Email já cadastrado');
         error.status = 400;
@@ -265,22 +388,43 @@ router.post(
       }
 
       const studentData = {
-        class: req.params.id,
-        rollNumber: number,
+        class: classId,
+        rollNumber,
         name,
-        email,
+        email: lowerEmail,
         phone,
-        passwordHash: await bcrypt.hash(password, 10),
+        passwordHash: await bcrypt.hash(plainPassword, 10),
       };
       if (req.file) {
         studentData.photo = req.file.buffer.toString('base64');
       }
+
       const newStudent = await Student.create(studentData);
-      const { passwordHash, ...studentSafe } = newStudent.toObject();
-      res.status(200).json({
+      const safe = sanitizeStudent(newStudent);
+      const studentsCount = await syncStudentsCount(classId);
+
+      if (sendInvite) {
+        try {
+          await sendEmail({
+            to: lowerEmail,
+            subject: 'Bem-vindo ao Portal Professor Yago',
+            html: `<!DOCTYPE html><p>Olá ${name || ''},</p><p>Você foi cadastrado no portal Professor Yago.</p><p>Use o email <strong>${lowerEmail}</strong> e a senha <strong>${plainPassword}</strong> para acessar.</p>`,
+          });
+        } catch (emailErr) {
+          console.error('Falha ao enviar convite de aluno', emailErr);
+        }
+      }
+
+      const meta = { studentsCount };
+      if (!sendInvite) {
+        meta.temporaryPassword = plainPassword;
+      }
+
+      res.status(201).json({
         success: true,
         message: 'Aluno criado com sucesso',
-        data: studentSafe,
+        data: safe,
+        meta,
       });
     } catch (err) {
       if (!err.status) {
@@ -293,44 +437,93 @@ router.post(
 );
 
 // Update student for a class
-router.put(
+router.patch(
   '/:classId/students/:studentId',
   authRequired,
   upload.single('photo'),
-  [body('email').optional().isEmail(), body('password').optional().isLength({ min: 6 })],
+  [
+    body('email').optional({ checkFalsy: true }).isEmail().withMessage('Email inválido'),
+    body('password').optional({ checkFalsy: true }).isLength({ min: 6 }).withMessage('Senha deve ter pelo menos 6 caracteres'),
+    body('rollNumber').optional({ checkFalsy: true }).isInt({ min: 0 }),
+  ],
   async (req, res, next) => {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        const error = new Error('Dados inválidos');
+        const error = new Error(errors.array()[0]?.msg || 'Dados inválidos');
         error.status = 400;
         throw error;
       }
       const { classId, studentId } = req.params;
-      const { number, name, email, password, phone } = req.body;
+      if (!isValidObjectId(classId) || !isValidObjectId(studentId)) {
+        const error = new Error('ID inválido');
+        error.status = 400;
+        throw error;
+      }
+
+      const rollNumberRaw = req.body.rollNumber ?? req.body.number;
       const updates = {};
-      if (number !== undefined) updates.rollNumber = number;
-      if (name !== undefined) updates.name = name;
-      if (email !== undefined) {
-        const lower = email.toLowerCase();
-        const existing = await Student.findOne({ email: lower, _id: { $ne: studentId } });
+      if (rollNumberRaw !== undefined) {
+        if (String(rollNumberRaw).trim() === '') {
+          updates.rollNumber = undefined;
+        } else {
+          const parsedRoll = Number(rollNumberRaw);
+          if (Number.isNaN(parsedRoll)) {
+            const error = new Error('Número de chamada inválido');
+            error.status = 400;
+            throw error;
+          }
+          updates.rollNumber = parsedRoll;
+        }
+      }
+
+      if (req.body.name !== undefined) {
+        updates.name = String(req.body.name).trim();
+      }
+
+      let lowerEmail;
+      if (req.body.email !== undefined && String(req.body.email).trim() !== '') {
+        lowerEmail = String(req.body.email).toLowerCase();
+        const existing = await Student.findOne({ email: lowerEmail, _id: { $ne: studentId } });
         if (existing) {
           const error = new Error('Email já cadastrado');
           error.status = 400;
           throw error;
         }
-        updates.email = lower;
+        updates.email = lowerEmail;
       }
-      if (password) {
-        updates.passwordHash = await bcrypt.hash(password, 10);
+
+      if (req.body.phone !== undefined) {
+        const phone = String(req.body.phone).trim();
+        updates.phone = phone || undefined;
       }
-      if (phone !== undefined) updates.phone = phone;
+
+      const unset = {};
       if (req.file) {
         updates.photo = req.file.buffer.toString('base64');
+      } else if (toBoolean(req.body.removePhoto)) {
+        unset.photo = '';
       }
+
+      const generatePassword = toBoolean(req.body.generatePassword);
+      const sendInvite = toBoolean(req.body.sendInvite);
+      let plainPassword = req.body.password;
+      if (!plainPassword && generatePassword) {
+        plainPassword = crypto.randomBytes(6).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10);
+      }
+      if (plainPassword) {
+        updates.passwordHash = await bcrypt.hash(plainPassword, 10);
+      }
+
+      if (Object.keys(updates).length === 0 && Object.keys(unset).length === 0) {
+        const error = new Error('Nenhuma alteração fornecida');
+        error.status = 400;
+        throw error;
+      }
+
       const student = await Student.findOneAndUpdate(
         { _id: studentId, class: classId },
-        updates,
+        Object.keys(unset).length ? { $set: updates, $unset: unset } : { $set: updates },
         { new: true }
       );
       if (!student) {
@@ -338,11 +531,32 @@ router.put(
         error.status = 404;
         throw error;
       }
-      const { passwordHash, ...studentSafe } = student.toObject();
+
+      const safe = sanitizeStudent(student);
+      const studentsCount = await syncStudentsCount(classId);
+
+      if (plainPassword && sendInvite) {
+        try {
+          await sendEmail({
+            to: (lowerEmail || student.email),
+            subject: 'Sua senha foi atualizada',
+            html: `<!DOCTYPE html><p>Olá ${student.name || ''},</p><p>Sua senha foi atualizada.</p><p>Nova senha: <strong>${plainPassword}</strong></p>`,
+          });
+        } catch (emailErr) {
+          console.error('Falha ao enviar email de atualização de aluno', emailErr);
+        }
+      }
+
+      const meta = { studentsCount };
+      if (plainPassword && !sendInvite) {
+        meta.temporaryPassword = plainPassword;
+      }
+
       res.status(200).json({
         success: true,
         message: 'Aluno atualizado com sucesso',
-        data: studentSafe,
+        data: safe,
+        meta,
       });
     } catch (err) {
       if (!err.status) {
@@ -361,13 +575,24 @@ router.delete(
   async (req, res, next) => {
     try {
       const { classId, studentId } = req.params;
+      if (!isValidObjectId(classId) || !isValidObjectId(studentId)) {
+        const error = new Error('ID inválido');
+        error.status = 400;
+        throw error;
+      }
       const result = await Student.deleteOne({ _id: studentId, class: classId });
       if (result.deletedCount === 0) {
         const error = new Error('Aluno não encontrado');
         error.status = 404;
         throw error;
       }
-      res.status(200).json({ success: true, message: 'Aluno removido com sucesso', data: { id: studentId } });
+      const studentsCount = await syncStudentsCount(classId);
+      res.status(200).json({
+        success: true,
+        message: 'Aluno removido com sucesso',
+        data: { id: studentId },
+        meta: { studentsCount },
+      });
     } catch (err) {
       if (!err.status) {
         err.status = 400;
