@@ -21,7 +21,6 @@ const sessionRoutes = require('./routes/session');
 const dashboardRoutes = require('./routes/dashboard');
 const contentsRoutes = require('./routes/contents');
 const themesRoutes = require('./routes/themes');
-const fileTokenCompat = require('./middlewares/fileTokenCompat');
 
 const { corsOptions } = require('./corsConfig');
 const app = express();
@@ -100,8 +99,8 @@ app.use('/api/classes', classesRoutes);
 app.use('/api/professor/classes', classesRoutes);
 
 // ENSAIO/PDF com compat de token — em /api/essays E /essays
-app.use('/api/essays', fileTokenCompat, essaysRoutes);
-app.use('/essays', fileTokenCompat, essaysRoutes);
+app.use('/api/essays', essaysRoutes);
+app.use('/essays', essaysRoutes);
 // --- Aliases legados (redireciona /redacoes -> /essays com 308, de forma segura)
 app.all(/^\/api\/redacoes(\/.*)?$/i, (req, res) => {
   const to = req.originalUrl.replace(/^\/api\/redacoes/i, '/api/essays');
