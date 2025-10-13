@@ -1,29 +1,41 @@
-const cors = require('cors');
+const ALLOWED = [
+  'https://professoryagosales.com.br',
+  'https://www.professoryagosales.com.br',
+  process.env.FRONTEND_ORIGIN
+].filter(Boolean);
 
-const origins = (process.env.FRONTEND_ORIGIN || 'https://professoryagosales.com.br')
-  .split(',')
-  .map(s => s.trim())
-  .filter(Boolean);
+// subdomínios (api.<domínio>) sempre permitidos
+function isAllowedOrigin(origin) {
+  if (!origin) return true; // navegações diretas
+  try {
+    const u = new URL(origin);
+    const host = u.hostname;
+    if (host.endsWith('.professoryagosales.com.br')) return true;
+  } catch {}
+  return ALLOWED.includes(origin);
+}
 
 const corsOptions = {
-  origin(origin, cb) {
-    // aceita navegações sem Origin (navegador interno) e a lista de ORIGENS válidas
-    if (!origin) return cb(null, true);
-    const ok = origins.includes(origin);
-    cb(ok ? null : new Error('Not allowed by CORS'), ok);
-  },
+  origin(origin, cb) { cb(null, isAllowedOrigin(origin)); },
   credentials: true,
-  methods: ['GET','HEAD','POST','PUT','PATCH','DELETE','OPTIONS'],
-  // <— Cache-Control incluso aqui
+  methods: ['GET','HEAD','OPTIONS','POST','PUT','PATCH','DELETE'],
   allowedHeaders: [
-    'Content-Type','Authorization','X-Requested-With',
-    'Cache-Control','Pragma','X-File-Token','X-Access-Token','Accept'
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'X-File-Token',
+    'Cache-Control', // alguns browsers validam case-insensitive, outros são chatos
+    'cache-control'
   ],
   exposedHeaders: [
-    'Content-Disposition','Content-Length','Content-Type',
-    'ETag','Cache-Control','Accept-Ranges'
+    'Accept-Ranges',
+    'Content-Type',
+    'Content-Length',
+    'Content-Disposition',
+    'ETag',
+    'Cache-Control'
   ],
-  maxAge: 86400, // pré-flight em cache por 24h
+  maxAge: 600
 };
 
-module.exports = { cors, corsOptions };
+module.exports = { corsOptions };

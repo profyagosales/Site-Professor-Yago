@@ -23,10 +23,12 @@ const contentsRoutes = require('./routes/contents');
 const themesRoutes = require('./routes/themes');
 const fileTokenCompat = require('./middlewares/fileTokenCompat');
 
-const { cors: corsMw, corsOptions } = require('./corsConfig');
+const { corsOptions } = require('./corsConfig');
 const app = express();
-app.use(corsMw(corsOptions));
-app.options('*', corsMw(corsOptions));
+
+// CORS (centralizado)
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // #### Sessão estável em produção atrás de proxy (Render/Cloudflare)
 // Garante req.secure correto e permite cookies "secure" atrás de proxy HTTPS
@@ -63,7 +65,7 @@ const apiNoStore = (_req, res, next) => {
 app.use('/api', apiNoStore);
 
 // *** NOVO: confiar no proxy (Render/Cloudflare) para cookies secure
-app.set('trust proxy', 1);
+// Já habilitado acima com app.set('trust proxy', 1);
 
 // ---------- CONFIG BÁSICA ----------
 // Prefixo padrão da API é "/api" para alinhar com o frontend e rewrites
@@ -83,29 +85,6 @@ if (!process.env.FILE_TOKEN_SECRET) {
   console.warn('[boot] FILE_TOKEN_SECRET ausente – usando JWT_SECRET como fallback para file-token. Recomenda-se definir um segredo dedicado.');
 }
 
-// --- CORS (múltiplas origens) ---
-const allowlist = [
-  'https://professoryagosales.com.br',
-  'https://www.professoryagosales.com.br',
-  'http://localhost:5173',
-];
-const vercelPreview = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
-
-const corsMiddleware = cors({
-  origin(origin, cb) {
-    if (!origin) return cb(null, true);
-    if (allowlist.includes(origin) || vercelPreview.test(origin)) return cb(null, true);
-    return cb(new Error('CORS: origem não permitida: ' + origin));
-  },
-  credentials: true,
-  methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['Accept-Ranges', 'Content-Type', 'Cache-Control', 'Content-Length', 'ETag', 'Content-Disposition'],
-  maxAge: 86400,
-});
-app.use(corsMiddleware);
-app.options(/.*/, corsMiddleware);
-
 app.use(cookieParser());
 app.use(express.json());
 
@@ -121,15 +100,11 @@ app.use('/api/classes', classesRoutes);
 app.use('/api/professor/classes', classesRoutes);
 
 // ENSAIO/PDF com compat de token — em /api/essays E /essays
-/* legacy alias: /redacoes -> /essays */
-app.use(['/api/redacoes','/redacoes'], (req, res) => {
-  const to = req.originalUrl
-    .replace(/^\/api\/redacoes/, '/api/essays')
-    .replace(/^\/redacoes/, '/essays');
-  return res.redirect(308, to);
-});
 app.use('/api/essays', fileTokenCompat, essaysRoutes);
 app.use('/essays', fileTokenCompat, essaysRoutes);
+// Aliases temporários enquanto o frontend migra definitivamente para /essays
+app.use('/api/redacoes', (req, res) => res.redirect(308, '/api/essays' + req.url));
+app.use('/redacoes', (req, res) => res.redirect(308, '/essays' + req.url));
 
 // Rota raiz da API para evitar 404 em chamadas para "/api" diretamente
 api.get('/', (_req, res) => res.json({ success: true, message: 'API ready', prefix: API_PREFIX }));
