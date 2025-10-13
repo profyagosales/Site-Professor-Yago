@@ -25,7 +25,9 @@ const corsOptions = {
     'X-Requested-With',
     'X-File-Token',
     'Cache-Control', // alguns browsers validam case-insensitive, outros são chatos
-    'cache-control'
+    'cache-control',
+    'Pragma',
+    'pragma'
   ],
   exposedHeaders: [
     'Accept-Ranges',
