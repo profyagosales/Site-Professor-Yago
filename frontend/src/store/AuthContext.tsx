@@ -1,67 +1,66 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
-import { api } from "@/services/api";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { fetchMe, doLogout, SessionUser } from '@/services/session';
 
-type User = { id: string; name: string; role: "teacher" | "student" };
-type AuthCtx = {
-  user: User | null;
+type AuthState = {
   loading: boolean;
-  loginTeacher(email: string, password: string): Promise<void>;
-  logout(): Promise<void>;
+  user: SessionUser | null;
+  isTeacher: boolean;
+  isStudent: boolean;
+  reload: () => Promise<void>;
+  logout: () => Promise<void>;
 };
 
-const Ctx = createContext<AuthCtx | null>(null);
+const Ctx = createContext<AuthState | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
+  const [user, setUser] = useState<SessionUser | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await api.get("/auth/me");
-        setUser(data?.user ?? null);
-      } catch {
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    })();
+  const reload = useCallback(async () => {
+    setLoading(true);
+    try {
+      const u = await fetchMe();
+      setUser(u);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  async function loginTeacher(email: string, password: string) {
-    const { data } = await api.post("/auth/login-teacher", { email, password });
-    if (data?.token) {
-      localStorage.setItem("auth_token", data.token);
-      api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
-    }
-    const me = await api.get("/auth/me");
-    setUser(me.data?.user ?? null);
-  }
+  useEffect(() => {
+    // bootstrap na montagem, sem redirecionar em 401
+    void reload();
+  }, [reload]);
 
-  async function logout() {
-    try { await api.post("/auth/logout"); } catch {}
-    localStorage.removeItem("auth_token");
-    delete api.defaults.headers.common["Authorization"];
+  const logout = useCallback(async () => {
+    await doLogout();
     setUser(null);
-    navigate("/login-professor");
-  }
+  }, []);
 
-  return <Ctx.Provider value={{ user, loading, loginTeacher, logout }}>{children}</Ctx.Provider>;
+  const value = useMemo<AuthState>(() => ({
+    loading,
+    user,
+    isTeacher: (user?.role || '').toLowerCase() === 'teacher',
+    isStudent: (user?.role || '').toLowerCase() === 'student',
+    reload,
+    logout,
+  }), [loading, user, reload, logout]);
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
-export const useAuth = (): AuthCtx => {
+export function useAuth(): AuthState {
   const ctx = useContext(Ctx);
   if (!ctx) {
     if (import.meta.env.DEV) {
-      console.warn('useAuth() usado fora de AuthProvider — retornando fallback neutro.');
+      console.warn('useAuth must be used within <AuthProvider>');
     }
     return {
-      user: null,
       loading: true,
-      async loginTeacher() {
-        throw new Error('AuthProvider ausente: loginTeacher indisponível');
+      user: null,
+      isTeacher: false,
+      isStudent: false,
+      async reload() {
+        throw new Error('AuthProvider ausente: reload indisponível');
       },
       async logout() {
         throw new Error('AuthProvider ausente: logout indisponível');
@@ -69,5 +68,5 @@ export const useAuth = (): AuthCtx => {
     };
   }
   return ctx;
-};
+}
 

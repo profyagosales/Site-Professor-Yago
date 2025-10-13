@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Themes } from '@/services/api';
+import api from '@/services/api';
 
 interface Theme { id?: string; name: string }
 interface Props {
@@ -18,9 +18,12 @@ export default function ThemeCombo({ value, onChange, allowCreate }: Props) {
     if (timer) clearTimeout(timer);
     const t = setTimeout(async () => {
       try {
-        const list = await Themes.list(query);
-        setOptions(Array.isArray(list) ? list : []);
-      } catch { setOptions([]); }
+        const res = await api.get('/essays/themes', { params: { q: query } });
+        const payload = (res?.data?.data ?? res?.data ?? res) as any;
+        setOptions(Array.isArray(payload) ? payload : []);
+      } catch {
+        setOptions([]);
+      }
     }, 250);
     setTimer(t);
     return () => clearTimeout(t);
@@ -30,8 +33,9 @@ export default function ThemeCombo({ value, onChange, allowCreate }: Props) {
     if (!allowCreate) return;
     const name = query.trim();
     if (!name) return;
-    const created = await Themes.create(name);
-    onChange(created);
+  const res = await api.post('/essays/themes', { name });
+  const created = (res?.data?.data ?? res?.data ?? res) as Theme;
+  onChange(created || { name });
     setQuery('');
     setOptions([]);
   }
