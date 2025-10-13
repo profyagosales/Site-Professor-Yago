@@ -11,28 +11,95 @@ export function normalizeApiOrigin(origin?: string): string {
   return base;
 }
 
-export function buildEssayFileUrl(essayId: string, token: string, origin?: string): string {
-  const u = new URL(`/essays/${essayId}/file`, normalizeApiOrigin(origin));
-  u.searchParams.set('file-token', token);
-  return u.toString();
+export function getEssayFileUrl(
+  essayId: string,
+  options?: { token?: string; apiOrigin?: string }
+): string {
+  const url = new URL(`/essays/${essayId}/file`, normalizeApiOrigin(options?.apiOrigin));
+  if (options?.token) url.searchParams.set('file-token', options.token);
+  return url.toString();
 }
 
-export async function getFileToken(essayId: string, options?: { signal?: AbortSignal }): Promise<string> {
+export function buildEssayFileUrl(essayId: string, token: string, origin?: string): string {
+  return getEssayFileUrl(essayId, { token, apiOrigin: origin });
+}
+
+export async function issueFileToken(
+  essayId: string,
+  options?: { signal?: AbortSignal }
+): Promise<string> {
   const { data } = await api.post(`/essays/${essayId}/file-token`, undefined, {
     signal: options?.signal,
+    meta: { skipAuthRedirect: true },
   });
   return data?.token;
 }
 
-export async function prepareEssayFileToken(essayId: string, options?: { signal?: AbortSignal; apiOrigin?: string }) {
-  const token = await getFileToken(essayId, { signal: options?.signal });
-  return buildEssayFileUrl(essayId, token, options?.apiOrigin);
+export async function getFileToken(
+  essayId: string,
+  options?: { signal?: AbortSignal }
+): Promise<string> {
+    try {
+      const { data } = await api.get(`/essays/${essayId}/file-token`, {
+        signal: options?.signal,
+        meta: { skipAuthRedirect: true, noCache: true },
+      });
+      if (data?.token) return data.token;
+    } catch (err) {
+      if ((err as any)?.name === 'CanceledError') throw err;
+    }
+    return issueFileToken(essayId, options);
 }
 
-export async function fetchEssayPdfUrl(essayId: string, options?: { signal?: AbortSignal; apiOrigin?: string }) {
-  const preparedUrl = await prepareEssayFileToken(essayId, options);
+export async function prepareEssayFileToken(
+  essayId: string,
+  options?: { signal?: AbortSignal; apiOrigin?: string }
+) {
+  const token = await getFileToken(essayId, { signal: options?.signal });
+  return { token, url: getEssayFileUrl(essayId, { token, apiOrigin: options?.apiOrigin }) };
+}
+
+export async function peekEssayFile(
+  essayId: string,
+  options?: { token?: string; signal?: AbortSignal; apiOrigin?: string }
+) {
+  const url = getEssayFileUrl(essayId, {
+    token: options?.token,
+    apiOrigin: options?.apiOrigin,
+  });
+
+  const res = await fetch(url, {
+    method: 'HEAD',
+    credentials: options?.token ? 'omit' : 'include',
+    cache: 'no-store',
+    signal: options?.signal,
+  });
+
+  if (!res.ok) {
+    const error = new Error(`peekEssayFile HTTP ${res.status}`) as Error & { status?: number };
+    error.status = res.status;
+    throw error;
+  }
+
+  const lengthHeader = res.headers.get('content-length');
+  const typeHeader = res.headers.get('content-type');
+  const contentLength = lengthHeader ? Number(lengthHeader) : undefined;
+  const contentType = typeHeader ? typeHeader.split(';')[0] : undefined;
+
+  return {
+    url,
+    contentLength,
+    contentType,
+  };
+}
+
+export async function fetchEssayPdfUrl(
+  essayId: string,
+  options?: { signal?: AbortSignal; apiOrigin?: string }
+) {
+  const { url } = await prepareEssayFileToken(essayId, options);
   try {
-    const res = await fetch(preparedUrl, {
+    const res = await fetch(url, {
       method: 'GET',
       credentials: 'omit',
       cache: 'no-store',
@@ -72,12 +139,22 @@ export async function updateThemeApi(id: string, data: Partial<{ name: string; t
   return res.data;
 }
 
-export async function fetchEssayById(id: string) {
+export async function fetchEssayById(
+  id: string,
+  options?: { signal?: AbortSignal }
+) {
   // Use compat endpoint which already adapts and populates
-  const res = await api.get(`/redacoes/${id}`);
+  const res = await api.get(`/redacoes/${id}`, {
+    signal: options?.signal,
+    meta: { skipAuthRedirect: true },
+  });
   // Normalize shape a bit
   const d = res.data?.data || res.data;
   return d;
+}
+
+export async function getSubmission(id: string, options?: { signal?: AbortSignal }) {
+  return fetchEssayById(id, options);
 }
 
 export async function fetchEssays(params: {

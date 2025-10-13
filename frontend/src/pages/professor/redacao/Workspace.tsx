@@ -1,9 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { getSubmission, gradeEnem, listThemes } from '@/services/redaction';
 import studentsService from '@/services/students';
+// @ts-expect-error serviço legado em JS sem tipagem
 import gradesService from '@/services/grades';
 import { toast } from 'react-toastify';
+import { useAuth } from '@/components/AuthContext';
+import { gradeEnem, listThemes } from '@/services/redaction';
+import {
+  getSubmission,
+  issueFileToken,
+  peekEssayFile,
+} from '@/services/essays.service';
 
 interface Submission {
   id?: string;
@@ -17,6 +24,9 @@ interface Submission {
   weightOnBimester?: number;
   fileUrl?: string;
   evaluationId?: string;
+  correctedUrl?: string;
+  originalUrl?: string;
+  originalMimeType?: string;
 }
 
 const ANNUL_OPTS = [
@@ -28,17 +38,32 @@ const ANNUL_OPTS = [
 
 function Workspace() {
   const { id } = useParams();
+  const { user } = useAuth();
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [studentName, setStudentName] = useState('');
   const [themeName, setThemeName] = useState('');
   const [annul, setAnnul] = useState<Record<string, boolean>>({});
   const [competencias, setCompetencias] = useState<number[]>([0, 0, 0, 0, 0]);
   const [saving, setSaving] = useState(false);
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [fileMeta, setFileMeta] = useState<{ contentType?: string; contentLength?: number } | null>(null);
+  const [fileLoading, setFileLoading] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
 
   const annulled = Object.values(annul).some(Boolean);
   const enemScore = annulled ? 0 : competencias.reduce((a, b) => a + b, 0);
   const weight = submission?.weightOnBimester || 0;
   const bimesterScore = Number(((enemScore / 1000) * weight).toFixed(2));
+  const essayId = submission?._id || submission?.id;
+  const fallbackFileUrl = useMemo(() => {
+    if (!submission) return null;
+    return (
+      submission.correctedUrl ||
+      submission.originalUrl ||
+      submission.fileUrl ||
+      null
+    );
+  }, [submission]);
 
   useEffect(() => {
     ANNUL_OPTS.forEach((o) => {
@@ -47,11 +72,11 @@ function Workspace() {
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
     const load = async () => {
       if (!id) return;
       try {
-        const res = await getSubmission(id);
-        const data: Submission = (res as any).data || (res as any);
+        const data = (await getSubmission(id, { signal: controller.signal })) as Submission;
         setSubmission(data);
         if (data.classId && data.studentId) {
           try {
@@ -79,7 +104,43 @@ function Workspace() {
       }
     };
     load();
+    return () => controller.abort();
   }, [id]);
+
+  useEffect(() => {
+    if (!essayId) {
+      setFileUrl(null);
+      setFileMeta(null);
+      setFileError(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    const loadFile = async () => {
+      setFileLoading(true);
+      setFileError(null);
+      try {
+        const token = await issueFileToken(essayId, { signal: controller.signal });
+        const meta = await peekEssayFile(essayId, {
+          token,
+          signal: controller.signal,
+        });
+        setFileUrl(meta.url);
+        setFileMeta({ contentType: meta.contentType, contentLength: meta.contentLength });
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return;
+        console.error(err);
+        setFileUrl(fallbackFileUrl);
+        setFileMeta(null);
+        setFileError('Não foi possível carregar o PDF com token temporário.');
+      } finally {
+        setFileLoading(false);
+      }
+    };
+
+    loadFile();
+    return () => controller.abort();
+  }, [essayId, fallbackFileUrl]);
 
   const handleScoreChange = (idx: number, value: number) => {
     setCompetencias((prev) => prev.map((v, i) => (i === idx ? value : v)));
@@ -119,12 +180,27 @@ function Workspace() {
         <p><strong>Tema:</strong> {themeName || '-'}</p>
         <p><strong>Bimestre:</strong> {submission?.bimester ?? '-'}</p>
         <p><strong>Peso:</strong> {weight}</p>
+        <p><strong>Professor:</strong> {user?.name || '-'}</p>
       </div>
-      {submission?.fileUrl && (
-        <div className="w-full h-96">
-          <embed src={submission.fileUrl} type="application/pdf" className="w-full h-full" />
-        </div>
-      )}
+      <div className="w-full h-96 border border-gray-200 rounded">
+        {fileLoading && (
+          <div className="w-full h-full flex items-center justify-center text-sm text-gray-500">
+            Carregando PDF…
+          </div>
+        )}
+        {!fileLoading && fileUrl && (
+          <embed
+            src={fileUrl}
+            type={fileMeta?.contentType || submission?.originalMimeType || 'application/pdf'}
+            className="w-full h-full"
+          />
+        )}
+        {!fileLoading && !fileUrl && (
+          <div className="w-full h-full flex items-center justify-center text-sm text-gray-500 text-center px-md">
+            {fileError || 'Nenhum arquivo disponível para esta redação.'}
+          </div>
+        )}
+      </div>
 
       {submission?.model === 'ENEM' && (
         <div className="space-y-md">
