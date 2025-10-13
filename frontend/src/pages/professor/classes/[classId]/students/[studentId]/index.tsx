@@ -5,11 +5,16 @@ import {
   ClassDetails,
   ClassStudent,
   UpsertStudentGradeInput,
+  addStudentNote,
+  deleteStudentNote,
   getClassDetails,
   getStudentGrades,
+  listStudentNotes,
+  sendStudentEmail,
   upsertStudentGrade,
+  updateStudentNote,
 } from '@/services/classes.service';
-import type { StudentGrade } from '@/types/school';
+import type { StudentGrade, StudentNote } from '@/types/school';
 import {
   StudentEssayStatus,
   StudentEssaySummary,
@@ -125,6 +130,14 @@ function formatEssayScore(essay: StudentEssaySummary): string | null {
   }
 
   return null;
+}
+
+function sortNotes(list: StudentNote[]): StudentNote[] {
+  return [...list].sort((a, b) => {
+    const aDate = new Date(a.createdAt).getTime();
+    const bDate = new Date(b.createdAt).getTime();
+    return bDate - aDate;
+  });
 }
 
 function formatScore(score: number): string {
@@ -1071,11 +1084,502 @@ export function StudentEssaysTab() {
 }
 
 export function StudentNotesTab() {
-  const { student } = useOutletContext<StudentProfileContextValue>();
-  return <div>Anotações de {student.name} estarão disponíveis em breve.</div>;
+  const { classId, student } = useOutletContext<StudentProfileContextValue>();
+  const [notes, setNotes] = useState<StudentNote[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  const [currentNote, setCurrentNote] = useState<StudentNote | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadNotes() {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await listStudentNotes(student.id, classId);
+        if (cancelled) return;
+        setNotes(sortNotes(data));
+      } catch (err) {
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : 'Erro ao carregar anotações.';
+        setError(message);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadNotes();
+    return () => {
+      cancelled = true;
+    };
+  }, [classId, student.id, reloadToken]);
+
+  const openCreateModal = () => {
+    setModalMode('create');
+    setCurrentNote(null);
+    setModalOpen(true);
+    setFeedback(null);
+    setError(null);
+  };
+
+  const openEditModal = (note: StudentNote) => {
+    setModalMode('edit');
+    setCurrentNote(note);
+    setModalOpen(true);
+    setFeedback(null);
+    setError(null);
+  };
+
+  const closeModal = () => {
+    if (saving) return;
+    setModalOpen(false);
+    setCurrentNote(null);
+  };
+
+  const handleReload = () => {
+    setFeedback(null);
+    setError(null);
+    setReloadToken((token) => token + 1);
+  };
+
+  const handleSubmit = async (payload: { body: string; visibleToStudent: boolean }) => {
+    setSaving(true);
+    try {
+      let saved: StudentNote;
+      if (modalMode === 'create') {
+        saved = await addStudentNote(student.id, classId, payload);
+        setNotes((prev) => sortNotes([...prev, saved]));
+        setFeedback('Anotação criada com sucesso.');
+      } else if (currentNote) {
+        saved = await updateStudentNote(student.id, classId, currentNote._id, payload);
+        setNotes((prev) => sortNotes(prev.map((note) => (note._id === saved._id ? saved : note))));
+        setFeedback('Anotação atualizada com sucesso.');
+      } else {
+        return;
+      }
+      setError(null);
+      setModalOpen(false);
+      setCurrentNote(null);
+    } catch (err) {
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (note: StudentNote) => {
+    if (!window.confirm('Tem certeza que deseja remover esta anotação?')) {
+      return;
+    }
+    setDeletingId(note._id);
+    setFeedback(null);
+    setError(null);
+    try {
+      await deleteStudentNote(student.id, classId, note._id);
+      setNotes((prev) => prev.filter((item) => item._id !== note._id));
+      setFeedback('Anotação removida.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao remover anotação.';
+      setError(message);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  if (error && notes.length === 0 && !loading) {
+    return (
+      <div className="space-y-4 text-sm">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-600">{error}</div>
+        <Button variant="ghost" onClick={handleReload}>
+          Tentar novamente
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5 text-sm text-ys-ink">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-ys-ink">Anotações de {student.name}</h2>
+          <p className="text-xs text-ys-graphite">
+            Registre recados rápidos e defina se o aluno poderá visualizar cada anotação.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" onClick={handleReload} disabled={loading}>
+            Recarregar
+          </Button>
+          <Button onClick={openCreateModal} disabled={loading}>
+            Nova anotação
+          </Button>
+        </div>
+      </div>
+
+      {feedback && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700">
+          {feedback}
+        </div>
+      )}
+
+      {error && notes.length > 0 && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-600">{error}</div>
+      )}
+
+      {loading ? (
+        <div className="rounded-2xl border border-ys-line bg-white px-4 py-6 text-sm text-ys-graphite">
+          Carregando anotações…
+        </div>
+      ) : notes.length === 0 ? (
+        <p className="text-xs text-ys-graphite">
+          Nenhuma anotação cadastrada ainda. Utilize “Nova anotação” para registrar a primeira mensagem.
+        </p>
+      ) : (
+        <ul className="space-y-3">
+          {notes.map((note) => {
+            const createdLabel = formatDateTime(note.createdAt);
+            const updatedLabel = note.updatedAt && note.updatedAt !== note.createdAt ? formatDateTime(note.updatedAt) : null;
+            const isDeleting = deletingId === note._id;
+            return (
+              <li key={note._id} className="rounded-2xl border border-ys-line bg-white px-4 py-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div className="space-y-2">
+                    {note.visibleToStudent && (
+                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                        Visível para o aluno
+                      </span>
+                    )}
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-ys-ink">{note.body}</p>
+                    <p className="text-xs text-ys-graphite">
+                      Criada em {createdLabel}
+                      {updatedLabel ? ` · Atualizada em ${updatedLabel}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex flex-shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      className="rounded-full px-3 py-2 text-xs font-semibold text-ys-ink transition hover:bg-ys-bg"
+                      onClick={() => openEditModal(note)}
+                      disabled={isDeleting}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-full px-3 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
+                      onClick={() => handleDelete(note)}
+                      disabled={isDeleting}
+                    >
+                      {isDeleting ? 'Removendo…' : 'Remover'}
+                    </button>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <NoteModal
+        open={modalOpen}
+        mode={modalMode}
+        initialData={currentNote}
+        loading={saving}
+        onClose={closeModal}
+        onSubmit={handleSubmit}
+      />
+    </div>
+  );
+}
+
+type NoteModalProps = {
+  open: boolean;
+  mode: 'create' | 'edit';
+  initialData: StudentNote | null;
+  loading: boolean;
+  onClose: () => void;
+  onSubmit: (payload: { body: string; visibleToStudent: boolean }) => Promise<void>;
+};
+
+type NoteFormState = {
+  body: string;
+  visibleToStudent: boolean;
+};
+
+function NoteModal({ open, mode, initialData, loading, onClose, onSubmit }: NoteModalProps) {
+  const [form, setForm] = useState<NoteFormState>({ body: '', visibleToStudent: false });
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setForm({
+      body: initialData?.body ?? '',
+      visibleToStudent: initialData?.visibleToStudent ?? false,
+    });
+    setError(null);
+  }, [open, initialData]);
+
+  if (!open) {
+    return null;
+  }
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    const trimmedBody = form.body.trim();
+    if (!trimmedBody) {
+      setError('Escreva alguma informação na anotação.');
+      return;
+    }
+
+    try {
+      await onSubmit({ body: trimmedBody, visibleToStudent: form.visibleToStudent });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Não foi possível salvar a anotação.';
+      setError(message);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white shadow-ys-lg">
+        <form onSubmit={handleSubmit} className="space-y-4 p-6 text-sm text-ys-ink">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-ys-ink">
+              {mode === 'create' ? 'Nova anotação' : 'Editar anotação'}
+            </h2>
+            <button
+              type="button"
+              className="text-ys-graphite transition hover:text-ys-ink"
+              onClick={onClose}
+              disabled={loading}
+              aria-label="Fechar"
+            >
+              ✕
+            </button>
+          </div>
+
+          {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
+
+          <label className="flex flex-col gap-2 text-sm">
+            <span className="font-medium text-ys-ink">Conteúdo</span>
+            <textarea
+              className="min-h-[160px] rounded-xl border border-ys-line px-3 py-2 focus:border-ys-amber focus:outline-none"
+              value={form.body}
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
+                setForm((prev) => ({ ...prev, body: event.target.value }))
+              }
+              placeholder="Escreva aqui a observação sobre o aluno..."
+              disabled={loading}
+            />
+          </label>
+
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-ys-line text-ys-ink focus:ring-ys-amber"
+              checked={form.visibleToStudent}
+              onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                setForm((prev) => ({ ...prev, visibleToStudent: event.target.checked }))
+              }
+              disabled={loading}
+            />
+            Tornar anotação visível para o aluno
+          </label>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Salvando…' : 'Salvar anotação'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 export function StudentEmailTab() {
-  const { student } = useOutletContext<StudentProfileContextValue>();
-  return <div>Envio de e-mail para {student.name} será configurado nas próximas etapas.</div>;
+  const { classId, student } = useOutletContext<StudentProfileContextValue>();
+  const [subject, setSubject] = useState('');
+  const [message, setMessage] = useState('');
+  const [scheduleAt, setScheduleAt] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  const studentEmail = typeof student.email === 'string' ? student.email.trim() : '';
+  const canSend = Boolean(studentEmail);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!canSend) {
+      setError('Não é possível enviar e-mail: aluno sem endereço cadastrado.');
+      return;
+    }
+
+    const trimmedSubject = subject.trim();
+    const trimmedMessage = message.trim();
+
+    if (!trimmedSubject) {
+      setError('Informe um assunto para o e-mail.');
+      return;
+    }
+
+    if (!trimmedMessage) {
+      setError('Escreva a mensagem que será enviada.');
+      return;
+    }
+
+    let scheduleIso: string | undefined;
+    if (scheduleAt) {
+      const parsed = new Date(scheduleAt);
+      if (Number.isNaN(parsed.getTime())) {
+        setError('Informe uma data e hora válidas para o agendamento.');
+        return;
+      }
+      scheduleIso = parsed.toISOString();
+    }
+
+    setSending(true);
+    setError(null);
+    setFeedback(null);
+
+    try {
+      const response = await sendStudentEmail(classId, student.id, {
+        subject: trimmedSubject,
+        text: trimmedMessage,
+        scheduleAt: scheduleIso,
+      });
+      const successMessage =
+        typeof response?.message === 'string'
+          ? response.message
+          : scheduleIso
+            ? 'Agendamento ainda não disponível; e-mail enviado agora mesmo.'
+            : 'E-mail enviado com sucesso.';
+      setFeedback(successMessage);
+      setSubject('');
+      setMessage('');
+      setScheduleAt('');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Não foi possível enviar o e-mail.';
+      setError(message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleSubjectChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setSubject(event.target.value);
+    if (error) setError(null);
+    if (feedback) setFeedback(null);
+  };
+
+  const handleMessageChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
+    setMessage(event.target.value);
+    if (error) setError(null);
+    if (feedback) setFeedback(null);
+  };
+
+  const handleScheduleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setScheduleAt(event.target.value);
+    if (error) setError(null);
+    if (feedback) setFeedback(null);
+  };
+
+  return (
+    <div className="space-y-5 text-sm text-ys-ink">
+      <section className="space-y-4 rounded-2xl border border-ys-line bg-white p-6 shadow-ys-sm">
+        <div className="flex flex-col gap-2">
+          <h2 className="text-lg font-semibold text-ys-ink">Enviar e-mail para {student.name}</h2>
+          <p className="text-xs text-ys-graphite">
+            O endereço do aluno é preenchido automaticamente. Use este formulário para enviar comunicados rápidos.
+          </p>
+        </div>
+
+        {!canSend && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+            Este aluno não possui e-mail cadastrado. Atualize o cadastro para liberar o envio.
+          </div>
+        )}
+
+        {feedback && (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700">
+            {feedback}
+          </div>
+        )}
+
+        {error && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-600">{error}</div>
+        )}
+
+        <form className="space-y-5" onSubmit={handleSubmit}>
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium text-ys-ink">Para</span>
+              <input
+                type="email"
+                className="rounded-xl border border-ys-line bg-ys-bg px-3 py-2 text-ys-graphite"
+                value={canSend ? studentEmail : 'Sem e-mail cadastrado'}
+                disabled
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium text-ys-ink">Agendar envio (opcional)</span>
+              <input
+                type="datetime-local"
+                className="rounded-xl border border-ys-line px-3 py-2 focus:border-ys-amber focus:outline-none"
+                value={scheduleAt}
+                onChange={handleScheduleChange}
+                disabled={sending}
+              />
+              <span className="text-xs text-ys-graphite">
+                Ainda sem fila de agendamento: se informado, enviaremos imediatamente.
+              </span>
+            </label>
+          </div>
+
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium text-ys-ink">Assunto</span>
+            <input
+              type="text"
+              className="rounded-xl border border-ys-line px-3 py-2 focus:border-ys-amber focus:outline-none"
+              value={subject}
+              onChange={handleSubjectChange}
+              disabled={sending || !canSend}
+              placeholder="Ex.: Feedback sobre o desempenho"
+            />
+          </label>
+
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium text-ys-ink">Mensagem</span>
+            <textarea
+              className="min-h-[200px] rounded-xl border border-ys-line px-3 py-2 focus:border-ys-amber focus:outline-none"
+              value={message}
+              onChange={handleMessageChange}
+              disabled={sending || !canSend}
+              placeholder="Escreva a mensagem que será enviada ao aluno..."
+            />
+          </label>
+
+          <div className="flex justify-end">
+            <Button type="submit" disabled={sending || !canSend}>
+              {sending ? 'Enviando…' : 'Enviar e-mail'}
+            </Button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
 }

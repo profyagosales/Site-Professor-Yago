@@ -2,13 +2,22 @@ import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } fro
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import {
+  ClassActivity,
   ClassDetails,
+  ClassMilestone,
+  ClassNotice,
   ClassStudent,
   UpsertStudentInput,
+  addClassActivity,
+  addClassMilestone,
+  addClassNotice,
   addStudent,
-  updateClassSchedule,
   getClassDetails,
+  removeClassActivity,
+  removeClassMilestone,
+  removeClassNotice,
   removeStudent,
+  updateClassSchedule,
   updateStudent,
 } from '@/services/classes.service';
 import type { Weekday, TimeSlot } from '@/types/school';
@@ -30,6 +39,50 @@ function resolvePhotoUrl(photo?: string | null): string | null {
   if (normalized.startsWith('http://') || normalized.startsWith('https://')) return normalized;
   if (normalized.startsWith('blob:')) return normalized;
   return `data:image/jpeg;base64,${normalized}`;
+}
+
+const DATE_FORMATTER = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' });
+const DATETIME_FORMATTER = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+
+function safeTimestamp(value: string | null | undefined): number {
+  if (!value) return 0;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 0;
+  return date.getTime();
+}
+
+function formatDateLabel(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return DATE_FORMATTER.format(date);
+}
+
+function formatDateTimeLabel(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return DATETIME_FORMATTER.format(date);
+}
+
+function sortActivities(list: ClassActivity[]): ClassActivity[] {
+  return [...list].sort((a, b) => {
+    const tsA = safeTimestamp(a.dateISO ?? a.createdAt);
+    const tsB = safeTimestamp(b.dateISO ?? b.createdAt);
+    return tsB - tsA;
+  });
+}
+
+function sortMilestones(list: ClassMilestone[]): ClassMilestone[] {
+  return [...list].sort((a, b) => {
+    const tsA = safeTimestamp(a.dateISO);
+    const tsB = safeTimestamp(b.dateISO);
+    return tsA - tsB;
+  });
+}
+
+function sortNotices(list: ClassNotice[]): ClassNotice[] {
+  return [...list].sort((a, b) => safeTimestamp(b.createdAt) - safeTimestamp(a.createdAt));
 }
 
 type ScheduleKey = `${Weekday}-${TimeSlot}`;
@@ -388,6 +441,302 @@ function StudentModal({ open, mode, initialStudent, loading, onClose, onSubmit }
   );
 }
 
+type ActivityModalProps = {
+  open: boolean;
+  loading: boolean;
+  onClose: () => void;
+  onSubmit: (payload: { title: string; dateISO?: string | null }) => Promise<void>;
+};
+
+function ActivityModal({ open, loading, onClose, onSubmit }: ActivityModalProps) {
+  const [title, setTitle] = useState('');
+  const [date, setDate] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setTitle('');
+    setDate('');
+    setError(null);
+  }, [open]);
+
+  if (!open) {
+    return null;
+  }
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      setError('Informe um título para a atividade.');
+      return;
+    }
+
+    let iso: string | null | undefined;
+    if (date) {
+      const parsed = new Date(date);
+      if (Number.isNaN(parsed.getTime())) {
+        setError('Informe uma data válida.');
+        return;
+      }
+      iso = parsed.toISOString();
+    }
+
+    try {
+      await onSubmit({ title: trimmedTitle, dateISO: iso });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Não foi possível salvar a atividade.';
+      setError(message);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-ys-lg">
+        <form onSubmit={handleSubmit} className="space-y-4 p-6 text-sm text-ys-ink">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-ys-ink">Cadastrar atividade</h2>
+            <button
+              type="button"
+              className="text-ys-graphite hover:text-ys-ink"
+              onClick={onClose}
+              disabled={loading}
+              aria-label="Fechar"
+            >
+              ✕
+            </button>
+          </div>
+
+          {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
+
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium text-ys-ink">Título</span>
+            <input
+              type="text"
+              className="rounded-xl border border-ys-line px-3 py-2 focus:border-ys-amber focus:outline-none"
+              value={title}
+              onChange={(event: ChangeEvent<HTMLInputElement>) => setTitle(event.target.value)}
+              placeholder="Ex.: Entregar ficha de leitura"
+              disabled={loading}
+            />
+          </label>
+
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium text-ys-ink">Data (opcional)</span>
+            <input
+              type="date"
+              className="rounded-xl border border-ys-line px-3 py-2 focus:border-ys-amber focus:outline-none"
+              value={date}
+              onChange={(event: ChangeEvent<HTMLInputElement>) => setDate(event.target.value)}
+              disabled={loading}
+            />
+          </label>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Salvando…' : 'Salvar atividade'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+type MilestoneModalProps = {
+  open: boolean;
+  loading: boolean;
+  onClose: () => void;
+  onSubmit: (payload: { label: string; dateISO?: string | null }) => Promise<void>;
+};
+
+function MilestoneModal({ open, loading, onClose, onSubmit }: MilestoneModalProps) {
+  const [label, setLabel] = useState('');
+  const [date, setDate] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setLabel('');
+    setDate('');
+    setError(null);
+  }, [open]);
+
+  if (!open) {
+    return null;
+  }
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+
+    const trimmedLabel = label.trim();
+    if (!trimmedLabel) {
+      setError('Informe o título da data importante.');
+      return;
+    }
+
+    let iso: string | null | undefined;
+    if (date) {
+      const parsed = new Date(date);
+      if (Number.isNaN(parsed.getTime())) {
+        setError('Informe uma data válida.');
+        return;
+      }
+      iso = parsed.toISOString();
+    }
+
+    try {
+      await onSubmit({ label: trimmedLabel, dateISO: iso });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Não foi possível salvar a data importante.';
+      setError(message);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-ys-lg">
+        <form onSubmit={handleSubmit} className="space-y-4 p-6 text-sm text-ys-ink">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-ys-ink">Adicionar data importante</h2>
+            <button
+              type="button"
+              className="text-ys-graphite hover:text-ys-ink"
+              onClick={onClose}
+              disabled={loading}
+              aria-label="Fechar"
+            >
+              ✕
+            </button>
+          </div>
+
+          {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
+
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium text-ys-ink">Descrição</span>
+            <input
+              type="text"
+              className="rounded-xl border border-ys-line px-3 py-2 focus:border-ys-amber focus:outline-none"
+              value={label}
+              onChange={(event: ChangeEvent<HTMLInputElement>) => setLabel(event.target.value)}
+              placeholder="Ex.: Conselho de classe"
+              disabled={loading}
+            />
+          </label>
+
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium text-ys-ink">Data (opcional)</span>
+            <input
+              type="date"
+              className="rounded-xl border border-ys-line px-3 py-2 focus:border-ys-amber focus:outline-none"
+              value={date}
+              onChange={(event: ChangeEvent<HTMLInputElement>) => setDate(event.target.value)}
+              disabled={loading}
+            />
+          </label>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Salvando…' : 'Salvar data'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+type NoticeModalProps = {
+  open: boolean;
+  loading: boolean;
+  onClose: () => void;
+  onSubmit: (payload: { message: string }) => Promise<void>;
+};
+
+function NoticeModal({ open, loading, onClose, onSubmit }: NoticeModalProps) {
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setMessage('');
+    setError(null);
+  }, [open]);
+
+  if (!open) {
+    return null;
+  }
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    const trimmed = message.trim();
+    if (!trimmed) {
+      setError('Escreva o conteúdo do aviso.');
+      return;
+    }
+
+    try {
+      await onSubmit({ message: trimmed });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Não foi possível salvar o aviso.';
+      setError(errorMessage);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-ys-lg">
+        <form onSubmit={handleSubmit} className="space-y-4 p-6 text-sm text-ys-ink">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-ys-ink">Registrar aviso interno</h2>
+            <button
+              type="button"
+              className="text-ys-graphite hover:text-ys-ink"
+              onClick={onClose}
+              disabled={loading}
+              aria-label="Fechar"
+            >
+              ✕
+            </button>
+          </div>
+
+          {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
+
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium text-ys-ink">Mensagem</span>
+            <textarea
+              className="min-h-[160px] rounded-xl border border-ys-line px-3 py-2 focus:border-ys-amber focus:outline-none"
+              value={message}
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setMessage(event.target.value)}
+              placeholder="Escreva o lembrete para os professores desta turma..."
+              disabled={loading}
+            />
+          </label>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Salvando…' : 'Salvar aviso'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 type ClassTabKey = 'overview' | 'schedule' | 'students';
 
 export default function ClassDetailPage() {
@@ -406,6 +755,8 @@ export default function ClassDetailPage() {
   const [selectedSlots, setSelectedSlots] = useState<Set<ScheduleKey>>(new Set());
   const [initialSelectedSlots, setInitialSelectedSlots] = useState<Set<ScheduleKey>>(new Set());
   const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [quickModal, setQuickModal] = useState<'activity' | 'notice' | 'milestone' | null>(null);
+  const [quickSaving, setQuickSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<ClassTabKey>(() => {
     const state = location.state as { initialTab?: ClassTabKey } | null;
     if (state?.initialTab) return state.initialTab;
@@ -430,7 +781,13 @@ export default function ClassDetailPage() {
         const scheduleSet = createScheduleSet(data.schedule);
         setSelectedSlots(scheduleSet);
         setInitialSelectedSlots(new Set(scheduleSet));
-        setDetail({ ...data, students: sortStudents(data.students) });
+        setDetail({
+          ...data,
+          students: sortStudents(data.students),
+          activities: sortActivities(data.activities ?? []),
+          milestones: sortMilestones(data.milestones ?? []),
+          notices: sortNotices(data.notices ?? []),
+        });
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar turma.';
@@ -499,7 +856,20 @@ export default function ClassDetailPage() {
 
   const handleNotifyClass = () => {
     setTemporaryPassword(null);
-    setFeedback('Funcionalidade de avisos estará disponível em breve.');
+    setFeedback(null);
+    setQuickModal('notice');
+  };
+
+  const handleOpenActivityModal = () => {
+    setTemporaryPassword(null);
+    setFeedback(null);
+    setQuickModal('activity');
+  };
+
+  const handleOpenMilestoneModal = () => {
+    setTemporaryPassword(null);
+    setFeedback(null);
+    setQuickModal('milestone');
   };
 
   const handleAddClick = () => {
@@ -591,6 +961,123 @@ export default function ClassDetailPage() {
     }
   };
 
+  const handleSubmitActivity = async (payload: { title: string; dateISO?: string | null }) => {
+    if (!id) throw new Error('Turma inválida.');
+    setQuickSaving(true);
+    setTemporaryPassword(null);
+    try {
+      const saved = await addClassActivity(id, payload);
+      setDetail((prev) => {
+        if (!prev) return prev;
+        const activities = sortActivities([...prev.activities, saved]);
+        return { ...prev, activities };
+      });
+      setFeedback('Atividade cadastrada com sucesso.');
+      setQuickModal(null);
+    } catch (err) {
+      throw err;
+    } finally {
+      setQuickSaving(false);
+    }
+  };
+
+  const handleRemoveActivity = async (activity: ClassActivity) => {
+    if (!id) return;
+    const confirm = window.confirm('Remover esta atividade?');
+    if (!confirm) return;
+    setTemporaryPassword(null);
+    setFeedback(null);
+    try {
+      await removeClassActivity(id, activity.id);
+      setDetail((prev) => {
+        if (!prev) return prev;
+        return { ...prev, activities: prev.activities.filter((item) => item.id !== activity.id) };
+      });
+      setFeedback('Atividade removida.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao remover atividade.';
+      setFeedback(message);
+    }
+  };
+
+  const handleSubmitMilestone = async (payload: { label: string; dateISO?: string | null }) => {
+    if (!id) throw new Error('Turma inválida.');
+    setQuickSaving(true);
+    setTemporaryPassword(null);
+    try {
+      const saved = await addClassMilestone(id, payload);
+      setDetail((prev) => {
+        if (!prev) return prev;
+        const milestones = sortMilestones([...prev.milestones, saved]);
+        return { ...prev, milestones };
+      });
+      setFeedback('Data importante registrada.');
+      setQuickModal(null);
+    } catch (err) {
+      throw err;
+    } finally {
+      setQuickSaving(false);
+    }
+  };
+
+  const handleRemoveMilestone = async (milestone: ClassMilestone) => {
+    if (!id) return;
+    const confirm = window.confirm('Remover esta data importante?');
+    if (!confirm) return;
+    setTemporaryPassword(null);
+    setFeedback(null);
+    try {
+      await removeClassMilestone(id, milestone.id);
+      setDetail((prev) => {
+        if (!prev) return prev;
+        return { ...prev, milestones: prev.milestones.filter((item) => item.id !== milestone.id) };
+      });
+      setFeedback('Data importante removida.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao remover data importante.';
+      setFeedback(message);
+    }
+  };
+
+  const handleSubmitNotice = async (payload: { message: string }) => {
+    if (!id) throw new Error('Turma inválida.');
+    setQuickSaving(true);
+    setTemporaryPassword(null);
+    try {
+      const saved = await addClassNotice(id, payload);
+      setDetail((prev) => {
+        if (!prev) return prev;
+        const notices = sortNotices([...prev.notices, saved]);
+        return { ...prev, notices };
+      });
+      setFeedback('Aviso registrado com sucesso.');
+      setQuickModal(null);
+    } catch (err) {
+      throw err;
+    } finally {
+      setQuickSaving(false);
+    }
+  };
+
+  const handleRemoveNotice = async (notice: ClassNotice) => {
+    if (!id) return;
+    const confirm = window.confirm('Remover este aviso?');
+    if (!confirm) return;
+    setTemporaryPassword(null);
+    setFeedback(null);
+    try {
+      await removeClassNotice(id, notice.id);
+      setDetail((prev) => {
+        if (!prev) return prev;
+        return { ...prev, notices: prev.notices.filter((item) => item.id !== notice.id) };
+      });
+      setFeedback('Aviso removido.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao remover aviso.';
+      setFeedback(message);
+    }
+  };
+
   if (!id) {
     return (
       <div className="p-4">
@@ -662,6 +1149,121 @@ export default function ClassDetailPage() {
           )}
         </div>
       </div>
+
+      <section className="grid gap-3 md:grid-cols-3">
+        <div className="rounded-2xl border border-ys-line bg-white p-4 shadow-ys-sm">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-base font-semibold text-ys-ink">Atividades</h2>
+            <Button variant="ghost" onClick={handleOpenActivityModal}>
+              Adicionar
+            </Button>
+          </div>
+          <p className="mt-1 text-xs text-ys-graphite">
+            Registre tarefas rápidas com data para acompanhar com a turma.
+          </p>
+          <ul className="mt-3 space-y-2 text-sm text-ys-ink">
+            {detail.activities.length === 0 && (
+              <li className="text-xs text-ys-graphite">Nenhuma atividade cadastrada.</li>
+            )}
+            {detail.activities.map((activity) => {
+              const dateLabel = formatDateLabel(activity.dateISO ?? activity.createdAt);
+              return (
+                <li key={activity.id} className="flex items-start justify-between gap-2">
+                  <div className="space-y-1">
+                    <p className="font-medium text-ys-ink">{activity.title}</p>
+                    <p className="text-xs text-ys-graphite">
+                      {dateLabel ? `Para ${dateLabel}` : 'Data não definida'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-rose-600 hover:underline"
+                    onClick={() => handleRemoveActivity(activity)}
+                  >
+                    Remover
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+
+        <div className="rounded-2xl border border-ys-line bg-white p-4 shadow-ys-sm">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-base font-semibold text-ys-ink">Avisos internos</h2>
+            <Button variant="ghost" onClick={handleNotifyClass}>
+              Adicionar
+            </Button>
+          </div>
+          <p className="mt-1 text-xs text-ys-graphite">
+            Use este espaço para lembretes exclusivos da equipe docente.
+          </p>
+          <ul className="mt-3 space-y-2 text-sm text-ys-ink">
+            {detail.notices.length === 0 && (
+              <li className="text-xs text-ys-graphite">Nenhum aviso cadastrado.</li>
+            )}
+            {detail.notices.map((notice) => {
+              const createdLabel = formatDateTimeLabel(notice.createdAt);
+              return (
+                <li key={notice.id} className="flex items-start justify-between gap-2">
+                  <div className="space-y-1">
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-ys-ink">
+                      {notice.message}
+                    </p>
+                    {createdLabel && (
+                      <p className="text-xs text-ys-graphite">Registrado em {createdLabel}</p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-rose-600 hover:underline"
+                    onClick={() => handleRemoveNotice(notice)}
+                  >
+                    Remover
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+
+        <div className="rounded-2xl border border-ys-line bg-white p-4 shadow-ys-sm">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-base font-semibold text-ys-ink">Datas importantes</h2>
+            <Button variant="ghost" onClick={handleOpenMilestoneModal}>
+              Adicionar
+            </Button>
+          </div>
+          <p className="mt-1 text-xs text-ys-graphite">
+            Mantenha um calendário rápido de provas, reuniões e eventos.
+          </p>
+          <ul className="mt-3 space-y-2 text-sm text-ys-ink">
+            {detail.milestones.length === 0 && (
+              <li className="text-xs text-ys-graphite">Nenhuma data registrada.</li>
+            )}
+            {detail.milestones.map((milestone) => {
+              const dateLabel = formatDateLabel(milestone.dateISO);
+              return (
+                <li key={milestone.id} className="flex items-start justify-between gap-2">
+                  <div className="space-y-1">
+                    <p className="font-medium text-ys-ink">{milestone.label}</p>
+                    <p className="text-xs text-ys-graphite">
+                      {dateLabel ? dateLabel : 'Data a definir'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-rose-600 hover:underline"
+                    onClick={() => handleRemoveMilestone(milestone)}
+                  >
+                    Remover
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </section>
 
       <div className="flex flex-wrap gap-2 border-b border-ys-line pb-2">
         {tabs.map((tab) => {
@@ -877,6 +1479,24 @@ export default function ClassDetailPage() {
         loading={saving}
         onClose={closeModal}
         onSubmit={editingStudent ? handleUpdateStudent : handleCreateStudent}
+      />
+      <ActivityModal
+        open={quickModal === 'activity'}
+        loading={quickSaving}
+        onClose={() => setQuickModal(null)}
+        onSubmit={handleSubmitActivity}
+      />
+      <NoticeModal
+        open={quickModal === 'notice'}
+        loading={quickSaving}
+        onClose={() => setQuickModal(null)}
+        onSubmit={handleSubmitNotice}
+      />
+      <MilestoneModal
+        open={quickModal === 'milestone'}
+        loading={quickSaving}
+        onClose={() => setQuickModal(null)}
+        onSubmit={handleSubmitMilestone}
       />
     </div>
   );

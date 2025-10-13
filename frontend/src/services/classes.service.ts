@@ -39,6 +39,28 @@ export type ClassTeacher = {
   subjects: string[];
 };
 
+export type ClassActivity = {
+  id: string;
+  _id: string;
+  title: string;
+  dateISO: string | null;
+  createdAt: string;
+};
+
+export type ClassMilestone = {
+  id: string;
+  _id: string;
+  label: string;
+  dateISO: string | null;
+};
+
+export type ClassNotice = {
+  id: string;
+  _id: string;
+  message: string;
+  createdAt: string;
+};
+
 export type ClassDetails = {
   id: string;
   _id?: string;
@@ -53,6 +75,9 @@ export type ClassDetails = {
   teachersCount: number;
   students: ClassStudent[];
   teachers: ClassTeacher[];
+  activities: ClassActivity[];
+  milestones: ClassMilestone[];
+  notices: ClassNotice[];
 };
 
 function extractData<T>(res: any): T | null {
@@ -105,6 +130,67 @@ function formatTeacherRecord(raw: unknown): ClassTeacher {
     name: typeof teacher?.name === 'string' ? teacher.name : '',
     email: typeof teacher?.email === 'string' ? teacher.email : undefined,
     subjects,
+  };
+}
+
+function normalizeIsoDate(value: unknown): string | null {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) {
+    return trimmed;
+  }
+  return parsed.toISOString();
+}
+
+function formatActivityRecord(raw: unknown): ClassActivity {
+  const record = raw as Record<string, unknown>;
+  const createdAtRaw = record?.createdAt;
+  return {
+    id: normalizeId(record?.id ?? record?._id ?? record),
+    _id: normalizeId(record?.id ?? record?._id ?? record),
+    title: typeof record?.title === 'string' ? record.title : '',
+    dateISO: normalizeIsoDate(record?.dateISO),
+    createdAt:
+      createdAtRaw instanceof Date
+        ? createdAtRaw.toISOString()
+        : typeof createdAtRaw === 'string'
+          ? createdAtRaw
+          : new Date().toISOString(),
+  };
+}
+
+function formatMilestoneRecord(raw: unknown): ClassMilestone {
+  const record = raw as Record<string, unknown>;
+  return {
+    id: normalizeId(record?.id ?? record?._id ?? record),
+    _id: normalizeId(record?.id ?? record?._id ?? record),
+    label: typeof record?.label === 'string' ? record.label : '',
+    dateISO: normalizeIsoDate(record?.dateISO),
+  };
+}
+
+function formatNoticeRecord(raw: unknown): ClassNotice {
+  const record = raw as Record<string, unknown>;
+  const createdAtRaw = record?.createdAt;
+  return {
+    id: normalizeId(record?.id ?? record?._id ?? record),
+    _id: normalizeId(record?.id ?? record?._id ?? record),
+    message: typeof record?.message === 'string' ? record.message : '',
+    createdAt:
+      createdAtRaw instanceof Date
+        ? createdAtRaw.toISOString()
+        : typeof createdAtRaw === 'string'
+          ? createdAtRaw
+          : new Date().toISOString(),
   };
 }
 
@@ -325,6 +411,15 @@ export async function getClassDetails(id: string): Promise<ClassDetails | null> 
     teachersCount: Number(cast.teachersCount || teachers.length || 0),
     students: students.map((rawStudent) => formatStudentRecord(rawStudent)),
     teachers: teachers.map((rawTeacher) => formatTeacherRecord(rawTeacher)),
+    activities: Array.isArray((cast as any).activities)
+      ? (cast as any).activities.map((entry: unknown) => formatActivityRecord(entry))
+      : [],
+    milestones: Array.isArray((cast as any).milestones)
+      ? (cast as any).milestones.map((entry: unknown) => formatMilestoneRecord(entry))
+      : [],
+    notices: Array.isArray((cast as any).notices)
+      ? (cast as any).notices.map((entry: unknown) => formatNoticeRecord(entry))
+      : [],
   };
 }
 
@@ -603,6 +698,68 @@ export async function updateClassStudent(
 export async function removeClassStudent(classId: string, studentId: string): Promise<{ success: true }> {
   const res = await api.delete(`/classes/${classId}/students/${studentId}`, { validateStatus: () => true } as any);
   ensureResponseOk(res, 'Erro ao remover aluno da turma');
+  return { success: true };
+}
+
+export async function addClassActivity(
+  classId: string,
+  payload: { title: string; dateISO?: string | null }
+): Promise<ClassActivity> {
+  const body: Record<string, unknown> = { title: payload.title };
+  if (payload.dateISO) {
+    body.dateISO = payload.dateISO;
+  }
+  const res = await api.post(`/classes/${classId}/activities`, body, {
+    validateStatus: () => true,
+  } as any);
+  return resolveData<ClassActivity>(res, 'Erro ao cadastrar atividade');
+}
+
+export async function removeClassActivity(classId: string, activityId: string): Promise<{ success: true }> {
+  const res = await api.delete(`/classes/${classId}/activities/${activityId}`, {
+    validateStatus: () => true,
+  } as any);
+  ensureResponseOk(res, 'Erro ao remover atividade');
+  return { success: true };
+}
+
+export async function addClassMilestone(
+  classId: string,
+  payload: { label: string; dateISO?: string | null }
+): Promise<ClassMilestone> {
+  const body: Record<string, unknown> = { label: payload.label };
+  if (payload.dateISO) {
+    body.dateISO = payload.dateISO;
+  }
+  const res = await api.post(`/classes/${classId}/milestones`, body, {
+    validateStatus: () => true,
+  } as any);
+  return resolveData<ClassMilestone>(res, 'Erro ao cadastrar data importante');
+}
+
+export async function removeClassMilestone(classId: string, milestoneId: string): Promise<{ success: true }> {
+  const res = await api.delete(`/classes/${classId}/milestones/${milestoneId}`, {
+    validateStatus: () => true,
+  } as any);
+  ensureResponseOk(res, 'Erro ao remover data importante');
+  return { success: true };
+}
+
+export async function addClassNotice(
+  classId: string,
+  payload: { message: string }
+): Promise<ClassNotice> {
+  const res = await api.post(`/classes/${classId}/notices`, payload, {
+    validateStatus: () => true,
+  } as any);
+  return resolveData<ClassNotice>(res, 'Erro ao registrar aviso');
+}
+
+export async function removeClassNotice(classId: string, noticeId: string): Promise<{ success: true }> {
+  const res = await api.delete(`/classes/${classId}/notices/${noticeId}`, {
+    validateStatus: () => true,
+  } as any);
+  ensureResponseOk(res, 'Erro ao remover aviso');
   return { success: true };
 }
 

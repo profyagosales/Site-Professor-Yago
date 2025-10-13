@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useEssays } from '@/hooks/useEssays';
 // import GradeModal from '@/components/redacao/GradeModal';
+// @ts-expect-error serviço legado em JS
 import { reenviarPdf } from '@/services/redacoes';
 import { toast } from 'react-toastify';
 import NewEssayModal from '@/components/redacao/NewEssayModal';
@@ -21,7 +22,7 @@ export default function RedacaoProfessorPage() {
     (async () => {
       try {
         const res = await listClasses();
-        const arr = Array.isArray(res?.data) ? res.data : res?.data?.data || res || [];
+        const arr = Array.isArray(res) ? (res as any[]) : [];
         setClasses(arr);
       } catch {}
     })();
@@ -120,8 +121,15 @@ export default function RedacaoProfessorPage() {
             {!loading && data?.items?.length === 0 && (
               <tr><td className="px-4 py-4 text-ys-ink-2" colSpan={7}>Sem redações {status === 'pending' ? 'pendentes' : 'corrigidas'}.</td></tr>
             )}
-            {!loading && data?.items?.map((e) => (
-              <tr key={e.id} className="odd:bg-[#F9FAFB]">
+            {!loading && data?.items?.map((e) => {
+              const rawId = (e as any)?._id ?? (e as any)?.id ?? null;
+              const essayId = typeof rawId === 'string' && rawId.trim() ? rawId : null;
+              if (!essayId) {
+                console.warn('Redação sem identificador válido para correção.', e);
+              }
+              const correctionUrl = essayId ? `/professor/redacao/${essayId}` : null;
+              return (
+              <tr key={essayId ?? `${e.studentName}-${e.submittedAt}`} className="odd:bg-[#F9FAFB]">
                 <td className="px-4 py-3">{e.studentName}</td>
                 <td className="px-4 py-3">{e.className}</td>
                 <td className="px-4 py-3">{e.topic}</td>
@@ -139,24 +147,43 @@ export default function RedacaoProfessorPage() {
                 )}
                 <td className="px-4 py-3">
                   {status === 'pending' ? (
-                    <a
-                      className="rounded-lg bg-orange-500 px-3 py-1.5 text-white hover:brightness-110"
-                      href={`/professor/redacao/${e.id}`}
-                    >Corrigir</a>
+                    correctionUrl ? (
+                      <a
+                        className="rounded-lg bg-orange-500 px-3 py-1.5 text-white hover:brightness-110"
+                        href={correctionUrl}
+                      >Corrigir</a>
+                    ) : (
+                      <button
+                        type="button"
+                        className="rounded-lg bg-gray-300 px-3 py-1.5 text-white cursor-not-allowed"
+                        disabled
+                        title="Identificador ausente"
+                      >Corrigir</button>
+                    )
                   ) : (
                     <div className="flex items-center gap-2">
                       <a className="rounded-lg border border-[#E5E7EB] px-3 py-1.5 hover:bg-[#F3F4F6]" href={e.fileUrl} target="_blank" rel="noreferrer">Ver PDF</a>
                       <button
                         className="rounded-lg bg-orange-500 px-3 py-1.5 text-white hover:brightness-110"
                         onClick={async ()=>{
-                          try { await reenviarPdf(e.id); toast.success('PDF reenviado'); } catch (err:any) { toast.error(err?.response?.data?.message || 'Falha ao reenviar'); }
+                          if (!essayId) {
+                            console.warn('Não foi possível reenviar PDF: redação sem identificador.', e);
+                            return;
+                          }
+                          try {
+                            await reenviarPdf(essayId);
+                            toast.success('PDF reenviado');
+                          } catch (err:any) {
+                            toast.error(err?.response?.data?.message || 'Falha ao reenviar');
+                          }
                         }}
+                        disabled={!essayId}
                       >Reenviar PDF</button>
                     </div>
                   )}
                 </td>
               </tr>
-            ))}
+            );})}
           </tbody>
         </table>
       </div>

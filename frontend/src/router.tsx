@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import PublicLayout from '@/layouts/PublicLayout';
 import AppShellLayout from '@/layouts/AppShellLayout';
 import PrivateRoute from '@/routes/PrivateRoute';
+import TeacherGuard from '@/routes/TeacherGuard';
 import Landing from '@/pages/Landing';
 import LoginProfessor from '@/pages/auth/LoginProfessor';
 import LoginAluno from '@/pages/auth/LoginAluno';
@@ -46,17 +47,17 @@ export const router = createBrowserRouter([
         children: [
           // Página principal do professor: Resumo
           { path: '/professor', element: <Navigate to="/professor/resumo" replace /> },
-          { path: '/professor/resumo', element: <DashboardProfessor /> },
+          { path: '/professor/resumo', element: <TeacherGuard><DashboardProfessor /></TeacherGuard> },
           // Compat: rotas antigas/curtas
           { path: '/dashboard', element: <Navigate to="/professor/resumo" replace /> },
           { path: '/professor/dashboard', element: <Navigate to="/professor/resumo" replace /> },
           { path: '/turmas', element: <Navigate to="/professor/classes" replace /> },
           { path: '/redacao', element: <Navigate to="/professor/redacao" replace /> },
-          { path: '/professor/classes', element: <ClassesPage /> },
-          { path: '/professor/classes/:id', element: <ClassDetailPage /> },
+          { path: '/professor/classes', element: <TeacherGuard><ClassesPage /></TeacherGuard> },
+          { path: '/professor/classes/:id', element: <TeacherGuard><ClassDetailPage /></TeacherGuard> },
           {
             path: '/professor/classes/:classId/students/:studentId',
-            element: <StudentProfilePage />,
+            element: <TeacherGuard><StudentProfilePage /></TeacherGuard>,
             children: [
               { index: true, element: <StudentGradesTab /> },
               { path: 'essays', element: <StudentEssaysTab /> },
@@ -64,13 +65,13 @@ export const router = createBrowserRouter([
               { path: 'email', element: <StudentEmailTab /> },
             ],
           },
-          { path: '/professor/classes/:id/alunos', element: <TurmaAlunosPage /> },
-          { path: '/professor/redacao', element: <Suspense fallback={<div className="p-6">Carregando…</div>}><RedacaoProfessorPage /></Suspense> },
-          { path: '/professor/redacao/:id', element: <Suspense fallback={<div className="p-6">Carregando…</div>}><GradeWorkspace /></Suspense> },
-          { path: '/professor/alunos', element: <ListaAlunos /> },
-          { path: '/professor/alunos/:id', element: <PerfilAluno /> },
+          { path: '/professor/classes/:id/alunos', element: <TeacherGuard><TurmaAlunosPage /></TeacherGuard> },
+          { path: '/professor/redacao', element: <TeacherGuard><Suspense fallback={<div className="p-6">Carregando…</div>}><RedacaoProfessorPage /></Suspense></TeacherGuard> },
+          { path: '/professor/redacao/:id', element: <TeacherGuard><Suspense fallback={<div className="p-6">Carregando…</div>}><GradeWorkspace /></Suspense></TeacherGuard> },
+          { path: '/professor/alunos', element: <TeacherGuard><ListaAlunos /></TeacherGuard> },
+          { path: '/professor/alunos/:id', element: <TeacherGuard><PerfilAluno /></TeacherGuard> },
           // Rota dev: console de telemetria (apenas se flag no frontend estiver ativa)
-          { path: '/dev/telemetry', element: <Suspense fallback={<div className="p-6">Carregando…</div>}><DevTelemetryConsole /></Suspense> },
+          { path: '/dev/telemetry', element: <TeacherGuard><Suspense fallback={<div className="p-6">Carregando…</div>}><DevTelemetryConsole /></Suspense></TeacherGuard> },
         ],
       },
       {
