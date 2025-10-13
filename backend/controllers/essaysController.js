@@ -5,6 +5,7 @@ const Essay = require('../models/Essay');
 const EssayTheme = require('../models/EssayTheme');
 const Student = require('../models/Student');
 const Class = require('../models/Class');
+const { isValidObjectId } = require('mongoose');
 const { sendEmail } = require('../services/emailService');
 const { recordEssayScore } = require('../services/gradesIntegration');
 const { renderEssayCorrectionPdf } = require('../services/pdfService');
@@ -48,6 +49,9 @@ const upload = multer({ storage, limits: { fileSize: 15 * 1024 * 1024 }, fileFil
 
 async function getEssay(req, res) {
   const { id } = req.params;
+  if (!isValidObjectId(id)) {
+    return res.status(400).json({ message: 'ID inválido' });
+  }
   try {
     const essay = await Essay.findById(id)
       .populate('studentId', 'name email photo rollNumber class')
@@ -158,6 +162,9 @@ async function createEssay(req, res) {
 async function updateEssay(req, res) {
   try {
     const { id } = req.params;
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: 'ID inválido' });
+    }
     const { themeId, customTheme, bimester, type, studentId } = req.body || {};
     const update = {};
 
@@ -255,6 +262,9 @@ function roundToTwoDecimals(num) {
 async function gradeEssay(req, res) {
   try {
     const { id } = req.params;
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: 'ID inválido' });
+    }
     const essay = await Essay.findById(id);
     if (!essay) return res.status(404).json({ message: 'Redação não encontrada' });
 
@@ -384,6 +394,9 @@ async function gradeEssay(req, res) {
 async function updateAnnotations(req, res) {
   try {
     const { id } = req.params;
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: 'ID inválido' });
+    }
     const { annotations, richAnnotations } = req.body;
     const essay = await Essay.findById(id);
     if (!essay) return res.status(404).json({ message: 'Redação não encontrada' });
@@ -540,6 +553,9 @@ module.exports = {
   // Compat: endpoints GET/PUT para { highlights:[], comments:[] }
   async getAnnotationsCompat(req, res) {
     const { id } = req.params;
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: 'ID inválido' });
+    }
     const essay = await Essay.findById(id).select('richAnnotations');
     if (!essay) return res.status(404).json({ message: 'Redação não encontrada' });
     const highlights = [];
@@ -561,6 +577,9 @@ module.exports = {
   },
   async putAnnotationsCompat(req, res) {
     const { id } = req.params;
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: 'ID inválido' });
+    }
     const body = req.body || {};
     const inHigh = Array.isArray(body.highlights) ? body.highlights : [];
     const inCom = Array.isArray(body.comments) ? body.comments : [];

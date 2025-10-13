@@ -1,4 +1,5 @@
 const express = require('express');
+const { isValidObjectId } = require('mongoose');
 
 // Auth unificado (lê cookie/Authorization/x-access-token)
 const authMod = require('../middleware/auth');
@@ -28,6 +29,13 @@ const fileTokenCompat = require('../middlewares/fileTokenCompat'); // único com
 
 const router = express.Router();
 
+function ensureValidId(req, res, next) {
+  if (!isValidObjectId(req.params.id)) {
+    return res.status(400).json({ message: 'ID inválido' });
+  }
+  next();
+}
+
 /** --------- Themes --------- */
 router.get('/themes', authRequired, getThemes);
 router.post('/themes', authRequired, createTheme);
@@ -52,13 +60,14 @@ router.post('/:id/send-email', authRequired, sendCorrectionEmail);
 
 /** --------- File-token curto --------- */
 // POST legacy (mantido) + GET (usado por loaders que não aceitam POST)
-router.post('/:id/file-token', authRequired, fileController.issueFileToken);
-router.get('/:id/file-token', authRequired, fileController.issueFileToken);
+router.post('/:id/file-token', ensureValidId, authRequired, fileController.issueFileToken);
+router.get('/:id/file-token', ensureValidId, authRequired, fileController.issueFileToken);
 
 /** --------- Download/stream do PDF --------- */
 // HEAD “leve” para o visualizador descobrir tipo/tamanho sem baixar
 router.head(
   '/:id/file',
+  ensureValidId,
   authOptional,                    // não obriga login pro HEAD
   fileController.authorizeFileAccess, // valida sessão OU token curto se presente
   async (req, res, next) => {
@@ -80,6 +89,7 @@ router.head(
 // GET com suporte a Range; aceita token curto via query/header (compat)
 router.get(
   '/:id/file',
+  ensureValidId,
   fileTokenCompat,                    // popula req.fileToken / payload (se existir)
   fileController.authorizeFileAccess, // permite acesso por sessão OU token curto
   async (req, res, next) => {
@@ -92,6 +102,6 @@ router.get(
 );
 
 // URL assinada curta (opcional)
-router.get('/:id/file-signed', authRequired, fileController.getSignedFileUrl);
+router.get('/:id/file-signed', ensureValidId, authRequired, fileController.getSignedFileUrl);
 
 module.exports = router;
