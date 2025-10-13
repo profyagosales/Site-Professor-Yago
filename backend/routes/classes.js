@@ -9,24 +9,11 @@ const Class = require('../models/Class');
 const Student = require('../models/Student');
 const Teacher = require('../models/Teacher');
 const { sendEmail } = require('../services/emailService');
+const classesController = require('../controllers/classesController');
+const studentGradesController = require('../controllers/studentGradesController');
 
 const router = express.Router();
 const upload = multer();
-
-const dayMap = {
-  SEGUNDA: 'MONDAY',
-  TERCA: 'TUESDAY',
-  QUARTA: 'WEDNESDAY',
-  QUINTA: 'THURSDAY',
-  SEXTA: 'FRIDAY',
-};
-const allowedDays = Object.keys(dayMap);
-const allowedSlots = [1, 2, 3];
-const slotTimes = {
-  1: '07:00',
-  2: '09:00',
-  3: '11:00',
-};
 
 async function syncStudentsCount(classId) {
   if (!isValidObjectId(classId)) return 0;
@@ -60,7 +47,9 @@ function toBoolean(value) {
 router.get('/', async (req, res, next) => {
   try {
     const [classes, counts] = await Promise.all([
-      Class.find().select('series letter discipline schedule teachers studentsCount').lean({ virtuals: true }),
+      Class.find()
+        .select('name subject year series letter discipline schedule teachers studentsCount')
+        .lean({ virtuals: true }),
       Student.aggregate([
         { $match: { class: { $ne: null } } },
         { $group: { _id: '$class', count: { $sum: 1 } } }
@@ -76,11 +65,15 @@ router.get('/', async (req, res, next) => {
 
     const enriched = classes.map((cls) => {
       const teachersCount = Array.isArray(cls.teachers) ? cls.teachers.length : 0;
-      const { teachers, _id, studentsCount, ...rest } = cls;
+      const { teachers, _id, studentsCount, name, subject, year, ...rest } = cls;
       const storedCount = typeof studentsCount === 'number' ? studentsCount : undefined;
       const computedCount = countMap[String(_id)];
       return {
         id: String(_id),
+        _id: String(_id),
+        name: name || (cls.series && cls.letter ? `${cls.series}${cls.letter}` : ''),
+        subject: subject || cls.discipline,
+        year,
         ...rest,
         teachersCount,
         studentsCount: storedCount ?? computedCount ?? 0,
@@ -110,7 +103,7 @@ router.get('/:id', async (req, res, next) => {
     }
 
     const cls = await Class.findById(id)
-      .select('series letter discipline schedule teachers studentsCount')
+      .select('name subject year series letter discipline schedule teachers studentsCount')
       .lean();
     if (!cls) {
       const error = new Error('Turma não encontrada');
@@ -133,9 +126,13 @@ router.get('/:id', async (req, res, next) => {
     const storedCount = typeof cls.studentsCount === 'number' ? cls.studentsCount : undefined;
     const data = {
       id: String(cls._id),
+      _id: String(cls._id),
+      name: cls.name || (cls.series && cls.letter ? `${cls.series}${cls.letter}` : ''),
+  subject: cls.subject || cls.discipline,
+      year: cls.year,
       series: cls.series,
       letter: cls.letter,
-      discipline: cls.discipline,
+  discipline: cls.discipline || cls.subject,
       schedule: cls.schedule || [],
       students: students.map((s) => ({
         id: String(s._id),
@@ -167,125 +164,11 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-// Create class
-router.post('/', authRequired, async (req, res, next) => {
-  try {
-    const { series, letter, discipline, schedule, teachers: teachersRaw, ...rest } = req.body || {};
-    if (
-      !Array.isArray(schedule) ||
-      schedule.length === 0 ||
-      !schedule.every(
-        (s) =>
-          s &&
-          allowedDays.includes(s.day) &&
-          allowedSlots.includes(s.slot)
-      )
-    ) {
-      const error = new Error('Campo "schedule" inválido');
-      error.status = 400;
-      throw error;
-    }
-    const normalizedSchedule = schedule.map((s) => ({
-      day: dayMap[s.day],
-      slot: s.slot,
-      time: slotTimes[s.slot],
-    }));
-    const ownerId = req.user && req.user._id;
-    let teachers = Array.isArray(teachersRaw) ? teachersRaw.filter(Boolean) : [];
-    if (ownerId && !teachers.some((t) => String(t) === String(ownerId))) {
-      teachers.push(ownerId);
-    }
-    const newClass = await Class.create({
-      series,
-      letter,
-      discipline,
-      schedule: normalizedSchedule,
-      teachers,
-      ...rest,
-    });
-    res.status(200).json({
-      success: true,
-      message: 'Turma criada com sucesso',
-      data: newClass,
-    });
-  } catch (err) {
-    if (!err.status) {
-      err.status = 400;
-      err.message = 'Erro ao criar turma';
-    }
-    next(err);
-  }
-});
-
-// Update class
-router.put('/:id', async (req, res, next) => {
-  try {
-    const { series, letter, discipline, schedule } = req.body;
-    if (
-      !Array.isArray(schedule) ||
-      schedule.length === 0 ||
-      !schedule.every(
-        (s) =>
-          s &&
-          allowedDays.includes(s.day) &&
-          allowedSlots.includes(s.slot)
-      )
-    ) {
-      const error = new Error('Campo "schedule" inválido');
-      error.status = 400;
-      throw error;
-    }
-    const normalizedSchedule = schedule.map((s) => ({
-      day: dayMap[s.day],
-      slot: s.slot,
-      time: slotTimes[s.slot],
-    }));
-    const updatedClass = await Class.findByIdAndUpdate(
-      req.params.id,
-      { series, letter, discipline, schedule: normalizedSchedule },
-      { new: true }
-    );
-    if (!updatedClass) {
-      const error = new Error('Turma não encontrada');
-      error.status = 404;
-      throw error;
-    }
-    res.status(200).json({
-      success: true,
-      message: 'Turma atualizada com sucesso',
-      data: updatedClass,
-    });
-  } catch (err) {
-    if (!err.status) {
-      err.status = 400;
-      err.message = 'Erro ao atualizar turma';
-    }
-    next(err);
-  }
-});
-
-// Delete class
-router.delete('/:id', async (req, res, next) => {
-  try {
-    const deletedClass = await Class.findByIdAndDelete(req.params.id);
-    if (!deletedClass) {
-      const error = new Error('Turma não encontrada');
-      error.status = 404;
-      throw error;
-    }
-    res.status(200).json({
-      success: true,
-      message: 'Turma removida com sucesso',
-      data: null
-    });
-  } catch (err) {
-    if (!err.status) {
-      err.status = 500;
-      err.message = 'Erro ao remover turma';
-    }
-    next(err);
-  }
-});
+// Create / Update / Delete class (novo controller preservando compatibilidade)
+router.post('/', authRequired, classesController.createClass);
+router.patch('/:id', authRequired, classesController.updateClass);
+router.put('/:id', classesController.updateClass);
+router.delete('/:id', classesController.deleteClass);
 
 // Join class as teacher
 router.post('/:id/join-as-teacher', authRequired, async (req, res, next) => {
@@ -566,6 +449,18 @@ router.patch(
       next(err);
     }
   }
+);
+
+router.get(
+  '/:classId/students/:studentId/grades',
+  authRequired,
+  studentGradesController.listStudentGrades
+);
+
+router.post(
+  '/:classId/students/:studentId/grades',
+  authRequired,
+  studentGradesController.upsertStudentGrade
 );
 
 // Delete student from a class

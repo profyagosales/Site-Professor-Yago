@@ -1,0 +1,279 @@
+const { isValidObjectId } = require('mongoose');
+const Class = require('../models/Class');
+
+const allowedWeekdays = [1, 2, 3, 4, 5];
+const allowedSlots = [1, 2, 3];
+const weekdayMap = {
+  1: 'MONDAY',
+  2: 'TUESDAY',
+  3: 'WEDNESDAY',
+  4: 'THURSDAY',
+  5: 'FRIDAY',
+};
+const slotTimes = {
+  1: '07:00',
+  2: '09:00',
+  3: '11:00',
+};
+const dayNameToNumber = {
+  MONDAY: 1,
+  TUESDAY: 2,
+  WEDNESDAY: 3,
+  THURSDAY: 4,
+  FRIDAY: 5,
+  SEGUNDA: 1,
+  TERCA: 2,
+  QUARTA: 3,
+  QUINTA: 4,
+  SEXTA: 5,
+};
+
+function normalizeString(value) {
+  if (typeof value !== 'string') return '';
+  return value.trim();
+}
+
+function parseNumber(value) {
+  if (value === null || value === undefined || value === '') return undefined;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+function deriveSeriesLetter(name) {
+  const normalized = normalizeString(name);
+  if (!normalized) return {};
+  const numberMatch = normalized.match(/^\d{1,2}/);
+  if (!numberMatch) {
+    return {};
+  }
+  const seriesValue = Number(numberMatch[0]);
+  const suffix = normalizeString(normalized.slice(numberMatch[0].length));
+  const letterValue = suffix ? suffix[0].toUpperCase() : undefined;
+  return {
+    series: Number.isNaN(seriesValue) ? undefined : seriesValue,
+    letter: letterValue,
+  };
+}
+
+function normalizeSchedule(input) {
+  if (!Array.isArray(input)) return undefined;
+  const normalized = [];
+  input.forEach((entry) => {
+    if (!entry) return;
+    const weekdayRaw = entry.weekday ?? entry.day ?? entry.weekDay;
+    const slotRaw = entry.slot ?? entry.turno ?? entry.timeSlot;
+    let weekday = parseNumber(weekdayRaw);
+    if (!weekday && typeof weekdayRaw === 'string') {
+      weekday = dayNameToNumber[weekdayRaw.trim().toUpperCase()];
+    }
+    const slot = parseNumber(slotRaw);
+    if (!weekday || !slot) return;
+    if (!allowedWeekdays.includes(weekday) || !allowedSlots.includes(slot)) return;
+    normalized.push({
+      day: weekdayMap[weekday],
+      slot,
+      time: slotTimes[slot],
+    });
+  });
+  return normalized;
+}
+
+function buildSummaryPayload(doc) {
+  if (!doc) return null;
+  const id = String(doc._id || doc.id);
+  const series = doc.series ?? undefined;
+  const letter = doc.letter ?? undefined;
+  const subject = doc.subject || doc.discipline || '';
+  const name = doc.name || (series !== undefined && letter ? `${series}${letter}` : '');
+  const teachers = Array.isArray(doc.teachers) ? doc.teachers : [];
+  return {
+    _id: id,
+    id,
+    name,
+    subject,
+    year: doc.year ?? undefined,
+    series,
+    letter,
+    discipline: subject,
+    schedule: Array.isArray(doc.schedule) ? doc.schedule : [],
+    studentsCount: typeof doc.studentsCount === 'number' ? doc.studentsCount : 0,
+    teachersCount: typeof doc.teachersCount === 'number' ? doc.teachersCount : teachers.length,
+  };
+}
+
+async function ensureClassExists(id) {
+  if (!isValidObjectId(id)) {
+    const error = new Error('ID inválido');
+    error.status = 400;
+    throw error;
+  }
+  const cls = await Class.findById(id).lean();
+  if (!cls) {
+    const error = new Error('Turma não encontrada');
+    error.status = 404;
+    throw error;
+  }
+  return cls;
+}
+
+exports.createClass = async (req, res, next) => {
+  try {
+    const name = normalizeString(req.body?.name ?? req.body?.nome);
+    const subject = normalizeString(req.body?.subject ?? req.body?.discipline);
+    const year = parseNumber(req.body?.year ?? req.body?.ano);
+
+    if (!name) {
+      const error = new Error('Informe o nome da turma.');
+      error.status = 400;
+      throw error;
+    }
+    if (!subject) {
+      const error = new Error('Informe a disciplina da turma.');
+      error.status = 400;
+      throw error;
+    }
+
+    const derived = deriveSeriesLetter(name);
+    const series = parseNumber(req.body?.series ?? req.body?.serie) ?? derived.series;
+    const letter = normalizeString(req.body?.letter ?? req.body?.turma ?? derived.letter);
+
+    if (!series || !letter) {
+      const error = new Error('Não foi possível determinar a série e a turma.');
+      error.status = 400;
+      throw error;
+    }
+
+    const schedule = normalizeSchedule(req.body?.schedule);
+    const teachers = Array.isArray(req.body?.teachers)
+      ? req.body.teachers.filter((teacherId) => teacherId && isValidObjectId(String(teacherId)))
+      : undefined;
+    const ownerId = req.user && req.user._id ? String(req.user._id) : null;
+
+    const payload = {
+      name,
+      subject,
+      year,
+      series,
+      letter,
+      discipline: subject,
+      schedule: schedule ?? [],
+      studentsCount: 0,
+    };
+
+    if (teachers) {
+      payload.teachers = teachers;
+    } else if (ownerId) {
+      payload.teachers = [ownerId];
+    }
+
+    if (ownerId && payload.teachers && !payload.teachers.some((teacherId) => String(teacherId) === ownerId)) {
+      payload.teachers.push(ownerId);
+    }
+
+    const created = await Class.create(payload);
+    const summary = buildSummaryPayload(created);
+
+    res.status(201).json({
+      success: true,
+      message: 'Turma criada com sucesso',
+      data: summary,
+    });
+  } catch (error) {
+    if (!error.status) {
+      error.status = 400;
+      error.message = error.message || 'Erro ao criar turma';
+    }
+    next(error);
+  }
+};
+
+exports.updateClass = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    await ensureClassExists(id);
+
+    const updates = {};
+    const name = normalizeString(req.body?.name ?? req.body?.nome);
+    const subject = normalizeString(req.body?.subject ?? req.body?.discipline);
+    const year = parseNumber(req.body?.year ?? req.body?.ano);
+    const schedule = normalizeSchedule(req.body?.schedule);
+
+    if (name) {
+      updates.name = name;
+      const derived = deriveSeriesLetter(name);
+      if (derived.series) updates.series = derived.series;
+      if (derived.letter) updates.letter = derived.letter;
+    }
+
+    if (subject) {
+      updates.subject = subject;
+      updates.discipline = subject;
+    }
+
+    if (year !== undefined) {
+      updates.year = year;
+      if (!updates.series) {
+        const derived = deriveSeriesLetter(name || req.body?.name);
+        if (derived.series) updates.series = derived.series;
+      }
+    }
+
+    if (req.body?.series !== undefined) {
+      const series = parseNumber(req.body.series);
+      if (series !== undefined) {
+        updates.series = series;
+      }
+    }
+
+    if (req.body?.letter !== undefined) {
+      const letterValue = normalizeString(req.body.letter);
+      if (letterValue) {
+        updates.letter = letterValue;
+      }
+    }
+
+    if (Array.isArray(req.body?.teachers)) {
+      updates.teachers = req.body.teachers.filter((teacherId) => teacherId && isValidObjectId(String(teacherId)));
+    }
+
+    if (schedule) {
+      updates.schedule = schedule;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      const error = new Error('Nenhuma alteração informada.');
+      error.status = 400;
+      throw error;
+    }
+
+    const updated = await Class.findByIdAndUpdate(id, updates, { new: true, runValidators: true }).lean();
+
+    const summary = buildSummaryPayload(updated);
+    res.status(200).json({
+      success: true,
+      message: 'Turma atualizada com sucesso',
+      data: summary,
+    });
+  } catch (error) {
+    if (!error.status) {
+      error.status = 400;
+      error.message = error.message || 'Erro ao atualizar turma';
+    }
+    next(error);
+  }
+};
+
+exports.deleteClass = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    await ensureClassExists(id);
+    await Class.findByIdAndDelete(id);
+    res.status(200).json({ success: true, message: 'Turma removida com sucesso', data: null });
+  } catch (error) {
+    if (!error.status) {
+      error.status = 500;
+      error.message = error.message || 'Erro ao remover turma';
+    }
+    next(error);
+  }
+};

@@ -13,9 +13,15 @@ import { lazy, Suspense } from 'react';
 const RedacaoProfessorPage = lazy(() => import(/* @vite-ignore */ '@/pages/professor/redacao/RedacaoProfessorPage'));
 const GradeWorkspace = lazy(() => import(/* @vite-ignore */ '@/pages/professor/redacao/GradeWorkspace'));
 import NotFound from '@/pages/NotFound';
-import TurmasPage from '@/pages/professor/Turmas';
 import TurmaAlunosPage from '@/pages/professor/TurmaAlunos';
-import ClassDetailPage from '@/pages/professor/ClassDetail';
+import ClassesPage from '@/pages/professor/classes';
+import ClassDetailPage from '@/pages/professor/classes/[id]';
+import StudentProfilePage, {
+  StudentEmailTab,
+  StudentEssaysTab,
+  StudentGradesTab,
+  StudentNotesTab,
+} from '@/pages/professor/classes/[classId]/students/[studentId]';
 import ListaAlunos from '@/pages/professor/alunos/ListaAlunos';
 import PerfilAluno from '@/pages/professor/alunos/PerfilAluno';
 import AlunoRedacoes from '@/pages/aluno/Redacoes';
@@ -46,8 +52,18 @@ export const router = createBrowserRouter([
           { path: '/professor/dashboard', element: <Navigate to="/professor/resumo" replace /> },
           { path: '/turmas', element: <Navigate to="/professor/classes" replace /> },
           { path: '/redacao', element: <Navigate to="/professor/redacao" replace /> },
-          { path: '/professor/classes', element: <TurmasPage /> },
+          { path: '/professor/classes', element: <ClassesPage /> },
           { path: '/professor/classes/:id', element: <ClassDetailPage /> },
+          {
+            path: '/professor/classes/:classId/students/:studentId',
+            element: <StudentProfilePage />,
+            children: [
+              { index: true, element: <StudentGradesTab /> },
+              { path: 'essays', element: <StudentEssaysTab /> },
+              { path: 'notes', element: <StudentNotesTab /> },
+              { path: 'email', element: <StudentEmailTab /> },
+            ],
+          },
           { path: '/professor/classes/:id/alunos', element: <TurmaAlunosPage /> },
           { path: '/professor/redacao', element: <Suspense fallback={<div className="p-6">Carregando…</div>}><RedacaoProfessorPage /></Suspense> },
           { path: '/professor/redacao/:id', element: <Suspense fallback={<div className="p-6">Carregando…</div>}><GradeWorkspace /></Suspense> },

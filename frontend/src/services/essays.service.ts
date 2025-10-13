@@ -25,6 +25,87 @@ type FetchEssaysPageParams = {
   type?: string;
 };
 
+export type StudentEssayStatus = 'PENDING' | 'GRADED';
+
+export type StudentEssaySummary = {
+  id: string;
+  status: StudentEssayStatus;
+  theme: string;
+  type?: 'ENEM' | 'PAS' | string;
+  submittedAt: string;
+  updatedAt?: string;
+  bimester?: number;
+  rawScore?: number | null;
+  scaledScore?: number | null;
+  bimestralComputedScore?: number | null;
+  bimestreWeight?: number | null;
+  correctedFileAvailable: boolean;
+};
+
+type ListStudentEssaysOptions = {
+  studentId: string;
+  status: StudentEssayStatus;
+  classId?: string;
+  page?: number;
+  limit?: number;
+};
+
+function normalizeId(value: any): string {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object') {
+    if (typeof value.id === 'string') return value.id;
+    if (typeof value._id === 'string') return value._id;
+  }
+  return String(value);
+}
+
+function normalizeEssayStatus(value: unknown): StudentEssayStatus {
+  if (typeof value !== 'string') return 'PENDING';
+  const upper = value.trim().toUpperCase();
+  if (upper === 'GRADED' || upper === 'CORRECTED') return 'GRADED';
+  return 'PENDING';
+}
+
+function formatIso(value: unknown): string {
+  if (typeof value === 'string' && value) return value;
+  if (value instanceof Date) return value.toISOString();
+  return new Date().toISOString();
+}
+
+function toStudentEssaySummary(raw: any): StudentEssaySummary {
+  const themeName =
+    typeof raw?.customTheme === 'string' && raw.customTheme.trim()
+      ? raw.customTheme.trim()
+      : typeof raw?.themeId?.name === 'string' && raw.themeId.name.trim()
+        ? raw.themeId.name.trim()
+        : 'Tema não informado';
+
+  const submittedAtSource = raw?.submittedAt ?? raw?.createdAt ?? raw?.updatedAt;
+  const updatedAtSource = raw?.updatedAt;
+
+  const bimesterNumber = raw?.bimester != null ? Number(raw.bimester) : undefined;
+
+  const submittedAt = formatIso(submittedAtSource);
+  const updatedAt = updatedAtSource ? formatIso(updatedAtSource) : undefined;
+
+  return {
+    id: normalizeId(raw),
+    status: normalizeEssayStatus(raw?.status),
+    theme: themeName,
+    type: typeof raw?.type === 'string' ? raw.type : undefined,
+    submittedAt,
+    updatedAt,
+    bimester: Number.isFinite(bimesterNumber) ? (bimesterNumber as number) : undefined,
+    rawScore: typeof raw?.rawScore === 'number' ? raw.rawScore : undefined,
+    scaledScore: typeof raw?.scaledScore === 'number' ? raw.scaledScore : undefined,
+    bimestralComputedScore:
+      typeof raw?.bimestralComputedScore === 'number' ? raw.bimestralComputedScore : undefined,
+    bimestreWeight: typeof raw?.bimestreWeight === 'number' ? raw.bimestreWeight : undefined,
+    correctedFileAvailable: Boolean(raw?.correctedUrl),
+  };
+}
+
 type GradeEssayPayload = {
   essayType: 'ENEM' | 'PAS';
   weight: number;
@@ -120,6 +201,43 @@ export async function fetchEssays(params: FetchEssaysParams): Promise<EssaysPage
 export async function fetchEssaysPage(params: FetchEssaysPageParams): Promise<EssaysPage> {
   const { data } = await api.get('/essays', { params });
   return data;
+}
+
+export async function listStudentEssaysByStatus(
+  options: ListStudentEssaysOptions
+): Promise<StudentEssaySummary[]> {
+  if (!options.studentId) {
+    return [];
+  }
+
+  const params: Record<string, unknown> = {
+    studentId: options.studentId,
+    status: options.status,
+    page: options.page ?? 1,
+    limit: options.limit ?? 50,
+  };
+
+  if (options.classId) {
+    params.classId = options.classId;
+  }
+
+  const res = await api.get('/essays', {
+    params,
+    validateStatus: () => true,
+  });
+
+  if (res.status >= 400) {
+    const message = res?.data?.message || 'Erro ao carregar redações do aluno';
+    throw new Error(message);
+  }
+
+  const payload = res?.data;
+  const rawItems: any[] = Array.isArray(payload?.items)
+    ? payload.items
+    : Array.isArray(payload)
+      ? payload
+      : [];
+  return rawItems.map((item) => toStudentEssaySummary(item));
 }
 
 export async function fetchEssayById(id: EssayId, options?: { signal?: AbortSignal }) {

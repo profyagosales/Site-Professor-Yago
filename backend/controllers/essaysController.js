@@ -204,14 +204,35 @@ async function updateEssay(req, res) {
 async function listEssays(req, res) {
   const filter = {};
   const { status, classId, studentId, bimester, type, q } = req.query;
-  if (status) filter.status = status;
+
+  if (typeof status === 'string' && status.trim()) {
+    const normalizedStatus = status.trim().toUpperCase();
+    if (normalizedStatus === 'CORRECTED') {
+      filter.status = 'GRADED';
+    } else if (normalizedStatus === 'PENDING' || normalizedStatus === 'GRADED') {
+      filter.status = normalizedStatus;
+    } else {
+      filter.status = normalizedStatus;
+    }
+  }
+
   if (bimester) filter.bimester = Number(bimester);
   if (type) filter.type = type;
   if (req.profile === 'student') {
     filter.studentId = req.user._id;
   } else {
-    if (studentId) filter.studentId = studentId;
-    if (classId) filter.classId = classId;
+    if (studentId) {
+      if (!isValidObjectId(studentId)) {
+        return res.status(400).json({ message: 'Aluno inválido' });
+      }
+      filter.studentId = studentId;
+    }
+    if (classId) {
+      if (!isValidObjectId(classId)) {
+        return res.status(400).json({ message: 'Turma inválida' });
+      }
+      filter.classId = classId;
+    }
   }
 
   // Build pagination
@@ -237,6 +258,7 @@ async function listEssays(req, res) {
     Essay.find(filter)
       .populate('studentId', 'name rollNumber photo')
       .populate('classId', 'series letter discipline')
+      .populate('themeId', 'name type')
       .sort({ submittedAt: -1 })
       .skip(skip)
       .limit(limit),
