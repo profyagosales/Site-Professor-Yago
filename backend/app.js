@@ -23,6 +23,7 @@ const contentsRoutes = require('./routes/contents');
 const themesRoutes = require('./routes/themes');
 
 const { corsOptions } = require('./corsConfig');
+
 const app = express();
 
 // CORS (centralizado)
@@ -30,11 +31,9 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 // #### Sessão estável em produção atrás de proxy (Render/Cloudflare)
-// Garante req.secure correto e permite cookies "secure" atrás de proxy HTTPS
 app.set('trust proxy', 1);
 
 // #### Força cookies compatíveis com cross-site (api.<domínio> <-> <domínio>)
-// Qualquer res.cookie/clearCookie herdará estes defaults.
 app.use((req, res, next) => {
   const isProd = process.env.NODE_ENV === 'production';
   const domain = process.env.COOKIE_DOMAIN || (isProd ? '.professoryagosales.com.br' : undefined);
@@ -55,28 +54,38 @@ app.use((req, res, next) => {
 // --- API: desabilita ETag e cache para evitar 304 em endpoints como /api/me e /api/professor/classes
 app.set('etag', false);
 const apiNoStore = (_req, res, next) => {
-  // Evita cache/condicionais (If-None-Match → 304)
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.set('Pragma', 'no-cache');
   res.set('Expires', '0');
   next();
 };
-app.use('/api', apiNoStore);
+
+function normalizePrefix(input) {
+  const fallback = '/api';
+  if (!input) return fallback;
+  try {
+    if (/^https?:\/\//i.test(input)) {
+      const p = new URL(input).pathname || fallback;
+      return p.endsWith('/') && p !== '/' ? p.slice(0, -1) : p;
+    }
+    const p = input.startsWith('/') ? input : `/${input}`;
+    return p.endsWith('/') && p !== '/' ? p.slice(0, -1) : p;
+  } catch {
+    return fallback;
+  }
+}
+
+const API_PREFIX = normalizePrefix(process.env.API_PREFIX);
+console.log('[boot] API_PREFIX =', API_PREFIX);
+const API_BASE = (API_PREFIX || '/api').replace(/\/$/, '') || '/api';
+
+app.use(API_PREFIX, apiNoStore);
 
 // *** NOVO: confiar no proxy (Render/Cloudflare) para cookies secure
 // Já habilitado acima com app.set('trust proxy', 1);
 
 // ---------- CONFIG BÁSICA ----------
-// Prefixo padrão da API é "/api" para alinhar com o frontend e rewrites
-// Normaliza para sempre começar com "/" e não terminar com barra
-const _rawPrefix = process.env.API_PREFIX || '/api';
-const API_PREFIX = (() => {
-  let p = _rawPrefix || '/api';
-  if (!p.startsWith('/')) p = `/${p}`;
-  p = p.length > 1 ? p.replace(/\/+$/, '') : '/';
-  return p || '/api';
-})();
-const API_BASE = (API_PREFIX || '/api').replace(/\/$/, '') || '/api';
+
 const serveFrontend = process.env.SERVE_FRONTEND === 'true';
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -94,28 +103,26 @@ app.get(`${API_PREFIX}/healthz`, (req, res) => res.json({ ok: true }));
 const api = express.Router();
 
 // Rotas principais que precisam vir antes dos demais mounts
-app.use('/api/classes', classesRoutes);
-// Espelha /api/professor/classes diretamente para evitar alias genérico interceptando
-app.use('/api/professor/classes', classesRoutes);
+
+app.use(API_PREFIX + '/classes', classesRoutes);
+app.use(API_PREFIX + '/professor/classes', classesRoutes);
 
 // ENSAIO/PDF com compat de token — em /api/essays E /essays
-// --- Safe rewrite de /redacoes -> /essays (sem usar path nos métodos do Express)
 app.use((req, _res, next) => {
   if (typeof req.url === 'string') {
-    if (req.url.startsWith('/api/redacoes')) {
-      // /api/redacoes/... -> /api/essays/...
-      req.url = req.url.replace(/^\/api\/redacoes\b/, '/api/essays');
+    if (req.url.startsWith(API_PREFIX + '/redacoes')) {
+      req.url = req.url.replace(new RegExp(`^${API_PREFIX}/redacoes\b`), API_PREFIX + '/essays');
     } else if (req.url.startsWith('/redacoes')) {
-      // /redacoes/... -> /essays/...
       req.url = req.url.replace(/^\/redacoes\b/, '/essays');
     }
   }
   next();
 });
-app.use('/api/essays', essaysRoutes);
+app.use(API_PREFIX + '/essays', essaysRoutes);
 app.use('/essays', essaysRoutes);
 
 // Rota raiz da API para evitar 404 em chamadas para "/api" diretamente
+
 api.get('/', (_req, res) => res.json({ success: true, message: 'API ready', prefix: API_PREFIX }));
 api.use('/auth', authRoutes);
 api.use('/dashboard', dashboardRoutes);
@@ -127,16 +134,16 @@ api.use('/announcements', announcementsRoutes);
 api.use('/evaluations', evaluationRoutes);
 api.use('/', pdfHealthRoutes);
 api.use('/telemetry', telemetryRoutes);
-app.use('/api/teachers', teachersUpcomingRoutes);
-app.use('/api/students', studentsUpcomingRoutes);
-app.use('/api/agenda', agendaRoutes);
-app.use('/api', pdfHealthRoutes);
-app.use('/api', sessionRoutes);
+app.use(API_PREFIX + '/teachers', teachersUpcomingRoutes);
+app.use(API_PREFIX + '/students', studentsUpcomingRoutes);
+app.use(API_PREFIX + '/agenda', agendaRoutes);
+app.use(API_PREFIX, pdfHealthRoutes);
+app.use(API_PREFIX, sessionRoutes);
 
 // Em ambiente de teste, monte as rotas na raiz para compatibilidade com a suíte existente
+
 if (process.env.NODE_ENV === 'test') {
   app.use('/', api);
-  // Montar health PDF também na raiz para testes
   app.use('/', pdfHealthRoutes);
 } else {
   if (API_BASE !== '/api') {
@@ -144,7 +151,7 @@ if (process.env.NODE_ENV === 'test') {
   }
 }
 
-app.use('/api', api);
+app.use(API_PREFIX, api);
 
 // 404 JSON apenas para caminhos sob o prefixo da API
 app.use((req, res, next) => {
