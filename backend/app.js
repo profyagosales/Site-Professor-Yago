@@ -23,10 +23,10 @@ const contentsRoutes = require('./routes/contents');
 const themesRoutes = require('./routes/themes');
 const fileTokenCompat = require('./middlewares/fileTokenCompat');
 
-const { cors, corsOptions } = require('./corsConfig');
+const { cors: corsMw, corsOptions } = require('./corsConfig');
 const app = express();
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+app.use(corsMw(corsOptions));
+app.options('*', corsMw(corsOptions));
 
 // #### Sessão estável em produção atrás de proxy (Render/Cloudflare)
 // Garante req.secure correto e permite cookies "secure" atrás de proxy HTTPS
