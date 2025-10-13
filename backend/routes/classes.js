@@ -27,11 +27,30 @@ const slotTimes = {
 // Get all classes
 router.get('/', async (req, res, next) => {
   try {
-    const classes = await Class.find();
+    const [classes, counts] = await Promise.all([
+      Class.find().select('-students').lean({ virtuals: true }),
+      Student.aggregate([
+        { $match: { class: { $ne: null } } },
+        { $group: { _id: '$class', count: { $sum: 1 } } }
+      ])
+    ]);
+
+    const countMap = counts.reduce((acc, cur) => {
+      if (cur && cur._id) {
+        acc[String(cur._id)] = cur.count || 0;
+      }
+      return acc;
+    }, {});
+
+    const enriched = classes.map((cls) => ({
+      ...cls,
+      studentsCount: countMap[String(cls._id)] || 0
+    }));
+
     res.status(200).json({
       success: true,
       message: 'Turmas obtidas com sucesso',
-      data: classes
+      data: enriched
     });
   } catch (err) {
     err.status = 500;
