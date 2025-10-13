@@ -102,9 +102,15 @@ app.use('/api/professor/classes', classesRoutes);
 // ENSAIO/PDF com compat de token — em /api/essays E /essays
 app.use('/api/essays', fileTokenCompat, essaysRoutes);
 app.use('/essays', fileTokenCompat, essaysRoutes);
-// Aliases temporários enquanto o frontend migra definitivamente para /essays
-app.use('/api/redacoes', (req, res) => res.redirect(308, '/api/essays' + req.url));
-app.use('/redacoes', (req, res) => res.redirect(308, '/essays' + req.url));
+// --- Aliases legados (redireciona /redacoes -> /essays com 308, de forma segura)
+app.all(/^\/api\/redacoes(\/.*)?$/i, (req, res) => {
+  const to = req.originalUrl.replace(/^\/api\/redacoes/i, '/api/essays');
+  return res.redirect(308, to);
+});
+app.all(/^\/redacoes(\/.*)?$/i, (req, res) => {
+  const to = req.originalUrl.replace(/^\/redacoes/i, '/essays');
+  return res.redirect(308, to);
+});
 
 // Rota raiz da API para evitar 404 em chamadas para "/api" diretamente
 api.get('/', (_req, res) => res.json({ success: true, message: 'API ready', prefix: API_PREFIX }));
