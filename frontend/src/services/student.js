@@ -1,2 +1,2 @@
-export * from './student';
-export { default } from './student';
+export * from './student.ts';
+export { default } from './student.ts';
