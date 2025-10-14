@@ -2,6 +2,7 @@ import { Page } from '@/components/Page';
 import { useEffect, useState } from 'react';
 import { searchStudents } from '@/services/students2';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/Button';
 
 export default function ListaAlunos() {
   const nav = useNavigate();
@@ -44,7 +45,11 @@ export default function ListaAlunos() {
                 <tr key={s._id || s.id} className="odd:bg-[#F9FAFB]">
                   <td className="px-4 py-3">{s.name}</td>
                   <td className="px-4 py-3">{s.email}</td>
-                  <td className="px-4 py-3"><button className="rounded-lg bg-orange-500 px-3 py-1.5 text-white" onClick={()=> nav(`/professor/alunos/${s._id || s.id}`)}>Ver perfil</button></td>
+                  <td className="px-4 py-3">
+                    <Button size="sm" onClick={() => nav(`/professor/alunos/${s._id || s.id}`)}>
+                      Ver perfil
+                    </Button>
+                  </td>
                 </tr>
               ))}
               {data.items.length === 0 && <tr><td className="px-4 py-3 text-ys-ink-2" colSpan={3}>Sem resultados.</td></tr>}

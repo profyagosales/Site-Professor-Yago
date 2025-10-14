@@ -3,6 +3,8 @@ import { toast } from 'react-toastify';
 import { api } from '@/lib/api';
 import { searchStudents } from '@/services/students2';
 import ThemeCombo from '@/components/redacao/ThemeCombo';
+import Modal from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 
 interface Props {
   isOpen: boolean;
@@ -11,7 +13,7 @@ interface Props {
 }
 
 export default function NovaRedacaoModal({ isOpen, onClose, onCreated }: Props) {
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const firstFieldRef = useRef<HTMLInputElement>(null);
   const [studentQuery, setStudentQuery] = useState('');
   const [studentOptions, setStudentOptions] = useState<any[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
@@ -30,7 +32,7 @@ export default function NovaRedacaoModal({ isOpen, onClose, onCreated }: Props) 
       setType('ENEM');
       setFile(null);
       setError(null);
-      setTimeout(() => dialogRef.current?.querySelector('input')?.focus(), 0);
+      setTimeout(() => firstFieldRef.current?.focus(), 0);
     }
   }, [isOpen]);
 
@@ -100,23 +102,19 @@ export default function NovaRedacaoModal({ isOpen, onClose, onCreated }: Props) 
   if (!isOpen) return null;
 
   return (
-    <div
-      ref={dialogRef}
-      role="dialog"
-      aria-modal
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-    >
-      <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-ys-lg space-y-4">
+    <Modal open={isOpen} onClose={onClose} className="max-w-xl">
+      <div className="space-y-4 p-6">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-[#111827]">Nova Redação</h3>
-          <button onClick={onClose} className="text-ys-ink" aria-label="Fechar">
+          <Button onClick={onClose} variant="ghost" size="sm" type="button">
             Fechar
-          </button>
+          </Button>
         </div>
         <form className="space-y-3" onSubmit={handleSubmit}>
           <div>
             <label className="block text-sm font-medium text-[#111827]">Aluno</label>
             <input
+              ref={firstFieldRef}
               placeholder="Buscar aluno..."
               value={studentQuery}
               onChange={(e) => setStudentQuery(e.target.value)}
@@ -127,7 +125,7 @@ export default function NovaRedacaoModal({ isOpen, onClose, onCreated }: Props) 
                 <button
                   type="button"
                   key={s._id || s.id}
-                  className={`w-full text-left px-3 py-2 hover:bg-[#F3F4F6] ${
+                  className={`w-full px-3 py-2 text-left hover:bg-[#F3F4F6] ${
                     selectedStudent && (selectedStudent._id || selectedStudent.id) === (s._id || s.id)
                       ? 'bg-[#FEF3C7]'
                       : ''
@@ -169,24 +167,16 @@ export default function NovaRedacaoModal({ isOpen, onClose, onCreated }: Props) 
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-[#E5E7EB] px-4 py-2"
-            >
+            <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
               Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="rounded-lg bg-orange-500 px-4 py-2 font-semibold text-white hover:brightness-110 disabled:opacity-50"
-            >
+            </Button>
+            <Button type="submit" disabled={loading}>
               {loading ? 'Salvando…' : 'Salvar'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }
 

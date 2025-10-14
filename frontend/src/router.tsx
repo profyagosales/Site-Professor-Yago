@@ -10,11 +10,13 @@ import LoginAluno from '@/pages/auth/LoginAluno';
 import LoginGerencial from '@/pages/gerencial/LoginGerencial';
 // @ts-expect-error legacy JSX module
 import DashboardProfessor from '@/pages/DashboardProfessor';
-// @ts-expect-error legacy JSX module
-import DashboardAluno from '@/pages/DashboardAluno';
+import ResumoAlunoPage from '@/pages/aluno/Resumo';
+import PasUnbProfessorPage from '@/pages/professor/PasUnb';
+import PasUnbAlunoPage from '@/pages/aluno/PasUnb';
 import { lazy, Suspense } from 'react';
 import GerencialLayout from '@/layouts/GerencialLayout';
 import GerencialTeachersPage from '@/pages/gerencial/GerencialTeachersPage';
+import StudentGuard from '@/routes/StudentGuard';
 const RedacaoProfessorPage = lazy(() => import(/* @vite-ignore */ '@/pages/professor/redacao/RedacaoProfessorPage'));
 const GradeWorkspace = lazy(() => import(/* @vite-ignore */ '@/pages/professor/redacao/GradeWorkspace'));
 import NotFound from '@/pages/NotFound';
@@ -63,6 +65,7 @@ export const router = createBrowserRouter([
           // Página principal do professor: Resumo
           { path: '/professor', element: <Navigate to="/professor/resumo" replace /> },
           { path: '/professor/resumo', element: <TeacherGuard><DashboardProfessor /></TeacherGuard> },
+          { path: '/professor/pas-unb', element: <TeacherGuard><PasUnbProfessorPage /></TeacherGuard> },
           // Compat: rotas antigas/curtas
           { path: '/dashboard', element: <Navigate to="/professor/resumo" replace /> },
           { path: '/professor/dashboard', element: <Navigate to="/professor/resumo" replace /> },
@@ -93,10 +96,12 @@ export const router = createBrowserRouter([
       {
         element: <AppShellLayout />,
         children: [
-          { path: '/aluno', element: <Navigate to="/aluno/notas" replace /> },
-          { path: '/aluno/dashboard', element: <DashboardAluno /> },
-          { path: '/aluno/redacoes', element: <AlunoRedacoes /> },
-          { path: '/aluno/notas', element: <AlunoNotas /> },
+          { path: '/aluno', element: <Navigate to="/aluno/resumo" replace /> },
+          { path: '/aluno/resumo', element: <StudentGuard><ResumoAlunoPage /></StudentGuard> },
+          { path: '/aluno/dashboard', element: <Navigate to="/aluno/resumo" replace /> },
+          { path: '/aluno/redacoes', element: <StudentGuard><AlunoRedacoes /></StudentGuard> },
+          { path: '/aluno/notas', element: <StudentGuard><AlunoNotas /></StudentGuard> },
+          { path: '/aluno/pas-unb', element: <StudentGuard><PasUnbAlunoPage /></StudentGuard> },
         ],
       },
     ],

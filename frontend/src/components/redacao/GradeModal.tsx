@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { gradeEssay, saveAnnotations, renderCorrection } from '@/services/essays.service';
 import AnnotationEditor from './AnnotationEditor';
 import type { Annotation } from '@/types/redacao';
+import Modal from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 
 type Props = {
   open: boolean;
@@ -62,6 +64,8 @@ export default function GradeModal({ open, onClose, essay, onGraded }: Props) {
   // Early return AFTER all hooks are registered to respect hooks rules
   if (!open || !essay) return null;
 
+  const ensuredEssay = essay;
+
   async function submit() {
     const w = Number(weight);
     if (isNaN(w) || w < 0 || w > 10) { setErr('Peso bimestral inválido (0 a 10)'); return; }
@@ -71,7 +75,7 @@ export default function GradeModal({ open, onClose, essay, onGraded }: Props) {
       setErr(null);
       try {
         setLoading(true);
-        const gradeRes = await gradeEssay(essay.id, {
+  const gradeRes = await gradeEssay(ensuredEssay.id, {
           essayType,
           weight: w,
           annul,
@@ -79,7 +83,7 @@ export default function GradeModal({ open, onClose, essay, onGraded }: Props) {
           comments,
         });
         if (alsoRenderPdf) {
-          await renderCorrection(essay.id, { sendEmail: alsoSendEmail });
+          await renderCorrection(ensuredEssay.id, { sendEmail: alsoSendEmail });
         }
         onClose();
         onGraded?.();
@@ -95,10 +99,10 @@ export default function GradeModal({ open, onClose, essay, onGraded }: Props) {
       try {
         setLoading(true);
         // Salvar anotações antes de lançar a nota (NE é derivado de anotações verdes)
-        await saveAnnotations(essay.id, annotations);
-        const gradeRes = await gradeEssay(essay.id, { essayType, weight: w, annul, pas: { NC: nc, NL: nl }, comments });
+  await saveAnnotations(ensuredEssay.id, annotations);
+  const gradeRes = await gradeEssay(ensuredEssay.id, { essayType, weight: w, annul, pas: { NC: nc, NL: nl }, comments });
         if (alsoRenderPdf) {
-          await renderCorrection(essay.id, { sendEmail: alsoSendEmail });
+          await renderCorrection(ensuredEssay.id, { sendEmail: alsoSendEmail });
         }
         onClose();
         onGraded?.();
@@ -110,22 +114,24 @@ export default function GradeModal({ open, onClose, essay, onGraded }: Props) {
     // ENEM anulado
     setErr(null);
     try { setLoading(true);
-      await gradeEssay(essay.id, { essayType: 'ENEM', weight: w, annul: true, comments });
+  await gradeEssay(ensuredEssay.id, { essayType: 'ENEM', weight: w, annul: true, comments });
       if (alsoRenderPdf) {
-        await renderCorrection(essay.id, { sendEmail: alsoSendEmail });
+  await renderCorrection(ensuredEssay.id, { sendEmail: alsoSendEmail });
       }
       onClose(); onGraded?.();
     } catch (e:any) { setErr(e?.response?.data?.message || 'Erro ao salvar correção'); } finally { setLoading(false); }
   }
 
-  const isPdf = essay.fileUrl?.toLowerCase().includes('.pdf');
+  const isPdf = ensuredEssay.fileUrl?.toLowerCase().includes('.pdf');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" role="dialog" aria-modal>
-      <div className="w-full max-w-3xl rounded-2xl bg-white p-6 shadow-ys-lg">
+    <Modal open={open} onClose={onClose} className="max-w-5xl">
+      <div className="p-6">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-[#111827]">Corrigir redação</h3>
-          <button className="text-ys-ink" onClick={onClose}>Fechar</button>
+          <Button variant="ghost" onClick={onClose} size="sm" type="button">
+            Fechar
+          </Button>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -214,18 +220,18 @@ export default function GradeModal({ open, onClose, essay, onGraded }: Props) {
             </div>
             {err && <p className="text-sm text-red-600">{err}</p>}
             <div className="mt-2 flex justify-end gap-2">
-              <button className="rounded-lg border border-[#E5E7EB] px-4 py-2" onClick={onClose}>Cancelar</button>
-              <button
-                className="rounded-lg bg-orange-500 px-4 py-2 font-semibold text-white hover:brightness-110 disabled:opacity-50"
-                onClick={submit}
-                disabled={loading}
-              >{loading ? 'Salvando…' : 'Salvar'}</button>
+              <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
+                Cancelar
+              </Button>
+              <Button onClick={submit} disabled={loading}>
+                {loading ? 'Salvando…' : 'Salvar'}
+              </Button>
             </div>
           </div>
           <div className="min-h-[320px] overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#F9FAFB]">
-            {essay.fileUrl ? (
+            {ensuredEssay.fileUrl ? (
               isPdf ? (
-                <embed src={essay.fileUrl} type="application/pdf" className="h-[320px] w-full" />
+                <embed src={ensuredEssay.fileUrl} type="application/pdf" className="h-[320px] w-full" />
               ) : (
                 <span className="text-muted-foreground/70 select-none" title="Visualização inline">Visualização inline</span>
               )
@@ -235,6 +241,6 @@ export default function GradeModal({ open, onClose, essay, onGraded }: Props) {
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

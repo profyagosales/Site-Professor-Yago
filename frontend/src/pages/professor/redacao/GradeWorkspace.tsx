@@ -17,6 +17,7 @@ import { toast } from 'react-toastify';
 // Importante: usar wrapper lazy para evitar vincular o chunk de PDF ao chunk da rota
 import PdfAnnotatorLazy from '@/components/redacao/PdfAnnotator.lazy';
 import { joinClassAsTeacher } from '@/services/classes';
+import { Button } from '@/components/ui/Button';
 
 const useRich = import.meta.env.VITE_USE_RICH_ANNOS === '1' || import.meta.env.VITE_USE_RICH_ANNOS === 'true';
 
@@ -443,7 +444,9 @@ export default function GradeWorkspace() {
           {!dirty && lastSavedAt && (
             <span className="mr-2 text-xs text-ys-ink-2">Salvo às {lastSavedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
           )}
-          <button className="rounded-lg border border-[#E5E7EB] px-3 py-1.5" onClick={()=>navigate('/professor/redacao')}>Voltar</button>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/professor/redacao')}>
+            Voltar
+          </Button>
           {import.meta.env.DEV && (
             <div className="ml-2 flex items-center gap-1 text-xs text-ys-ink-2">
               <span>Annotator:</span>
@@ -458,14 +461,29 @@ export default function GradeWorkspace() {
               </select>
             </div>
           )}
-            <button className="inline-flex items-center gap-2 rounded-lg border border-[#E5E7EB] px-3 py-1.5 disabled:opacity-60" disabled={loading} onClick={()=>submit(false)}>
-              {loading && <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-[#9CA3AF] border-t-transparent" />}
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={loading}
+              onClick={() => submit(false)}
+              className="gap-2"
+            >
+              {loading && (
+                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-[#9CA3AF] border-t-transparent" />
+              )}
               <span>Salvar</span>
-            </button>
-            <button className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-3 py-1.5 text-white disabled:opacity-60" disabled={loading} onClick={()=>submit(true)}>
-              {loading && <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/80 border-t-transparent" />}
+            </Button>
+            <Button
+              size="sm"
+              disabled={loading}
+              onClick={() => submit(true)}
+              className="gap-2"
+            >
+              {loading && (
+                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/80 border-t-transparent" />
+              )}
               <span>Gerar PDF corrigido</span>
-            </button>
+            </Button>
         </div>
       </div>
 

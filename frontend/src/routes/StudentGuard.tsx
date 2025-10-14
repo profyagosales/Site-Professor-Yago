@@ -5,8 +5,8 @@ import { fetchMe } from '@/services/session';
 
 type GuardStatus = 'checking' | 'allow' | 'deny';
 
-export default function TeacherGuard({ children }: PropsWithChildren) {
-  const { loading, isTeacher, setSession } = useAuth();
+export default function StudentGuard({ children }: PropsWithChildren) {
+  const { loading, isStudent, setSession } = useAuth();
   const location = useLocation();
   const [status, setStatus] = useState<GuardStatus>('checking');
   const attempted = useRef(false);
@@ -17,7 +17,7 @@ export default function TeacherGuard({ children }: PropsWithChildren) {
       return;
     }
 
-    if (isTeacher) {
+    if (isStudent) {
       setStatus('allow');
       return;
     }
@@ -35,13 +35,13 @@ export default function TeacherGuard({ children }: PropsWithChildren) {
       try {
         const me = await fetchMe();
         if (cancelled) return;
-        if (me && (me.role ?? '').toLowerCase() === 'teacher') {
+        if (me && (me.role ?? '').toLowerCase() === 'student') {
           setSession(me);
           setStatus('allow');
           return;
         }
       } catch (err) {
-        console.warn('TeacherGuard: falha ao reidratar sessão', err);
+        console.warn('StudentGuard: falha ao reidratar sessão', err);
       }
       if (!cancelled) {
         setStatus('deny');
@@ -53,7 +53,7 @@ export default function TeacherGuard({ children }: PropsWithChildren) {
     return () => {
       cancelled = true;
     };
-  }, [isTeacher, loading, setSession]);
+  }, [isStudent, loading, setSession]);
 
   if (status === 'checking') {
     return <div className="p-6">Carregando…</div>;
@@ -63,19 +63,19 @@ export default function TeacherGuard({ children }: PropsWithChildren) {
     return <>{children}</>;
   }
 
-  console.warn('TeacherGuard blocked access to professor route', location.pathname);
+  console.warn('StudentGuard blocked access to student route', location.pathname);
 
   return (
     <div className="p-6 space-y-4">
       <div>
         <h1 className="text-2xl font-semibold text-ys-ink">Acesso restrito</h1>
         <p className="mt-2 text-ys-ink-2">
-          Esta área é exclusiva para professores. Se você precisa de acesso, fale com a coordenação ou suporte.
+          Esta área é exclusiva para estudantes. Faça login com sua conta para continuar.
         </p>
       </div>
       <div>
-        <Link to="/aluno/notas" className="inline-flex items-center gap-1 text-ys-amber hover:text-ys-amber/80">
-          Ir para área do aluno
+        <Link to="/login-aluno" className="inline-flex items-center gap-1 text-ys-amber hover:text-ys-amber/80">
+          Ir para login do aluno
         </Link>
       </div>
     </div>

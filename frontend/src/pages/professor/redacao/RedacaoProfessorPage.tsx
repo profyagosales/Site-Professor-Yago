@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useEssays } from '@/hooks/useEssays';
 // import GradeModal from '@/components/redacao/GradeModal';
 // @ts-expect-error serviço legado em JS
@@ -8,6 +9,8 @@ import NewEssayModal from '@/components/redacao/NewEssayModal';
 import { Page } from '@/components/Page';
 import { listClasses } from '@/services/classes';
 import ThemesManager from '@/components/redacao/ThemesManager';
+import { Button } from '@/components/ui/Button';
+import { Tabs } from '@/components/ui/Tabs';
 
 export default function RedacaoProfessorPage() {
   const { status, setStatus, q, setQ, classId, setClassId, page, setPage, pageSize, setPageSize, data, loading, error, reload, extra, setExtra } = useEssays('pending');
@@ -17,6 +20,7 @@ export default function RedacaoProfessorPage() {
   const [themesOpen, setThemesOpen] = useState(false);
   const [bimester, setBimester] = useState<string>('');
   const [type, setType] = useState<string>('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     (async () => {
@@ -29,25 +33,40 @@ export default function RedacaoProfessorPage() {
   }, []);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil((data?.total || 0) / pageSize)), [data?.total, pageSize]);
+  const statusTabs = [
+    {
+      key: 'pending',
+      label: 'Pendentes',
+      isActive: status === 'pending',
+      onClick: () => {
+        setStatus('pending');
+        setPage(1);
+      },
+    },
+    {
+      key: 'corrected',
+      label: 'Corrigidas',
+      isActive: status === 'corrected',
+      onClick: () => {
+        setStatus('corrected');
+        setPage(1);
+      },
+    },
+  ];
 
   return (
     <Page title="Redação" subtitle="Gerencie as redações dos alunos">
       {/* Ações topo direito */}
       <div className="mb-2 flex items-center justify-end gap-2">
-        <button className="rounded-lg border border-[#E5E7EB] px-4 py-2 font-semibold hover:bg-[#F3F4F6]" onClick={() => setThemesOpen(true)}>Temas</button>
-        <button className="rounded-lg bg-orange-500 px-4 py-2 font-semibold text-white hover:brightness-110" onClick={() => setNewOpen(true)}>Nova Redação</button>
+        <Button variant="ghost" onClick={() => setThemesOpen(true)}>
+          Temas
+        </Button>
+        <Button onClick={() => setNewOpen(true)}>
+          Nova Redação
+        </Button>
       </div>
       {/* Abas */}
-      <div className="mb-4 flex gap-2">
-        <button
-          className={`rounded-full border px-4 py-2 text-sm ${status === 'pending' ? 'bg-orange-500 text-white' : 'border-[#E5E7EB] text-[#111827]'}`}
-          onClick={() => { setStatus('pending'); setPage(1); }}
-        >Pendentes</button>
-        <button
-          className={`rounded-full border px-4 py-2 text-sm ${status === 'corrected' ? 'bg-orange-500 text-white' : 'border-[#E5E7EB] text-[#111827]'}`}
-          onClick={() => { setStatus('corrected'); setPage(1); }}
-        >Corrigidas</button>
-      </div>
+      <Tabs items={statusTabs} className="mb-4" />
 
       {/* Filtros */}
       <div className="mb-4 grid gap-3 md:grid-cols-5">
@@ -147,25 +166,31 @@ export default function RedacaoProfessorPage() {
                 )}
                 <td className="px-4 py-3">
                   {status === 'pending' ? (
-                    correctionUrl ? (
-                      <a
-                        className="rounded-lg bg-orange-500 px-3 py-1.5 text-white hover:brightness-110"
-                        href={correctionUrl}
-                      >Corrigir</a>
-                    ) : (
-                      <button
-                        type="button"
-                        className="rounded-lg bg-gray-300 px-3 py-1.5 text-white cursor-not-allowed"
-                        disabled
-                        title="Identificador ausente"
-                      >Corrigir</button>
-                    )
+                    <Button
+                      size="sm"
+                      onClick={() => correctionUrl && navigate(correctionUrl)}
+                      disabled={!correctionUrl}
+                      title={correctionUrl ? undefined : 'Identificador ausente'}
+                    >
+                      Corrigir
+                    </Button>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <a className="rounded-lg border border-[#E5E7EB] px-3 py-1.5 hover:bg-[#F3F4F6]" href={e.fileUrl} target="_blank" rel="noreferrer">Ver PDF</a>
-                      <button
-                        className="rounded-lg bg-orange-500 px-3 py-1.5 text-white hover:brightness-110"
-                        onClick={async ()=>{
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (!e.fileUrl) return;
+                          window.open(e.fileUrl, '_blank', 'noopener');
+                        }}
+                        disabled={!e.fileUrl}
+                      >
+                        Ver PDF
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={async () => {
                           if (!essayId) {
                             console.warn('Não foi possível reenviar PDF: redação sem identificador.', e);
                             return;
@@ -178,7 +203,9 @@ export default function RedacaoProfessorPage() {
                           }
                         }}
                         disabled={!essayId}
-                      >Reenviar PDF</button>
+                      >
+                        Reenviar PDF
+                      </Button>
                     </div>
                   )}
                 </td>

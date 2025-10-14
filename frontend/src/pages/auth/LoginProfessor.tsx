@@ -44,7 +44,7 @@ export default function LoginProfessor() {
         }
         auth?.setSession?.(sessionPayload);
         void auth?.reload?.();
-        navigate("/professor/classes", { replace: true });
+  navigate("/professor/resumo", { replace: true });
         return;
       }
 
@@ -68,7 +68,7 @@ export default function LoginProfessor() {
         }
         auth?.setSession?.({ role: "teacher", user: meData?.user ?? { id: meData?.id ?? null, email: meData?.email ?? null, role: "teacher" } });
         void auth?.reload?.();
-        navigate("/professor/classes", { replace: true });
+  navigate("/professor/resumo", { replace: true });
         return;
       }
 

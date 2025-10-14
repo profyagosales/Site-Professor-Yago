@@ -1607,7 +1607,7 @@ export default function ClassDetailPage() {
           )}
         </div>
         <div className="flex flex-wrap gap-3">
-          <Button variant="primary" onClick={handleOpenEmailModal}>
+          <Button onClick={handleOpenEmailModal}>
             Enviar e-mail para a turma
           </Button>
           {activeTab === 'students' && (
@@ -1616,8 +1616,10 @@ export default function ClassDetailPage() {
         </div>
       </div>
 
-      <div className="border-b border-slate-200 pb-2">
-        <Tabs items={tabItems} />
+      <div className="border-b border-slate-200 pb-3">
+        <div className="inline-flex rounded-full border border-slate-200 bg-white/90 p-1 shadow-sm">
+          <Tabs items={tabItems} />
+        </div>
       </div>
 
       {feedback && (
@@ -1729,9 +1731,7 @@ export default function ClassDetailPage() {
                     {calendarError}
                   </div>
                 ) : calendarGroups.length === 0 ? (
-                  <p className="mt-6 text-sm text-slate-500">
-                    Nenhum evento encontrado para o período selecionado. Use os botões acima para registrar novas atividades ou datas importantes.
-                  </p>
+                  <p className="mt-6 text-sm text-slate-500">Nenhum evento para o período selecionado.</p>
                 ) : (
                   <ul className="mt-6 space-y-3 text-sm text-slate-800">
                     {calendarGroups.map((group) => (

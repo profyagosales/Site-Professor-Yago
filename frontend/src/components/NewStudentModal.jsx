@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { create } from '@/services/students'
 import { formatPhoneBR, isValidPhoneBR } from '@/utils/format'
 import { toast } from 'react-toastify'
+import Modal from '@/components/ui/Modal'
+import { Button } from '@/components/ui/Button'
 
 const initialForm = {
   photoFile: null,
@@ -70,11 +72,9 @@ export default function NewStudentModal({ classId, isOpen, onClose, onCreated })
     }
   }
 
-  if (!isOpen) return null
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true">
-      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+    <Modal open={isOpen} onClose={handleClose} className="max-w-lg">
+      <div className="p-6">
         <h2 className="mb-4 text-xl font-semibold text-body">Novo Aluno</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -147,20 +147,16 @@ export default function NewStudentModal({ classId, isOpen, onClose, onCreated })
           </div>
 
           <div className="mt-6 flex items-center justify-end gap-3">
-            <button type="button" onClick={handleClose} className="rounded-lg border border-gray-300 px-4 py-2">
+            <Button type="button" variant="ghost" onClick={handleClose} disabled={submitting}>
               Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={disabled}
-              className="rounded-lg bg-orange-500 px-4 py-2 font-semibold text-white disabled:opacity-50"
-            >
+            </Button>
+            <Button type="submit" disabled={disabled}>
               {submitting ? 'Salvando…' : 'Salvar'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   )
 }
 

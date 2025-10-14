@@ -7,6 +7,7 @@ import AnnouncementModal from '@/components/AnnouncementModal'
 import { getCurrentUser } from '@/services/auth'
 import { listMyClasses, mergeCalendars, getClassDetails, getClassGrades } from '@/services/classes.service'
 import { useAuth } from '@/store/AuthContext'
+import { Button } from '@/components/ui/Button'
 
 /*
 // Snippet opcional para habilitar o widget da agenda semanal
@@ -347,20 +348,6 @@ function DashboardProfessor(){
     return ids.size
   }, [classDetails])
 
-  const pendingCount = useMemo(() => {
-    if (!calendarEvents.length) return 0
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const horizon = new Date(today)
-    horizon.setDate(horizon.getDate() + 7)
-
-    return calendarEvents.reduce((total, event) => {
-      const when = event?.date instanceof Date ? event.date : parseDate(event?.dateISO)
-      if (!when) return total
-      return isWithinRange(when, today, horizon) ? total + 1 : total
-    }, 0)
-  }, [calendarEvents])
-
   const scheduleMatrix = useMemo(() => {
     const cells = {}
     const toDayIndex = (value) => {
@@ -555,43 +542,38 @@ function DashboardProfessor(){
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-2xl bg-white/20 p-4 backdrop-blur-sm">
-              <p className="text-sm text-white/80">Turmas ativas</p>
+              <p className="text-sm text-white/80">Turmas</p>
               <p className="text-2xl font-semibold">{totalClasses}</p>
             </div>
             <div className="rounded-2xl bg-white/20 p-4 backdrop-blur-sm">
-              <p className="text-sm text-white/80">Alunos alcançados</p>
+              <p className="text-sm text-white/80">Total de alunos</p>
               <p className="text-2xl font-semibold">{uniqueStudentsCount}</p>
             </div>
-            <div className="rounded-2xl bg-white/20 p-4 backdrop-blur-sm">
-              <p className="text-sm text-white/80">Pendências (7 dias)</p>
-              <p className="text-2xl font-semibold">{pendingCount}</p>
-            </div>
           </div>
         </div>
-      </section>
-
-      <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <h2 className="text-lg font-semibold text-slate-800">Ações rápidas</h2>
-          <div className="flex flex-wrap gap-3">
-            <button className="rounded-full bg-[#FF8A00] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ff7800]" onClick={() => setShowEmail(true)}>
+        <div className="border-t border-white/20" />
+        <div className="flex flex-wrap items-center justify-center gap-3 px-6 pb-6 pt-4">
+            <Button className="rounded-full" onClick={() => setShowEmail(true)}>
               Enviar e-mail
-            </button>
-            <button className="rounded-full bg-[#222] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#111]" onClick={() => setAnnouncementOpen(true)}>
+            </Button>
+            <Button className="rounded-full bg-[#222] text-white hover:bg-[#111]" onClick={() => setAnnouncementOpen(true)}>
               Novo aviso
-            </button>
-            <button className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-[#FF8A00] hover:text-[#FF8A00]" onClick={() => setContentOpen(true)}>
+            </Button>
+            <Button
+              className="rounded-full border border-slate-200 text-slate-700 hover:border-[#FF8A00] hover:text-[#FF8A00]"
+              variant="ghost"
+              onClick={() => setContentOpen(true)}
+            >
               Conteúdo rápido
-            </button>
-          </div>
+            </Button>
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[2fr_1fr]">
-        <div className="space-y-6">
-          <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] xl:items-start">
+        <div className="flex flex-col items-stretch">
+          <div className="mx-auto w-full max-w-3xl rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100 lg:mx-0">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-slate-800">Quadro semanal</h2>
@@ -599,16 +581,16 @@ function DashboardProfessor(){
               </div>
             </div>
             <div className="mt-6 overflow-x-auto">
-              <div className="grid min-w-[680px] grid-cols-[120px_repeat(5,1fr)] gap-2">
-                <div className="h-12"></div>
+              <div className="grid min-w-[500px] grid-cols-[100px_repeat(5,1fr)] gap-2">
+                <div className="h-10" />
                 {WEEKDAY_CONFIG.map((day) => (
-                  <div key={day.id} className="flex h-12 items-center justify-center rounded-xl bg-[#FFF3E3] text-sm font-semibold text-[#FF8A00]">
+                  <div key={day.id} className="flex h-10 items-center justify-center rounded-xl bg-[#FFF3E3] text-sm font-semibold text-[#FF8A00]">
                     {day.label}
                   </div>
                 ))}
                 {SLOT_CONFIG.map((slot) => (
                   <Fragment key={slot.id}>
-                    <div className="flex h-24 flex-col justify-center rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-600">
+                    <div className="flex h-16 flex-col justify-center rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-600">
                       <span>{slot.label} horário</span>
                       <span className="mt-1 text-xs font-normal text-slate-500">{slot.time}</span>
                     </div>
@@ -618,7 +600,7 @@ function DashboardProfessor(){
                       return (
                         <div
                           key={`${slot.id}-${day.id}`}
-                          className="flex h-24 flex-col gap-1 rounded-xl border border-dashed border-slate-200 bg-white p-3 text-sm text-slate-600"
+                          className="flex h-16 flex-col gap-1 rounded-xl border border-dashed border-slate-200 bg-white p-3 text-sm text-slate-600"
                         >
                           {cellItems.length === 0 && <span className="my-auto text-center text-xs text-slate-400">—</span>}
                           {cellItems.slice(0, 2).map((label) => (
@@ -637,11 +619,51 @@ function DashboardProfessor(){
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-800">Destaques próximos</h2>
+              <button className="text-sm font-semibold text-[#FF8A00] transition hover:text-[#ff7800]" onClick={() => navigate('/professor/classes')}>
+                Gerenciar turmas
+              </button>
+            </div>
+            <div className="mt-6 space-y-3">
+              {loading ? (
+                <p className="text-sm text-slate-500">Carregando...</p>
+              ) : upcomingHighlights.length ? (
+                upcomingHighlights.map((item) => (
+                  <div key={item.id} className="flex flex-col gap-1 rounded-2xl border border-slate-100 p-4">
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <span className="rounded-full bg-[#FFF3E3] px-3 py-1 font-semibold text-[#FF8A00]">
+                        {DATE_BADGE_FORMATTER.format(item.date)}
+                      </span>
+                      <span>{LONG_DATE_FORMATTER.format(item.date)}</span>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-700">{item.title}</p>
+                    {item.subtitle && <p className="text-xs text-slate-500">{item.subtitle}</p>}
+                    <span
+                      className={`self-start rounded-full px-3 py-1 text-xs font-semibold ${
+                        item.badge === 'ATIVIDADE'
+                          ? 'bg-[#FFF3E3] text-[#FF8A00]'
+                          : 'bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {item.badge}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-slate-500">Sem destaques nos próximos dias.</p>
+              )}
+            </div>
+          </div>
 
           <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-semibold text-slate-800">Agenda agregada</h2>
+                <h2 className="text-lg font-semibold text-slate-800">Agenda</h2>
                 <p className="text-sm text-slate-500">Conteúdos, avaliações e marcos consolidados</p>
               </div>
               <div className="flex flex-wrap items-center gap-3">
@@ -707,76 +729,36 @@ function DashboardProfessor(){
             </div>
           </div>
         </div>
+      </section>
 
-        <div className="space-y-6">
-          <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-800">Média geral por bimestre</h2>
-            </div>
-            <div className="mt-6 h-56">
-              {insightsLoading ? (
-                <p className="text-sm text-slate-500">Carregando notas...</p>
-              ) : gradeAverages.length ? (
-                <div className="flex h-full items-end justify-around gap-4">
-                  {gradeAverages.map((item) => {
-                    const height = gradeMaxAverage ? Math.max(8, (item.average / gradeMaxAverage) * 100) : 0
-                    return (
-                      <div key={item.term} className="flex flex-1 flex-col items-center gap-2">
-                        <div className="flex h-full w-full items-end justify-center">
-                          <div
-                            className="w-12 max-w-full rounded-t-2xl bg-gradient-to-b from-[#FFB347] to-[#FF8A00]"
-                            style={{ height: `${height}%` }}
-                          ></div>
-                        </div>
-                        <span className="text-xs font-semibold text-slate-500">{item.term}º bim.</span>
-                        <span className="text-sm font-semibold text-slate-700">{item.average.toFixed(1).replace('.', ',')}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-500">Ainda não há notas cadastradas.</p>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-800">Destaques próximos</h2>
-              <button className="text-sm font-semibold text-[#FF8A00] transition hover:text-[#ff7800]" onClick={() => navigate('/professor/classes')}>
-                Gerenciar turmas
-              </button>
-            </div>
-            <div className="mt-6 space-y-3">
-              {loading ? (
-                <p className="text-sm text-slate-500">Carregando...</p>
-              ) : upcomingHighlights.length ? (
-                upcomingHighlights.map((item) => (
-                  <div key={item.id} className="flex flex-col gap-1 rounded-2xl border border-slate-100 p-4">
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
-                      <span className="rounded-full bg-[#FFF3E3] px-3 py-1 font-semibold text-[#FF8A00]">
-                        {DATE_BADGE_FORMATTER.format(item.date)}
-                      </span>
-                      <span>{LONG_DATE_FORMATTER.format(item.date)}</span>
+      <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-800">Média geral por bimestre</h2>
+        </div>
+        <div className="mt-6 h-56">
+          {insightsLoading ? (
+            <p className="text-sm text-slate-500">Carregando notas...</p>
+          ) : gradeAverages.length ? (
+            <div className="flex h-full items-end justify-around gap-4">
+              {gradeAverages.map((item) => {
+                const height = gradeMaxAverage ? Math.max(8, (item.average / gradeMaxAverage) * 100) : 0
+                return (
+                  <div key={item.term} className="flex flex-1 flex-col items-center gap-2">
+                    <div className="flex h-full w-full items-end justify-center">
+                      <div
+                        className="w-12 max-w-full rounded-t-2xl bg-gradient-to-b from-[#FFB347] to-[#FF8A00]"
+                        style={{ height: `${height}%` }}
+                      ></div>
                     </div>
-                    <p className="text-sm font-semibold text-slate-700">{item.title}</p>
-                    {item.subtitle && <p className="text-xs text-slate-500">{item.subtitle}</p>}
-                    <span
-                      className={`self-start rounded-full px-3 py-1 text-xs font-semibold ${
-                        item.badge === 'ATIVIDADE'
-                          ? 'bg-[#FFF3E3] text-[#FF8A00]'
-                          : 'bg-slate-200 text-slate-600'
-                      }`}
-                    >
-                      {item.badge}
-                    </span>
+                    <span className="text-xs font-semibold text-slate-500">{item.term}º bim.</span>
+                    <span className="text-sm font-semibold text-slate-700">{item.average.toFixed(1).replace('.', ',')}</span>
                   </div>
-                ))
-              ) : (
-                <p className="text-sm text-slate-500">Sem destaques nos próximos dias.</p>
-              )}
+                )
+              })}
             </div>
-          </div>
+          ) : (
+            <p className="text-sm text-slate-500">Ainda não há notas cadastradas.</p>
+          )}
         </div>
       </section>
 

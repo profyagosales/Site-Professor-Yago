@@ -20,7 +20,7 @@ export default function LoginAluno() {
         const t = data?.data?.token;
         if (t) localStorage.setItem('auth_token', t);
         localStorage.setItem("role", "student");
-        navigate("/aluno/caderno", { replace: true });
+  navigate("/aluno/resumo", { replace: true });
       } else {
         setErro(data?.message ?? "Erro no login do aluno");
       }

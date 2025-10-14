@@ -2,10 +2,14 @@ import { Page } from '@/components/Page';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { getStudent, getStudentEssays } from '@/services/students2';
+// @ts-expect-error serviço legado em JS
 import gradesService from '@/services/grades';
+// @ts-expect-error serviço legado em JS
 import cadernoService from '@/services/caderno';
 import NewEssayModal from '@/components/redacao/NewEssayModal';
 import { toast } from 'react-toastify';
+import { Button } from '@/components/ui/Button';
+import { Tabs } from '@/components/ui/Tabs';
 
 export default function PerfilAluno() {
   const { id } = useParams();
@@ -22,6 +26,11 @@ export default function PerfilAluno() {
   }, [id]);
 
   const student = data?.student;
+  const sectionTabs = [
+    { key: 'essays', label: 'Redações', isActive: tab === 'essays', onClick: () => setTab('essays') },
+    { key: 'grades', label: 'Notas da Classe', isActive: tab === 'grades', onClick: () => setTab('grades') },
+    { key: 'notebook', label: 'Caderno', isActive: tab === 'notebook', onClick: () => setTab('notebook') },
+  ];
 
   return (
     <Page title={student?.name || 'Aluno'} subtitle={student?.email || ''}>
@@ -32,16 +41,14 @@ export default function PerfilAluno() {
               <div className="text-[#111827] font-semibold">{student?.name}</div>
               <div className="text-sm text-ys-ink-2">{student?.email}</div>
             </div>
-            <button className="rounded-lg bg-orange-500 px-4 py-2 font-semibold text-white" onClick={()=> setModal(true)}>Nova Redação</button>
+            <Button onClick={() => setModal(true)}>
+              Nova Redação
+            </Button>
           </div>
         </div>
       </div>
 
-      <div className="mb-3 flex gap-2">
-        <button className={`rounded-full border px-4 py-2 text-sm ${tab==='essays'?'bg-orange-500 text-white':'border-[#E5E7EB] text-[#111827]'}`} onClick={()=>setTab('essays')}>Redações</button>
-        <button className={`rounded-full border px-4 py-2 text-sm ${tab==='grades'?'bg-orange-500 text-white':'border-[#E5E7EB] text-[#111827]'}`} onClick={()=>setTab('grades')}>Notas da Classe</button>
-        <button className={`rounded-full border px-4 py-2 text-sm ${tab==='notebook'?'bg-orange-500 text-white':'border-[#E5E7EB] text-[#111827]'}`} onClick={()=>setTab('notebook')}>Caderno</button>
-      </div>
+      <Tabs items={sectionTabs} className="mb-3" />
 
       {tab==='essays' && <ListaRedacoesAluno id={id!} />}
   {tab==='grades' && <NotasAluno id={id!} classId={student?.class} />}
@@ -135,6 +142,10 @@ function ListaRedacoesAluno({ id }: { id: string }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [data, setData] = useState<any>({ items: [], total: 0 });
+  const statusTabs = [
+    { key: 'pending', label: 'Pendentes', isActive: status === 'pending', onClick: () => { setStatus('pending'); setPage(1); } },
+    { key: 'corrected', label: 'Corrigidas', isActive: status === 'corrected', onClick: () => { setStatus('corrected'); setPage(1); } },
+  ];
 
   useEffect(() => {
     (async () => {
@@ -145,10 +156,7 @@ function ListaRedacoesAluno({ id }: { id: string }) {
 
   return (
     <div className="overflow-hidden rounded-xl border border-[#E5E7EB] bg-white">
-      <div className="p-3 flex items-center gap-2">
-        <button className={`rounded-full border px-3 py-1 text-sm ${status==='pending'?'bg-orange-500 text-white':'border-[#E5E7EB] text-[#111827]'}`} onClick={()=>{ setStatus('pending'); setPage(1); }}>Pendentes</button>
-        <button className={`rounded-full border px-3 py-1 text-sm ${status==='corrected'?'bg-orange-500 text-white':'border-[#E5E7EB] text-[#111827]'}`} onClick={()=>{ setStatus('corrected'); setPage(1); }}>Corrigidas</button>
-      </div>
+      <Tabs items={statusTabs} className="p-3" />
       <table className="w-full text-sm text-[#111827]">
         <thead className="bg-[#F3F4F6] text-left text-[#374151]"><tr><th className="px-4 py-3">Tema</th><th className="px-4 py-3">Enviado</th><th className="px-4 py-3">Nota</th><th className="px-4 py-3">Arquivo</th></tr></thead>
         <tbody>

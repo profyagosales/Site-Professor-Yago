@@ -6,6 +6,7 @@ import React, {
 } from 'react';
 import { HIGHLIGHT_PALETTE } from './palette';
 import type { Highlight } from './types';
+import { Button } from '@/components/ui/Button';
 
 interface Props {
   fileUrl: string;
@@ -70,6 +71,7 @@ const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
       ref,
       () => ({
         jumpToPage(page: number) {
+          // @ts-expect-error bbox sempre presente para destaques existentes
           const target = highlights.find((h) => h.bbox.page === page);
           if (target && scrollRef.current) scrollRef.current(target);
         },
@@ -231,22 +233,23 @@ const PdfHighlighter = forwardRef<PdfHighlighterHandle, Props>(
                     onChange={(e) => setText(e.target.value)}
                   />
                   <div className="mt-2 flex justify-end gap-2">
-                    <button
-                      className="rounded border px-3 py-1 text-sm"
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => {
                         modal.hide();
                         setModal(null);
                       }}
                     >
                       Cancelar
-                    </button>
-                    <button
-                      className="rounded bg-orange-500 px-3 py-1 text-sm text-white disabled:opacity-60"
-                      disabled={requireComment && (!title || !text)}
+                    </Button>
+                    <Button
+                      size="sm"
                       onClick={saveModal}
+                      disabled={requireComment && (!title || !text)}
                     >
                       Salvar
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>

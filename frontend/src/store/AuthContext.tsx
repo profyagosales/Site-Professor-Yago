@@ -169,15 +169,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser((prev) => ({ ...(prev ?? {}), ...(payload as SessionUser) }));
   }, []);
 
+  const resolvedRole = useMemo(() => {
+    const explicit = typeof user?.role === 'string' ? user.role.toLowerCase() : null;
+    if (explicit === 'teacher' || explicit === 'student') return explicit;
+    if (user?.isTeacher) return 'teacher';
+    return explicit;
+  }, [user]);
+
   const value = useMemo<AuthState>(() => ({
     loading,
     user,
-    isTeacher: (user?.role || '').toLowerCase() === 'teacher',
-    isStudent: (user?.role || '').toLowerCase() === 'student',
+    isTeacher: resolvedRole === 'teacher',
+    isStudent: resolvedRole === 'student',
     reload,
     logout,
     setSession,
-  }), [loading, user, reload, logout, setSession]);
+  }), [loading, user, resolvedRole, reload, logout, setSession]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      if (resolvedRole) {
+        window.localStorage.setItem('role', resolvedRole);
+      } else {
+        window.localStorage.removeItem('role');
+      }
+    } catch {
+      /* ignore storage errors */
+    }
+  }, [resolvedRole]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

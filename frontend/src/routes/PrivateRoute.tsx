@@ -1,41 +1,55 @@
-import { Navigate, Outlet } from 'react-router-dom';
-import { useEffect, useState } from 'react';
-import { api } from '@/services/api';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useAuth } from '@/store/AuthContext';
+
+type Status = 'checking' | 'allow' | 'deny';
 
 export default function PrivateRoute() {
-  const [state, setState] = useState<'loading' | 'ok' | 'fail'>('loading');
+  const { loading, user, reload } = useAuth();
+  const location = useLocation();
+  const [status, setStatus] = useState<Status>('checking');
+  const attempted = useRef(false);
 
   useEffect(() => {
+    if (loading) {
+      setStatus('checking');
+      return;
+    }
+
+    if (user) {
+      setStatus('allow');
+      return;
+    }
+
+    if (attempted.current) {
+      setStatus('deny');
+      return;
+    }
+
+    attempted.current = true;
+    setStatus('checking');
     let cancelled = false;
 
-    const verify = async () => {
-      const requestConfig = { meta: { skipAuthRedirect: true, noCache: true } } as const;
-
+    const ensure = async () => {
       try {
-        await api.get('/me', requestConfig);
-        if (!cancelled) setState('ok');
-        return;
-      } catch (err) {
-        if (cancelled) return;
-        try {
-          await api.get('/auth/me', requestConfig);
-          if (!cancelled) {
-            setState('ok');
-            return;
-          }
-        } catch {
-          if (!cancelled) setState('fail');
-        }
+        await reload();
+      } catch (error) {
+        console.warn('PrivateRoute: falha ao reidratar sessão', error);
       }
+      if (cancelled) return;
+      // reload altera "loading" e "user"; o efeito será reavaliado.
     };
 
-    void verify();
+    void ensure();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loading, user, reload]);
 
-  if (state === 'loading') return null;
-  return state === 'ok' ? <Outlet /> : <Navigate to="/login-professor" replace />;
+  if (status === 'checking') {
+    return <div className="p-6">Carregando…</div>;
+  }
+
+  return status === 'allow' ? <Outlet /> : <Navigate to="/login-professor" state={{ from: location }} replace />;
 }

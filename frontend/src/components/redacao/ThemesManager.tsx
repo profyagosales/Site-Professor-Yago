@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fetchThemes, createThemeApi, updateThemeApi } from '@/services/essays.service';
+import Modal from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 
 type Props = { open: boolean; onClose: () => void };
 
@@ -51,11 +53,13 @@ export default function ThemesManager({ open, onClose }: Props) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" role="dialog" aria-modal>
-      <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-ys-lg">
+    <Modal open={open} onClose={onClose} className="max-w-2xl">
+      <div className="p-6">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-[#111827]">Temas de Redação</h3>
-          <button className="text-ys-ink" onClick={onClose}>Fechar</button>
+          <Button variant="ghost" onClick={onClose} size="sm" type="button">
+            Fechar
+          </Button>
         </div>
         <div className="mb-3 grid gap-3 md:grid-cols-3">
           <div>
@@ -69,7 +73,9 @@ export default function ThemesManager({ open, onClose }: Props) {
             <label className="block text-sm font-medium text-[#111827]">Novo tema</label>
             <div className="flex gap-2">
               <input value={name} onChange={e=> setName(e.target.value)} placeholder="Descrição do tema" className="flex-1 rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-              <button className="rounded-lg bg-orange-500 px-4 py-2 font-semibold text-white hover:brightness-110 disabled:opacity-50" onClick={createTheme} disabled={creating || !name.trim()}>Adicionar</button>
+              <Button onClick={createTheme} disabled={creating || !name.trim()}>
+                Adicionar
+              </Button>
             </div>
           </div>
         </div>
@@ -94,9 +100,14 @@ export default function ThemesManager({ open, onClose }: Props) {
                     <td className="px-4 py-2">{t.name}</td>
                     <td className="px-4 py-2">{t.active ? 'Sim' : 'Não'}</td>
                     <td className="px-4 py-2">
-                      <button className="rounded-lg border border-[#E5E7EB] px-3 py-1.5 hover:bg-[#F3F4F6]" onClick={() => toggleActive(t)}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleActive(t)}
+                      >
                         {t.active ? 'Desativar' : 'Ativar'}
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -105,6 +116,6 @@ export default function ThemesManager({ open, onClose }: Props) {
           )}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

@@ -21,9 +21,9 @@ type TabsProps = {
 };
 
 const BASE_CLASS =
-  'inline-flex items-center justify-center rounded-full border px-4 py-2 text-sm font-medium transition-colors';
-const ACTIVE_CLASS = 'border-[#FFC28B] bg-[#FBEEDC] text-ys-ink shadow-sm';
-const INACTIVE_CLASS = 'border-transparent text-slate-600 hover:bg-black/5 hover:text-slate-900';
+  'inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#FF8A00]';
+const ACTIVE_CLASS = 'bg-[#FF8A00] text-white shadow-sm';
+const INACTIVE_CLASS = 'text-slate-600 hover:bg-slate-100';
 
 export function Tabs({ items, className = '' }: TabsProps) {
   return (
