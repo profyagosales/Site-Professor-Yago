@@ -60,11 +60,15 @@ export type ClassMilestone = {
   dateISO: string | null;
 };
 
+export type ClassNoticeAudience = 'teachers' | 'all';
+
 export type ClassNotice = {
   id: string;
   _id: string;
   message: string;
+  audience: ClassNoticeAudience;
   createdAt: string;
+  createdBy?: string;
 };
 
 export type ClassCalendarItem = {
@@ -278,6 +282,19 @@ function formatMilestoneRecord(raw: unknown): ClassMilestone {
   };
 }
 
+function normalizeNoticeAudience(raw: unknown): ClassNoticeAudience {
+  if (typeof raw === 'string') {
+    const normalized = raw.trim().toLowerCase();
+    if (normalized === 'all' || normalized === 'todos' || normalized === 'everyone') {
+      return 'all';
+    }
+    if (normalized === 'teachers' || normalized === 'professores') {
+      return 'teachers';
+    }
+  }
+  return 'teachers';
+}
+
 function formatNoticeRecord(raw: unknown): ClassNotice {
   const record = raw as Record<string, unknown>;
   const createdAtRaw = record?.createdAt;
@@ -285,6 +302,8 @@ function formatNoticeRecord(raw: unknown): ClassNotice {
     id: normalizeId(record?.id ?? record?._id ?? record),
     _id: normalizeId(record?.id ?? record?._id ?? record),
     message: typeof record?.message === 'string' ? record.message : '',
+    audience: normalizeNoticeAudience(record?.audience),
+    createdBy: normalizeId(record?.createdBy),
     createdAt:
       createdAtRaw instanceof Date
         ? createdAtRaw.toISOString()
@@ -385,16 +404,31 @@ function normalizeScheduleEntries(raw: unknown): Array<{ weekday: Weekday; slot:
     const slotRaw = entry.slot ?? entry.timeSlot ?? entry.lesson;
     const slotNumber = typeof slotRaw === 'number' ? slotRaw : Number(slotRaw);
     if (![1, 2, 3].includes(slotNumber)) return;
-    const dayRaw = entry.weekday ?? entry.day ?? entry.weekDay;
-    let weekday: Weekday | undefined;
-    if (typeof dayRaw === 'number' && dayRaw >= 1 && dayRaw <= 5) {
-      weekday = dayRaw as Weekday;
-    } else if (typeof dayRaw === 'string') {
-      const mapped = dayNameToWeekday[dayRaw.trim().toUpperCase()];
-      if (mapped) weekday = mapped;
+
+    const pushDay = (value: unknown) => {
+      if (typeof value === 'number' && value >= 1 && value <= 5) {
+        entries.push({ weekday: value as Weekday, slot: slotNumber as TimeSlot });
+      } else if (typeof value === 'string') {
+        const mapped = dayNameToWeekday[value.trim().toUpperCase()];
+        if (mapped) {
+          entries.push({ weekday: mapped as Weekday, slot: slotNumber as TimeSlot });
+        }
+      }
+    };
+
+    if (Array.isArray(entry.days)) {
+      entry.days.forEach(pushDay);
+      return;
     }
-    if (!weekday) return;
-    entries.push({ weekday, slot: slotNumber as TimeSlot });
+
+    const weekdaysRaw = entry.weekdays ?? entry.weekDays;
+    if (Array.isArray(weekdaysRaw)) {
+      weekdaysRaw.forEach(pushDay);
+      return;
+    }
+
+    const dayRaw = entry.weekday ?? entry.day ?? entry.weekDay;
+    pushDay(dayRaw);
   });
   return entries;
 }
@@ -732,7 +766,7 @@ export async function getClassGrades(
 
 export async function exportClassGradesPdf(
   id: string,
-  params: { year?: number; terms?: number[]; sum?: boolean } = {}
+  params: { year?: number; terms?: number[]; includeTotal?: boolean; sum?: boolean } = {}
 ): Promise<Blob> {
   if (!id) {
     throw new Error('Turma inválida.');
@@ -744,6 +778,11 @@ export async function exportClassGradesPdf(
   }
   if (params.terms && params.terms.length) {
     query.terms = params.terms.join(',');
+  }
+  if (params.includeTotal !== undefined) {
+    query.includeTotal = params.includeTotal;
+  } else if (params.sum !== undefined) {
+    query.includeTotal = params.sum;
   }
   if (params.sum !== undefined) {
     query.sum = params.sum;
@@ -1030,9 +1069,9 @@ export async function getClass(id: string): Promise<SchoolClassDetail> {
 
 export async function updateClassSchedule(
   id: string,
-  schedule: SchoolClassDetail['schedule']
+  schedule: Array<{ slot: TimeSlot; days: Weekday[] }>
 ): Promise<SchoolClassDetail> {
-  const res = await api.patch(`/classes/${id}/schedule`, { schedule }, { validateStatus: () => true } as any);
+  const res = await api.put(`/classes/${id}/schedule`, { schedule }, { validateStatus: () => true } as any);
   const data = resolveData<any>(res, 'Erro ao atualizar horários da turma');
   return toSchoolDetail(data);
 }
@@ -1168,9 +1207,14 @@ export async function removeClassMilestone(classId: string, milestoneId: string)
 
 export async function addClassNotice(
   classId: string,
-  payload: { message: string }
+  payload: { message: string; audience: ClassNoticeAudience }
 ): Promise<ClassNotice> {
-  const res = await api.post(`/classes/${classId}/notices`, payload, {
+  const body: Record<string, unknown> = {
+    message: payload.message,
+    audience: payload.audience,
+  };
+
+  const res = await api.post(`/classes/${classId}/notices`, body, {
     validateStatus: () => true,
   } as any);
   return resolveData<ClassNotice>(res, 'Erro ao registrar aviso');

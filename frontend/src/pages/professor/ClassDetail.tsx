@@ -7,6 +7,7 @@ import {
   ClassDetails,
   ClassMilestone,
   ClassNotice,
+  ClassNoticeAudience,
   ClassStudent,
   UpsertStudentInput,
   addClassActivity,
@@ -140,6 +141,26 @@ const SLOT_TO_TIME: Record<TimeSlot, string> = {
   3: '10:45',
 };
 
+const NOTICE_AUDIENCE_LABELS: Record<ClassNoticeAudience, string> = {
+  teachers: 'Somente professores',
+  all: 'Visível para alunos e professores',
+};
+
+const NOTICE_AUDIENCE_BADGES: Record<ClassNoticeAudience, { label: string; className: string }> = {
+  teachers: { label: 'Somente professores', className: 'bg-ys-ink/10 text-ys-ink-2' },
+  all: { label: 'Visível aos alunos', className: 'bg-ys-amber/15 text-ys-amber' },
+};
+
+const CALENDAR_ITEM_BADGES: Record<ClassCalendarItem['type'], { label: string; className: string }> = {
+  activity: { label: 'Atividade', className: 'border border-ys-amber bg-ys-amber/15 text-ys-amber' },
+  milestone: { label: 'Data importante', className: 'border border-ys-ink bg-ys-ink/10 text-ys-ink' },
+};
+
+const NOTICE_AUDIENCE_OPTIONS: Array<{ value: ClassNoticeAudience; label: string }> = [
+  { value: 'teachers', label: 'Mostrar só para professores' },
+  { value: 'all', label: 'Mostrar para alunos também' },
+];
+
 function buildScheduleKey(weekday: Weekday, slot: TimeSlot): ScheduleKey {
   return `${weekday}-${slot}` as ScheduleKey;
 }
@@ -149,18 +170,35 @@ function createScheduleSet(schedule: any): Set<ScheduleKey> {
   if (!Array.isArray(schedule)) return set;
   schedule.forEach((entry) => {
     if (!entry) return;
-    const weekdayRaw = entry.weekday ?? entry.day ?? entry.weekDay;
     const slotRaw = entry.slot ?? entry.timeSlot ?? entry.periodo;
-    let weekday: Weekday | undefined;
-    if (typeof weekdayRaw === 'number') {
-      weekday = DAY_NAME_TO_INDEX[String(weekdayRaw).toUpperCase()] ?? (weekdayRaw as Weekday);
-    } else if (typeof weekdayRaw === 'string') {
-      weekday = DAY_NAME_TO_INDEX[weekdayRaw.trim().toUpperCase()];
-    }
     const slot = typeof slotRaw === 'number' ? (slotRaw as TimeSlot) : (Number(slotRaw) as TimeSlot);
-    if (!weekday || Number.isNaN(slot)) return;
-    if (!WeekdaysSet.has(weekday) || !TimeSlotsSet.has(slot)) return;
-    set.add(buildScheduleKey(weekday, slot));
+    if (!TimeSlotsSet.has(slot)) return;
+
+    const pushDay = (value: unknown) => {
+      let weekday: Weekday | undefined;
+      if (typeof value === 'number') {
+        weekday = DAY_NAME_TO_INDEX[String(value).toUpperCase()] ?? (value as Weekday);
+      } else if (typeof value === 'string') {
+        weekday = DAY_NAME_TO_INDEX[value.trim().toUpperCase()];
+      }
+      if (!weekday || Number.isNaN(slot)) return;
+      if (!WeekdaysSet.has(weekday)) return;
+      set.add(buildScheduleKey(weekday, slot));
+    };
+
+    if (Array.isArray(entry.days)) {
+      entry.days.forEach(pushDay);
+      return;
+    }
+
+    const weekdaysRaw = entry.weekdays ?? entry.weekDays;
+    if (Array.isArray(weekdaysRaw)) {
+      weekdaysRaw.forEach(pushDay);
+      return;
+    }
+
+    const weekdayRaw = entry.weekday ?? entry.day ?? entry.weekDay;
+    pushDay(weekdayRaw);
   });
   return set;
 }
@@ -173,14 +211,21 @@ function setsAreEqual(a: Set<ScheduleKey>, b: Set<ScheduleKey>): boolean {
   return true;
 }
 
-function selectedSlotsToPayload(selected: Set<ScheduleKey>): Array<{ weekday: Weekday; slot: TimeSlot }> {
-  return Array.from(selected).map((key) => {
+function selectedSlotsToApiSchedule(selected: Set<ScheduleKey>): Array<{ slot: TimeSlot; days: Weekday[] }> {
+  const grouped = new Map<TimeSlot, Set<Weekday>>();
+  selected.forEach((key) => {
     const [weekdayStr, slotStr] = key.split('-');
-    return {
-      weekday: Number(weekdayStr) as Weekday,
-      slot: Number(slotStr) as TimeSlot,
-    };
+    const slot = Number(slotStr) as TimeSlot;
+    const weekday = Number(weekdayStr) as Weekday;
+    if (!TimeSlotsSet.has(slot) || !WeekdaysSet.has(weekday)) return;
+    if (!grouped.has(slot)) {
+      grouped.set(slot, new Set());
+    }
+    grouped.get(slot)?.add(weekday);
   });
+  return Array.from(grouped.entries())
+    .map(([slot, daysSet]) => ({ slot, days: Array.from(daysSet).sort((a, b) => a - b) }))
+    .sort((a, b) => a.slot - b.slot);
 }
 
 function selectedSlotsToDetailSchedule(selected: Set<ScheduleKey>) {
@@ -884,20 +929,24 @@ function MilestoneModal({ open, loading, onClose, onSubmit }: MilestoneModalProp
   );
 }
 
+
 type NoticeModalProps = {
   open: boolean;
   loading: boolean;
   onClose: () => void;
-  onSubmit: (payload: { message: string }) => Promise<void>;
+  onSubmit: (payload: { message: string; audience: ClassNoticeAudience }) => Promise<void>;
 };
+
 
 function NoticeModal({ open, loading, onClose, onSubmit }: NoticeModalProps) {
   const [message, setMessage] = useState('');
+  const [audience, setAudience] = useState<ClassNoticeAudience>('teachers');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setMessage('');
+    setAudience('teachers');
     setError(null);
   }, [open]);
 
@@ -915,7 +964,7 @@ function NoticeModal({ open, loading, onClose, onSubmit }: NoticeModalProps) {
     }
 
     try {
-      await onSubmit({ message: trimmed });
+      await onSubmit({ message: trimmed, audience });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Não foi possível salvar o aviso.';
       setError(errorMessage);
@@ -951,6 +1000,25 @@ function NoticeModal({ open, loading, onClose, onSubmit }: NoticeModalProps) {
               disabled={loading}
             />
           </label>
+
+          <fieldset className="rounded-xl border border-ys-line px-3 py-3">
+            <legend className="px-1 text-sm font-medium text-ys-ink">Visibilidade do aviso</legend>
+            <div className="mt-2 space-y-2">
+              {NOTICE_AUDIENCE_OPTIONS.map((option) => (
+                <label key={option.value} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="notice-audience"
+                    value={option.value}
+                    checked={audience === option.value}
+                    onChange={(event) => setAudience(event.target.value as ClassNoticeAudience)}
+                    disabled={loading}
+                  />
+                  {option.label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
 
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
@@ -1007,6 +1075,25 @@ export default function ClassDetailPage() {
     setFeedback({ message, tone });
   }, []);
 
+  const applyClassDetail = useCallback((data: ClassDetails | null) => {
+    if (!data) {
+      setDetail(null);
+      return;
+    }
+    const scheduleSet = createScheduleSet(data.schedule);
+    setSelectedSlots(scheduleSet);
+    setScheduleDraft(new Set(scheduleSet));
+    const normalizedSchedule = selectedSlotsToDetailSchedule(scheduleSet);
+    setDetail({
+      ...data,
+      schedule: normalizedSchedule,
+      students: sortStudents(data.students),
+      activities: sortActivities(data.activities ?? []),
+      milestones: sortMilestones(data.milestones ?? []),
+      notices: sortNotices(data.notices ?? []),
+    });
+  }, []);
+
   const fetchDetail = useCallback(async () => {
     if (!id) return;
     setLoading(true);
@@ -1017,18 +1104,7 @@ export default function ClassDetailPage() {
         setError('Turma não encontrada.');
         setDetail(null);
       } else {
-        const scheduleSet = createScheduleSet(data.schedule);
-        setSelectedSlots(scheduleSet);
-        setScheduleDraft(new Set(scheduleSet));
-        const normalizedSchedule = selectedSlotsToDetailSchedule(scheduleSet);
-        setDetail({
-          ...data,
-          schedule: normalizedSchedule,
-          students: sortStudents(data.students),
-          activities: sortActivities(data.activities ?? []),
-          milestones: sortMilestones(data.milestones ?? []),
-          notices: sortNotices(data.notices ?? []),
-        });
+        applyClassDetail(data);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar turma.';
@@ -1036,7 +1112,7 @@ export default function ClassDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, applyClassDetail]);
 
   const loadCalendar = useCallback(async () => {
     if (!id) return;
@@ -1151,23 +1227,13 @@ export default function ClassDetailPage() {
     setFeedback(null);
     setTemporaryPassword(null);
     try {
-      const payload = selectedSlotsToPayload(slots);
-      const updated = await updateClassSchedule(id, payload);
-      const updatedSet = createScheduleSet(updated.schedule);
-      setSelectedSlots(updatedSet);
-      setScheduleDraft(new Set(updatedSet));
-      setDetail((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          name: updated.name ?? prev.name,
-          subject: updated.subject ?? prev.subject,
-          discipline: updated.subject ?? prev.discipline,
-          studentsCount: updated.studentsCount ?? prev.studentsCount,
-          teachersCount: updated.teachersCount ?? prev.teachersCount,
-          schedule: selectedSlotsToDetailSchedule(updatedSet),
-        };
-      });
+      const payload = selectedSlotsToApiSchedule(slots);
+      await updateClassSchedule(id, payload);
+      const refreshed = await getClassDetails(id);
+      if (!refreshed) {
+        throw new Error('Não foi possível carregar os horários atualizados.');
+      }
+      applyClassDetail(refreshed);
       showFeedback('Horários atualizados com sucesso.', 'success');
       setScheduleModalOpen(false);
     } catch (err) {
@@ -1418,7 +1484,27 @@ export default function ClassDetailPage() {
     }
   };
 
-  const handleSubmitNotice = async (payload: { message: string }) => {
+  const handleCalendarItemRemove = async (item: ClassCalendarItem) => {
+    if (!detail) return;
+    if (item.type === 'activity') {
+      const target = detail.activities.find((activity) => activity.id === item.sourceId || activity.id === item.id);
+      if (!target) {
+        showFeedback('Atividade não encontrada para remoção.', 'error');
+        return;
+      }
+      await handleRemoveActivity(target);
+      return;
+    }
+
+    const target = detail.milestones.find((milestone) => milestone.id === item.sourceId || milestone.id === item.id);
+    if (!target) {
+      showFeedback('Data importante não encontrada para remoção.', 'error');
+      return;
+    }
+    await handleRemoveMilestone(target);
+  };
+
+  const handleSubmitNotice = async (payload: { message: string; audience: ClassNoticeAudience }) => {
     if (!id) throw new Error('Turma inválida.');
     setQuickSaving(true);
     setTemporaryPassword(null);
@@ -1520,7 +1606,7 @@ export default function ClassDetailPage() {
           )}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="ghost" onClick={handleOpenEmailModal}>
+          <Button variant="primary" onClick={handleOpenEmailModal}>
             Enviar e-mail para a turma
           </Button>
           {activeTab === 'students' && (
@@ -1540,81 +1626,6 @@ export default function ClassDetailPage() {
           <span className="font-semibold text-ys-ink">{totalTeachers}</span> professores
         </span>
       </div>
-
-      <section className="grid gap-3 md:grid-cols-2">
-        <div className="rounded-2xl border border-ys-line bg-white p-4 shadow-ys-sm">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-base font-semibold text-ys-ink">Atividades</h2>
-            <Button variant="ghost" onClick={handleOpenActivityModal}>
-              Adicionar
-            </Button>
-          </div>
-          <p className="mt-1 text-xs text-ys-graphite">
-            Registre tarefas rápidas com data para acompanhar com a turma.
-          </p>
-          <ul className="mt-3 space-y-2 text-sm text-ys-ink">
-            {detail.activities.length === 0 && (
-              <li className="text-xs text-ys-graphite">Nenhuma atividade cadastrada.</li>
-            )}
-            {detail.activities.map((activity) => {
-              const dateLabel = formatDateLabel(activity.dateISO ?? activity.createdAt);
-              return (
-                <li key={activity.id} className="flex items-start justify-between gap-2">
-                  <div className="space-y-1">
-                    <p className="font-medium text-ys-ink">{activity.title}</p>
-                    <p className="text-xs text-ys-graphite">
-                      {dateLabel ? `Para ${dateLabel}` : 'Data não definida'}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    className="text-xs font-semibold text-rose-600 hover:underline"
-                    onClick={() => handleRemoveActivity(activity)}
-                  >
-                    Remover
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-        <div className="rounded-2xl border border-ys-line bg-white p-4 shadow-ys-sm">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-base font-semibold text-ys-ink">Datas importantes</h2>
-            <Button variant="ghost" onClick={handleOpenMilestoneModal}>
-              Adicionar
-            </Button>
-          </div>
-          <p className="mt-1 text-xs text-ys-graphite">
-            Mantenha um calendário rápido de provas, reuniões e eventos.
-          </p>
-          <ul className="mt-3 space-y-2 text-sm text-ys-ink">
-            {detail.milestones.length === 0 && (
-              <li className="text-xs text-ys-graphite">Nenhuma data registrada.</li>
-            )}
-            {detail.milestones.map((milestone) => {
-              const dateLabel = formatDateLabel(milestone.dateISO);
-              return (
-                <li key={milestone.id} className="flex items-start justify-between gap-2">
-                  <div className="space-y-1">
-                    <p className="font-medium text-ys-ink">{milestone.label}</p>
-                    <p className="text-xs text-ys-graphite">
-                      {dateLabel ? dateLabel : 'Data a definir'}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    className="text-xs font-semibold text-rose-600 hover:underline"
-                    onClick={() => handleRemoveMilestone(milestone)}
-                  >
-                    Remover
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      </section>
 
       <div className="flex flex-wrap gap-2 border-b border-ys-line pb-2">
         {tabs.map((tab) => {
@@ -1723,27 +1734,35 @@ export default function ClassDetailPage() {
                   <div>
                     <h2 className="text-base font-semibold text-ys-ink">Calendário da turma</h2>
                     <p className="text-xs text-ys-graphite">
-                      Eventos provenientes das atividades e datas importantes cadastradas.
+                      Atividades e datas importantes ficam reunidas aqui para você acompanhar o que vem pela frente.
                     </p>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className={calendarView === 'week' ? 'border border-ys-amber bg-ys-amber/20 text-ys-ink' : ''}
-                      aria-pressed={calendarView === 'week'}
-                      onClick={() => setCalendarView('week')}
-                    >
-                      Semana
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className={calendarView === 'week' ? 'border border-ys-amber bg-ys-amber/20 text-ys-ink' : ''}
+                        aria-pressed={calendarView === 'week'}
+                        onClick={() => setCalendarView('week')}
+                      >
+                        Semana
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className={calendarView === 'month' ? 'border border-ys-amber bg-ys-amber/20 text-ys-ink' : ''}
+                        aria-pressed={calendarView === 'month'}
+                        onClick={() => setCalendarView('month')}
+                      >
+                        Mês
+                      </Button>
+                    </div>
+                    <Button variant="ghost" onClick={handleOpenActivityModal}>
+                      Nova atividade
                     </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className={calendarView === 'month' ? 'border border-ys-amber bg-ys-amber/20 text-ys-ink' : ''}
-                      aria-pressed={calendarView === 'month'}
-                      onClick={() => setCalendarView('month')}
-                    >
-                      Mês
+                    <Button variant="ghost" onClick={handleOpenMilestoneModal}>
+                      Nova data importante
                     </Button>
                   </div>
                 </div>
@@ -1755,7 +1774,9 @@ export default function ClassDetailPage() {
                     {calendarError}
                   </div>
                 ) : calendarGroups.length === 0 ? (
-                  <p className="mt-4 text-sm text-ys-graphite">Nenhum evento encontrado para o período selecionado.</p>
+                  <p className="mt-4 text-sm text-ys-graphite">
+                    Nenhum evento encontrado para o período selecionado. Use os botões acima para registrar novas atividades ou datas importantes.
+                  </p>
                 ) : (
                   <ul className="mt-4 space-y-3 text-sm text-ys-ink">
                     {calendarGroups.map((group) => (
@@ -1763,20 +1784,34 @@ export default function ClassDetailPage() {
                         <p className="text-xs font-semibold uppercase tracking-wide text-ys-graphite">{group.label}</p>
                         <ul className="mt-2 space-y-2">
                           {group.items.map((item) => {
-                            const label = item.title?.trim() || (item.type === 'activity' ? 'Atividade' : 'Data importante');
-                            const typeLabel = item.type === 'activity' ? 'Atividade' : 'Data importante';
+                            const badge = CALENDAR_ITEM_BADGES[item.type];
+                            const label = item.title?.trim() || badge.label;
+                            const createdLabel = formatDateTimeLabel(item.createdAt);
                             return (
                               <li
                                 key={`${group.dateISO}-${item.id}`}
-                                className="flex items-start justify-between gap-3 rounded-xl border border-ys-line bg-white px-3 py-2"
+                                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ys-line bg-white px-3 py-3"
                               >
                                 <div>
                                   <p className="font-medium text-ys-ink">{label}</p>
-                                  <p className="text-xs text-ys-graphite">{typeLabel}</p>
+                                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                                    <span
+                                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${badge.className}`}
+                                    >
+                                      {badge.label}
+                                    </span>
+                                    {createdLabel && (
+                                      <span className="text-xs text-ys-graphite">Registrado em {createdLabel}</span>
+                                    )}
+                                  </div>
                                 </div>
-                                <span className="text-xs font-semibold uppercase tracking-wide text-ys-graphite">
-                                  {typeLabel}
-                                </span>
+                                <button
+                                  type="button"
+                                  className="text-xs font-semibold text-rose-600 hover:underline"
+                                  onClick={() => handleCalendarItemRemove(item)}
+                                >
+                                  Remover
+                                </button>
                               </li>
                             );
                           })}
@@ -1808,7 +1843,19 @@ export default function ClassDetailPage() {
                     <li key={notice.id} className="flex items-start justify-between gap-3">
                       <div className="space-y-1">
                         <p className="whitespace-pre-wrap text-sm leading-relaxed text-ys-ink">{notice.message}</p>
-                        {createdLabel && <p className="text-xs text-ys-graphite">Registrado em {createdLabel}</p>}
+                        <div className="flex flex-wrap items-center gap-2">
+                          {(() => {
+                            const badge = NOTICE_AUDIENCE_BADGES[notice.audience];
+                            return (
+                              <span
+                                className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${badge.className}`}
+                              >
+                                {badge.label}
+                              </span>
+                            );
+                          })()}
+                          {createdLabel && <p className="text-xs text-ys-graphite">Registrado em {createdLabel}</p>}
+                        </div>
                       </div>
                       <button
                         type="button"

@@ -3,18 +3,6 @@ const Class = require('../models/Class');
 
 const allowedWeekdays = [1, 2, 3, 4, 5];
 const allowedSlots = [1, 2, 3];
-const weekdayMap = {
-  1: 'MONDAY',
-  2: 'TUESDAY',
-  3: 'WEDNESDAY',
-  4: 'THURSDAY',
-  5: 'FRIDAY',
-};
-const slotTimes = {
-  1: '07:00',
-  2: '09:00',
-  3: '11:00',
-};
 const dayNameToNumber = {
   MONDAY: 1,
   TUESDAY: 2,
@@ -55,26 +43,73 @@ function deriveSeriesLetter(name) {
   };
 }
 
-function normalizeSchedule(input) {
-  if (!Array.isArray(input)) return undefined;
-  const normalized = [];
+function normalizeSchedule(input, { required = false } = {}) {
+  if (input === undefined) {
+    return required ? [] : undefined;
+  }
+
+  if (!Array.isArray(input)) {
+    const error = new Error('Informe os horários da turma no formato de lista.');
+    error.status = 400;
+    throw error;
+  }
+
+  const grouped = new Map();
+
   input.forEach((entry) => {
     if (!entry) return;
-    const weekdayRaw = entry.weekday ?? entry.day ?? entry.weekDay;
     const slotRaw = entry.slot ?? entry.turno ?? entry.timeSlot;
+    const slot = parseNumber(slotRaw);
+    if (!slot || !allowedSlots.includes(slot)) return;
+
+    const ensureBucket = () => {
+      if (!grouped.has(slot)) {
+        grouped.set(slot, new Set());
+      }
+      return grouped.get(slot);
+    };
+
+    const bucket = ensureBucket();
+
+    if (Array.isArray(entry.days)) {
+      entry.days.forEach((dayValue) => {
+        const parsedDay = parseNumber(dayValue);
+        if (parsedDay && allowedWeekdays.includes(parsedDay)) {
+          bucket.add(parsedDay);
+        }
+      });
+      return;
+    }
+
+    const weekdaysSource = entry.weekdays ?? entry.weekDays;
+    if (Array.isArray(weekdaysSource)) {
+      weekdaysSource.forEach((value) => {
+        const parsedDay = parseNumber(value);
+        if (parsedDay && allowedWeekdays.includes(parsedDay)) {
+          bucket.add(parsedDay);
+        }
+      });
+      return;
+    }
+
+    const weekdayRaw = entry.weekday ?? entry.day ?? entry.weekDay;
     let weekday = parseNumber(weekdayRaw);
     if (!weekday && typeof weekdayRaw === 'string') {
       weekday = dayNameToNumber[weekdayRaw.trim().toUpperCase()];
     }
-    const slot = parseNumber(slotRaw);
-    if (!weekday || !slot) return;
-    if (!allowedWeekdays.includes(weekday) || !allowedSlots.includes(slot)) return;
-    normalized.push({
-      day: weekdayMap[weekday],
-      slot,
-      time: slotTimes[slot],
-    });
+    if (weekday && allowedWeekdays.includes(weekday)) {
+      bucket.add(weekday);
+    }
   });
+
+  const normalized = Array.from(grouped.entries())
+    .map(([slot, daysSet]) => {
+      const days = Array.from(daysSet).sort((a, b) => a - b);
+      return { slot: Number(slot), days };
+    })
+    .filter((entry) => entry.days.length > 0)
+    .sort((a, b) => a.slot - b.slot);
+
   return normalized;
 }
 
@@ -158,7 +193,9 @@ exports.createClass = async (req, res, next) => {
       throw error;
     }
 
-    const schedule = normalizeSchedule(req.body?.schedule);
+    const schedulePayload = Object.prototype.hasOwnProperty.call(req.body || {}, 'schedule')
+      ? normalizeSchedule(req.body.schedule, { required: true })
+      : [];
     const teachers = normalizeTeacherIdsList(req.body?.teachers);
     const responsibleTeacherIdRaw = req.body?.responsibleTeacherId;
     const responsibleTeacherId = responsibleTeacherIdRaw && isValidObjectId(String(responsibleTeacherIdRaw))
@@ -173,7 +210,7 @@ exports.createClass = async (req, res, next) => {
       series,
       letter,
       discipline: subject,
-      schedule: schedule ?? [],
+      schedule: schedulePayload,
       studentsCount: 0,
     };
 
@@ -219,7 +256,7 @@ exports.updateClass = async (req, res, next) => {
     const name = normalizeString(req.body?.name ?? req.body?.nome);
     const subject = normalizeString(req.body?.subject ?? req.body?.discipline);
     const year = parseNumber(req.body?.year ?? req.body?.ano);
-    const schedule = normalizeSchedule(req.body?.schedule);
+  const schedulePayload = normalizeSchedule(req.body?.schedule);
 
     if (name) {
       updates.name = name;
@@ -282,8 +319,8 @@ exports.updateClass = async (req, res, next) => {
       }
     }
 
-    if (schedule) {
-      updates.schedule = schedule;
+    if (schedulePayload !== undefined) {
+      updates.schedule = schedulePayload;
     }
 
     if (Object.keys(updates).length === 0) {
@@ -304,6 +341,33 @@ exports.updateClass = async (req, res, next) => {
     if (!error.status) {
       error.status = 400;
       error.message = error.message || 'Erro ao atualizar turma';
+    }
+    next(error);
+  }
+};
+
+exports.updateSchedule = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    await ensureClassExists(id);
+
+    const schedule = normalizeSchedule(req.body?.schedule, { required: true });
+    const updated = await Class.findByIdAndUpdate(
+      id,
+      { schedule },
+      { new: true, runValidators: true }
+    ).lean();
+
+    const summary = buildSummaryPayload(updated);
+    res.status(200).json({
+      success: true,
+      message: 'Horários da turma atualizados com sucesso',
+      data: summary,
+    });
+  } catch (error) {
+    if (!error.status) {
+      error.status = 400;
+      error.message = error.message || 'Erro ao atualizar horários da turma';
     }
     next(error);
   }

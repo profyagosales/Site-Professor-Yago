@@ -179,7 +179,7 @@ export default function ClassGradesPage() {
       const blob = await exportClassGradesPdf(id, {
         year: filters.year,
         terms: termsToDisplay,
-        sum: filters.sum,
+        includeTotal: filters.sum,
       });
       const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');

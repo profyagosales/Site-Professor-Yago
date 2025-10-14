@@ -20,7 +20,13 @@ const milestoneSubSchema = new mongoose.Schema(
 const noticeSubSchema = new mongoose.Schema(
   {
     message: { type: String, trim: true, required: true },
+    audience: {
+      type: String,
+      enum: ['teachers', 'all'],
+      default: 'teachers',
+    },
     createdAt: { type: Date, default: Date.now },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' },
   },
   { _id: true }
 );
@@ -54,12 +60,8 @@ const classSchema = new mongoose.Schema({
   discipline: { type: String, required: true },
   schedule: [
     {
-      day: {
-        type: String,
-        enum: ['SEGUNDA', 'TERCA', 'QUARTA', 'QUINTA', 'SEXTA'],
-      },
-      slot: { type: Number, enum: [1, 2, 3] },
-      time: { type: String },
+      slot: { type: Number, enum: [1, 2, 3], required: true },
+      days: [{ type: Number, enum: [1, 2, 3, 4, 5], required: true }],
     },
   ],
   teachers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' }],
@@ -150,9 +152,15 @@ classSchema.pre('validate', function syncVirtuals(next) {
 });
 
 classSchema.virtual('scheduleSummary').get(function () {
-  if (!this.schedule || this.schedule.length === 0) {
+  if (!Array.isArray(this.schedule) || this.schedule.length === 0) {
     return '';
   }
-  return this.schedule.map(s => `${s.day}-${s.slot}`).join(', ');
+  return this.schedule
+    .map((entry) => {
+      const slot = entry?.slot;
+      const days = Array.isArray(entry?.days) ? entry.days.join('/') : '';
+      return `${slot || '?'}:${days}`;
+    })
+    .join(', ');
 });
 module.exports = mongoose.model('Class', classSchema);

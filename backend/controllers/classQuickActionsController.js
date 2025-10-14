@@ -7,6 +7,19 @@ function toTrimmedString(value) {
   return String(value).trim();
 }
 
+const ALLOWED_NOTICE_AUDIENCE = new Set(['teachers', 'all']);
+
+function normalizeNoticeAudience(value) {
+  const raw = toTrimmedString(value).toLowerCase();
+  if (raw === 'all' || raw === 'todos' || raw === 'everyone' || raw === 'alunos') {
+    return 'all';
+  }
+  if (ALLOWED_NOTICE_AUDIENCE.has(raw)) {
+    return raw;
+  }
+  return 'teachers';
+}
+
 function ensureValidISO(value) {
   if (!value) return '';
   const parsed = new Date(value);
@@ -47,6 +60,8 @@ function sanitizeNotice(entry) {
     id: String(entry._id),
     _id: String(entry._id),
     message: String(entry.message ?? ''),
+  audience: typeof entry.audience === 'string' ? entry.audience : 'teachers',
+  createdBy: entry.createdBy ? String(entry.createdBy) : undefined,
     createdAt: createdAt || new Date().toISOString(),
   };
 }
@@ -225,7 +240,9 @@ exports.addNotice = async (req, res, next) => {
     const entry = {
       _id: new Types.ObjectId(),
       message,
+      audience: normalizeNoticeAudience(req.body?.audience),
       createdAt: new Date(),
+      createdBy: req.user?._id ? new Types.ObjectId(String(req.user._id)) : undefined,
     };
 
     await Class.updateOne({ _id: classId }, { $push: { notices: entry } });

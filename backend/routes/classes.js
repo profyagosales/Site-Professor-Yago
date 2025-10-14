@@ -66,10 +66,13 @@ function sanitizeMilestoneRecord(entry) {
 function sanitizeNoticeRecord(entry) {
   if (!entry) return null;
   const createdAt = entry.createdAt instanceof Date ? entry.createdAt.toISOString() : entry.createdAt;
+  const audienceRaw = typeof entry.audience === 'string' ? entry.audience.trim().toLowerCase() : '';
   return {
     id: String(entry._id),
     _id: String(entry._id),
     message: typeof entry.message === 'string' ? entry.message : '',
+    audience: audienceRaw === 'all' ? 'all' : 'teachers',
+    createdBy: entry.createdBy ? String(entry.createdBy) : undefined,
     createdAt: typeof createdAt === 'string' ? createdAt : new Date().toISOString(),
   };
 }
@@ -294,7 +297,7 @@ function formatScore(score) {
   });
 }
 
-function createClassGradesPdf({ classInfo, students, year, terms, includeSum }) {
+function createClassGradesPdf({ classInfo, students, year, terms, includeTotal }) {
   const doc = new PDFDocument({ size: 'A4', margin: 40 });
 
   const classLabel = formatClassDisplayName(classInfo);
@@ -330,8 +333,8 @@ function createClassGradesPdf({ classInfo, students, year, terms, includeSum }) 
   }));
 
   const columns = [...baseColumns, ...termColumns];
-  if (includeSum) {
-    columns.push({ key: 'sum', label: 'Total', width: 50 });
+  if (includeTotal) {
+    columns.push({ key: 'sum', label: 'TOTAL', width: 58 });
   }
 
   const tableWidth = columns.reduce((acc, col) => acc + col.width, 0);
@@ -469,7 +472,7 @@ function createClassGradesPdf({ classInfo, students, year, terms, includeSum }) 
       x += colWidth;
     });
 
-    if (includeSum) {
+    if (includeTotal) {
       const sumColumn = columns[columns.length - 1];
       const hasScores = collectedScores.length > 0;
       const total = collectedScores.reduce((acc, value) => acc + value, 0);
@@ -735,7 +738,7 @@ router.get('/:id/grades/export.pdf', authRequired, ensureTeacher, ensureClassTea
 
     const year = parseYearParam(req.query?.year);
     const terms = parseTermsParam(req.query?.terms);
-    const includeSum = toBoolean(req.query?.sum);
+  const includeTotal = toBoolean(req.query?.sum ?? req.query?.includeTotal);
 
     const klass = await Class.findById(id)
       .select('name subject discipline series letter year')
@@ -760,7 +763,7 @@ router.get('/:id/grades/export.pdf', authRequired, ensureTeacher, ensureClassTea
       students: sortedStudents,
       year,
       terms,
-      includeSum,
+  includeTotal,
     });
 
     const rawName = formatClassDisplayName(klass).toLowerCase();
@@ -1037,6 +1040,8 @@ router.get('/:id', async (req, res, next) => {
 router.post('/', authRequired, classesController.createClass);
 router.patch('/:id', authRequired, classesController.updateClass);
 router.put('/:id', classesController.updateClass);
+router.put('/:id/schedule', authRequired, ensureTeacher, ensureClassTeacher, classesController.updateSchedule);
+router.patch('/:id/schedule', authRequired, ensureTeacher, ensureClassTeacher, classesController.updateSchedule);
 router.delete('/:id', classesController.deleteClass);
 
 // Join class as teacher
