@@ -7,6 +7,7 @@ import type {
   StudentNote,
   Weekday,
   TimeSlot,
+  TeacherLite,
 } from '@/types/school';
 
 export type ClassSummary = {
@@ -21,6 +22,8 @@ export type ClassSummary = {
   schedule?: any;
   studentsCount: number;
   teachersCount: number;
+  teacherIds?: string[];
+  responsibleTeacherId?: string | null;
 };
 
 export type ClassStudent = {
@@ -36,7 +39,10 @@ export type ClassTeacher = {
   id: string;
   name: string;
   email?: string;
+  phone?: string;
+  photoUrl?: string;
   subjects: string[];
+  responsible?: boolean;
 };
 
 export type ClassActivity = {
@@ -61,6 +67,61 @@ export type ClassNotice = {
   createdAt: string;
 };
 
+export type ClassCalendarItem = {
+  id: string;
+  sourceId: string;
+  type: 'activity' | 'milestone';
+  title: string;
+  dateISO: string;
+  createdAt: string;
+};
+
+export type ClassEmailResult = {
+  message: string;
+  recipients: string[];
+  stats: {
+    totalSent: number;
+    studentsSent: number;
+    teachersSent: number;
+    includeTeachers: boolean;
+  };
+  skipped: {
+    studentsWithoutEmail: string[];
+    teachersWithoutEmail: string[];
+    duplicateEmails: string[];
+  };
+  messageId: string | null;
+};
+
+export type ClassGradeSnapshot = {
+  score: number;
+  status: GradeStatusValue;
+};
+
+export type ClassGradesStudent = {
+  id: string;
+  roll: number | null;
+  name: string;
+  email: string;
+  photoUrl?: string | null;
+  grades: Record<string, ClassGradeSnapshot>;
+};
+
+export type ClassGradesResponse = {
+  class: {
+    id: string;
+    name: string;
+    subject?: string;
+    discipline?: string;
+    series?: number | null;
+    letter?: string;
+    year?: number | null;
+  };
+  year: number;
+  terms: number[];
+  students: ClassGradesStudent[];
+};
+
 export type ClassDetails = {
   id: string;
   _id?: string;
@@ -73,11 +134,19 @@ export type ClassDetails = {
   schedule?: any;
   studentsCount: number;
   teachersCount: number;
+  teacherIds: string[];
+  responsibleTeacherId?: string | null;
   students: ClassStudent[];
   teachers: ClassTeacher[];
   activities: ClassActivity[];
   milestones: ClassMilestone[];
   notices: ClassNotice[];
+};
+
+export type ClassTeacherList = {
+  teachers: ClassTeacher[];
+  teacherIds: string[];
+  responsibleTeacherId?: string | null;
 };
 
 function extractData<T>(res: any): T | null {
@@ -96,6 +165,12 @@ function normalizeId(value: unknown): string {
     if (candidate != null) return String(candidate);
   }
   return '';
+}
+
+function normalizeIdList(values: unknown[]): string[] {
+  return values
+    .map((value) => normalizeId(value))
+    .filter((value) => typeof value === 'string' && value.length > 0) as string[];
 }
 
 function formatStudentRecord(raw: unknown): ClassStudent {
@@ -129,7 +204,32 @@ function formatTeacherRecord(raw: unknown): ClassTeacher {
     id: normalizeId(teacher?.id ?? teacher?._id ?? teacher),
     name: typeof teacher?.name === 'string' ? teacher.name : '',
     email: typeof teacher?.email === 'string' ? teacher.email : undefined,
+    phone: typeof teacher?.phone === 'string' ? teacher.phone : undefined,
+    photoUrl: typeof teacher?.photoUrl === 'string' ? teacher.photoUrl : undefined,
     subjects,
+    responsible: Boolean(teacher?.responsible),
+  };
+}
+
+function parseTeacherListFromResponse(res: any): ClassTeacherList {
+  const rawTeachers = extractData<any[]>(res) ?? [];
+  const teachers = Array.isArray(rawTeachers) ? rawTeachers.map((item) => formatTeacherRecord(item)) : [];
+  const meta = res?.data?.meta ?? {};
+  const teacherIds = Array.isArray(meta?.teacherIds)
+    ? normalizeIdList(meta.teacherIds as unknown[])
+    : teachers.map((teacher) => teacher.id);
+  const responsibleIdRaw = meta?.responsibleTeacherId;
+  const responsibleTeacherId = responsibleIdRaw ? normalizeId(responsibleIdRaw) : undefined;
+
+  const normalizedTeachers = teachers.map((teacher) => ({
+    ...teacher,
+    responsible: responsibleTeacherId ? teacher.id === responsibleTeacherId || teacher.responsible : teacher.responsible,
+  }));
+
+  return {
+    teachers: normalizedTeachers,
+    teacherIds,
+    responsibleTeacherId: responsibleTeacherId || undefined,
   };
 }
 
@@ -194,9 +294,36 @@ function formatNoticeRecord(raw: unknown): ClassNotice {
   };
 }
 
+function formatCalendarRecord(raw: unknown): ClassCalendarItem | null {
+  const record = raw as Record<string, unknown>;
+  const typeRaw = typeof record?.type === 'string' ? record.type.trim().toLowerCase() : '';
+  const type = typeRaw === 'activity' || typeRaw === 'milestone' ? (typeRaw as 'activity' | 'milestone') : null;
+  const dateISO = normalizeIsoDate(record?.dateISO);
+  if (!type || !dateISO) {
+    return null;
+  }
+
+  const rawId = normalizeId(record?.id ?? record?._id ?? record?.sourceId ?? record);
+  const rawSourceId = normalizeId(record?.sourceId ?? record?.id ?? record?._id ?? record);
+  const createdAt = normalizeIsoDate(record?.createdAt) ?? dateISO;
+  const title = typeof record?.title === 'string' ? record.title : '';
+
+  const safeId = rawId || `${type}-${dateISO}`;
+  const safeSource = rawSourceId || safeId;
+
+  return {
+    id: safeId,
+    sourceId: safeSource,
+    type,
+    title,
+    dateISO,
+    createdAt,
+  };
+}
+
 const gradeStatusValues = ['FREQUENTE', 'INFREQUENTE', 'TRANSFERIDO', 'ABANDONO'] as const;
 
-type GradeStatusValue = (typeof gradeStatusValues)[number];
+export type GradeStatusValue = (typeof gradeStatusValues)[number];
 
 function normalizeGradeStatus(raw: unknown): GradeStatusValue {
   if (typeof raw !== 'string') return 'FREQUENTE';
@@ -272,11 +399,18 @@ function normalizeScheduleEntries(raw: unknown): Array<{ weekday: Weekday; slot:
   return entries;
 }
 
-function normalizeTeacherLite(raw: any): { _id: string; name: string; email: string } {
+function normalizeTeacherLite(raw: any): TeacherLite {
   return {
+    id: normalizeId(raw),
     _id: normalizeId(raw),
     name: typeof raw?.name === 'string' ? raw.name : '',
     email: typeof raw?.email === 'string' ? raw.email : '',
+    phone: typeof raw?.phone === 'string' ? raw.phone : undefined,
+    photoUrl: typeof raw?.photoUrl === 'string' ? raw.photoUrl : undefined,
+    subjects: Array.isArray(raw?.subjects)
+      ? (raw.subjects as unknown[]).filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      : undefined,
+    responsible: Boolean(raw?.responsible),
   };
 }
 
@@ -323,6 +457,15 @@ function resolveData<T>(res: any, fallbackMessage: string): T {
 
 function toSchoolSummary(raw: any): SchoolClassSummary {
   const subject = typeof raw?.subject === 'string' ? raw.subject : typeof raw?.discipline === 'string' ? raw.discipline : '';
+  const teacherIdsSource = Array.isArray(raw?.teacherIds)
+    ? raw.teacherIds
+    : Array.isArray(raw?.teachers)
+      ? raw.teachers
+      : [];
+  const teacherIds = normalizeIdList(Array.isArray(teacherIdsSource) ? teacherIdsSource : []);
+  const responsibleTeacherId = raw?.responsibleTeacherId
+    ? normalizeId(raw.responsibleTeacherId)
+    : undefined;
   return {
     _id: normalizeId(raw),
     name: typeof raw?.name === 'string' ? raw.name : '',
@@ -330,6 +473,8 @@ function toSchoolSummary(raw: any): SchoolClassSummary {
     year: typeof raw?.year === 'number' ? raw.year : undefined,
     studentsCount: Number(raw?.studentsCount ?? 0),
     teachersCount: Number(raw?.teachersCount ?? (Array.isArray(raw?.teachers) ? raw.teachers.length : 0)),
+    teacherIds,
+    responsibleTeacherId: responsibleTeacherId || undefined,
   };
 }
 
@@ -356,19 +501,28 @@ export async function listClasses(): Promise<ClassSummary[]> {
 
   const data = extractData<ClassSummary[] | undefined>(res) ?? [];
   if (!Array.isArray(data)) return [];
-  return data.map((item) => ({
-    id: normalizeId(item),
-    _id: normalizeId(item),
-    name: typeof (item as any)?.name === 'string' ? String((item as any).name) : undefined,
-    subject: typeof (item as any)?.subject === 'string' ? String((item as any).subject) : undefined,
-    year: typeof (item as any)?.year === 'number' ? (item as any).year : undefined,
-    series: item.series,
-    letter: item.letter,
-    discipline: item.discipline ?? (item as any)?.subject,
-    schedule: item.schedule,
-    studentsCount: Number(item.studentsCount || 0),
-    teachersCount: Number(item.teachersCount || 0),
-  }));
+  return data.map((item) => {
+    const teacherIds = Array.isArray((item as any)?.teacherIds)
+      ? normalizeIdList((item as any).teacherIds as unknown[])
+      : undefined;
+    const responsibleId = normalizeId((item as any)?.responsibleTeacherId);
+
+    return {
+      id: normalizeId(item),
+      _id: normalizeId(item),
+      name: typeof (item as any)?.name === 'string' ? String((item as any).name) : undefined,
+      subject: typeof (item as any)?.subject === 'string' ? String((item as any).subject) : undefined,
+      year: typeof (item as any)?.year === 'number' ? (item as any).year : undefined,
+      series: item.series,
+      letter: item.letter,
+      discipline: item.discipline ?? (item as any)?.subject,
+      schedule: item.schedule,
+      studentsCount: Number(item.studentsCount || 0),
+      teachersCount: Number(item.teachersCount || 0),
+      teacherIds,
+      responsibleTeacherId: responsibleId || undefined,
+    };
+  });
 }
 
 export async function getClassDetails(id: string): Promise<ClassDetails | null> {
@@ -396,6 +550,10 @@ export async function getClassDetails(id: string): Promise<ClassDetails | null> 
   const cast = raw as Record<string, unknown>;
   const students = Array.isArray(cast.students) ? cast.students : [];
   const teachers = Array.isArray(cast.teachers) ? cast.teachers : [];
+  const teacherIdsFromPayload = Array.isArray(cast.teacherIds)
+    ? normalizeIdList(cast.teacherIds as unknown[])
+    : normalizeIdList(teachers as unknown[]);
+  const responsibleTeacherId = cast.responsibleTeacherId ? normalizeId(cast.responsibleTeacherId) : undefined;
 
   return {
     id: normalizeId(cast.id ?? cast._id ?? cast),
@@ -408,7 +566,9 @@ export async function getClassDetails(id: string): Promise<ClassDetails | null> 
     discipline: (cast.discipline as string | undefined) ?? (cast.subject as string | undefined),
     schedule: cast.schedule,
     studentsCount: Number(cast.studentsCount || students.length || 0),
-    teachersCount: Number(cast.teachersCount || teachers.length || 0),
+  teachersCount: Number(cast.teachersCount || teacherIdsFromPayload.length || teachers.length || 0),
+  teacherIds: teacherIdsFromPayload,
+  responsibleTeacherId: responsibleTeacherId || undefined,
     students: students.map((rawStudent) => formatStudentRecord(rawStudent)),
     teachers: teachers.map((rawTeacher) => formatTeacherRecord(rawTeacher)),
     activities: Array.isArray((cast as any).activities)
@@ -421,6 +581,198 @@ export async function getClassDetails(id: string): Promise<ClassDetails | null> 
       ? (cast as any).notices.map((entry: unknown) => formatNoticeRecord(entry))
       : [],
   };
+}
+
+export async function getClassCalendar(id: string): Promise<ClassCalendarItem[]> {
+  if (!id) return [];
+  const res = await api.get(`/classes/${id}/calendar`, {
+    validateStatus: () => true,
+  } as any);
+
+  if (res.status === 401 || res.status === 404) {
+    return [];
+  }
+
+  if (res.status >= 400) {
+    throw new Error(res.data?.message || 'Erro ao carregar calendário da turma');
+  }
+
+  const data = extractData<any[]>(res) ?? [];
+  if (!Array.isArray(data)) return [];
+
+  return data
+    .map((entry) => formatCalendarRecord(entry))
+    .filter((entry): entry is ClassCalendarItem => Boolean(entry));
+}
+
+export async function sendClassEmail(
+  id: string,
+  payload: { subject: string; text?: string; html?: string; includeTeachers?: boolean }
+): Promise<ClassEmailResult> {
+  if (!id) {
+    throw new Error('Turma inválida.');
+  }
+
+  const body: Record<string, unknown> = {
+    subject: payload.subject,
+  };
+  if (payload.html) body.html = payload.html;
+  if (payload.text) body.text = payload.text;
+  if (payload.includeTeachers !== undefined) body.includeTeachers = payload.includeTeachers;
+
+  const res = await api.post(`/classes/${id}/email`, body, {
+    validateStatus: () => true,
+  } as any);
+
+  ensureResponseOk(res, 'Erro ao enviar o e-mail');
+  const data = extractData<any>(res) ?? {};
+  const skipped = data?.skipped ?? {};
+  const stats = data?.stats ?? {};
+  return {
+    message: typeof res?.data?.message === 'string' ? res.data.message : 'E-mail enviado com sucesso.',
+    recipients: Array.isArray(data?.recipients) ? (data.recipients as string[]) : [],
+    stats: {
+      totalSent: Number(stats?.totalSent ?? 0),
+      studentsSent: Number(stats?.studentsSent ?? 0),
+      teachersSent: Number(stats?.teachersSent ?? 0),
+      includeTeachers: Boolean(stats?.includeTeachers),
+    },
+    skipped: {
+      studentsWithoutEmail: Array.isArray(skipped?.studentsWithoutEmail)
+        ? (skipped.studentsWithoutEmail as string[])
+        : [],
+      teachersWithoutEmail: Array.isArray(skipped?.teachersWithoutEmail)
+        ? (skipped.teachersWithoutEmail as string[])
+        : [],
+      duplicateEmails: Array.isArray(skipped?.duplicateEmails) ? (skipped.duplicateEmails as string[]) : [],
+    },
+    messageId: typeof data?.messageId === 'string' ? data.messageId : data?.messageId ?? null,
+  };
+}
+
+export async function getClassGrades(
+  id: string,
+  params: { year?: number; terms?: number[] } = {}
+): Promise<ClassGradesResponse> {
+  if (!id) {
+    throw new Error('Turma inválida.');
+  }
+
+  const query: Record<string, unknown> = {};
+  if (params.year) {
+    query.year = params.year;
+  }
+  if (params.terms && params.terms.length) {
+    query.terms = params.terms.join(',');
+  }
+
+  const res = await api.get(`/classes/${id}/grades`, {
+    params: query,
+    validateStatus: () => true,
+  } as any);
+
+  ensureResponseOk(res, 'Erro ao carregar notas da turma');
+
+  const data = extractData<any>(res) ?? {};
+  const rawStudents = Array.isArray(data?.students) ? data.students : [];
+
+  const normalizeGrades = (rawGrades: any): Record<string, ClassGradeSnapshot> => {
+    if (!rawGrades || typeof rawGrades !== 'object') return {};
+    const result: Record<string, ClassGradeSnapshot> = {};
+    Object.entries(rawGrades as Record<string, unknown>).forEach(([termKey, entry]) => {
+      if (!entry || typeof entry !== 'object') return;
+      const numericScore = Number((entry as any).score);
+      if (!Number.isFinite(numericScore)) return;
+      const status = normalizeGradeStatus((entry as any).status);
+      result[String(termKey)] = {
+        score: numericScore,
+        status,
+      };
+    });
+    return result;
+  };
+
+  const students: ClassGradesStudent[] = rawStudents.map((student: any) => ({
+    id: normalizeId(student?.id ?? student?._id ?? student),
+    roll: typeof student?.roll === 'number' ? student.roll : null,
+    name: typeof student?.name === 'string' ? student.name : '',
+    email: typeof student?.email === 'string' ? student.email : '',
+    photoUrl: typeof student?.photoUrl === 'string' ? student.photoUrl : undefined,
+    grades: normalizeGrades(student?.grades),
+  }));
+
+  const rawTerms: unknown[] = Array.isArray(data?.terms) ? data.terms : [];
+  const mappedTerms = rawTerms
+    .map((term) => Number(term))
+    .filter((term): term is number => Number.isInteger(term));
+  const validTerms = mappedTerms.filter((term) => [1, 2, 3, 4].includes(term));
+  const normalizedTerms = Array.from(new Set<number>(validTerms)).sort((a, b) => a - b);
+
+  const rawYear = Number(data?.year ?? params.year ?? new Date().getFullYear());
+  const safeYear = Number.isFinite(rawYear) ? rawYear : new Date().getFullYear();
+
+  const rawClass = data?.class ?? {};
+  const classPayload = {
+    id: normalizeId(rawClass?.id ?? rawClass?._id ?? id),
+    name: typeof rawClass?.name === 'string' ? rawClass.name : '',
+    subject: typeof rawClass?.subject === 'string' ? rawClass.subject : undefined,
+    discipline: typeof rawClass?.discipline === 'string' ? rawClass.discipline : undefined,
+    series: typeof rawClass?.series === 'number' ? rawClass.series : undefined,
+    letter: typeof rawClass?.letter === 'string' ? rawClass.letter : undefined,
+    year: typeof rawClass?.year === 'number' ? rawClass.year : undefined,
+  };
+
+  return {
+    class: classPayload,
+    year: safeYear,
+    terms: normalizedTerms.length ? normalizedTerms : [1, 2, 3, 4],
+    students,
+  };
+}
+
+export async function exportClassGradesPdf(
+  id: string,
+  params: { year?: number; terms?: number[]; sum?: boolean } = {}
+): Promise<Blob> {
+  if (!id) {
+    throw new Error('Turma inválida.');
+  }
+
+  const query: Record<string, unknown> = {};
+  if (params.year) {
+    query.year = params.year;
+  }
+  if (params.terms && params.terms.length) {
+    query.terms = params.terms.join(',');
+  }
+  if (params.sum !== undefined) {
+    query.sum = params.sum;
+  }
+
+  const res = await api.get(`/classes/${id}/grades/export.pdf`, {
+    params: query,
+    responseType: 'blob',
+    validateStatus: () => true,
+  } as any);
+
+  if (res.status >= 200 && res.status < 300) {
+    return res.data as Blob;
+  }
+
+  let message = 'Erro ao exportar notas da turma';
+  try {
+    const response = await new Response(res.data).text();
+    const parsed = JSON.parse(response);
+    if (parsed && typeof parsed.message === 'string') {
+      message = parsed.message;
+    }
+  } catch (err) {
+    // Ignora erros ao tentar extrair mensagem detalhada
+  }
+
+  const error = new Error(message);
+  (error as any).status = res.status ?? 500;
+  throw error;
 }
 
 export type UpsertStudentInput = {
@@ -629,17 +981,37 @@ export async function createClass(payload: {
   name: string;
   subject: string;
   year?: number;
+  responsibleTeacherId?: string | null;
 }): Promise<SchoolClassDetail> {
-  const res = await api.post('/classes', payload, { validateStatus: () => true } as any);
+  const body: Record<string, unknown> = {
+    name: payload.name,
+    subject: payload.subject,
+  };
+  if (payload.year !== undefined) {
+    body.year = payload.year;
+  }
+  if (payload.responsibleTeacherId !== undefined) {
+    body.responsibleTeacherId = payload.responsibleTeacherId;
+  }
+
+  const res = await api.post('/classes', body, { validateStatus: () => true } as any);
   const data = resolveData<any>(res, 'Erro ao criar turma');
   return toSchoolDetail(data);
 }
 
 export async function updateClass(
   id: string,
-  payload: Partial<{ name: string; subject: string; year: number }>
+  payload: Partial<{ name: string; subject: string; year: number; responsibleTeacherId: string | null }>
 ): Promise<SchoolClassDetail> {
-  const res = await api.patch(`/classes/${id}`, payload, { validateStatus: () => true } as any);
+  const body: Record<string, unknown> = {};
+  if (payload.name !== undefined) body.name = payload.name;
+  if (payload.subject !== undefined) body.subject = payload.subject;
+  if (payload.year !== undefined) body.year = payload.year;
+  if (payload.responsibleTeacherId !== undefined) {
+    body.responsibleTeacherId = payload.responsibleTeacherId;
+  }
+
+  const res = await api.patch(`/classes/${id}`, body, { validateStatus: () => true } as any);
   const data = resolveData<any>(res, 'Erro ao atualizar turma');
   return toSchoolDetail(data);
 }
@@ -699,6 +1071,55 @@ export async function removeClassStudent(classId: string, studentId: string): Pr
   const res = await api.delete(`/classes/${classId}/students/${studentId}`, { validateStatus: () => true } as any);
   ensureResponseOk(res, 'Erro ao remover aluno da turma');
   return { success: true };
+}
+
+export async function searchTeachers(query: string, limit = 6): Promise<TeacherLite[]> {
+  const trimmed = typeof query === 'string' ? query.trim() : '';
+  if (!trimmed) {
+    return [];
+  }
+
+  const params: Record<string, unknown> = { q: trimmed };
+  if (limit && Number.isFinite(limit)) {
+    params.limit = limit;
+  }
+
+  const res = await api.get('/teachers/search', {
+    params,
+    validateStatus: () => true,
+  } as any);
+
+  ensureResponseOk(res, 'Erro ao buscar professores');
+  const data = extractData<any[]>(res) ?? [];
+  return Array.isArray(data) ? data.map(normalizeTeacherLite) : [];
+}
+
+export async function listClassTeachers(classId: string): Promise<ClassTeacherList> {
+  if (!classId) {
+    throw new Error('Turma inválida');
+  }
+
+  const res = await api.get(`/classes/${classId}/teachers`, {
+    validateStatus: () => true,
+  } as any);
+
+  ensureResponseOk(res, 'Erro ao carregar professores da turma');
+  return parseTeacherListFromResponse(res);
+}
+
+export async function setResponsibleTeacher(classId: string, teacherId: string): Promise<ClassTeacherList> {
+  if (!classId || !teacherId) {
+    throw new Error('Turma ou professor inválido');
+  }
+
+  const res = await api.patch(
+    `/classes/${classId}/responsible`,
+    { teacherId },
+    { validateStatus: () => true } as any
+  );
+
+  ensureResponseOk(res, 'Erro ao atualizar professor responsável');
+  return parseTeacherListFromResponse(res);
 }
 
 export async function addClassActivity(

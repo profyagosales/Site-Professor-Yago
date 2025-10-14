@@ -15,6 +15,8 @@ const essaysRoutes = require('./routes/essays');
 const notificationRoutes = require('./routes/notifications');
 const announcementsRoutes = require('./routes/announcements');
 const teachersUpcomingRoutes = require('./routes/teachers');
+const gerencialRoutes = require('./routes/gerencial');
+const gerencialTeachersRoutes = gerencialRoutes.teachersRouter;
 const agendaRoutes = require('./routes/agenda');
 const telemetryRoutes = require('./routes/telemetry');
 const pdfHealthRoutes = require('./routes/pdfHealth');
@@ -133,11 +135,19 @@ api.use('/classes', classesRoutes);
 api.use('/grades', gradesRoutes);
 api.use('/announcements', announcementsRoutes);
 api.use('/evaluations', evaluationRoutes);
+if (gerencialTeachersRoutes) {
+  api.use('/teachers', gerencialTeachersRoutes);
+}
+api.use('/gerencial', gerencialRoutes);
 api.use('/', pdfHealthRoutes);
 api.use('/telemetry', telemetryRoutes);
+if (gerencialTeachersRoutes) {
+  app.use(API_PREFIX + '/teachers', gerencialTeachersRoutes);
+}
 app.use(API_PREFIX + '/teachers', teachersUpcomingRoutes);
 app.use(API_PREFIX + '/students', studentsUpcomingRoutes);
 app.use(API_PREFIX + '/agenda', agendaRoutes);
+app.use(API_PREFIX + '/gerencial', gerencialRoutes);
 app.use(API_PREFIX, pdfHealthRoutes);
 app.use(API_PREFIX, sessionRoutes);
 

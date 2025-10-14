@@ -78,6 +78,21 @@ function normalizeSchedule(input) {
   return normalized;
 }
 
+function normalizeTeacherIdsList(input) {
+  if (!Array.isArray(input)) return undefined;
+  const unique = [];
+  const seen = new Set();
+  input.forEach((teacherId) => {
+    if (!teacherId) return;
+    const id = String(teacherId).trim();
+    if (!id || !isValidObjectId(id)) return;
+    if (seen.has(id)) return;
+    seen.add(id);
+    unique.push(id);
+  });
+  return unique;
+}
+
 function buildSummaryPayload(doc) {
   if (!doc) return null;
   const id = String(doc._id || doc.id);
@@ -144,9 +159,11 @@ exports.createClass = async (req, res, next) => {
     }
 
     const schedule = normalizeSchedule(req.body?.schedule);
-    const teachers = Array.isArray(req.body?.teachers)
-      ? req.body.teachers.filter((teacherId) => teacherId && isValidObjectId(String(teacherId)))
-      : undefined;
+    const teachers = normalizeTeacherIdsList(req.body?.teachers);
+    const responsibleTeacherIdRaw = req.body?.responsibleTeacherId;
+    const responsibleTeacherId = responsibleTeacherIdRaw && isValidObjectId(String(responsibleTeacherIdRaw))
+      ? String(responsibleTeacherIdRaw)
+      : null;
     const ownerId = req.user && req.user._id ? String(req.user._id) : null;
 
     const payload = {
@@ -160,14 +177,20 @@ exports.createClass = async (req, res, next) => {
       studentsCount: 0,
     };
 
-    if (teachers) {
-      payload.teachers = teachers;
-    } else if (ownerId) {
-      payload.teachers = [ownerId];
+    let teacherList = teachers ? [...teachers] : [];
+
+    if (ownerId) {
+      teacherList.push(ownerId);
+    }
+    if (responsibleTeacherId) {
+      teacherList.push(responsibleTeacherId);
+      payload.responsibleTeacherId = responsibleTeacherId;
     }
 
-    if (ownerId && payload.teachers && !payload.teachers.some((teacherId) => String(teacherId) === ownerId)) {
-      payload.teachers.push(ownerId);
+    const normalizedTeacherList = normalizeTeacherIdsList(teacherList) ?? [];
+    if (normalizedTeacherList.length > 0) {
+      payload.teachers = normalizedTeacherList;
+      payload.teacherIds = normalizedTeacherList;
     }
 
     const created = await Class.create(payload);
@@ -232,8 +255,31 @@ exports.updateClass = async (req, res, next) => {
       }
     }
 
-    if (Array.isArray(req.body?.teachers)) {
-      updates.teachers = req.body.teachers.filter((teacherId) => teacherId && isValidObjectId(String(teacherId)));
+    if (req.body?.teachers !== undefined) {
+      const teachersList = normalizeTeacherIdsList(req.body.teachers);
+      if (teachersList) {
+        updates.teachers = teachersList;
+        updates.teacherIds = teachersList;
+      } else {
+        updates.teachers = [];
+        updates.teacherIds = [];
+      }
+    }
+
+    if (req.body?.responsibleTeacherId !== undefined) {
+      const value = req.body.responsibleTeacherId;
+      if (value === null || value === '') {
+        updates.responsibleTeacherId = null;
+      } else if (isValidObjectId(String(value))) {
+        const id = String(value);
+        updates.responsibleTeacherId = id;
+        if (Array.isArray(updates.teacherIds)) {
+          const list = new Set(updates.teacherIds);
+          list.add(id);
+          updates.teacherIds = Array.from(list);
+          updates.teachers = Array.from(list);
+        }
+      }
     }
 
     if (schedule) {

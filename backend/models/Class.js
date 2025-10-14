@@ -25,6 +25,26 @@ const noticeSubSchema = new mongoose.Schema(
   { _id: true }
 );
 
+const { Types } = mongoose;
+
+function toObjectId(value) {
+  if (!value) return undefined;
+  if (value instanceof Types.ObjectId) return value;
+  if (typeof value === 'string' && Types.ObjectId.isValid(value)) {
+    return new Types.ObjectId(value);
+  }
+  if (value && typeof value === 'object') {
+    const candidate = value._id || value.id;
+    if (typeof candidate === 'string' && Types.ObjectId.isValid(candidate)) {
+      return new Types.ObjectId(candidate);
+    }
+    if (candidate instanceof Types.ObjectId) {
+      return candidate;
+    }
+  }
+  return undefined;
+}
+
 const classSchema = new mongoose.Schema({
   name: { type: String, trim: true },
   subject: { type: String, trim: true },
@@ -43,6 +63,8 @@ const classSchema = new mongoose.Schema({
     },
   ],
   teachers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' }],
+  teacherIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' }],
+  responsibleTeacherId: { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher', default: null },
   students: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Student' }],
   activities: { type: [activitySubSchema], default: [] },
   milestones: { type: [milestoneSubSchema], default: [] },
@@ -50,6 +72,7 @@ const classSchema = new mongoose.Schema({
 });
 
 classSchema.path('teachers').default(() => []);
+classSchema.path('teacherIds').default(() => []);
 classSchema.path('students').default(() => []);
 classSchema.path('activities').default(() => []);
 classSchema.path('milestones').default(() => []);
@@ -94,6 +117,33 @@ classSchema.pre('validate', function syncVirtuals(next) {
 
   if (!this.name && this.series && this.letter) {
     this.name = `${this.series}${this.letter}`;
+  }
+
+  try {
+    const collected = new Map();
+    const push = (candidate) => {
+      const objectId = toObjectId(candidate);
+      if (!objectId) return;
+      collected.set(String(objectId), objectId);
+    };
+
+    if (Array.isArray(this.teacherIds)) {
+      this.teacherIds.forEach(push);
+    }
+    if (Array.isArray(this.teachers)) {
+      this.teachers.forEach(push);
+    }
+    if (this.responsibleTeacherId) {
+      push(this.responsibleTeacherId);
+      const normalizedResponsible = toObjectId(this.responsibleTeacherId);
+      this.responsibleTeacherId = normalizedResponsible || null;
+    }
+
+    const normalizedList = Array.from(collected.values());
+    this.teacherIds = normalizedList;
+    this.teachers = normalizedList;
+  } catch (err) {
+    console.warn('Failed to normalize teacherIds for class', this?._id, err);
   }
 
   next();

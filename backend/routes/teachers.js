@@ -1,11 +1,51 @@
 const express = require('express');
 const authRequired = require('../middleware/auth');
+const ensureTeacher = require('../middleware/ensureTeacher');
 const Content = require('../models/Content');
 const Evaluation = require('../models/Evaluation');
 const Class = require('../models/Class');
+const Teacher = require('../models/Teacher');
 
 const router = express.Router();
 router.use(authRequired);
+
+router.get('/search', ensureTeacher, async (req, res, next) => {
+  try {
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const limitRaw = Number(req.query.limit);
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 20) : 10;
+
+    const filter = {};
+    if (q) {
+      filter.$or = [
+        { email: { $regex: q, $options: 'i' } },
+        { name: { $regex: q, $options: 'i' } },
+      ];
+    }
+
+    const teachers = await Teacher.find(filter)
+      .select('name email phone photoUrl subjects')
+      .sort({ name: 1 })
+      .limit(limit)
+      .lean();
+
+    const data = teachers.map((teacher) => ({
+      id: String(teacher._id),
+      _id: String(teacher._id),
+      name: teacher.name || '',
+      email: teacher.email || '',
+      phone: teacher.phone || undefined,
+      photoUrl: teacher.photoUrl || undefined,
+      subjects: Array.isArray(teacher.subjects)
+        ? teacher.subjects.filter((item) => typeof item === 'string' && item.trim())
+        : [],
+    }));
+
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+});
 
 function parseWindow(query) {
   let daysAhead = parseInt(query.daysAhead, 10);
@@ -29,7 +69,11 @@ router.get('/:teacherId/contents/upcoming', async (req, res, next) => {
     const now = new Date();
     const end = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000);
     // classes where teacher is listed
-    const classes = await Class.find({ teachers: req.user.id }).select('_id series letter discipline').lean();
+    const classes = await Class.find({
+      $or: [{ teachers: req.user.id }, { teacherIds: req.user.id }],
+    })
+      .select('_id series letter discipline')
+      .lean();
     const classIds = classes.map(c => c._id);
     if (!classIds.length) return res.json([]);
     const contents = await Content.find({ classId: { $in: classIds }, date: { $gte: now, $lte: end } })
@@ -66,7 +110,11 @@ router.get('/:teacherId/evaluations/upcoming', async (req, res, next) => {
     const { daysAhead, limit, skip } = parseWindow(req.query);
     const now = new Date();
     const end = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000);
-    const classes = await Class.find({ teachers: req.user.id }).select('_id series letter discipline').lean();
+    const classes = await Class.find({
+      $or: [{ teachers: req.user.id }, { teacherIds: req.user.id }],
+    })
+      .select('_id series letter discipline')
+      .lean();
     const classIds = classes.map(c => c._id);
     if (!classIds.length) return res.json([]);
     // Evaluation embeds class date per class

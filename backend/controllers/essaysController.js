@@ -290,6 +290,8 @@ async function gradeEssay(req, res) {
     const essay = await Essay.findById(id);
     if (!essay) return res.status(404).json({ message: 'Redação não encontrada' });
 
+    await assertUserCanAccessEssay(req.user, essay);
+
     const {
       annulmentReason,
       bimestreWeight,

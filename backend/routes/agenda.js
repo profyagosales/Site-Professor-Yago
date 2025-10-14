@@ -56,7 +56,11 @@ router.get('/teachers/:teacherId/agenda/week', async (req, res, next) => {
     }
     const { startDate, endDate, limit, skip } = parseQuery(req.query);
     // Classes do professor
-    const classes = await Class.find({ teachers: req.user.id }).select('_id').lean();
+    const classes = await Class.find({
+      $or: [{ teachers: req.user.id }, { teacherIds: req.user.id }],
+    })
+      .select('_id')
+      .lean();
     const classIds = classes.map(c => c._id);
     if (!classIds.length) return res.json([]);
     const classMap = await buildClassMap(classIds);

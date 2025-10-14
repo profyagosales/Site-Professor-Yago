@@ -6,10 +6,11 @@ import {
   createClass,
   updateClass,
   deleteClass,
+  getClass,
   ClassSummary,
 } from '@/services/classes.service';
-import type { ClassDetail as SchoolClassDetail } from '@/types/school';
-import { ClassFormModal, ClassFormValues } from './ClassFormModal';
+import type { ClassDetail as SchoolClassDetail, TeacherLite } from '@/types/school';
+import { ClassFormModal, ClassFormInitialValues, ClassFormValues } from './ClassFormModal';
 
 interface UiClassItem {
   id: string;
@@ -69,8 +70,8 @@ function toUiClassFromDetail(detail: SchoolClassDetail): UiClassItem {
     year: detail.year,
     studentsCount: detail.studentsCount ?? 0,
     teachersCount: detail.teachersCount ?? 0,
-  legacySeries: undefined,
-  legacyLetter: undefined,
+    legacySeries: undefined,
+    legacyLetter: undefined,
     legacyDiscipline: detail.subject,
   };
 }
@@ -85,6 +86,7 @@ export default function ClassesPage() {
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [modalLoading, setModalLoading] = useState(false);
   const [editing, setEditing] = useState<UiClassItem | null>(null);
+  const [formInitialValues, setFormInitialValues] = useState<ClassFormInitialValues | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const menuRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -138,16 +140,57 @@ export default function ClassesPage() {
   const handleAddClick = () => {
     setModalMode('create');
     setEditing(null);
+    setFormInitialValues(null);
     setModalOpen(true);
     setStatus(null);
   };
 
-  const handleEditClick = (item: UiClassItem) => {
-    setEditing(item);
-    setModalMode('edit');
-    setModalOpen(true);
+  const handleEditClick = async (item: UiClassItem) => {
     setMenuOpenId(null);
     setStatus(null);
+    setModalMode('edit');
+    setModalLoading(true);
+    setEditing(item);
+    setFormInitialValues(null);
+
+    try {
+      const detail = await getClass(item.id);
+      const responsible = Array.isArray(detail.teachers)
+        ? detail.teachers.find((teacher) => teacher.responsible)
+        : undefined;
+
+      const teacherId = responsible?.id || responsible?._id;
+      const selectedTeacher: TeacherLite | undefined = teacherId
+        ? {
+            id: teacherId,
+            _id: responsible?._id || teacherId,
+            name: responsible?.name ?? '',
+            email: responsible?.email ?? '',
+            phone: responsible?.phone,
+            photoUrl: responsible?.photoUrl,
+            responsible: true,
+          }
+        : undefined;
+
+      setFormInitialValues({
+        name: detail.name ?? item.name,
+        subject: detail.subject ?? item.subject,
+        year: detail.year ?? undefined,
+        responsibleTeacherId: selectedTeacher?.id,
+        responsibleTeacher: selectedTeacher ?? null,
+        responsibleTeacherName: selectedTeacher?.name,
+        responsibleTeacherEmail: selectedTeacher?.email,
+        responsibleTeacherPhone: selectedTeacher?.phone,
+      });
+
+      setModalOpen(true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Não foi possível carregar a turma.';
+      setStatus({ type: 'error', message });
+      setEditing(null);
+    } finally {
+      setModalLoading(false);
+    }
   };
 
   const handleDeleteClick = async (item: UiClassItem) => {
@@ -200,6 +243,7 @@ export default function ClassesPage() {
     setModalOpen(false);
     setEditing(null);
     setModalLoading(false);
+    setFormInitialValues(null);
   };
 
   return (
@@ -295,7 +339,7 @@ export default function ClassesPage() {
       <ClassFormModal
         open={modalOpen}
         mode={modalMode}
-        initialValues={editing ? { name: editing.name, subject: editing.subject, year: editing.year } : undefined}
+        initialValues={formInitialValues ?? undefined}
         loading={modalLoading}
         onClose={handleModalClose}
         onSubmit={modalMode === 'create' ? handleCreateSubmit : handleUpdateSubmit}

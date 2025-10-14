@@ -6,15 +6,18 @@ const { body, validationResult } = require('express-validator');
 const { isValidObjectId } = require('mongoose');
 const authRequired = require('../middleware/auth');
 const ensureTeacher = require('../middleware/ensureTeacher');
+const ensureClassTeacher = require('../middleware/ensureClassTeacher');
 const Class = require('../models/Class');
 const Student = require('../models/Student');
 const Teacher = require('../models/Teacher');
+const PDFDocument = require('pdfkit');
 const { sendEmail } = require('../services/emailService');
 const classesController = require('../controllers/classesController');
 const studentGradesController = require('../controllers/studentGradesController');
 const studentNotesController = require('../controllers/studentNotesController');
 const studentEmailController = require('../controllers/studentEmailController');
 const classQuickActionsController = require('../controllers/classQuickActionsController');
+const StudentGrade = require('../models/StudentGrade');
 
 const router = express.Router();
 const upload = multer();
@@ -71,6 +74,459 @@ function sanitizeNoticeRecord(entry) {
   };
 }
 
+function toTrimmedString(value) {
+  if (typeof value === 'string') return value.trim();
+  if (value === undefined || value === null) return '';
+  return String(value).trim();
+}
+
+function escapeHtml(value) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function textToHtml(text) {
+  if (!text) return '';
+  const normalized = text.replace(/\r\n/g, '\n');
+  const paragraphs = normalized.split(/\n{2,}/);
+  return paragraphs
+    .map((paragraph) => {
+      const trimmed = paragraph.trim();
+      if (!trimmed) {
+        return '';
+      }
+      const content = trimmed.split('\n').map((line) => escapeHtml(line)).join('<br />');
+      return `<p style="margin: 0 0 16px 0;">${content}</p>`;
+    })
+    .filter(Boolean)
+    .join('');
+}
+
+function normalizeCalendarDate(value) {
+  if (!value) return null;
+  if (value instanceof Date) {
+    const ts = value.getTime();
+    return Number.isNaN(ts) ? null : value.toISOString();
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const parsed = new Date(trimmed);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed.toISOString();
+  }
+  return null;
+}
+
+function collectTeacherIdsFromClass(klass) {
+  const ids = new Set();
+  const push = (value) => {
+    if (!value) return;
+    const candidate = String(value._id || value.id || value).trim();
+    if (!candidate) return;
+    ids.add(candidate);
+  };
+
+  if (Array.isArray(klass?.teacherIds)) {
+    klass.teacherIds.forEach(push);
+  }
+  if (Array.isArray(klass?.teachers)) {
+    klass.teachers.forEach(push);
+  }
+  if (klass?.responsibleTeacherId) {
+    push(klass.responsibleTeacherId);
+  }
+
+  return Array.from(ids);
+}
+
+const VALID_TERMS = [1, 2, 3, 4];
+
+function parseYearParam(value) {
+  if (value === undefined || value === null || value === '') {
+    return new Date().getFullYear();
+  }
+  const year = Number(value);
+  if (!Number.isInteger(year) || year < 1900 || year > 3000) {
+    const error = new Error('Ano inválido.');
+    error.status = 400;
+    throw error;
+  }
+  return year;
+}
+
+function parseTermsParam(raw) {
+  if (raw === undefined || raw === null || (Array.isArray(raw) && raw.length === 0)) {
+    return [...VALID_TERMS];
+  }
+
+  const tokens = Array.isArray(raw)
+    ? raw
+    : String(raw)
+        .split(',')
+        .map((piece) => piece.trim())
+        .filter(Boolean);
+
+  const unique = new Set();
+  tokens.forEach((token) => {
+    const parsed = Number(token);
+    if (VALID_TERMS.includes(parsed)) {
+      unique.add(parsed);
+    }
+  });
+
+  if (!unique.size) {
+    const error = new Error('Selecione ao menos um bimestre válido.');
+    error.status = 400;
+    throw error;
+  }
+
+  return Array.from(unique).sort((a, b) => a - b);
+}
+
+async function buildClassGradesMatrix(classId, year, terms) {
+  const students = await Student.find({ class: classId })
+    .select('name email rollNumber photo')
+    .sort({ rollNumber: 1, name: 1 })
+    .lean();
+
+  if (students.length === 0) {
+    return [];
+  }
+
+  const studentIds = students.map((student) => student._id);
+
+  const gradeDocs = await StudentGrade.find({
+    class: classId,
+    year,
+    student: { $in: studentIds },
+    term: { $in: terms },
+  })
+    .select('student term score status')
+    .lean();
+
+  const gradeMap = new Map();
+  gradeDocs.forEach((doc) => {
+    const studentId = String(doc.student);
+    if (!gradeMap.has(studentId)) {
+      gradeMap.set(studentId, {});
+    }
+    const termKey = String(doc.term);
+    const numericScore = Number(doc.score);
+    gradeMap.get(studentId)[termKey] = {
+      score: Number.isFinite(numericScore) ? numericScore : 0,
+      status: typeof doc.status === 'string' && doc.status.trim() ? doc.status : 'FREQUENTE',
+    };
+  });
+
+  return students.map((student) => {
+    const key = String(student._id);
+    const grades = gradeMap.get(key) || {};
+    return {
+      id: key,
+      roll: typeof student.rollNumber === 'number' ? student.rollNumber : null,
+      name: typeof student.name === 'string' ? student.name : '',
+      email: typeof student.email === 'string' ? student.email : '',
+      photoUrl: typeof student.photo === 'string' ? student.photo : null,
+      grades,
+    };
+  });
+}
+
+function resolvePhotoBuffer(photo) {
+  if (typeof photo !== 'string') return null;
+  const trimmed = photo.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith('data:image')) {
+    const commaIndex = trimmed.indexOf(',');
+    const payload = commaIndex >= 0 ? trimmed.slice(commaIndex + 1) : trimmed;
+    try {
+      return Buffer.from(payload, 'base64');
+    } catch (err) {
+      return null;
+    }
+  }
+
+  const base64Pattern = /^[A-Za-z0-9+/=]+$/;
+  if (base64Pattern.test(trimmed)) {
+    try {
+      return Buffer.from(trimmed, 'base64');
+    } catch (err) {
+      return null;
+    }
+  }
+
+  return null;
+}
+
+function formatClassDisplayName(klass) {
+  if (!klass) return 'Turma';
+
+  const rawName = typeof klass.name === 'string' ? klass.name.trim() : '';
+  const fallback = [klass.series, klass.letter].filter(Boolean).join('');
+  let namePart;
+
+  if (rawName) {
+    namePart = rawName.toLowerCase().startsWith('turma') ? rawName : `Turma ${rawName}`;
+  } else if (fallback) {
+    namePart = `Turma ${fallback}`;
+  } else {
+    namePart = 'Turma';
+  }
+
+  const discipline = typeof klass.discipline === 'string' ? klass.discipline.trim() : '';
+  const subject = typeof klass.subject === 'string' ? klass.subject.trim() : '';
+  const subjectLabel = discipline || subject;
+
+  return subjectLabel ? `${namePart} • ${subjectLabel}` : namePart;
+}
+
+function formatScore(score) {
+  if (!Number.isFinite(score)) return null;
+  return Number(score).toLocaleString('pt-BR', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+}
+
+function createClassGradesPdf({ classInfo, students, year, terms, includeSum }) {
+  const doc = new PDFDocument({ size: 'A4', margin: 40 });
+
+  const classLabel = formatClassDisplayName(classInfo);
+  const termsLabel = terms.map((term) => `${term}º bimestre`).join(', ');
+
+  doc.font('Helvetica-Bold').fontSize(16).text('Notas da turma', { align: 'center' });
+  doc.moveDown(0.25);
+  doc.font('Helvetica').fontSize(12).text(classLabel, { align: 'center' });
+  doc.moveDown(0.25);
+  doc
+    .fontSize(10)
+    .fillColor('#475569')
+    .text(`Ano: ${year} • Bimestres: ${termsLabel}`, { align: 'center' });
+  doc.moveDown(1);
+  doc.fillColor('black');
+
+  const startX = doc.page.margins.left;
+  const headerY = doc.y;
+  const headerHeight = 24;
+  const rowHeight = 56;
+
+  const baseColumns = [
+    { key: 'photo', label: 'Foto', width: 48 },
+    { key: 'roll', label: 'Nº', width: 36 },
+    { key: 'name', label: 'Aluno', width: 170 },
+  ];
+
+  const termColumns = terms.map((term) => ({
+    key: `term-${term}`,
+    label: `${term}º Bim`,
+    term,
+    width: 50,
+  }));
+
+  const columns = [...baseColumns, ...termColumns];
+  if (includeSum) {
+    columns.push({ key: 'sum', label: 'Total', width: 50 });
+  }
+
+  const tableWidth = columns.reduce((acc, col) => acc + col.width, 0);
+
+  const drawHeader = (y) => {
+    let x = startX;
+    columns.forEach((col) => {
+      doc.save();
+      doc.lineWidth(0.5);
+      doc.fillColor('#f8fafc');
+      doc.strokeColor('#cbd5f5');
+      doc.rect(x, y, col.width, headerHeight).fillAndStroke();
+      doc.restore();
+
+      doc.font('Helvetica-Bold').fontSize(10);
+      const align = col.key === 'name' ? 'left' : 'center';
+      const offsetX = col.key === 'name' ? x + 6 : x;
+      const width = col.key === 'name' ? col.width - 6 : col.width;
+      doc.fillColor('#0f172a').text(col.label, offsetX, y + 7, {
+        width,
+        align,
+      });
+      doc.fillColor('black').font('Helvetica');
+      x += col.width;
+    });
+    return y + headerHeight;
+  };
+
+  let currentY = drawHeader(headerY);
+
+  if (students.length === 0) {
+    doc.fontSize(11).text('Nenhum aluno encontrado para os filtros selecionados.', startX, currentY + 12);
+    return doc;
+  }
+
+  const maxY = () => doc.page.height - doc.page.margins.bottom;
+
+  const ensureSpace = () => {
+    if (currentY + rowHeight <= maxY()) {
+      return;
+    }
+    doc.addPage();
+    currentY = drawHeader(doc.page.margins.top);
+  };
+
+  students.forEach((student) => {
+    ensureSpace();
+
+    doc.save();
+    doc.lineWidth(0.5);
+    doc.strokeColor('#e2e8f0');
+    doc.rect(startX, currentY, tableWidth, rowHeight).stroke();
+    doc.restore();
+
+    let x = startX;
+
+    const photoColumn = columns[0];
+    const photoBuffer = resolvePhotoBuffer(student.photoUrl);
+    if (photoBuffer) {
+      const photoWidth = photoColumn.width - 14;
+      const photoHeight = rowHeight - 14;
+      doc.image(photoBuffer, x + 7, currentY + 7, {
+        fit: [photoWidth, photoHeight],
+        align: 'center',
+        valign: 'center',
+      });
+    } else {
+      doc.save();
+      doc.strokeColor('#cbd5f5');
+      const boxSize = Math.min(photoColumn.width - 18, rowHeight - 18);
+      const offsetX = x + (photoColumn.width - boxSize) / 2;
+      const offsetY = currentY + (rowHeight - boxSize) / 2;
+      doc.rect(offsetX, offsetY, boxSize, boxSize).stroke();
+      doc.fontSize(7).fillColor('#94a3b8').text('Sem foto', offsetX, offsetY + boxSize / 2 - 4, {
+        width: boxSize,
+        align: 'center',
+      });
+      doc.restore();
+    }
+    x += photoColumn.width;
+
+    const rollColumn = columns[1];
+    doc.font('Helvetica-Bold').fontSize(11).text(student.roll ?? '—', x, currentY + 20, {
+      width: rollColumn.width,
+      align: 'center',
+    });
+    doc.font('Helvetica').fontSize(11);
+    x += rollColumn.width;
+
+    const nameColumn = columns[2];
+    const studentName = student.name || 'Sem nome';
+    doc.text(studentName, x + 4, currentY + 14, {
+      width: nameColumn.width - 8,
+      align: 'left',
+    });
+    if (student.email) {
+      doc.fontSize(9).fillColor('#64748b').text(student.email, x + 4, currentY + 32, {
+        width: nameColumn.width - 8,
+        align: 'left',
+      });
+      doc.fontSize(11).fillColor('black');
+    }
+    x += nameColumn.width;
+
+    const gradeEntries = student.grades || {};
+
+    const collectedScores = [];
+
+    termColumns.forEach((col) => {
+      const grade = gradeEntries[String(col.term)];
+      const colWidth = col.width;
+      let scoreText = '—';
+      if (grade && Number.isFinite(Number(grade.score))) {
+        const numericScore = Number(grade.score);
+        collectedScores.push(numericScore);
+        const formatted = formatScore(numericScore);
+        if (formatted) {
+          scoreText = formatted;
+        }
+      }
+
+      doc.text(scoreText, x, currentY + 18, {
+        width: colWidth,
+        align: 'center',
+      });
+
+      if (grade && grade.status && grade.status !== 'FREQUENTE') {
+        doc.fontSize(8).fillColor('#475569').text(grade.status, x, currentY + 34, {
+          width: colWidth,
+          align: 'center',
+        });
+        doc.fontSize(11).fillColor('black');
+      }
+
+      x += colWidth;
+    });
+
+    if (includeSum) {
+      const sumColumn = columns[columns.length - 1];
+      const hasScores = collectedScores.length > 0;
+      const total = collectedScores.reduce((acc, value) => acc + value, 0);
+      const sumText = hasScores ? formatScore(total) || '—' : '—';
+      doc.text(sumText, x, currentY + 18, {
+        width: sumColumn.width,
+        align: 'center',
+      });
+    }
+
+    currentY += rowHeight;
+  });
+
+  return doc;
+}
+
+function normalizeTeacherMeta(doc, options = {}) {
+  const responsibleId = options.responsibleTeacherId ? String(options.responsibleTeacherId) : null;
+  const subjects = Array.isArray(doc?.subjects)
+    ? doc.subjects.filter((value) => typeof value === 'string' && value.trim())
+    : [];
+
+  return {
+    id: String(doc?._id || doc?.id || ''),
+    _id: String(doc?._id || doc?.id || ''),
+    name: typeof doc?.name === 'string' ? doc.name : '',
+    email: typeof doc?.email === 'string' ? doc.email : '',
+    phone: typeof doc?.phone === 'string' ? doc.phone : undefined,
+    photoUrl: typeof doc?.photoUrl === 'string' ? doc.photoUrl : undefined,
+    subjects,
+    responsible: responsibleId ? String(doc?._id) === responsibleId : false,
+  };
+}
+
+async function buildTeachersPayload(klass) {
+  const teacherIds = collectTeacherIdsFromClass(klass);
+  if (!teacherIds.length) {
+    return { teacherIds: [], teachers: [], responsibleTeacherId: klass?.responsibleTeacherId ? String(klass.responsibleTeacherId) : null };
+  }
+
+  const teachers = await Teacher.find({ _id: { $in: teacherIds } })
+    .select('name email phone photoUrl subjects')
+    .lean();
+
+  const teacherMap = new Map(teachers.map((teacher) => [String(teacher._id), teacher]));
+  const normalized = teacherIds.map((id) => {
+    const meta = teacherMap.get(String(id)) || { _id: id };
+    return normalizeTeacherMeta(meta, { responsibleTeacherId: klass?.responsibleTeacherId });
+  });
+
+  return {
+    teacherIds: teacherIds.map(String),
+    teachers: normalized,
+    responsibleTeacherId: klass?.responsibleTeacherId ? String(klass.responsibleTeacherId) : null,
+  };
+}
+
 function toBoolean(value) {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'number') return value === 1;
@@ -85,7 +541,7 @@ router.get('/', async (req, res, next) => {
   try {
     const [classes, counts] = await Promise.all([
       Class.find()
-        .select('name subject year series letter discipline schedule teachers studentsCount')
+        .select('name subject year series letter discipline schedule teachers teacherIds responsibleTeacherId studentsCount')
         .lean({ virtuals: true }),
       Student.aggregate([
         { $match: { class: { $ne: null } } },
@@ -101,8 +557,9 @@ router.get('/', async (req, res, next) => {
     }, {});
 
     const enriched = classes.map((cls) => {
-      const teachersCount = Array.isArray(cls.teachers) ? cls.teachers.length : 0;
-      const { teachers, _id, studentsCount, name, subject, year, ...rest } = cls;
+      const teacherIds = collectTeacherIdsFromClass(cls);
+      const teachersCount = teacherIds.length;
+      const { teachers, teacherIds: storedTeacherIds, responsibleTeacherId, _id, studentsCount, name, subject, year, ...rest } = cls;
       const storedCount = typeof studentsCount === 'number' ? studentsCount : undefined;
       const computedCount = countMap[String(_id)];
       return {
@@ -114,6 +571,8 @@ router.get('/', async (req, res, next) => {
         ...rest,
         teachersCount,
         studentsCount: storedCount ?? computedCount ?? 0,
+        responsibleTeacherId: responsibleTeacherId ? String(responsibleTeacherId) : null,
+        teacherIds: teacherIds.map(String),
       };
     });
 
@@ -129,6 +588,377 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+router.get('/:id/calendar', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (!isValidObjectId(id)) {
+      const error = new Error('ID inválido');
+      error.status = 400;
+      throw error;
+    }
+
+    const cls = await Class.findById(id)
+      .select('activities milestones')
+      .lean();
+
+    if (!cls) {
+      const error = new Error('Turma não encontrada');
+      error.status = 404;
+      throw error;
+    }
+
+    const events = [];
+
+    if (Array.isArray(cls.activities)) {
+      cls.activities
+        .map(sanitizeActivityRecord)
+        .filter(Boolean)
+        .forEach((activity) => {
+          const dateISO = normalizeCalendarDate(activity.dateISO) || normalizeCalendarDate(activity.createdAt);
+          if (!dateISO) return;
+          events.push({
+            id: String(activity.id),
+            sourceId: String(activity.id),
+            type: 'activity',
+            title: activity.title,
+            dateISO,
+            createdAt: normalizeCalendarDate(activity.createdAt) || dateISO,
+          });
+        });
+    }
+
+    if (Array.isArray(cls.milestones)) {
+      cls.milestones
+        .map(sanitizeMilestoneRecord)
+        .filter(Boolean)
+        .forEach((milestone) => {
+          const dateISO = normalizeCalendarDate(milestone.dateISO);
+          if (!dateISO) return;
+          events.push({
+            id: String(milestone.id),
+            sourceId: String(milestone.id),
+            type: 'milestone',
+            title: milestone.label,
+            dateISO,
+            createdAt: dateISO,
+          });
+        });
+    }
+
+    events.sort((a, b) => {
+      const tsA = new Date(a.dateISO).getTime();
+      const tsB = new Date(b.dateISO).getTime();
+      return tsA - tsB;
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Calendário da turma obtido com sucesso',
+      data: events,
+    });
+  } catch (err) {
+    if (!err.status) {
+      err.status = 500;
+      err.message = 'Erro ao buscar calendário da turma';
+    }
+    next(err);
+  }
+});
+
+router.get('/:id/grades', authRequired, ensureTeacher, ensureClassTeacher, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (!isValidObjectId(id)) {
+      const error = new Error('ID inválido');
+      error.status = 400;
+      throw error;
+    }
+
+    const year = parseYearParam(req.query?.year);
+    const terms = parseTermsParam(req.query?.terms);
+
+    const klass = await Class.findById(id)
+      .select('name subject discipline series letter year')
+      .lean();
+
+    if (!klass) {
+      const error = new Error('Turma não encontrada');
+      error.status = 404;
+      throw error;
+    }
+
+    const students = await buildClassGradesMatrix(id, year, terms);
+    const sortedStudents = [...students].sort((a, b) => {
+      const rollA = typeof a.roll === 'number' ? a.roll : Number.POSITIVE_INFINITY;
+      const rollB = typeof b.roll === 'number' ? b.roll : Number.POSITIVE_INFINITY;
+      if (rollA !== rollB) return rollA - rollB;
+      return a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
+    });
+
+    const classPayload = {
+      id: String(klass._id),
+      name: klass.name || '',
+      subject: klass.subject || '',
+      discipline: klass.discipline || '',
+      series: klass.series ?? null,
+      letter: klass.letter || '',
+      year: klass.year ?? null,
+    };
+
+    res.status(200).json({
+      success: true,
+      message: 'Notas da turma obtidas com sucesso',
+      data: {
+        class: classPayload,
+        year,
+        terms,
+        students: sortedStudents,
+      },
+    });
+  } catch (err) {
+    if (!err.status) {
+      err.status = 500;
+      err.message = 'Erro ao buscar notas da turma';
+    }
+    next(err);
+  }
+});
+
+router.get('/:id/grades/export.pdf', authRequired, ensureTeacher, ensureClassTeacher, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (!isValidObjectId(id)) {
+      const error = new Error('ID inválido');
+      error.status = 400;
+      throw error;
+    }
+
+    const year = parseYearParam(req.query?.year);
+    const terms = parseTermsParam(req.query?.terms);
+    const includeSum = toBoolean(req.query?.sum);
+
+    const klass = await Class.findById(id)
+      .select('name subject discipline series letter year')
+      .lean();
+
+    if (!klass) {
+      const error = new Error('Turma não encontrada');
+      error.status = 404;
+      throw error;
+    }
+
+    const students = await buildClassGradesMatrix(id, year, terms);
+    const sortedStudents = [...students].sort((a, b) => {
+      const rollA = typeof a.roll === 'number' ? a.roll : Number.POSITIVE_INFINITY;
+      const rollB = typeof b.roll === 'number' ? b.roll : Number.POSITIVE_INFINITY;
+      if (rollA !== rollB) return rollA - rollB;
+      return a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
+    });
+
+    const doc = createClassGradesPdf({
+      classInfo: klass,
+      students: sortedStudents,
+      year,
+      terms,
+      includeSum,
+    });
+
+    const rawName = formatClassDisplayName(klass).toLowerCase();
+    const normalizedName = rawName
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      || 'turma';
+    const filename = `${normalizedName}-notas-${year}.pdf`;
+
+    res.status(200);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    const stream = doc.pipe(res);
+
+    const handleStreamError = (error) => {
+      const err = error instanceof Error ? error : new Error('Erro ao exportar notas da turma');
+      if (!err.status) {
+        err.status = 500;
+        err.message = 'Erro ao exportar notas da turma';
+      }
+      if (!res.headersSent) {
+        res.status(err.status).json({ success: false, message: err.message });
+      } else if (!res.writableEnded) {
+        res.end();
+      }
+    };
+
+    doc.on('error', handleStreamError);
+    stream.on('error', handleStreamError);
+
+    doc.end();
+  } catch (err) {
+    if (!err.status) {
+      err.status = 500;
+      err.message = 'Erro ao exportar notas da turma';
+    }
+    next(err);
+  }
+});
+
+router.post('/:id/email', authRequired, ensureTeacher, ensureClassTeacher, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (!isValidObjectId(id)) {
+      const error = new Error('ID inválido');
+      error.status = 400;
+      throw error;
+    }
+
+    const subject = toTrimmedString(req.body?.subject);
+    const htmlInput = toTrimmedString(req.body?.html);
+    const textInput = toTrimmedString(req.body?.text);
+    const includeTeachers = req.body?.includeTeachers === true || req.body?.includeTeachers === 'true';
+
+    if (!subject) {
+      const error = new Error('Informe o assunto do e-mail.');
+      error.status = 400;
+      throw error;
+    }
+
+    if (!htmlInput && !textInput) {
+      const error = new Error('Informe a mensagem do e-mail.');
+      error.status = 400;
+      throw error;
+    }
+
+    const klass = await Class.findById(id)
+      .select('name teachers teacherIds responsibleTeacherId')
+      .lean();
+
+    if (!klass) {
+      const error = new Error('Turma não encontrada');
+      error.status = 404;
+      throw error;
+    }
+
+    const students = await Student.find({ class: id })
+      .select('name email')
+      .lean();
+
+    const recipientsMap = new Map();
+    const duplicateEmails = new Set();
+    const missingStudents = [];
+    const missingTeachers = [];
+
+    const pushRecipient = (email, role, name) => {
+      const trimmed = toTrimmedString(email);
+      if (!trimmed) {
+        if (role === 'student') {
+          missingStudents.push(name || 'Estudante sem nome');
+        } else if (role === 'teacher') {
+          missingTeachers.push(name || 'Professor sem nome');
+        }
+        return;
+      }
+      const normalized = trimmed.toLowerCase();
+      if (recipientsMap.has(normalized)) {
+        duplicateEmails.add(trimmed);
+        const current = recipientsMap.get(normalized);
+        current.roles.add(role);
+        current.names.add(name || trimmed);
+        return;
+      }
+      recipientsMap.set(normalized, {
+        email: trimmed,
+        roles: new Set([role]),
+        names: new Set(name ? [name] : []),
+      });
+    };
+
+    students.forEach((student) => {
+      pushRecipient(student.email, 'student', student.name);
+    });
+
+    if (includeTeachers) {
+      const teacherIds = collectTeacherIdsFromClass(klass);
+      if (teacherIds.length > 0) {
+        const teachers = await Teacher.find({ _id: { $in: teacherIds } })
+          .select('name email')
+          .lean();
+        teachers.forEach((teacher) => {
+          pushRecipient(teacher.email, 'teacher', teacher.name);
+        });
+      }
+    }
+
+    if (recipientsMap.size === 0) {
+      const error = new Error('Nenhum destinatário com e-mail cadastrado.');
+      error.status = 400;
+      error.meta = {
+        missingStudents,
+        missingTeachers,
+      };
+      throw error;
+    }
+
+    const allRecipients = Array.from(recipientsMap.values());
+    const recipientEmails = allRecipients.map((entry) => entry.email);
+    const studentsSent = allRecipients.filter((entry) => entry.roles.has('student')).length;
+    const teachersSent = allRecipients.filter((entry) => entry.roles.has('teacher')).length;
+
+    const plainText = textInput || (htmlInput ? htmlInput.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : '');
+    const fallbackHtml = textInput ? textToHtml(textInput) : '';
+    const html = htmlInput || fallbackHtml;
+
+    const info = await sendEmail({
+      to: null,
+      bcc: recipientEmails,
+      subject,
+      html: html || undefined,
+      text: plainText || undefined,
+    });
+
+    const warnings = [];
+    if (missingStudents.length > 0) {
+      warnings.push(`${missingStudents.length} aluno(s) sem e-mail cadastrado.`);
+    }
+    if (includeTeachers && missingTeachers.length > 0) {
+      warnings.push(`${missingTeachers.length} professor(es) sem e-mail cadastrado.`);
+    }
+    if (duplicateEmails.size > 0) {
+      warnings.push(`${duplicateEmails.size} e-mail(s) removido(s) por duplicidade.`);
+    }
+
+    const baseMessage = `E-mail enviado para ${recipientEmails.length} destinatário(s).`;
+    const message = warnings.length > 0 ? `${baseMessage} ${warnings.join(' ')}` : baseMessage;
+
+    res.status(200).json({
+      success: true,
+      message,
+      data: {
+        recipients: recipientEmails,
+        stats: {
+          totalSent: recipientEmails.length,
+          studentsSent,
+          teachersSent,
+          includeTeachers,
+        },
+        skipped: {
+          studentsWithoutEmail: missingStudents,
+          teachersWithoutEmail: missingTeachers,
+          duplicateEmails: Array.from(duplicateEmails),
+        },
+        messageId: info?.messageId || null,
+      },
+    });
+  } catch (err) {
+    if (!err.status) {
+      err.status = 500;
+      err.message = 'Erro ao enviar e-mail para a turma';
+    }
+    next(err);
+  }
+});
+
 // Get class by id
 router.get('/:id', async (req, res, next) => {
   try {
@@ -140,7 +970,7 @@ router.get('/:id', async (req, res, next) => {
     }
 
     const cls = await Class.findById(id)
-      .select('name subject year series letter discipline schedule teachers studentsCount activities milestones notices')
+      .select('name subject year series letter discipline schedule teachers teacherIds responsibleTeacherId studentsCount activities milestones notices')
       .lean();
     if (!cls) {
       const error = new Error('Turma não encontrada');
@@ -148,16 +978,12 @@ router.get('/:id', async (req, res, next) => {
       throw error;
     }
 
-    const [students, teachers] = await Promise.all([
+    const [students, teacherPayload] = await Promise.all([
       Student.find({ class: id })
         .select('name rollNumber email photo')
         .sort('name')
         .lean(),
-      (Array.isArray(cls.teachers) && cls.teachers.length
-        ? Teacher.find({ _id: { $in: cls.teachers } })
-            .select('name email subjects')
-            .lean()
-        : Promise.resolve([]))
+      buildTeachersPayload(cls),
     ]);
 
     const storedCount = typeof cls.studentsCount === 'number' ? cls.studentsCount : undefined;
@@ -187,14 +1013,11 @@ router.get('/:id', async (req, res, next) => {
         email: s.email,
         photo: s.photo,
       })),
-      teachers: teachers.map((t) => ({
-        id: String(t._id),
-        name: t.name,
-        email: t.email,
-        subjects: Array.isArray(t.subjects) ? t.subjects : [],
-      })),
+      teachers: teacherPayload.teachers,
+      teacherIds: teacherPayload.teacherIds,
+      responsibleTeacherId: teacherPayload.responsibleTeacherId,
       studentsCount: storedCount ?? students.length,
-      teachersCount: Array.isArray(cls.teachers) ? cls.teachers.length : 0,
+      teachersCount: teacherPayload.teacherIds.length,
     };
     res.status(200).json({
       success: true,
@@ -217,11 +1040,15 @@ router.put('/:id', classesController.updateClass);
 router.delete('/:id', classesController.deleteClass);
 
 // Join class as teacher
-router.post('/:id/join-as-teacher', authRequired, async (req, res, next) => {
+router.post('/:id/join-as-teacher', authRequired, ensureTeacher, async (req, res, next) => {
   try {
+    const { id } = req.params;
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ success: false, message: 'Turma inválida' });
+    }
     const cls = await Class.findByIdAndUpdate(
-      req.params.id,
-      { $addToSet: { teachers: req.user._id } },
+      id,
+      { $addToSet: { teachers: req.user._id, teacherIds: req.user._id } },
       { new: true }
     ).populate('teachers');
     if (!cls) {
@@ -501,6 +1328,7 @@ router.get(
   '/:classId/students/:studentId/grades',
   authRequired,
   ensureTeacher,
+  ensureClassTeacher,
   studentGradesController.listStudentGrades
 );
 
@@ -508,6 +1336,7 @@ router.post(
   '/:classId/students/:studentId/grades',
   authRequired,
   ensureTeacher,
+  ensureClassTeacher,
   studentGradesController.upsertStudentGrade
 );
 
@@ -515,6 +1344,7 @@ router.get(
   '/:classId/students/:studentId/notes',
   authRequired,
   ensureTeacher,
+  ensureClassTeacher,
   studentNotesController.listStudentNotes
 );
 
@@ -522,6 +1352,7 @@ router.post(
   '/:classId/students/:studentId/notes',
   authRequired,
   ensureTeacher,
+  ensureClassTeacher,
   studentNotesController.createStudentNote
 );
 
@@ -529,6 +1360,7 @@ router.patch(
   '/:classId/students/:studentId/notes/:noteId',
   authRequired,
   ensureTeacher,
+  ensureClassTeacher,
   studentNotesController.updateStudentNote
 );
 
@@ -536,6 +1368,7 @@ router.delete(
   '/:classId/students/:studentId/notes/:noteId',
   authRequired,
   ensureTeacher,
+  ensureClassTeacher,
   studentNotesController.deleteStudentNote
 );
 
@@ -543,6 +1376,7 @@ router.post(
   '/:classId/activities',
   authRequired,
   ensureTeacher,
+  ensureClassTeacher,
   classQuickActionsController.addActivity
 );
 
@@ -550,6 +1384,7 @@ router.delete(
   '/:classId/activities/:activityId',
   authRequired,
   ensureTeacher,
+  ensureClassTeacher,
   classQuickActionsController.removeActivity
 );
 
@@ -557,6 +1392,7 @@ router.post(
   '/:classId/milestones',
   authRequired,
   ensureTeacher,
+  ensureClassTeacher,
   classQuickActionsController.addMilestone
 );
 
@@ -564,6 +1400,7 @@ router.delete(
   '/:classId/milestones/:milestoneId',
   authRequired,
   ensureTeacher,
+  ensureClassTeacher,
   classQuickActionsController.removeMilestone
 );
 
@@ -571,6 +1408,7 @@ router.post(
   '/:classId/notices',
   authRequired,
   ensureTeacher,
+  ensureClassTeacher,
   classQuickActionsController.addNotice
 );
 
@@ -578,6 +1416,7 @@ router.delete(
   '/:classId/notices/:noticeId',
   authRequired,
   ensureTeacher,
+  ensureClassTeacher,
   classQuickActionsController.removeNotice
 );
 
@@ -585,7 +1424,98 @@ router.post(
   '/:classId/students/:studentId/email',
   authRequired,
   ensureTeacher,
+  ensureClassTeacher,
   studentEmailController.sendStudentEmail
+);
+
+router.get(
+  '/:id/teachers',
+  authRequired,
+  ensureTeacher,
+  ensureClassTeacher,
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      if (!isValidObjectId(id)) {
+        return res.status(400).json({ success: false, message: 'Turma inválida.' });
+      }
+
+      const klass = await Class.findById(id)
+        .select('teacherIds teachers responsibleTeacherId')
+        .lean();
+      if (!klass) {
+        return res.status(404).json({ success: false, message: 'Turma não encontrada.' });
+      }
+
+      const payload = await buildTeachersPayload(klass);
+      res.json({
+        success: true,
+        data: payload.teachers,
+        meta: {
+          teacherIds: payload.teacherIds,
+          responsibleTeacherId: payload.responsibleTeacherId,
+        },
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+router.patch(
+  '/:id/responsible',
+  authRequired,
+  ensureTeacher,
+  ensureClassTeacher,
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { teacherId } = req.body || {};
+
+      if (!isValidObjectId(id)) {
+        return res.status(400).json({ success: false, message: 'Turma inválida.' });
+      }
+
+      if (!teacherId || !isValidObjectId(String(teacherId))) {
+        return res.status(400).json({ success: false, message: 'Professor inválido.' });
+      }
+
+      const teacher = await Teacher.findById(teacherId)
+        .select('_id name email phone photoUrl subjects')
+        .lean();
+      if (!teacher) {
+        return res.status(404).json({ success: false, message: 'Professor não encontrado.' });
+      }
+
+      const klass = await Class.findById(id);
+      if (!klass) {
+        return res.status(404).json({ success: false, message: 'Turma não encontrada.' });
+      }
+
+      const teacherIdString = String(teacher._id);
+      klass.responsibleTeacherId = teacher._id;
+
+      const currentSet = new Set(collectTeacherIdsFromClass(klass));
+      currentSet.add(teacherIdString);
+      klass.teacherIds = Array.from(currentSet);
+      klass.teachers = Array.from(currentSet);
+
+      await klass.save();
+
+      const payload = await buildTeachersPayload(klass.toObject());
+      res.json({
+        success: true,
+        message: 'Professor responsável atualizado com sucesso.',
+        data: payload.teachers,
+        meta: {
+          teacherIds: payload.teacherIds,
+          responsibleTeacherId: payload.responsibleTeacherId,
+        },
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 );
 
 // Delete student from a class

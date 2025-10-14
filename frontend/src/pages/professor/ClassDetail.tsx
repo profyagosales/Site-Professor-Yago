@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import {
   ClassActivity,
+  ClassCalendarItem,
   ClassDetails,
   ClassMilestone,
   ClassNotice,
@@ -12,6 +13,8 @@ import {
   addClassMilestone,
   addClassNotice,
   addStudent,
+  sendClassEmail,
+  getClassCalendar,
   getClassDetails,
   removeClassActivity,
   removeClassMilestone,
@@ -43,6 +46,11 @@ function resolvePhotoUrl(photo?: string | null): string | null {
 
 const DATE_FORMATTER = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' });
 const DATETIME_FORMATTER = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+const CALENDAR_DAY_FORMATTER = new Intl.DateTimeFormat('pt-BR', {
+  weekday: 'long',
+  day: '2-digit',
+  month: '2-digit',
+});
 
 function safeTimestamp(value: string | null | undefined): number {
   if (!value) return 0;
@@ -303,8 +311,8 @@ function StudentModal({ open, mode, initialStudent, loading, onClose, onSubmit }
     };
 
     try {
-      await onSubmit(payload);
-      onClose();
+  await onSubmit(payload);
+  onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Não foi possível salvar o aluno.';
       setError(message);
@@ -440,6 +448,227 @@ function StudentModal({ open, mode, initialStudent, loading, onClose, onSubmit }
     </div>
   );
 }
+
+type ScheduleModalProps = {
+  open: boolean;
+  saving: boolean;
+  hasChanges: boolean;
+  draftSlots: Set<ScheduleKey>;
+  onClose: () => void;
+  onToggle: (weekday: Weekday, slot: TimeSlot) => void;
+  onSave: () => void;
+};
+
+function ScheduleModal({ open, saving, hasChanges, draftSlots, onClose, onToggle, onSave }: ScheduleModalProps) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-3xl rounded-2xl bg-white shadow-ys-lg">
+        <div className="flex items-center justify-between border-b border-ys-line px-6 py-4">
+          <h2 className="text-lg font-semibold text-ys-ink">Editar horários da semana</h2>
+          <button
+            type="button"
+            className="text-ys-graphite hover:text-ys-ink"
+            onClick={onClose}
+            aria-label="Fechar"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="px-6 pb-6 pt-4">
+          <p className="text-sm text-ys-graphite">
+            Selecione os tempos de aula da turma. Salve para atualizar o quadro de horários.
+          </p>
+
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full border-separate border-spacing-0 text-sm">
+              <thead>
+                <tr>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ys-graphite">
+                    Horário
+                  </th>
+                  {WEEKDAYS.map((day) => (
+                    <th
+                      key={day.value}
+                      className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-ys-graphite"
+                    >
+                      {day.short}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {TIME_SLOTS.map((slot) => (
+                  <tr key={slot.value} className="border-t border-ys-line">
+                    <td className="px-3 py-3 align-top text-ys-ink">
+                      <div className="font-medium">{slot.label}</div>
+                      <div className="text-xs text-ys-graphite">{slot.range}</div>
+                    </td>
+                    {WEEKDAYS.map((day) => {
+                      const key = buildScheduleKey(day.value, slot.value);
+                      const checked = draftSlots.has(key);
+                      return (
+                        <td key={key} className="px-3 py-3 text-center align-middle">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-ys-line text-ys-amber focus:ring-ys-amber"
+                            checked={checked}
+                            onChange={() => onToggle(day.value, slot.value)}
+                            disabled={saving}
+                          />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-6 flex flex-wrap justify-end gap-3">
+            <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button onClick={onSave} disabled={!hasChanges || saving}>
+              {saving ? 'Salvando…' : 'Salvar horários'}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type EmailModalProps = {
+  open: boolean;
+  loading: boolean;
+  onClose: () => void;
+  onSubmit: (payload: { subject: string; message: string; includeTeachers: boolean }) => Promise<void>;
+};
+
+function EmailModal({ open, loading, onClose, onSubmit }: EmailModalProps) {
+  const [subject, setSubject] = useState('');
+  const [message, setMessage] = useState('');
+  const [includeTeachers, setIncludeTeachers] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setSubject('');
+    setMessage('');
+    setIncludeTeachers(true);
+    setError(null);
+  }, [open]);
+
+  if (!open) return null;
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmedSubject = subject.trim();
+    const trimmedMessage = message.trim();
+    if (!trimmedSubject) {
+      setError('Informe o assunto do e-mail.');
+      return;
+    }
+    if (!trimmedMessage) {
+      setError('Informe a mensagem do e-mail.');
+      return;
+    }
+    setError(null);
+    try {
+      await onSubmit({ subject: trimmedSubject, message: trimmedMessage, includeTeachers });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao enviar o e-mail.';
+      setError(message);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-2xl rounded-2xl bg-white shadow-ys-lg">
+        <div className="flex items-center justify-between border-b border-ys-line px-6 py-4">
+          <h2 className="text-lg font-semibold text-ys-ink">Enviar e-mail para a turma</h2>
+          <button
+            type="button"
+            className="text-ys-graphite hover:text-ys-ink"
+            onClick={onClose}
+            aria-label="Fechar"
+            disabled={loading}
+          >
+            ✕
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5 px-6 pb-6 pt-4">
+          <p className="text-sm text-ys-graphite">
+            O e-mail será enviado em cópia oculta para os alunos e, opcionalmente, professores da turma.
+          </p>
+
+          {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600">{error}</div>}
+
+          <label className="flex flex-col gap-2 text-sm">
+            <span className="font-medium text-ys-ink">Assunto</span>
+            <input
+              type="text"
+              className="rounded-xl border border-ys-line px-3 py-2 text-sm focus:border-ys-amber focus:outline-none"
+              value={subject}
+              onChange={(event) => setSubject(event.target.value)}
+              disabled={loading}
+              required
+            />
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm">
+            <span className="font-medium text-ys-ink">Mensagem</span>
+            <textarea
+              className="min-h-[180px] rounded-xl border border-ys-line px-3 py-2 text-sm focus:border-ys-amber focus:outline-none"
+              value={message}
+              onChange={(event) => setMessage(event.target.value)}
+              disabled={loading}
+              placeholder="Escreva a mensagem que será enviada para a turma."
+              required
+            />
+            <span className="text-xs text-ys-graphite">
+              Use quebras de linha para separar parágrafos; elas serão convertidas automaticamente no e-mail.
+            </span>
+          </label>
+
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={includeTeachers}
+              onChange={(event) => setIncludeTeachers(event.target.checked)}
+              disabled={loading}
+            />
+            <span className="text-ys-ink">Enviar também aos professores da turma</span>
+          </label>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Enviando…' : 'Enviar e-mail'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+type FeedbackState = {
+  message: string;
+  tone: 'info' | 'success' | 'error';
+};
+
+const FEEDBACK_STYLES: Record<FeedbackState['tone'], string> = {
+  info: 'border-ys-line bg-white text-ys-ink',
+  success: 'border-green-200 bg-green-50 text-green-700',
+  error: 'border-rose-200 bg-rose-50 text-rose-700',
+};
 
 type ActivityModalProps = {
   open: boolean;
@@ -737,7 +966,7 @@ function NoticeModal({ open, loading, onClose, onSubmit }: NoticeModalProps) {
   );
 }
 
-type ClassTabKey = 'overview' | 'schedule' | 'students';
+type ClassTabKey = 'overview' | 'students';
 
 export default function ClassDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -749,24 +978,34 @@ export default function ClassDetailPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<ClassStudent | null>(null);
   const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<FeedbackState | null>(null);
   const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedSlots, setSelectedSlots] = useState<Set<ScheduleKey>>(new Set());
-  const [initialSelectedSlots, setInitialSelectedSlots] = useState<Set<ScheduleKey>>(new Set());
   const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [scheduleDraft, setScheduleDraft] = useState<Set<ScheduleKey>>(new Set());
   const [quickModal, setQuickModal] = useState<'activity' | 'notice' | 'milestone' | null>(null);
   const [quickSaving, setQuickSaving] = useState(false);
+  const [calendarEvents, setCalendarEvents] = useState<ClassCalendarItem[]>([]);
+  const [calendarLoading, setCalendarLoading] = useState(false);
+  const [calendarError, setCalendarError] = useState<string | null>(null);
+  const [calendarView, setCalendarView] = useState<'month' | 'week'>('month');
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
   const [activeTab, setActiveTab] = useState<ClassTabKey>(() => {
     const state = location.state as { initialTab?: ClassTabKey } | null;
     if (state?.initialTab) return state.initialTab;
     return 'overview';
   });
-  const tabs: Array<{ key: 'overview' | 'schedule' | 'students'; label: string }> = [
+  const tabs: Array<{ key: ClassTabKey; label: string }> = [
     { key: 'overview', label: 'Resumo' },
-    { key: 'schedule', label: 'Horários' },
     { key: 'students', label: 'Alunos' },
   ];
+
+  const showFeedback = useCallback((message: string, tone: FeedbackState['tone'] = 'info') => {
+    setFeedback({ message, tone });
+  }, []);
 
   const fetchDetail = useCallback(async () => {
     if (!id) return;
@@ -780,9 +1019,11 @@ export default function ClassDetailPage() {
       } else {
         const scheduleSet = createScheduleSet(data.schedule);
         setSelectedSlots(scheduleSet);
-        setInitialSelectedSlots(new Set(scheduleSet));
+        setScheduleDraft(new Set(scheduleSet));
+        const normalizedSchedule = selectedSlotsToDetailSchedule(scheduleSet);
         setDetail({
           ...data,
+          schedule: normalizedSchedule,
           students: sortStudents(data.students),
           activities: sortActivities(data.activities ?? []),
           milestones: sortMilestones(data.milestones ?? []),
@@ -797,20 +1038,97 @@ export default function ClassDetailPage() {
     }
   }, [id]);
 
+  const loadCalendar = useCallback(async () => {
+    if (!id) return;
+    setCalendarLoading(true);
+    setCalendarError(null);
+    try {
+      const events = await getClassCalendar(id);
+      setCalendarEvents(events);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao carregar calendário.';
+      setCalendarError(message);
+    } finally {
+      setCalendarLoading(false);
+    }
+  }, [id]);
+
   useEffect(() => {
     fetchDetail();
   }, [fetchDetail]);
 
-  const hasScheduleChanges = useMemo(() => !setsAreEqual(selectedSlots, initialSelectedSlots), [selectedSlots, initialSelectedSlots]);
+  useEffect(() => {
+    loadCalendar();
+  }, [loadCalendar]);
+
   const scheduleCount = selectedSlots.size;
+  const scheduleModalHasChanges = useMemo(() => !setsAreEqual(scheduleDraft, selectedSlots), [scheduleDraft, selectedSlots]);
+  const today = useMemo(() => new Date(), []);
+  const sortedCalendarEvents = useMemo(() => {
+    return calendarEvents
+      .filter((item) => safeTimestamp(item.dateISO) > 0)
+      .sort((a, b) => safeTimestamp(a.dateISO) - safeTimestamp(b.dateISO));
+  }, [calendarEvents]);
+  const calendarEventsForView = useMemo(() => {
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const startTs = startOfToday.getTime();
+    const weekEndTs = startTs + 7 * 24 * 60 * 60 * 1000;
+    const monthStartTs = new Date(today.getFullYear(), today.getMonth(), 1).getTime();
+    const monthEndTs = new Date(today.getFullYear(), today.getMonth() + 1, 1).getTime();
+
+    const filtered = sortedCalendarEvents.filter((event) => {
+      const ts = safeTimestamp(event.dateISO);
+      if (ts <= 0) return false;
+      if (calendarView === 'week') {
+        return ts >= startTs && ts < weekEndTs;
+      }
+      return ts >= monthStartTs && ts < monthEndTs;
+    });
+
+    if (filtered.length > 0) return filtered;
+    return sortedCalendarEvents.slice(0, Math.min(sortedCalendarEvents.length, 5));
+  }, [sortedCalendarEvents, calendarView, today]);
+  const calendarGroups = useMemo(() => {
+    const groups = new Map<string, { dateISO: string; label: string; items: ClassCalendarItem[] }>();
+    calendarEventsForView.forEach((event) => {
+      const ts = safeTimestamp(event.dateISO);
+      if (ts <= 0) return;
+      const date = new Date(ts);
+      const key = date.toISOString().slice(0, 10);
+      if (!groups.has(key)) {
+        groups.set(key, {
+          dateISO: date.toISOString(),
+          label: CALENDAR_DAY_FORMATTER.format(date),
+          items: [],
+        });
+      }
+      const bucket = groups.get(key);
+      if (bucket) {
+        bucket.items.push(event);
+      }
+    });
+    const ordered = Array.from(groups.values());
+    ordered.sort((a, b) => new Date(a.dateISO).getTime() - new Date(b.dateISO).getTime());
+    return ordered;
+  }, [calendarEventsForView]);
 
   const closeModal = () => {
     setModalOpen(false);
     setEditingStudent(null);
   };
 
-  const handleToggleSlot = (weekday: Weekday, slot: TimeSlot) => {
-    setSelectedSlots((prev) => {
+  const handleOpenScheduleModal = () => {
+    setScheduleDraft(new Set(selectedSlots));
+    setScheduleModalOpen(true);
+  };
+
+  const handleCloseScheduleModal = () => {
+    setScheduleDraft(new Set(selectedSlots));
+    setScheduleModalOpen(false);
+  };
+
+  const handleToggleDraftSlot = (weekday: Weekday, slot: TimeSlot) => {
+    setScheduleDraft((prev) => {
       const next = new Set(prev);
       const key = buildScheduleKey(weekday, slot);
       if (next.has(key)) {
@@ -822,17 +1140,22 @@ export default function ClassDetailPage() {
     });
   };
 
-  const handleSaveSchedule = async () => {
+  const handleScheduleModalSave = () => {
+    const next = new Set(scheduleDraft);
+    void handleSaveSchedule(next);
+  };
+
+  const handleSaveSchedule = async (slots: Set<ScheduleKey>) => {
     if (!id) return;
     setScheduleSaving(true);
     setFeedback(null);
     setTemporaryPassword(null);
     try {
-      const payload = selectedSlotsToPayload(selectedSlots);
+      const payload = selectedSlotsToPayload(slots);
       const updated = await updateClassSchedule(id, payload);
       const updatedSet = createScheduleSet(updated.schedule);
       setSelectedSlots(updatedSet);
-      setInitialSelectedSlots(new Set(updatedSet));
+      setScheduleDraft(new Set(updatedSet));
       setDetail((prev) => {
         if (!prev) return prev;
         return {
@@ -845,12 +1168,64 @@ export default function ClassDetailPage() {
           schedule: selectedSlotsToDetailSchedule(updatedSet),
         };
       });
-      setFeedback('Horários atualizados com sucesso.');
+      showFeedback('Horários atualizados com sucesso.', 'success');
+      setScheduleModalOpen(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao atualizar horários da turma.';
-      setFeedback(message);
+      showFeedback(message, 'error');
     } finally {
       setScheduleSaving(false);
+    }
+  };
+
+  const handleOpenEmailModal = () => {
+    setTemporaryPassword(null);
+    setFeedback(null);
+    setEmailModalOpen(true);
+  };
+
+  const handleCloseEmailModal = () => {
+    setEmailModalOpen(false);
+  };
+
+  const handleSendClassEmail = async ({
+    subject,
+    message,
+    includeTeachers,
+  }: {
+    subject: string;
+    message: string;
+    includeTeachers: boolean;
+  }) => {
+    if (!id) {
+      throw new Error('Turma inválida.');
+    }
+
+    setEmailSending(true);
+    setFeedback(null);
+    try {
+      const result = await sendClassEmail(id, {
+        subject,
+        text: message,
+        includeTeachers,
+      });
+
+      const skipped = result.skipped;
+      const hasWarnings =
+        skipped.studentsWithoutEmail.length > 0 ||
+        (includeTeachers && skipped.teachersWithoutEmail.length > 0) ||
+        skipped.duplicateEmails.length > 0;
+
+      const tone: FeedbackState['tone'] = hasWarnings ? 'info' : 'success';
+      const combinedMessage = result.message || 'E-mail enviado com sucesso.';
+      showFeedback(combinedMessage, tone);
+      handleCloseEmailModal();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao enviar e-mail para a turma.';
+      showFeedback(errorMessage, 'error');
+      throw new Error(errorMessage);
+    } finally {
+      setEmailSending(false);
     }
   };
 
@@ -903,7 +1278,7 @@ export default function ClassDetailPage() {
         const students = sortStudents([...prev.students, result.student]);
         return { ...prev, students, studentsCount: result.studentsCount };
       });
-      setFeedback('Aluno criado com sucesso.');
+      showFeedback('Aluno criado com sucesso.', 'success');
       if (result.temporaryPassword) {
         setTemporaryPassword(result.temporaryPassword);
       }
@@ -926,7 +1301,7 @@ export default function ClassDetailPage() {
         );
         return { ...prev, students, studentsCount: result.studentsCount };
       });
-      setFeedback('Aluno atualizado com sucesso.');
+      showFeedback('Aluno atualizado com sucesso.', 'success');
       if (result.temporaryPassword) {
         setTemporaryPassword(result.temporaryPassword);
       }
@@ -952,10 +1327,10 @@ export default function ClassDetailPage() {
           studentsCount: result.studentsCount,
         };
       });
-      setFeedback('Aluno removido com sucesso.');
+      showFeedback('Aluno removido com sucesso.', 'success');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao remover aluno.';
-      setFeedback(message);
+      showFeedback(message, 'error');
     } finally {
       setDeletingId(null);
     }
@@ -972,7 +1347,8 @@ export default function ClassDetailPage() {
         const activities = sortActivities([...prev.activities, saved]);
         return { ...prev, activities };
       });
-      setFeedback('Atividade cadastrada com sucesso.');
+      void loadCalendar();
+      showFeedback('Atividade cadastrada com sucesso.', 'success');
       setQuickModal(null);
     } catch (err) {
       throw err;
@@ -993,10 +1369,11 @@ export default function ClassDetailPage() {
         if (!prev) return prev;
         return { ...prev, activities: prev.activities.filter((item) => item.id !== activity.id) };
       });
-      setFeedback('Atividade removida.');
+      void loadCalendar();
+      showFeedback('Atividade removida.', 'success');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao remover atividade.';
-      setFeedback(message);
+      showFeedback(message, 'error');
     }
   };
 
@@ -1011,7 +1388,8 @@ export default function ClassDetailPage() {
         const milestones = sortMilestones([...prev.milestones, saved]);
         return { ...prev, milestones };
       });
-      setFeedback('Data importante registrada.');
+      void loadCalendar();
+      showFeedback('Data importante registrada.', 'success');
       setQuickModal(null);
     } catch (err) {
       throw err;
@@ -1032,10 +1410,11 @@ export default function ClassDetailPage() {
         if (!prev) return prev;
         return { ...prev, milestones: prev.milestones.filter((item) => item.id !== milestone.id) };
       });
-      setFeedback('Data importante removida.');
+      void loadCalendar();
+      showFeedback('Data importante removida.', 'success');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao remover data importante.';
-      setFeedback(message);
+      showFeedback(message, 'error');
     }
   };
 
@@ -1050,7 +1429,7 @@ export default function ClassDetailPage() {
         const notices = sortNotices([...prev.notices, saved]);
         return { ...prev, notices };
       });
-      setFeedback('Aviso registrado com sucesso.');
+      showFeedback('Aviso registrado com sucesso.', 'success');
       setQuickModal(null);
     } catch (err) {
       throw err;
@@ -1071,10 +1450,10 @@ export default function ClassDetailPage() {
         if (!prev) return prev;
         return { ...prev, notices: prev.notices.filter((item) => item.id !== notice.id) };
       });
-      setFeedback('Aviso removido.');
+      showFeedback('Aviso removido.', 'success');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao remover aviso.';
-      setFeedback(message);
+      showFeedback(message, 'error');
     }
   };
 
@@ -1141,8 +1520,8 @@ export default function ClassDetailPage() {
           )}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="ghost" onClick={handleNotifyClass}>
-            Enviar aviso à turma
+          <Button variant="ghost" onClick={handleOpenEmailModal}>
+            Enviar e-mail para a turma
           </Button>
           {activeTab === 'students' && (
             <Button onClick={handleAddClick}>Adicionar aluno</Button>
@@ -1150,7 +1529,19 @@ export default function ClassDetailPage() {
         </div>
       </div>
 
-      <section className="grid gap-3 md:grid-cols-3">
+      <div className="flex flex-wrap items-center gap-4 text-sm text-ys-graphite">
+        <span>
+          <span className="font-semibold text-ys-ink">{scheduleCount}</span> horários cadastrados
+        </span>
+        <span>
+          <span className="font-semibold text-ys-ink">{totalStudents}</span> alunos
+        </span>
+        <span>
+          <span className="font-semibold text-ys-ink">{totalTeachers}</span> professores
+        </span>
+      </div>
+
+      <section className="grid gap-3 md:grid-cols-2">
         <div className="rounded-2xl border border-ys-line bg-white p-4 shadow-ys-sm">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-base font-semibold text-ys-ink">Atividades</h2>
@@ -1187,46 +1578,6 @@ export default function ClassDetailPage() {
             })}
           </ul>
         </div>
-
-        <div className="rounded-2xl border border-ys-line bg-white p-4 shadow-ys-sm">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-base font-semibold text-ys-ink">Avisos internos</h2>
-            <Button variant="ghost" onClick={handleNotifyClass}>
-              Adicionar
-            </Button>
-          </div>
-          <p className="mt-1 text-xs text-ys-graphite">
-            Use este espaço para lembretes exclusivos da equipe docente.
-          </p>
-          <ul className="mt-3 space-y-2 text-sm text-ys-ink">
-            {detail.notices.length === 0 && (
-              <li className="text-xs text-ys-graphite">Nenhum aviso cadastrado.</li>
-            )}
-            {detail.notices.map((notice) => {
-              const createdLabel = formatDateTimeLabel(notice.createdAt);
-              return (
-                <li key={notice.id} className="flex items-start justify-between gap-2">
-                  <div className="space-y-1">
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-ys-ink">
-                      {notice.message}
-                    </p>
-                    {createdLabel && (
-                      <p className="text-xs text-ys-graphite">Registrado em {createdLabel}</p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    className="text-xs font-semibold text-rose-600 hover:underline"
-                    onClick={() => handleRemoveNotice(notice)}
-                  >
-                    Remover
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-
         <div className="rounded-2xl border border-ys-line bg-white p-4 shadow-ys-sm">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-base font-semibold text-ys-ink">Datas importantes</h2>
@@ -1283,11 +1634,21 @@ export default function ClassDetailPage() {
             </button>
           );
         })}
+        <button
+          type="button"
+          onClick={() => {
+            if (!id) return;
+            navigate(`/professor/classes/${id}/grades`);
+          }}
+          className="text-ys-graphite hover:text-ys-ink rounded-t-xl px-4 py-2 text-sm font-semibold transition-colors"
+        >
+          Notas
+        </button>
       </div>
 
       {feedback && (
-        <div className="rounded-xl border border-ys-line bg-white px-4 py-3 text-sm text-ys-ink">
-          {feedback}
+        <div className={`rounded-xl border px-4 py-3 text-sm ${FEEDBACK_STYLES[feedback.tone]}`}>
+          {feedback.message}
         </div>
       )}
       {activeTab === 'students' && temporaryPassword && (
@@ -1298,12 +1659,168 @@ export default function ClassDetailPage() {
 
       {activeTab === 'overview' && (
         <>
-          <section className="rounded-2xl border border-ys-line bg-white p-4 shadow-ys-sm">
-            <h2 className="text-lg font-semibold text-ys-ink">Resumo da turma</h2>
-            <div className="mt-3 grid gap-2 text-sm text-ys-graphite">
-              <span>Horários: {scheduleCount}</span>
-              <span>Alunos: {totalStudents}</span>
-              <span>Professores: {totalTeachers}</span>
+          <section className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <div className="grid gap-3">
+              <div className="rounded-2xl border border-ys-line bg-white p-4 shadow-ys-sm">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-semibold text-ys-ink">Horários da semana</h2>
+                    <p className="text-xs text-ys-graphite">
+                      Visualize e ajuste os tempos de aula da turma.
+                    </p>
+                  </div>
+                  <Button onClick={handleOpenScheduleModal}>Editar horários</Button>
+                </div>
+                {selectedSlots.size === 0 ? (
+                  <p className="mt-4 text-sm text-ys-graphite">Nenhum horário cadastrado.</p>
+                ) : (
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="min-w-full border-separate border-spacing-0 text-xs">
+                      <thead>
+                        <tr>
+                          <th className="px-3 py-2 text-left font-semibold uppercase tracking-wide text-ys-graphite">
+                            Horário
+                          </th>
+                          {WEEKDAYS.map((day) => (
+                            <th key={day.value} className="px-3 py-2 text-center font-semibold uppercase tracking-wide text-ys-graphite">
+                              {day.short}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {TIME_SLOTS.map((slot) => (
+                          <tr key={slot.value} className="border-t border-ys-line">
+                            <td className="px-3 py-3 align-top text-ys-ink">
+                              <div className="font-medium">{slot.label}</div>
+                              <div className="text-xs text-ys-graphite">{slot.range}</div>
+                            </td>
+                            {WEEKDAYS.map((day) => {
+                              const key = buildScheduleKey(day.value, slot.value);
+                              const active = selectedSlots.has(key);
+                              return (
+                                <td key={key} className="px-3 py-3 text-center align-middle">
+                                  <div className="flex items-center justify-center">
+                                    <div
+                                      className={`h-6 w-6 rounded-full border ${active ? 'border-ys-amber bg-ys-amber/20' : 'border-dashed border-ys-line'}`}
+                                      aria-hidden="true"
+                                    />
+                                  </div>
+                                  <span className="sr-only">{active ? 'Tempo reservado' : 'Tempo livre'}</span>
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-ys-line bg-white p-4 shadow-ys-sm">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-semibold text-ys-ink">Calendário da turma</h2>
+                    <p className="text-xs text-ys-graphite">
+                      Eventos provenientes das atividades e datas importantes cadastradas.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className={calendarView === 'week' ? 'border border-ys-amber bg-ys-amber/20 text-ys-ink' : ''}
+                      aria-pressed={calendarView === 'week'}
+                      onClick={() => setCalendarView('week')}
+                    >
+                      Semana
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className={calendarView === 'month' ? 'border border-ys-amber bg-ys-amber/20 text-ys-ink' : ''}
+                      aria-pressed={calendarView === 'month'}
+                      onClick={() => setCalendarView('month')}
+                    >
+                      Mês
+                    </Button>
+                  </div>
+                </div>
+
+                {calendarLoading ? (
+                  <p className="mt-4 text-sm text-ys-graphite">Carregando calendário…</p>
+                ) : calendarError ? (
+                  <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600">
+                    {calendarError}
+                  </div>
+                ) : calendarGroups.length === 0 ? (
+                  <p className="mt-4 text-sm text-ys-graphite">Nenhum evento encontrado para o período selecionado.</p>
+                ) : (
+                  <ul className="mt-4 space-y-3 text-sm text-ys-ink">
+                    {calendarGroups.map((group) => (
+                      <li key={group.dateISO} className="rounded-2xl border border-ys-line bg-ys-bg px-3 py-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-ys-graphite">{group.label}</p>
+                        <ul className="mt-2 space-y-2">
+                          {group.items.map((item) => {
+                            const label = item.title?.trim() || (item.type === 'activity' ? 'Atividade' : 'Data importante');
+                            const typeLabel = item.type === 'activity' ? 'Atividade' : 'Data importante';
+                            return (
+                              <li
+                                key={`${group.dateISO}-${item.id}`}
+                                className="flex items-start justify-between gap-3 rounded-xl border border-ys-line bg-white px-3 py-2"
+                              >
+                                <div>
+                                  <p className="font-medium text-ys-ink">{label}</p>
+                                  <p className="text-xs text-ys-graphite">{typeLabel}</p>
+                                </div>
+                                <span className="text-xs font-semibold uppercase tracking-wide text-ys-graphite">
+                                  {typeLabel}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-ys-line bg-white p-4 shadow-ys-sm">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold text-ys-ink">Avisos internos</h2>
+                  <p className="text-xs text-ys-graphite">Registros visíveis para professores da turma.</p>
+                </div>
+                <Button variant="ghost" onClick={handleNotifyClass}>
+                  Registrar aviso
+                </Button>
+              </div>
+              <ul className="mt-4 space-y-2 text-sm text-ys-ink">
+                {detail.notices.length === 0 && (
+                  <li className="text-xs text-ys-graphite">Nenhum aviso cadastrado.</li>
+                )}
+                {detail.notices.map((notice) => {
+                  const createdLabel = formatDateTimeLabel(notice.createdAt);
+                  return (
+                    <li key={notice.id} className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-ys-ink">{notice.message}</p>
+                        {createdLabel && <p className="text-xs text-ys-graphite">Registrado em {createdLabel}</p>}
+                      </div>
+                      <button
+                        type="button"
+                        className="text-xs font-semibold text-rose-600 hover:underline"
+                        onClick={() => handleRemoveNotice(notice)}
+                      >
+                        Remover
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           </section>
 
@@ -1318,9 +1835,7 @@ export default function ClassDetailPage() {
                     <span className="font-medium">{teacher.name}</span>
                     <span className="text-ys-graphite">{teacher.email}</span>
                     {teacher.subjects.length > 0 && (
-                      <span className="text-xs text-ys-graphite">
-                        {teacher.subjects.join(', ')}
-                      </span>
+                      <span className="text-xs text-ys-graphite">{teacher.subjects.join(', ')}</span>
                     )}
                   </li>
                 ))}
@@ -1329,61 +1844,6 @@ export default function ClassDetailPage() {
           </section>
         </>
       )}
-
-      {activeTab === 'schedule' && (
-        <section className="rounded-2xl border border-ys-line bg-white p-4 shadow-ys-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-ys-ink">Quadro de horários</h2>
-            <Button onClick={handleSaveSchedule} disabled={!hasScheduleChanges || scheduleSaving}>
-              {scheduleSaving ? 'Salvando…' : 'Salvar horários'}
-            </Button>
-          </div>
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full border-separate border-spacing-0 text-sm">
-              <thead>
-                <tr>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ys-graphite">
-                    Horário
-                  </th>
-                  {WEEKDAYS.map((day) => (
-                    <th
-                      key={day.value}
-                      className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-ys-graphite"
-                    >
-                      {day.short}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {TIME_SLOTS.map((slot) => (
-                  <tr key={slot.value} className="border-t border-ys-line">
-                    <td className="px-3 py-3 align-top text-ys-ink">
-                      <div className="font-medium">{slot.label}</div>
-                      <div className="text-xs text-ys-graphite">{slot.range}</div>
-                    </td>
-                    {WEEKDAYS.map((day) => {
-                      const key = buildScheduleKey(day.value, slot.value);
-                      const checked = selectedSlots.has(key);
-                      return (
-                        <td key={key} className="px-3 py-3 text-center align-middle">
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 rounded border-ys-line text-ys-amber focus:ring-ys-amber"
-                            checked={checked}
-                            onChange={() => handleToggleSlot(day.value, slot.value)}
-                          />
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
       {activeTab === 'students' && (
         <section className="rounded-2xl border border-ys-line bg-white p-4 shadow-ys-sm">
           <div className="flex items-center justify-between">
@@ -1472,6 +1932,12 @@ export default function ClassDetailPage() {
         </section>
       )}
 
+      <EmailModal
+        open={emailModalOpen}
+        loading={emailSending}
+        onClose={handleCloseEmailModal}
+        onSubmit={handleSendClassEmail}
+      />
       <StudentModal
         open={modalOpen}
         mode={editingStudent ? 'edit' : 'create'}
@@ -1497,6 +1963,15 @@ export default function ClassDetailPage() {
         loading={quickSaving}
         onClose={() => setQuickModal(null)}
         onSubmit={handleSubmitMilestone}
+      />
+      <ScheduleModal
+        open={scheduleModalOpen}
+        saving={scheduleSaving}
+        hasChanges={scheduleModalHasChanges}
+        draftSlots={scheduleDraft}
+        onClose={handleCloseScheduleModal}
+        onToggle={handleToggleDraftSlot}
+        onSave={handleScheduleModalSave}
       />
     </div>
   );

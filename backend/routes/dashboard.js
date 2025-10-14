@@ -33,7 +33,9 @@ async function getContentProgress(req) {
       ? Number(req.query.bimester)
       : Math.floor(new Date().getMonth() / 2) + 1;
 
-  const classes = await Class.find({ teachers: teacherId }).select('_id');
+  const classes = await Class.find({
+    $or: [{ teachers: teacherId }, { teacherIds: teacherId }],
+  }).select('_id');
 
   const classIds = classes.map((c) => c._id);
   if (!classIds.length) return [];

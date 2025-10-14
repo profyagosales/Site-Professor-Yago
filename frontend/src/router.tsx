@@ -3,20 +3,25 @@ import PublicLayout from '@/layouts/PublicLayout';
 import AppShellLayout from '@/layouts/AppShellLayout';
 import PrivateRoute from '@/routes/PrivateRoute';
 import TeacherGuard from '@/routes/TeacherGuard';
+import GerencialGuard from '@/routes/GerencialGuard';
 import Landing from '@/pages/Landing';
 import LoginProfessor from '@/pages/auth/LoginProfessor';
 import LoginAluno from '@/pages/auth/LoginAluno';
+import LoginGerencial from '@/pages/gerencial/LoginGerencial';
 // @ts-expect-error legacy JSX module
 import DashboardProfessor from '@/pages/DashboardProfessor';
 // @ts-expect-error legacy JSX module
 import DashboardAluno from '@/pages/DashboardAluno';
 import { lazy, Suspense } from 'react';
+import GerencialLayout from '@/layouts/GerencialLayout';
+import GerencialTeachersPage from '@/pages/gerencial/GerencialTeachersPage';
 const RedacaoProfessorPage = lazy(() => import(/* @vite-ignore */ '@/pages/professor/redacao/RedacaoProfessorPage'));
 const GradeWorkspace = lazy(() => import(/* @vite-ignore */ '@/pages/professor/redacao/GradeWorkspace'));
 import NotFound from '@/pages/NotFound';
 import TurmaAlunosPage from '@/pages/professor/TurmaAlunos';
 import ClassesPage from '@/pages/professor/classes';
 import ClassDetailPage from '@/pages/professor/classes/[id]';
+import ClassGradesPage from '@/pages/professor/classes/[id]/grades';
 import StudentProfilePage, {
   StudentEmailTab,
   StudentEssaysTab,
@@ -37,7 +42,17 @@ export const router = createBrowserRouter([
       { path: '/', element: <Landing /> },
       { path: '/login-professor', element: <LoginProfessor /> },
       { path: '/login-aluno', element: <LoginAluno /> },
+      { path: '/gerencial/login', element: <LoginGerencial /> },
     ],
+  },
+  {
+    path: '/gerencial',
+    element: (
+      <GerencialGuard>
+        <GerencialLayout />
+      </GerencialGuard>
+    ),
+    children: [{ index: true, element: <GerencialTeachersPage /> }],
   },
   {
     element: <PrivateRoute />,
@@ -55,6 +70,7 @@ export const router = createBrowserRouter([
           { path: '/redacao', element: <Navigate to="/professor/redacao" replace /> },
           { path: '/professor/classes', element: <TeacherGuard><ClassesPage /></TeacherGuard> },
           { path: '/professor/classes/:id', element: <TeacherGuard><ClassDetailPage /></TeacherGuard> },
+          { path: '/professor/classes/:id/grades', element: <TeacherGuard><ClassGradesPage /></TeacherGuard> },
           {
             path: '/professor/classes/:classId/students/:studentId',
             element: <TeacherGuard><StudentProfilePage /></TeacherGuard>,

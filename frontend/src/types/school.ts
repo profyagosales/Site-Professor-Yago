@@ -8,11 +8,24 @@ export interface ClassSummary {
   year?: number;
   studentsCount: number;
   teachersCount: number;
+  teacherIds?: string[];
+  responsibleTeacherId?: string | null;
+}
+
+export interface TeacherLite {
+  id: string;
+  _id?: string;
+  name: string;
+  email: string;
+  phone?: string;
+  photoUrl?: string;
+  subjects?: string[];
+  responsible?: boolean;
 }
 
 export interface ClassDetail extends ClassSummary {
   schedule: Array<{ weekday: Weekday; slot: TimeSlot }>;
-  teachers: Array<{ _id: string; name: string; email: string }>;
+  teachers: TeacherLite[];
 }
 
 export interface StudentLite {

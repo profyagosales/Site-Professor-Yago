@@ -53,25 +53,38 @@ async function createTransporter() {
   return transporter;
 }
 
-async function sendEmail({ to, subject, html, text, attachments } = {}) {
+async function sendEmail({ to, bcc, subject, html, text, attachments } = {}) {
   const transport = await createTransporter();
 
   const recipients = Array.isArray(to) ? to.filter(Boolean) : [to].filter(Boolean);
-  if (recipients.length === 0) {
+  const bccRecipients = Array.isArray(bcc) ? bcc.filter(Boolean) : bcc ? [bcc] : [];
+
+  if (recipients.length === 0 && bccRecipients.length === 0) {
     throw new Error('Nenhum destinatário informado');
   }
 
+  const defaultSender =
+    process.env.SMTP_FROM ||
+    process.env.ZOHO_FROM ||
+    (transport.options.auth && transport.options.auth.user) ||
+    undefined;
+
+  const fromAddress = defaultSender || 'no-reply@classroom.local';
+
+  const toAddresses = recipients.length > 0 ? recipients : [fromAddress];
+
   const mailOptions = {
-    from:
-      process.env.SMTP_FROM ||
-      process.env.ZOHO_FROM ||
-      (transport.options.auth && transport.options.auth.user),
-  to: recipients.join(', '),
+    from: fromAddress,
+    to: toAddresses.join(', '),
     subject,
     html,
     text,
-    attachments
+    attachments,
   };
+
+  if (bccRecipients.length > 0) {
+    mailOptions.bcc = bccRecipients.join(', ');
+  }
 
   const info = await transport.sendMail(mailOptions);
 

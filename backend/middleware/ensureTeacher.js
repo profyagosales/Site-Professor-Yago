@@ -1,10 +1,12 @@
 module.exports = function ensureTeacher(req, res, next) {
-  const role = (req?.user?.role || '').toString().toLowerCase();
-  if (!req.user) {
+  if (!req?.user) {
     return res.status(401).json({ success: false, message: 'Unauthorized' });
   }
-  if (role !== 'teacher') {
-    return res.status(403).json({ success: false, message: 'Acesso restrito aos professores.' });
+
+  const role = (req.user.role || req.user.profile || '').toString().toLowerCase();
+  if (role === 'teacher' || role === 'admin') {
+    return next();
   }
-  return next();
+
+  return res.status(403).json({ success: false, message: 'Acesso restrito aos professores.' });
 };

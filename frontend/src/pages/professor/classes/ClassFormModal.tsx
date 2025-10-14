@@ -1,16 +1,26 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { TeacherSearchInput } from '@/components/TeacherSearchInput';
+import type { TeacherLite } from '@/types/school';
 
 export type ClassFormValues = {
   name: string;
   subject: string;
   year?: number;
+  responsibleTeacherId?: string | null;
+};
+
+export type ClassFormInitialValues = ClassFormValues & {
+  responsibleTeacher?: TeacherLite | null;
+  responsibleTeacherName?: string;
+  responsibleTeacherEmail?: string;
+  responsibleTeacherPhone?: string;
 };
 
 type Props = {
   open: boolean;
   mode: 'create' | 'edit';
-  initialValues?: ClassFormValues | null;
+  initialValues?: ClassFormInitialValues | null;
   loading?: boolean;
   onClose: () => void;
   onSubmit: (values: ClassFormValues) => Promise<void> | void;
@@ -20,21 +30,42 @@ const initialState: ClassFormValues = {
   name: '',
   subject: '',
   year: undefined,
+  responsibleTeacherId: undefined,
 };
 
 export function ClassFormModal({ open, mode, initialValues, loading = false, onClose, onSubmit }: Props) {
   const [values, setValues] = useState<ClassFormValues>(initialState);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTeacher, setSelectedTeacher] = useState<TeacherLite | null>(null);
 
   useEffect(() => {
     if (!open) return;
+    const responsible = initialValues?.responsibleTeacher ?? null;
+    const responsibleFromId = !responsible && initialValues?.responsibleTeacherId
+      ? {
+          id: initialValues.responsibleTeacherId,
+          name: initialValues?.responsibleTeacherName || '',
+          email: initialValues?.responsibleTeacherEmail || '',
+          phone: initialValues?.responsibleTeacherPhone,
+        }
+      : null;
+    const resolvedTeacher = responsible || responsibleFromId;
+    setSelectedTeacher(resolvedTeacher as TeacherLite | null);
     setValues({
       name: initialValues?.name ?? '',
       subject: initialValues?.subject ?? '',
       year: initialValues?.year ?? undefined,
+      responsibleTeacherId: resolvedTeacher?.id,
     });
     setError(null);
   }, [open, initialValues]);
+
+  useEffect(() => {
+    setValues((prev) => ({
+      ...prev,
+      responsibleTeacherId: selectedTeacher?.id ?? undefined,
+    }));
+  }, [selectedTeacher]);
 
   if (!open) return null;
 
@@ -71,6 +102,7 @@ export function ClassFormModal({ open, mode, initialValues, loading = false, onC
         name,
         subject,
         year: values.year === undefined ? undefined : values.year,
+        responsibleTeacherId: values.responsibleTeacherId,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Não foi possível salvar a turma.';
@@ -126,7 +158,7 @@ export function ClassFormModal({ open, mode, initialValues, loading = false, onC
           </label>
 
           <label className="flex flex-col gap-2 text-sm">
-            <span className="font-medium text-ys-ink">Ano (opcional)</span>
+            <span className="font-medium text-ys-ink">Ano/Série (opcional)</span>
             <input
               type="number"
               min={2000}
@@ -137,6 +169,12 @@ export function ClassFormModal({ open, mode, initialValues, loading = false, onC
               placeholder="2025"
             />
           </label>
+
+          <TeacherSearchInput
+            value={selectedTeacher}
+            onSelect={setSelectedTeacher}
+            disabled={loading}
+          />
 
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>

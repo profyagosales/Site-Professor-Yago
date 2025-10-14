@@ -1,5 +1,4 @@
 import AuthShell from "@/components/auth/AuthShell";
-import { CardBody } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { useState } from "react";
@@ -52,6 +51,26 @@ export default function LoginProfessor() {
       </form>
       <div className="mt-6 text-xs text-ys-ink-3">
         Dica: se esqueceu a senha, entre em contato com a coordenação.
+      </div>
+      <div className="mt-8 flex justify-end">
+        <Link
+          to="/gerencial/login"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-ys-line text-ys-graphite transition hover:border-ys-ink hover:text-ys-ink"
+          aria-label="Acessar área gerencial"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path
+              d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M19.4 13a7.46 7.46 0 0 0 .06-2l2.06-1.6-2-3.46-2.5.56a7.54 7.54 0 0 0-1.72-1l-.39-2.55H10L9.61 5.5a7.54 7.54 0 0 0-1.72 1l-2.5-.56-2 3.46L5.45 11a7.46 7.46 0 0 0 0 2l-2.06 1.6 2 3.46 2.5-.56a7.54 7.54 0 0 0 1.72 1l.39 2.55h4.52l.39-2.55a7.54 7.54 0 0 0 1.72-1l2.5.56 2-3.46L19.4 13Z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </Link>
       </div>
     </AuthShell>
   );
