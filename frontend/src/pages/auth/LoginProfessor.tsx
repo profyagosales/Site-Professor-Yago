@@ -84,8 +84,24 @@ export default function LoginProfessor() {
       heading="Entrar na plataforma"
     >
       <form onSubmit={onSubmit} className="space-y-4">
-        <Field label="E-mail" type="email" required value={email} autoComplete="email" onChange={e=>setEmail(e.target.value)} />
-        <Field label="Senha" type="password" required value={senha} autoComplete="current-password" onChange={e=>setSenha(e.target.value)} />
+        <Field
+          label="E-mail"
+          type="email"
+          required
+          value={email}
+          autoComplete="email"
+          placeholder=""
+          onChange={e => setEmail(e.target.value)}
+        />
+        <Field
+          label="Senha"
+          type="password"
+          required
+          value={senha}
+          autoComplete="current-password"
+          placeholder=""
+          onChange={e => setSenha(e.target.value)}
+        />
         {erro && <p className="text-sm text-red-600">{erro}</p>}
         <div className="pt-2">
           <Button type="submit" className="w-full">Entrar</Button>

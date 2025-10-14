@@ -23,25 +23,33 @@ router.get('/me', readSession, (req, res) => {
     name,
     nome,
     isTeacher,
+    photo,
+    photoUrl: rawPhotoUrl,
   } = sessionUser;
 
   const normalizedId = String(_id || id || sub || '');
   const normalizedRole = rawRole || null;
   const teacherFlag = normalizedRole === 'teacher' || Boolean(isTeacher);
   const displayName = name || nome || null;
+  const normalizedPhoto = rawPhotoUrl || photo || null;
 
   return res.json({
     success: true,
     id: normalizedId,
+    _id: normalizedId,
     role: normalizedRole,
     isTeacher: teacherFlag,
     email: email || null,
+    name: displayName,
+    photoUrl: normalizedPhoto,
     user: {
       id: normalizedId,
+      _id: normalizedId,
       role: normalizedRole,
       email: email || null,
       name: displayName,
       isTeacher: teacherFlag,
+      photoUrl: normalizedPhoto,
     },
   });
 });

@@ -9,6 +9,9 @@ export const isAuthed = () => ({
 
 export async function getCurrentUser() {
   const { data } = await api.get('/auth/me');
+  if (!data) return null;
+  if (data?.user) return data.user;
+  if (data?.data) return data.data;
   return data;
 }
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 interface AvatarProps {
-  src?: string;
+  src?: string | null;
   name?: string;
   size?: number;
   className?: string;
@@ -25,6 +25,12 @@ function hash(str: string) {
   return Math.abs(h);
 }
 
+function normalizeSource(value?: string | null) {
+  if (!value) return undefined;
+  if (/^(data:|https?:|blob:)/i.test(value)) return value;
+  return `data:image/jpeg;base64,${value}`;
+}
+
 export default function Avatar({ src, name = '', size = 32, className = '' }: AvatarProps) {
   const [error, setError] = useState(false);
   const initials = name
@@ -35,10 +41,12 @@ export default function Avatar({ src, name = '', size = 32, className = '' }: Av
     .join('');
   const color = COLORS[hash(name) % COLORS.length];
 
-  if (src && !error) {
+  const normalizedSrc = normalizeSource(src);
+
+  if (normalizedSrc && !error) {
     return (
       <img
-        src={src}
+        src={normalizedSrc}
         alt={name}
         onError={() => setError(true)}
         className={`rounded-full object-cover ${className}`}

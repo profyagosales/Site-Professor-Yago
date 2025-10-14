@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { toast } from 'react-toastify'
 import { listClasses } from '@/services/classes'
 import { quickCreateContent } from '@/services/contents'
 import { toArray } from '@/lib/api'
-import { toast } from 'react-toastify'
+import Modal from '@/components/ui/Modal'
+import { Button } from '@/components/ui/Button'
 
 export default function QuickContentModal({ open, onClose, onSaved }) {
   const [classes, setClasses] = useState([])
@@ -37,47 +39,47 @@ export default function QuickContentModal({ open, onClose, onSaved }) {
     }
   }
 
-  if(!open) return null
-
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/50">
-      <div className="ys-card w-full max-w-lg p-md">
-        <h2 className="text-xl mb-md">Adicionar conteúdo</h2>
-        <form onSubmit={handleSubmit} className="space-y-md">
+    <Modal open={open} onClose={onClose}>
+      <div className="p-6">
+        <h2 className="text-xl font-semibold text-slate-800">Adicionar conteúdo</h2>
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
-            <label className="block mb-1">Turma</label>
-            <select className="w-full border p-sm rounded" value={classId} onChange={e=>setClassId(e.target.value)} required>
+            <label className="mb-1 block text-sm font-semibold text-slate-700">Turma</label>
+            <select className="w-full rounded-xl border border-slate-200 p-2 text-sm" value={classId} onChange={e=>setClassId(e.target.value)} required>
               <option value="">Selecione</option>
               {arrify(classes).map(cls => (
                 <option key={cls.classId} value={cls.classId}>Turma {cls.series}{cls.letter} - {cls.discipline}</option>
               ))}
             </select>
           </div>
-          <div>
-            <label className="block mb-1">Bimestre</label>
-            <input type="number" min="1" max="4" className="w-full border p-sm rounded" value={term} onChange={e=>setTerm(e.target.value)} required />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-semibold text-slate-700">Bimestre</label>
+              <input type="number" min="1" max="4" className="w-full rounded-xl border border-slate-200 p-2 text-sm" value={term} onChange={e=>setTerm(e.target.value)} required />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-semibold text-slate-700">Data</label>
+              <input type="date" className="w-full rounded-xl border border-slate-200 p-2 text-sm" value={date} onChange={e=>setDate(e.target.value)} required />
+            </div>
           </div>
           <div>
-            <label className="block mb-1">Título</label>
-            <input type="text" className="w-full border p-sm rounded" value={title} onChange={e=>setTitle(e.target.value)} required />
+            <label className="mb-1 block text-sm font-semibold text-slate-700">Título</label>
+            <input type="text" className="w-full rounded-xl border border-slate-200 p-2 text-sm" value={title} onChange={e=>setTitle(e.target.value)} required />
           </div>
           <div>
-            <label className="block mb-1">Descrição</label>
-            <textarea className="w-full border p-sm rounded" value={description} onChange={e=>setDescription(e.target.value)} />
+            <label className="mb-1 block text-sm font-semibold text-slate-700">Descrição</label>
+            <textarea className="w-full rounded-xl border border-slate-200 p-2 text-sm" value={description} onChange={e=>setDescription(e.target.value)} rows={3} />
           </div>
-          <div>
-            <label className="block mb-1">Data</label>
-            <input type="date" className="w-full border p-sm rounded" value={date} onChange={e=>setDate(e.target.value)} required />
-          </div>
-          <label className="flex items-center gap-2">
+          <label className="flex items-center gap-2 text-sm text-slate-700">
             <input type="checkbox" checked={done} onChange={e=>setDone(e.target.checked)} /> Concluído?
           </label>
-          <div className="flex justify-end gap-sm pt-sm">
-            <button type="button" onClick={onClose} className="px-4 py-2 border rounded">Cancelar</button>
-            <button type="submit" className="ys-btn-primary">Salvar</button>
+          <div className="mt-6 flex justify-end gap-3">
+            <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
+            <Button type="submit">Salvar</Button>
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   )
 }

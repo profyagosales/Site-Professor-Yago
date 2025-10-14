@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+const SESSION_COOKIE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const REFRESH_THRESHOLD_SECONDS = 4 * 60 * 60;
 
 function ensureSecret() {
@@ -16,7 +16,7 @@ function signSessionToken(payload, expiresIn = '24h') {
   return jwt.sign(payload, secret, { expiresIn });
 }
 
-function setAuthCookie(res, token, maxAgeMs = DAY_MS) {
+function setAuthCookie(res, token, maxAgeMs = SESSION_COOKIE_MAX_AGE_MS) {
   if (!res || typeof res.cookie !== 'function') return;
   const domain = process.env.COOKIE_DOMAIN || '.professoryagosales.com.br';
   res.cookie('auth_token', token, {
@@ -70,6 +70,6 @@ module.exports = {
   shouldRefreshToken,
   sanitizePayload,
   maybeRefreshSession,
-  DAY_MS,
+  SESSION_COOKIE_MAX_AGE_MS,
   REFRESH_THRESHOLD_SECONDS,
 };

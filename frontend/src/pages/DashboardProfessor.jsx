@@ -1,15 +1,11 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import SendEmailModal from '@/components/SendEmailModal'
 import QuickContentModal from '@/components/QuickContentModal'
 import AnnouncementModal from '@/components/AnnouncementModal'
 import { getCurrentUser } from '@/services/auth'
-import { listUpcomingContents } from '@/services/contents'
-import { listUpcomingExams } from '@/services/exams'
-import { listAnnouncements } from '@/services/announcements'
-import { getTeacherWeeklySchedule } from '@/services/schedule'
-import { listClasses as listClassSummaries, getClassDetails, getClassGrades } from '@/services/classes.service'
+import { listMyClasses, mergeCalendars, getClassDetails, getClassGrades } from '@/services/classes.service'
 import { useAuth } from '@/store/AuthContext'
 
 /*
@@ -121,9 +117,7 @@ function DashboardProfessor(){
   const [classSummaries, setClassSummaries] = useState([])
   const [classDetails, setClassDetails] = useState({})
   const [classGrades, setClassGrades] = useState({})
-  const [contents, setContents] = useState([])
-  const [exams, setExams] = useState([])
-  const [announcements, setAnnouncements] = useState([])
+  const [calendarEvents, setCalendarEvents] = useState([])
   const [schedule, setSchedule] = useState([])
   const [loading, setLoading] = useState(true)
   const [insightsLoading, setInsightsLoading] = useState(true)
@@ -133,6 +127,67 @@ function DashboardProfessor(){
   const [calendarScope, setCalendarScope] = useState('week')
   const navigate = useNavigate()
   const { logout: logoutSession } = useAuth()
+
+  const classSummariesRef = useRef(classSummaries)
+  const classDetailsRef = useRef(classDetails)
+
+  useEffect(() => {
+    classSummariesRef.current = classSummaries
+  }, [classSummaries])
+
+  useEffect(() => {
+    classDetailsRef.current = classDetails
+  }, [classDetails])
+
+  const refreshCalendarEvents = useCallback(
+    async (classListOverride, classNameMapOverride, options = {}) => {
+      const sourceClasses = Array.isArray(classListOverride) && classListOverride.length
+        ? classListOverride
+        : Array.isArray(classSummariesRef.current) ? classSummariesRef.current : []
+      if (!sourceClasses.length) {
+        setCalendarEvents([])
+        return
+      }
+
+      const baseNames = classNameMapOverride ?? sourceClasses.reduce((acc, cls) => {
+        const key = coalesceId(cls)
+        if (!key) return acc
+        acc[key] = formatClassLabel(cls)
+        return acc
+      }, {})
+
+      const classNames = { ...baseNames }
+      const detailEntries = classDetailsRef.current && typeof classDetailsRef.current === 'object'
+        ? classDetailsRef.current
+        : {}
+      const fallbackSummaries = Array.isArray(classSummariesRef.current) ? classSummariesRef.current : []
+      Object.entries(detailEntries).forEach(([classId, detail]) => {
+        const summary = sourceClasses.find((cls) => coalesceId(cls) === classId)
+          || fallbackSummaries.find((cls) => coalesceId(cls) === classId)
+        const label = formatClassLabel(summary, detail)
+        if (label) classNames[classId] = label
+      })
+
+      try {
+        const merged = await mergeCalendars(
+          sourceClasses.map((cls) => coalesceId(cls)).filter(Boolean),
+          { classNames }
+        )
+        const isAborted = typeof options?.isAborted === 'function' ? options.isAborted : () => false
+        if (isAborted()) return
+        setCalendarEvents(merged)
+      } catch (err) {
+        console.error('Erro ao consolidar a agenda das turmas', err)
+        if (!options?.silenceToast) {
+          toast.error('Não foi possível carregar a agenda das turmas')
+        }
+        if (!(typeof options?.isAborted === 'function' && options.isAborted())) {
+          setCalendarEvents([])
+        }
+      }
+    },
+    []
+  )
 
   useEffect(() => {
     let abort = false
@@ -148,31 +203,48 @@ function DashboardProfessor(){
         }
 
         const teacherId = currentUser.id
-        const [classesResponse, contentsResponse, examsResponse, announcementsResponse, scheduleResponse] = await Promise.all([
-          listClassSummaries().catch(() => { toast.error('Não foi possível carregar turmas'); return [] }),
-          listUpcomingContents({ teacherId }).catch(() => { toast.error('Não foi possível carregar conteúdos'); return [] }),
-          listUpcomingExams({ teacherId }).catch(() => { toast.error('Não foi possível carregar avaliações'); return [] }),
-          listAnnouncements({ teacherId }).catch(() => { toast.error('Não foi possível carregar avisos'); return [] }),
-          getTeacherWeeklySchedule(teacherId).catch(() => { toast.error('Não foi possível carregar horário'); return [] })
-        ])
+        let classesResponse = []
+        try {
+          const data = await listMyClasses({ teacherId })
+          classesResponse = Array.isArray(data) ? data : []
+        } catch (err) {
+          console.error('Erro ao carregar turmas do professor', err)
+          toast.error('Não foi possível carregar turmas')
+        }
         if (abort) return
 
-        const normalizedClasses = Array.isArray(classesResponse) ? classesResponse : []
-        const teacherClasses = normalizedClasses.filter((cls) => {
-          const teacherIds = Array.isArray(cls?.teacherIds) ? cls.teacherIds.map(String) : []
-          if (teacherIds.length) return teacherIds.includes(String(teacherId))
-          return true
-        }).map((cls) => ({
-          ...cls,
-          id: coalesceId(cls),
-        })).filter((cls) => cls.id)
+        const teacherClasses = classesResponse
+          .map((cls) => ({
+            ...cls,
+            id: coalesceId(cls),
+          }))
+          .filter((cls) => cls.id)
 
+        const classNameMap = teacherClasses.reduce((acc, cls) => {
+          acc[cls.id] = formatClassLabel(cls)
+          return acc
+        }, {})
+
+        const aggregatedSchedule = teacherClasses.flatMap((cls) => {
+          const entries = Array.isArray(cls?.schedule) ? cls.schedule : []
+          return entries
+            .map((entry) => {
+              if (!entry || typeof entry !== 'object') return null
+              return {
+                ...entry,
+                classId: cls.id,
+                label: classNameMap[cls.id],
+              }
+            })
+            .filter(Boolean)
+        })
+
+        if (abort) return
         setClassSummaries(teacherClasses)
-        setContents(Array.isArray(contentsResponse) ? contentsResponse : [])
-        setExams(Array.isArray(examsResponse) ? examsResponse : [])
-        setAnnouncements(Array.isArray(announcementsResponse) ? announcementsResponse : [])
-        setSchedule(Array.isArray(scheduleResponse) ? scheduleResponse : [])
+        setSchedule(aggregatedSchedule)
         setLoading(false)
+        await refreshCalendarEvents(teacherClasses, classNameMap, { isAborted: () => abort, silenceToast: true })
+        if (abort) return
 
         if (!teacherClasses.length) {
           setClassDetails({})
@@ -233,32 +305,20 @@ function DashboardProfessor(){
           setLoading(false)
           setInsightsLoading(false)
         }
-      } finally {
-        if (abort) return
       }
     })()
     return () => { abort = true }
-  }, [])
+  }, [refreshCalendarEvents])
 
   const handleLogout = async () => {
     await logoutSession()
   }
 
-  const reloadContents = async () => {
-    if(!user?.id) return
-    try {
-      const data = await listUpcomingContents({ teacherId: user.id })
-      setContents(data)
-    } catch { toast.error('Não foi possível carregar conteúdos') }
-  }
+  const reloadContents = useCallback(async () => {
+    await refreshCalendarEvents()
+  }, [refreshCalendarEvents])
 
-  const reloadAnnouncements = async () => {
-    if(!user?.id) return
-    try {
-      const data = await listAnnouncements({ teacherId: user.id })
-      setAnnouncements(data)
-    } catch { toast.error('Não foi possível carregar avisos') }
-  }
+  const reloadAnnouncements = reloadContents
 
   const classNameMap = useMemo(() => {
     const map = {}
@@ -288,28 +348,18 @@ function DashboardProfessor(){
   }, [classDetails])
 
   const pendingCount = useMemo(() => {
+    if (!calendarEvents.length) return 0
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const horizon = new Date(today)
     horizon.setDate(horizon.getDate() + 7)
-    let count = 0
 
-    const track = (dateValue) => {
-      const parsed = parseDate(dateValue)
-      if (parsed && isWithinRange(parsed, today, horizon)) {
-        count += 1
-      }
-    }
-
-    contents.forEach((content) => {
-      track(content?.date ?? content?.dateISO ?? content?.scheduledAt)
-    })
-    exams.forEach((exam) => {
-      track(exam?.date ?? exam?.dateISO ?? exam?.scheduledAt)
-    })
-
-    return count
-  }, [contents, exams])
+    return calendarEvents.reduce((total, event) => {
+      const when = event?.date instanceof Date ? event.date : parseDate(event?.dateISO)
+      if (!when) return total
+      return isWithinRange(when, today, horizon) ? total + 1 : total
+    }, 0)
+  }, [calendarEvents])
 
   const scheduleMatrix = useMemo(() => {
     const cells = {}
@@ -366,69 +416,26 @@ function DashboardProfessor(){
   }, [schedule, classDetails, classNameMap])
 
   const aggregatedEvents = useMemo(() => {
+    if (!calendarEvents.length) return []
+
     const events = []
-    Object.entries(classDetails).forEach(([classId, detail]) => {
-      const classLabel = classNameMap[classId]
-      if (Array.isArray(detail?.activities)) {
-        detail.activities.forEach((activity) => {
-          const when = parseDate(activity?.dateISO)
-          if (!when) return
-          events.push({
-            id: `activity-${activity.id}`,
-            date: when,
-            classId,
-            label: classLabel,
-            title: activity.title,
-            type: 'Conteúdo',
-          })
-        })
-      }
-      if (Array.isArray(detail?.milestones)) {
-        detail.milestones.forEach((milestone) => {
-          const when = parseDate(milestone?.dateISO)
-          if (!when) return
-          events.push({
-            id: `milestone-${milestone.id}`,
-            date: when,
-            classId,
-            label: classLabel,
-            title: milestone.label,
-            type: 'Marco',
-          })
-        })
-      }
-    })
-
-    contents.forEach((content) => {
-      const when = parseDate(content?.date ?? content?.dateISO ?? content?.scheduledAt)
+    calendarEvents.forEach((event) => {
+      const when = event?.date instanceof Date ? event.date : parseDate(event?.dateISO)
       if (!when) return
+      const label = event.className || classNameMap[event.classId] || 'Turma'
+      const title = event.title || (event.type === 'ATIVIDADE' ? 'Atividade' : 'Data importante')
       events.push({
-        id: `content-${content.id ?? content._id ?? `${content.classId}-${content.date}`}`,
+        id: event.id,
         date: when,
-        classId: content?.classId ? String(content.classId) : undefined,
-        label: content?.className || (content?.classId ? classNameMap[content.classId] : undefined),
-        title: content?.title || 'Conteúdo',
-        type: 'Conteúdo',
+        classId: event.classId,
+        label,
+        title,
+        type: event.type,
       })
     })
 
-    exams.forEach((exam) => {
-      const when = parseDate(exam?.date ?? exam?.dateISO ?? exam?.scheduledAt)
-      if (!when) return
-      events.push({
-        id: `exam-${exam.id ?? exam._id ?? `${exam.classId}-${exam.date}`}`,
-        date: when,
-        classId: exam?.classId ? String(exam.classId) : undefined,
-        label: exam?.className || (exam?.classId ? classNameMap[exam.classId] : undefined),
-        title: exam?.title || 'Avaliação',
-        type: 'Avaliação',
-      })
-    })
-
-    return events
-      .filter((event) => event.date)
-      .sort((a, b) => a.date.getTime() - b.date.getTime())
-  }, [classDetails, contents, exams, classNameMap])
+    return events.sort((a, b) => a.date.getTime() - b.date.getTime())
+  }, [calendarEvents, classNameMap])
 
   const filteredEvents = useMemo(() => {
     if (!aggregatedEvents.length) return []
@@ -497,62 +504,34 @@ function DashboardProfessor(){
 
   const gradeMaxAverage = gradeAverages.reduce((max, item) => (item.average > max ? item.average : max), 0)
 
-  const resolvedAvatar = resolveAvatarUrl(user?.photoUrl || user?.avatarUrl)
+  const resolvedAvatar = resolveAvatarUrl(user?.photoUrl || user?.photo || user?.avatarUrl)
 
   const upcomingHighlights = useMemo(() => {
-    const highlights = []
-    const pushItem = (payload) => {
-      if (!payload.date) return
-      highlights.push(payload)
-    }
+    if (!aggregatedEvents.length) return []
 
-    contents.forEach((item) => {
-      const when = parseDate(item?.date ?? item?.dateISO ?? item?.scheduledAt)
-      if (!when) return
-      pushItem({
-        id: `content-${item.id ?? item._id}`,
-        date: when,
-        title: item?.title || 'Conteúdo',
-        subtitle: item?.className || (item?.classId ? classNameMap[item.classId] : null),
-        badge: 'Conteúdo',
-      })
-    })
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const horizon = new Date(today)
+    horizon.setDate(horizon.getDate() + 14)
 
-    exams.forEach((item) => {
-      const when = parseDate(item?.date ?? item?.dateISO ?? item?.scheduledAt)
-      if (!when) return
-      pushItem({
-        id: `exam-${item.id ?? item._id}`,
-        date: when,
-        title: item?.title || 'Avaliação',
-        subtitle: item?.className || (item?.classId ? classNameMap[item.classId] : null),
-        badge: 'Avaliação',
-      })
-    })
-
-    announcements.forEach((item) => {
-      const when = parseDate(item?.createdAt ?? item?.scheduledAt)
-      if (!when) return
-      pushItem({
-        id: `announcement-${item.id ?? item._id}`,
-        date: when,
-        title: item?.title || item?.message || 'Aviso',
-        subtitle: 'Avisos',
-        badge: 'Aviso',
-      })
-    })
-
-    return highlights
+    return aggregatedEvents
+      .filter((event) => isWithinRange(event.date, today, horizon))
+      .map((event) => ({
+        id: event.id,
+        date: event.date,
+        title: event.title,
+        subtitle: event.label && event.label !== 'Turma' ? event.label : null,
+        badge: event.type,
+      }))
       .sort((a, b) => a.date.getTime() - b.date.getTime())
-      .slice(0, 6)
-  }, [contents, exams, announcements, classNameMap])
+      .slice(0, 8)
+  }, [aggregatedEvents])
 
   if(!user) return <div className="pt-20 p-md"><p>Carregando...</p></div>
 
   return (
     <div className="pt-4 p-md space-y-6">
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#FF8A00] via-[#FF9E2C] to-[#FFB347] text-white shadow-xl">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.25),transparent_55%)]" aria-hidden="true"></div>
+      <section className="relative overflow-hidden rounded-3xl bg-[#FFA654] text-white shadow-xl">
         <button
           type="button"
           onClick={handleLogout}
@@ -708,7 +687,13 @@ function DashboardProfessor(){
                             <p className="text-sm font-semibold text-slate-700">{event.title}</p>
                             {event.label && <p className="text-xs text-slate-500">{event.label}</p>}
                           </div>
-                          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#FF8A00] shadow-sm">
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-semibold shadow-sm ${
+                              event.type === 'ATIVIDADE'
+                                ? 'bg-[#FFF3E3] text-[#FF8A00]'
+                                : 'bg-slate-200 text-slate-600'
+                            }`}
+                          >
                             {event.type}
                           </span>
                         </li>
@@ -776,7 +761,15 @@ function DashboardProfessor(){
                     </div>
                     <p className="text-sm font-semibold text-slate-700">{item.title}</p>
                     {item.subtitle && <p className="text-xs text-slate-500">{item.subtitle}</p>}
-                    <span className="self-start rounded-full bg-slate-50 px-3 py-1 text-xs font-semibold text-[#FF8A00]">{item.badge}</span>
+                    <span
+                      className={`self-start rounded-full px-3 py-1 text-xs font-semibold ${
+                        item.badge === 'ATIVIDADE'
+                          ? 'bg-[#FFF3E3] text-[#FF8A00]'
+                          : 'bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {item.badge}
+                    </span>
                   </div>
                 ))
               ) : (

@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import Modal from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 import SchedulePicker from './SchedulePicker';
 
 function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
@@ -35,17 +37,6 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
     setErrors({});
   }, [initialData, isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen, onClose]);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = {};
@@ -81,23 +72,16 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="ys-card pointer-events-auto w-full max-w-md p-md shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-xl text-orange">
-          {initialData ? 'Editar Turma' : 'Nova Turma'}
+    <Modal open={isOpen} onClose={onClose}>
+      <div className="p-6">
+        <h2 className="text-xl font-semibold text-slate-800">
+          {initialData ? 'Editar turma' : 'Nova turma'}
         </h2>
-        <form onSubmit={handleSubmit} className="space-y-md">
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
-            <label className="block mb-1">Série</label>
+            <label className="mb-1 block text-sm font-semibold text-slate-700">Série</label>
             <select
-              className="w-full border p-sm rounded"
+              className="w-full rounded-xl border border-slate-200 p-2 text-sm"
               value={series}
               onChange={(e) => setSeries(e.target.value)}
             >
@@ -106,88 +90,83 @@ function ClassModal({ isOpen, onClose, onSubmit, initialData }) {
                 <option key={s} value={s}>{s}ª</option>
               ))}
             </select>
-            {errors.series && <p className="text-red-600 text-sm mt-1">{errors.series}</p>}
+            {errors.series && <p className="mt-1 text-sm text-red-600">{errors.series}</p>}
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-semibold text-slate-700">Letra</label>
+              <input
+                type="text"
+                className="w-full rounded-xl border border-slate-200 p-2 text-sm"
+                value={letter}
+                onChange={(e) => setLetter(e.target.value)}
+              />
+              {errors.letter && <p className="mt-1 text-sm text-red-600">{errors.letter}</p>}
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-semibold text-slate-700">Disciplina</label>
+              <input
+                type="text"
+                className="w-full rounded-xl border border-slate-200 p-2 text-sm"
+                value={discipline}
+                onChange={(e) => setDiscipline(e.target.value)}
+              />
+              {errors.discipline && (
+                <p className="mt-1 text-sm text-red-600">{errors.discipline}</p>
+              )}
+            </div>
           </div>
           <div>
-            <label className="block mb-1">Letra</label>
-            <input
-              type="text"
-              className="w-full border p-sm rounded"
-              value={letter}
-              onChange={(e) => setLetter(e.target.value)}
-            />
-            {errors.letter && <p className="text-red-600 text-sm mt-1">{errors.letter}</p>}
-          </div>
-          <div>
-            <label className="block mb-1">Disciplina</label>
-            <input
-              type="text"
-              className="w-full border p-sm rounded"
-              value={discipline}
-              onChange={(e) => setDiscipline(e.target.value)}
-            />
-            {errors.discipline && (
-              <p className="text-red-600 text-sm mt-1">{errors.discipline}</p>
-            )}
-          </div>
-          <div>
-            <label className="block mb-1">Horários</label>
-            {schedules.map((sched, idx) => (
-              <div key={idx} className="flex items-center gap-sm mb-sm">
-                <SchedulePicker
-                  value={sched}
-                  onChange={(val) =>
-                    setSchedules((prev) =>
-                      prev.map((p, i) => (i === idx ? val : p))
-                    )
-                  }
-                />
-                {schedules.length > 1 && (
-                  <button
-                    type="button"
-                    className="text-red-600"
-                    onClick={() =>
-                      setSchedules((prev) => prev.filter((_, i) => i !== idx))
+            <label className="mb-1 block text-sm font-semibold text-slate-700">Horários</label>
+            <div className="space-y-2">
+              {schedules.map((sched, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <SchedulePicker
+                    value={sched}
+                    onChange={(val) =>
+                      setSchedules((prev) =>
+                        prev.map((p, i) => (i === idx ? val : p))
+                      )
                     }
-                  >
-                    Remover
-                  </button>
-                )}
-              </div>
-            ))}
+                  />
+                  {schedules.length > 1 && (
+                    <button
+                      type="button"
+                      className="text-sm text-red-600"
+                      onClick={() =>
+                        setSchedules((prev) => prev.filter((_, i) => i !== idx))
+                      }
+                    >
+                      Remover
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
             <button
               type="button"
-              className="px-2 py-1 border rounded"
+              className="mt-3 text-sm font-semibold text-orange-600 hover:text-orange-700"
               onClick={() =>
                 setSchedules((prev) => [...prev, { day: '', slot: '', time: '' }])
               }
             >
-              Adicionar horário
+              + Adicionar horário
             </button>
             {errors.schedule && (
-              <p className="text-red-600 text-sm mt-1">{errors.schedule}</p>
+              <p className="mt-1 text-sm text-red-600">{errors.schedule}</p>
             )}
           </div>
-          <div className="flex justify-end space-x-sm">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border rounded disabled:opacity-50"
-              disabled={submitting}
-            >
+          <div className="mt-6 flex justify-end gap-3">
+            <Button type="button" variant="ghost" onClick={onClose} disabled={submitting}>
               Cancelar
-            </button>
-            <button
-              type="submit"
-              className="ys-btn-primary disabled:opacity-50"
-              disabled={submitting}
-            >
+            </Button>
+            <Button type="submit" disabled={submitting}>
               {submitting ? 'Salvando…' : initialData ? 'Salvar' : 'Criar'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }
 

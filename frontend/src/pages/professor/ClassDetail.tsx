@@ -1,6 +1,8 @@
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
+import Modal from '@/components/ui/Modal';
+import { Tabs, type TabItem } from '@/components/ui/Tabs';
 import {
   ClassActivity,
   ClassCalendarItem,
@@ -291,17 +293,15 @@ function StudentModal({ open, mode, initialStudent, loading, onClose, onSubmit }
     setError(null);
   }, [open, initialStudent, mode]);
 
-  if (!open) return null;
-
   const title = mode === 'create' ? 'Adicionar aluno' : 'Editar aluno';
 
-  const onFieldChange = (field: keyof StudentFormState, value: any) => {
+  const onFieldChange = (field: keyof StudentFormState, value: unknown) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    onFieldChange('photoFile', file ?? null);
+    const file = event.target.files?.[0] ?? null;
+    onFieldChange('photoFile', file);
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -340,8 +340,7 @@ function StudentModal({ open, mode, initialStudent, loading, onClose, onSubmit }
     const payload: UpsertStudentInput = {
       name: trimmedName,
       email: trimmedEmail,
-      rollNumber:
-        form.rollNumber === '' ? '' : Number(form.rollNumber),
+      rollNumber: form.rollNumber === '' ? '' : Number(form.rollNumber),
       phone: form.phone.trim() || undefined,
       password: form.generatePassword ? undefined : form.password || undefined,
       generatePassword: form.generatePassword,
@@ -351,141 +350,136 @@ function StudentModal({ open, mode, initialStudent, loading, onClose, onSubmit }
     };
 
     try {
-  await onSubmit(payload);
-  onClose();
+      await onSubmit(payload);
+      onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Não foi possível salvar o aluno.';
       setError(message);
     }
   };
 
+  if (!open) {
+    return null;
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white shadow-ys-lg">
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-ys-ink">{title}</h2>
-            <button
-              type="button"
-              className="text-ys-graphite hover:text-ys-ink"
-              onClick={onClose}
-              aria-label="Fechar"
-            >
-              ✕
-            </button>
+    <Modal open={open} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-5 p-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-slate-800">{title}</h2>
+          <button
+            type="button"
+            className="text-slate-400 transition hover:text-slate-600"
+            onClick={onClose}
+            aria-label="Fechar"
+            disabled={loading}
+          >
+            ✕
+          </button>
+        </div>
+
+        {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
+
+        <div className="grid gap-3">
+          <label className="text-sm font-semibold text-slate-700">Nome completo
+            <input
+              type="text"
+              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              value={form.name}
+              onChange={(event) => onFieldChange('name', event.target.value)}
+              required
+            />
+          </label>
+          <label className="text-sm font-semibold text-slate-700">E-mail
+            <input
+              type="email"
+              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              value={form.email}
+              onChange={(event) => onFieldChange('email', event.target.value)}
+              required
+            />
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-sm font-semibold text-slate-700">Número (chamada)
+              <input
+                type="number"
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                value={form.rollNumber}
+                onChange={(event) => onFieldChange('rollNumber', event.target.value)}
+              />
+            </label>
+            <label className="text-sm font-semibold text-slate-700">Telefone
+              <input
+                type="tel"
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                value={form.phone}
+                onChange={(event) => onFieldChange('phone', event.target.value)}
+              />
+            </label>
           </div>
+        </div>
 
-          {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
-
-          <div className="grid gap-3">
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium text-ys-ink">Nome</span>
-              <input
-                type="text"
-                className="rounded-xl border border-ys-line px-3 py-2 text-sm focus:border-ys-amber focus:outline-none"
-                value={form.name}
-                onChange={(e) => onFieldChange('name', e.target.value)}
-                required
-              />
-            </label>
-
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium text-ys-ink">Email</span>
-              <input
-                type="email"
-                className="rounded-xl border border-ys-line px-3 py-2 text-sm focus:border-ys-amber focus:outline-none"
-                value={form.email}
-                onChange={(e) => onFieldChange('email', e.target.value)}
-                required
-              />
-            </label>
-
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="font-medium text-ys-ink">Número (chamada)</span>
-                <input
-                  type="number"
-                  min={0}
-                  className="rounded-xl border border-ys-line px-3 py-2 text-sm focus:border-ys-amber focus:outline-none"
-                  value={form.rollNumber}
-                  onChange={(e) => onFieldChange('rollNumber', e.target.value)}
-                />
-              </label>
-
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="font-medium text-ys-ink">Telefone</span>
-                <input
-                  type="tel"
-                  className="rounded-xl border border-ys-line px-3 py-2 text-sm focus:border-ys-amber focus:outline-none"
-                  value={form.phone}
-                  onChange={(e) => onFieldChange('phone', e.target.value)}
-                />
-              </label>
-            </div>
-
-            <div className="rounded-xl border border-ys-line px-3 py-3">
-              <label className="flex items-center gap-2 text-sm font-medium text-ys-ink">
-                <input
-                  type="checkbox"
-                  checked={form.generatePassword}
-                  onChange={(e) => onFieldChange('generatePassword', e.target.checked)}
-                />
-                Gerar senha automaticamente
-              </label>
-              <p className="mt-1 text-xs text-ys-graphite">
-                Ao marcar, uma senha aleatória será criada. Caso deixe desmarcado, informe a senha manualmente.
-              </p>
-            </div>
-
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium text-ys-ink">Senha</span>
+        <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <label className="flex items-center gap-3 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={form.generatePassword}
+              onChange={(event) => onFieldChange('generatePassword', event.target.checked)}
+            />
+            Gerar senha automaticamente
+          </label>
+          {!form.generatePassword && (
+            <label className="text-sm font-semibold text-slate-700">Senha
               <input
                 type="password"
-                className="rounded-xl border border-ys-line px-3 py-2 text-sm focus:border-ys-amber focus:outline-none"
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
                 value={form.password}
-                onChange={(e) => onFieldChange('password', e.target.value)}
-                placeholder={form.generatePassword ? 'Gerada automaticamente' : ''}
-                disabled={form.generatePassword}
+                onChange={(event) => onFieldChange('password', event.target.value)}
               />
             </label>
+          )}
+          <label className="flex items-center gap-3 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={form.sendInvite}
+              onChange={(event) => onFieldChange('sendInvite', event.target.checked)}
+              disabled={!(form.generatePassword || (!!form.password && form.password.length >= 6))}
+            />
+            Enviar convite por e-mail
+          </label>
+        </div>
 
-            <label className="flex items-center gap-2 text-sm text-ys-ink">
+        <div className="space-y-3">
+          <label className="block text-sm font-semibold text-slate-700">Foto do aluno
+            <input
+              type="file"
+              accept="image/*"
+              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              onChange={handleFileChange}
+            />
+          </label>
+          {initialStudent?.photo && (
+            <label className="flex items-center gap-2 text-sm text-slate-700">
               <input
                 type="checkbox"
-                checked={form.sendInvite}
-                onChange={(e) => onFieldChange('sendInvite', e.target.checked)}
-                disabled={!(form.generatePassword || (!!form.password && form.password.length >= 6))}
+                checked={form.removePhoto}
+                onChange={(event) => onFieldChange('removePhoto', event.target.checked)}
               />
-              Enviar credenciais por e-mail ao salvar
+              Remover foto atual
             </label>
+          )}
+        </div>
 
-            <div className="grid gap-2 text-sm">
-              <label className="font-medium text-ys-ink">Foto do aluno</label>
-              <input type="file" accept="image/*" onChange={handleFileChange} />
-              {initialStudent?.photo && (
-                <label className="flex items-center gap-2 text-xs text-ys-graphite">
-                  <input
-                    type="checkbox"
-                    checked={form.removePhoto}
-                    onChange={(e) => onFieldChange('removePhoto', e.target.checked)}
-                  />
-                  Remover foto atual
-                </label>
-              )}
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Salvando…' : mode === 'create' ? 'Adicionar' : 'Salvar alterações'}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={loading}>
+            {loading ? 'Salvando…' : mode === 'create' ? 'Adicionar aluno' : 'Salvar alterações'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -500,39 +494,42 @@ type ScheduleModalProps = {
 };
 
 function ScheduleModal({ open, saving, hasChanges, draftSlots, onClose, onToggle, onSave }: ScheduleModalProps) {
-  if (!open) return null;
+  if (!open) {
+    return null;
+  }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-3xl rounded-2xl bg-white shadow-ys-lg">
-        <div className="flex items-center justify-between border-b border-ys-line px-6 py-4">
-          <h2 className="text-lg font-semibold text-ys-ink">Editar horários da semana</h2>
+    <Modal open={open} onClose={onClose} className="max-w-5xl">
+      <div className="flex flex-col">
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+          <h2 className="text-lg font-semibold text-slate-800">Editar horários da semana</h2>
           <button
             type="button"
-            className="text-ys-graphite hover:text-ys-ink"
+            className="text-slate-400 transition hover:text-slate-600"
             onClick={onClose}
             aria-label="Fechar"
+            disabled={saving}
           >
             ✕
           </button>
         </div>
 
-        <div className="px-6 pb-6 pt-4">
-          <p className="text-sm text-ys-graphite">
+        <div className="space-y-5 px-6 pb-6 pt-4 text-sm text-slate-700">
+          <p>
             Selecione os tempos de aula da turma. Salve para atualizar o quadro de horários.
           </p>
 
-          <div className="mt-4 overflow-x-auto">
+          <div className="overflow-x-auto">
             <table className="min-w-full border-separate border-spacing-0 text-sm">
               <thead>
                 <tr>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ys-graphite">
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Horário
                   </th>
                   {WEEKDAYS.map((day) => (
                     <th
                       key={day.value}
-                      className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-ys-graphite"
+                      className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-slate-500"
                     >
                       {day.short}
                     </th>
@@ -541,10 +538,10 @@ function ScheduleModal({ open, saving, hasChanges, draftSlots, onClose, onToggle
               </thead>
               <tbody>
                 {TIME_SLOTS.map((slot) => (
-                  <tr key={slot.value} className="border-t border-ys-line">
-                    <td className="px-3 py-3 align-top text-ys-ink">
+                  <tr key={slot.value} className="border-t border-slate-200">
+                    <td className="px-3 py-3 align-top text-slate-800">
                       <div className="font-medium">{slot.label}</div>
-                      <div className="text-xs text-ys-graphite">{slot.range}</div>
+                      <div className="text-xs text-slate-500">{slot.range}</div>
                     </td>
                     {WEEKDAYS.map((day) => {
                       const key = buildScheduleKey(day.value, slot.value);
@@ -553,7 +550,7 @@ function ScheduleModal({ open, saving, hasChanges, draftSlots, onClose, onToggle
                         <td key={key} className="px-3 py-3 text-center align-middle">
                           <input
                             type="checkbox"
-                            className="h-4 w-4 rounded border-ys-line text-ys-amber focus:ring-ys-amber"
+                            className="h-4 w-4 rounded border-slate-300 text-ys-amber focus:ring-ys-amber"
                             checked={checked}
                             onChange={() => onToggle(day.value, slot.value)}
                             disabled={saving}
@@ -567,7 +564,7 @@ function ScheduleModal({ open, saving, hasChanges, draftSlots, onClose, onToggle
             </table>
           </div>
 
-          <div className="mt-6 flex flex-wrap justify-end gap-3">
+          <div className="flex flex-wrap justify-end gap-3">
             <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
               Cancelar
             </Button>
@@ -577,7 +574,7 @@ function ScheduleModal({ open, saving, hasChanges, draftSlots, onClose, onToggle
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -602,8 +599,6 @@ function EmailModal({ open, loading, onClose, onSubmit }: EmailModalProps) {
     setError(null);
   }, [open]);
 
-  if (!open) return null;
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedSubject = subject.trim();
@@ -625,14 +620,18 @@ function EmailModal({ open, loading, onClose, onSubmit }: EmailModalProps) {
     }
   };
 
+  if (!open) {
+    return null;
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-2xl rounded-2xl bg-white shadow-ys-lg">
-        <div className="flex items-center justify-between border-b border-ys-line px-6 py-4">
-          <h2 className="text-lg font-semibold text-ys-ink">Enviar e-mail para a turma</h2>
+    <Modal open={open} onClose={onClose} className="max-w-3xl">
+      <form onSubmit={handleSubmit} className="space-y-5 px-6 pb-6 pt-4 text-sm text-slate-700">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+          <h2 className="text-lg font-semibold text-slate-800">Enviar e-mail para a turma</h2>
           <button
             type="button"
-            className="text-ys-graphite hover:text-ys-ink"
+            className="text-slate-400 transition hover:text-slate-600"
             onClick={onClose}
             aria-label="Fechar"
             disabled={loading}
@@ -641,61 +640,59 @@ function EmailModal({ open, loading, onClose, onSubmit }: EmailModalProps) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5 px-6 pb-6 pt-4">
-          <p className="text-sm text-ys-graphite">
-            O e-mail será enviado em cópia oculta para os alunos e, opcionalmente, professores da turma.
-          </p>
+        <p>
+          O e-mail será enviado em cópia oculta para os alunos e, opcionalmente, professores da turma.
+        </p>
 
-          {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600">{error}</div>}
+        {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600">{error}</div>}
 
-          <label className="flex flex-col gap-2 text-sm">
-            <span className="font-medium text-ys-ink">Assunto</span>
-            <input
-              type="text"
-              className="rounded-xl border border-ys-line px-3 py-2 text-sm focus:border-ys-amber focus:outline-none"
-              value={subject}
-              onChange={(event) => setSubject(event.target.value)}
-              disabled={loading}
-              required
-            />
-          </label>
+        <label className="flex flex-col gap-2 text-sm">
+          <span className="font-semibold text-slate-700">Assunto</span>
+          <input
+            type="text"
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            value={subject}
+            onChange={(event) => setSubject(event.target.value)}
+            disabled={loading}
+            required
+          />
+        </label>
 
-          <label className="flex flex-col gap-2 text-sm">
-            <span className="font-medium text-ys-ink">Mensagem</span>
-            <textarea
-              className="min-h-[180px] rounded-xl border border-ys-line px-3 py-2 text-sm focus:border-ys-amber focus:outline-none"
-              value={message}
-              onChange={(event) => setMessage(event.target.value)}
-              disabled={loading}
-              placeholder="Escreva a mensagem que será enviada para a turma."
-              required
-            />
-            <span className="text-xs text-ys-graphite">
-              Use quebras de linha para separar parágrafos; elas serão convertidas automaticamente no e-mail.
-            </span>
-          </label>
+        <label className="flex flex-col gap-2 text-sm">
+          <span className="font-semibold text-slate-700">Mensagem</span>
+          <textarea
+            className="min-h-[180px] rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            value={message}
+            onChange={(event) => setMessage(event.target.value)}
+            disabled={loading}
+            placeholder="Escreva a mensagem que será enviada para a turma."
+            required
+          />
+          <span className="text-xs text-slate-500">
+            Use quebras de linha para separar parágrafos; elas serão convertidas automaticamente no e-mail.
+          </span>
+        </label>
 
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={includeTeachers}
-              onChange={(event) => setIncludeTeachers(event.target.checked)}
-              disabled={loading}
-            />
-            <span className="text-ys-ink">Enviar também aos professores da turma</span>
-          </label>
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={includeTeachers}
+            onChange={(event) => setIncludeTeachers(event.target.checked)}
+            disabled={loading}
+          />
+          <span className="text-slate-700">Enviar também aos professores da turma</span>
+        </label>
 
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Enviando…' : 'Enviar e-mail'}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex justify-end gap-3 pt-2">
+          <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={loading}>
+            {loading ? 'Enviando…' : 'Enviar e-mail'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -762,58 +759,56 @@ function ActivityModal({ open, loading, onClose, onSubmit }: ActivityModalProps)
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-ys-lg">
-        <form onSubmit={handleSubmit} className="space-y-4 p-6 text-sm text-ys-ink">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-ys-ink">Cadastrar atividade</h2>
-            <button
-              type="button"
-              className="text-ys-graphite hover:text-ys-ink"
-              onClick={onClose}
-              disabled={loading}
-              aria-label="Fechar"
-            >
-              ✕
-            </button>
-          </div>
+    <Modal open={open} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4 p-6 text-sm text-slate-700">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-800">Cadastrar atividade</h2>
+          <button
+            type="button"
+            className="text-slate-400 transition hover:text-slate-600"
+            onClick={onClose}
+            disabled={loading}
+            aria-label="Fechar"
+          >
+            ✕
+          </button>
+        </div>
 
-          {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
+        {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
 
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-ys-ink">Título</span>
-            <input
-              type="text"
-              className="rounded-xl border border-ys-line px-3 py-2 focus:border-ys-amber focus:outline-none"
-              value={title}
-              onChange={(event: ChangeEvent<HTMLInputElement>) => setTitle(event.target.value)}
-              placeholder="Ex.: Entregar ficha de leitura"
-              disabled={loading}
-            />
-          </label>
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-semibold text-slate-700">Título</span>
+          <input
+            type="text"
+            className="rounded-xl border border-slate-200 px-3 py-2 focus:border-ys-amber focus:outline-none"
+            value={title}
+            onChange={(event: ChangeEvent<HTMLInputElement>) => setTitle(event.target.value)}
+            placeholder="Ex.: Entregar ficha de leitura"
+            disabled={loading}
+          />
+        </label>
 
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-ys-ink">Data (opcional)</span>
-            <input
-              type="date"
-              className="rounded-xl border border-ys-line px-3 py-2 focus:border-ys-amber focus:outline-none"
-              value={date}
-              onChange={(event: ChangeEvent<HTMLInputElement>) => setDate(event.target.value)}
-              disabled={loading}
-            />
-          </label>
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-semibold text-slate-700">Data (opcional)</span>
+          <input
+            type="date"
+            className="rounded-xl border border-slate-200 px-3 py-2 focus:border-ys-amber focus:outline-none"
+            value={date}
+            onChange={(event: ChangeEvent<HTMLInputElement>) => setDate(event.target.value)}
+            disabled={loading}
+          />
+        </label>
 
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Salvando…' : 'Salvar atividade'}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex justify-end gap-3 pt-2">
+          <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={loading}>
+            {loading ? 'Salvando…' : 'Salvar atividade'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -869,58 +864,56 @@ function MilestoneModal({ open, loading, onClose, onSubmit }: MilestoneModalProp
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-ys-lg">
-        <form onSubmit={handleSubmit} className="space-y-4 p-6 text-sm text-ys-ink">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-ys-ink">Adicionar data importante</h2>
-            <button
-              type="button"
-              className="text-ys-graphite hover:text-ys-ink"
-              onClick={onClose}
-              disabled={loading}
-              aria-label="Fechar"
-            >
-              ✕
-            </button>
-          </div>
+    <Modal open={open} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4 p-6 text-sm text-slate-700">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-800">Adicionar data importante</h2>
+          <button
+            type="button"
+            className="text-slate-400 transition hover:text-slate-600"
+            onClick={onClose}
+            disabled={loading}
+            aria-label="Fechar"
+          >
+            ✕
+          </button>
+        </div>
 
-          {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
+        {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
 
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-ys-ink">Descrição</span>
-            <input
-              type="text"
-              className="rounded-xl border border-ys-line px-3 py-2 focus:border-ys-amber focus:outline-none"
-              value={label}
-              onChange={(event: ChangeEvent<HTMLInputElement>) => setLabel(event.target.value)}
-              placeholder="Ex.: Conselho de classe"
-              disabled={loading}
-            />
-          </label>
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-semibold text-slate-700">Descrição</span>
+          <input
+            type="text"
+            className="rounded-xl border border-slate-200 px-3 py-2 focus:border-ys-amber focus:outline-none"
+            value={label}
+            onChange={(event: ChangeEvent<HTMLInputElement>) => setLabel(event.target.value)}
+            placeholder="Ex.: Conselho de classe"
+            disabled={loading}
+          />
+        </label>
 
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-ys-ink">Data (opcional)</span>
-            <input
-              type="date"
-              className="rounded-xl border border-ys-line px-3 py-2 focus:border-ys-amber focus:outline-none"
-              value={date}
-              onChange={(event: ChangeEvent<HTMLInputElement>) => setDate(event.target.value)}
-              disabled={loading}
-            />
-          </label>
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-semibold text-slate-700">Data (opcional)</span>
+          <input
+            type="date"
+            className="rounded-xl border border-slate-200 px-3 py-2 focus:border-ys-amber focus:outline-none"
+            value={date}
+            onChange={(event: ChangeEvent<HTMLInputElement>) => setDate(event.target.value)}
+            disabled={loading}
+          />
+        </label>
 
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Salvando…' : 'Salvar data'}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex justify-end gap-3 pt-2">
+          <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={loading}>
+            {loading ? 'Salvando…' : 'Salvar data'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -967,65 +960,63 @@ function NoticeModal({ open, loading, onClose, onSubmit }: NoticeModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-ys-lg">
-        <form onSubmit={handleSubmit} className="space-y-4 p-6 text-sm text-ys-ink">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-ys-ink">Registrar aviso interno</h2>
-            <button
-              type="button"
-              className="text-ys-graphite hover:text-ys-ink"
-              onClick={onClose}
-              disabled={loading}
-              aria-label="Fechar"
-            >
-              ✕
-            </button>
+    <Modal open={open} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4 p-6 text-sm text-slate-700">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-800">Registrar aviso interno</h2>
+          <button
+            type="button"
+            className="text-slate-400 transition hover:text-slate-600"
+            onClick={onClose}
+            disabled={loading}
+            aria-label="Fechar"
+          >
+            ✕
+          </button>
+        </div>
+
+        {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
+
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-semibold text-slate-700">Mensagem</span>
+          <textarea
+            className="min-h-[160px] rounded-xl border border-slate-200 px-3 py-2 focus:border-ys-amber focus:outline-none"
+            value={message}
+            onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setMessage(event.target.value)}
+            placeholder="Escreva o lembrete para os professores desta turma..."
+            disabled={loading}
+          />
+        </label>
+
+        <fieldset className="rounded-xl border border-slate-200 px-4 py-4">
+          <legend className="px-1 text-sm font-semibold text-slate-800">Visibilidade do aviso</legend>
+          <div className="mt-3 space-y-2">
+            {NOTICE_AUDIENCE_OPTIONS.map((option) => (
+              <label key={option.value} className="flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="radio"
+                  name="notice-audience"
+                  value={option.value}
+                  checked={audience === option.value}
+                  onChange={(event) => setAudience(event.target.value as ClassNoticeAudience)}
+                  disabled={loading}
+                />
+                {option.label}
+              </label>
+            ))}
           </div>
+        </fieldset>
 
-          {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>}
-
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-ys-ink">Mensagem</span>
-            <textarea
-              className="min-h-[160px] rounded-xl border border-ys-line px-3 py-2 focus:border-ys-amber focus:outline-none"
-              value={message}
-              onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setMessage(event.target.value)}
-              placeholder="Escreva o lembrete para os professores desta turma..."
-              disabled={loading}
-            />
-          </label>
-
-          <fieldset className="rounded-xl border border-slate-200 px-4 py-4">
-            <legend className="px-1 text-sm font-medium text-slate-800">Visibilidade do aviso</legend>
-            <div className="mt-3 space-y-2">
-              {NOTICE_AUDIENCE_OPTIONS.map((option) => (
-                <label key={option.value} className="flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="radio"
-                    name="notice-audience"
-                    value={option.value}
-                    checked={audience === option.value}
-                    onChange={(event) => setAudience(event.target.value as ClassNoticeAudience)}
-                    disabled={loading}
-                  />
-                  {option.label}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Salvando…' : 'Salvar aviso'}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex justify-end gap-3 pt-2">
+          <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={loading}>
+            {loading ? 'Salvando…' : 'Salvar aviso'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -1061,10 +1052,28 @@ export default function ClassDetailPage() {
     if (state?.initialTab) return state.initialTab;
     return 'overview';
   });
-  const tabs: Array<{ key: ClassTabKey; label: string }> = [
-    { key: 'overview', label: 'Resumo' },
-    { key: 'students', label: 'Alunos' },
-  ];
+  const tabItems = useMemo<TabItem[]>(() => {
+    const base: TabItem[] = [
+      {
+        key: 'overview',
+        label: 'Resumo',
+        isActive: activeTab === 'overview',
+        onClick: () => setActiveTab('overview'),
+      },
+      {
+        key: 'students',
+        label: 'Alunos',
+        isActive: activeTab === 'students',
+        onClick: () => setActiveTab('students'),
+      },
+    ];
+
+    if (id) {
+      base.push({ key: 'grades', label: 'Notas', to: `/professor/classes/${id}/grades` });
+    }
+
+    return base;
+  }, [activeTab, id]);
 
   const showFeedback = useCallback((message: string, tone: FeedbackState['tone'] = 'info') => {
     setFeedback({ message, tone });
@@ -1607,34 +1616,8 @@ export default function ClassDetailPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-2">
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key)}
-              className={`rounded-t-xl px-4 py-2 text-sm font-semibold transition-colors ${
-                isActive
-                  ? 'border border-slate-200 border-b-white bg-white text-slate-800 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-        <button
-          type="button"
-          onClick={() => {
-            if (!id) return;
-            navigate(`/professor/classes/${id}/grades`);
-          }}
-          className="text-slate-500 hover:text-slate-800 rounded-t-xl px-4 py-2 text-sm font-semibold transition-colors"
-        >
-          Notas
-        </button>
+      <div className="border-b border-slate-200 pb-2">
+        <Tabs items={tabItems} />
       </div>
 
       {feedback && (
@@ -1656,9 +1639,6 @@ export default function ClassDetailPage() {
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <h2 className="text-lg font-semibold text-slate-800">Horários da semana</h2>
-                    <p className="text-sm text-slate-500">
-                      Visualize e ajuste os tempos de aula da turma.
-                    </p>
                   </div>
                   <Button onClick={handleOpenScheduleModal}>Editar horários</Button>
                 </div>
@@ -1710,43 +1690,34 @@ export default function ClassDetailPage() {
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="flex flex-wrap items-start gap-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3 w-full">
-                    <div>
-                      <h2 className="text-lg font-semibold text-slate-800">Calendário da turma</h2>
-                      <p className="text-sm text-slate-500">
-                        Atividades e datas importantes ficam reunidas aqui para você acompanhar o que vem pela frente.
-                      </p>
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <h2 className="text-lg font-semibold text-slate-800">Calendário da turma</h2>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className={calendarView === 'week' ? 'border border-ys-amber bg-ys-amber/20 text-ys-ink' : ''}
+                        aria-pressed={calendarView === 'week'}
+                        onClick={() => setCalendarView('week')}
+                      >
+                        Semana
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className={calendarView === 'month' ? 'border border-ys-amber bg-ys-amber/20 text-ys-ink' : ''}
+                        aria-pressed={calendarView === 'month'}
+                        onClick={() => setCalendarView('month')}
+                      >
+                        Mês
+                      </Button>
                     </div>
-                    <div className="flex w-full flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className={calendarView === 'week' ? 'border border-ys-amber bg-ys-amber/20 text-ys-ink' : ''}
-                          aria-pressed={calendarView === 'week'}
-                          onClick={() => setCalendarView('week')}
-                        >
-                          Semana
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className={calendarView === 'month' ? 'border border-ys-amber bg-ys-amber/20 text-ys-ink' : ''}
-                          aria-pressed={calendarView === 'month'}
-                          onClick={() => setCalendarView('month')}
-                        >
-                          Mês
-                        </Button>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" onClick={handleOpenActivityModal}>
-                          Nova atividade
-                        </Button>
-                        <Button variant="ghost" onClick={handleOpenMilestoneModal}>
-                          Nova data importante
-                        </Button>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <Button onClick={handleOpenActivityModal}>Nova atividade</Button>
+                      <Button onClick={handleOpenMilestoneModal}>Nova data importante</Button>
                     </div>
                   </div>
                 </div>
@@ -1811,9 +1782,8 @@ export default function ClassDetailPage() {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-800">Avisos internos</h2>
-                  <p className="text-sm text-slate-500">Registros visíveis internamente conforme o público selecionado.</p>
                 </div>
-                <Button variant="ghost" onClick={handleNotifyClass}>
+                <Button onClick={handleNotifyClass}>
                   Registrar aviso
                 </Button>
               </div>

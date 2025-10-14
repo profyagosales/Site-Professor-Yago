@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { toast } from 'react-toastify'
 import { listClasses } from '@/services/classes'
 import { createAnnouncement } from '@/services/announcements'
 import { toArray } from '@/lib/api'
-import { toast } from 'react-toastify'
+import Modal from '@/components/ui/Modal'
+import { Button } from '@/components/ui/Button'
 
 export default function AnnouncementModal({ open, onClose, onSaved }) {
   const [classes, setClasses] = useState([])
@@ -46,51 +48,49 @@ export default function AnnouncementModal({ open, onClose, onSaved }) {
     }
   }
 
-  if(!open) return null
-
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/50">
-      <div className="ys-card w-full max-w-lg p-md">
-        <h2 className="text-xl mb-md">Adicionar aviso</h2>
-        <form onSubmit={handleSubmit} className="space-y-md">
+    <Modal open={open} onClose={onClose}>
+      <div className="p-6">
+        <h2 className="text-xl font-semibold text-slate-800">Adicionar aviso</h2>
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
-            <label className="block mb-1">Mensagem</label>
-            <textarea className="w-full border p-sm rounded" value={message} onChange={e=>setMessage(e.target.value)} required />
+            <label className="mb-1 block text-sm font-semibold text-slate-700">Mensagem</label>
+            <textarea className="w-full rounded-xl border border-slate-200 p-2 text-sm" value={message} onChange={e=>setMessage(e.target.value)} rows={4} required />
           </div>
           <div>
-            <label className="block mb-1">Turmas</label>
-            <select multiple className="w-full border p-sm rounded" value={selected} onChange={handleClassesChange}>
+            <label className="mb-1 block text-sm font-semibold text-slate-700">Turmas</label>
+            <select multiple className="w-full rounded-xl border border-slate-200 p-2 text-sm" value={selected} onChange={handleClassesChange}>
               {arrify(classes).map(cls => (
                 <option key={cls.classId} value={cls.classId}>Turma {cls.series}{cls.letter} - {cls.discipline}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block mb-1">Email adicional (opcional)</label>
-            <input type="email" className="w-full border p-sm rounded" value={extraEmail} onChange={e=>setExtraEmail(e.target.value)} />
+            <label className="mb-1 block text-sm font-semibold text-slate-700">Email adicional (opcional)</label>
+            <input type="email" className="w-full rounded-xl border border-slate-200 p-2 text-sm" value={extraEmail} onChange={e=>setExtraEmail(e.target.value)} />
           </div>
-          <div className="flex gap-md items-center">
-            <label className="flex items-center gap-1">
+          <div className="flex flex-wrap gap-4 text-sm text-slate-700">
+            <label className="flex items-center gap-2">
               <input type="radio" name="mode" value="now" checked={mode==='now'} onChange={()=>setMode('now')} />
               Enviar agora
             </label>
-            <label className="flex items-center gap-1">
+            <label className="flex items-center gap-2">
               <input type="radio" name="mode" value="schedule" checked={mode==='schedule'} onChange={()=>setMode('schedule')} />
               Agendar
             </label>
           </div>
           {mode==='schedule' && (
             <div>
-              <label className="block mb-1">Data e hora</label>
-              <input type="datetime-local" className="w-full border p-sm rounded" value={scheduledAt} onChange={e=>setScheduledAt(e.target.value)} required />
+              <label className="mb-1 block text-sm font-semibold text-slate-700">Data e hora</label>
+              <input type="datetime-local" className="w-full rounded-xl border border-slate-200 p-2 text-sm" value={scheduledAt} onChange={e=>setScheduledAt(e.target.value)} required />
             </div>
           )}
-          <div className="flex justify-end gap-sm pt-sm">
-            <button type="button" onClick={onClose} className="px-4 py-2 border rounded">Cancelar</button>
-            <button type="submit" className="ys-btn-primary">Salvar</button>
+          <div className="mt-6 flex justify-end gap-3">
+            <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
+            <Button type="submit">Salvar</Button>
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   )
 }

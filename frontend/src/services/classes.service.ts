@@ -559,6 +559,25 @@ export async function listClasses(): Promise<ClassSummary[]> {
   });
 }
 
+export async function listMyClasses(options: { teacherId?: string | null } = {}): Promise<ClassSummary[]> {
+  const all = await listClasses();
+  const teacherId = options.teacherId ? String(options.teacherId) : null;
+  if (!teacherId) return all;
+
+  return all.filter((klass) => {
+    const teacherIds = Array.isArray((klass as any)?.teacherIds)
+      ? (klass as any).teacherIds.map((value: unknown) => String(value))
+      : [];
+    if (teacherIds.includes(teacherId)) return true;
+
+    const responsible = (klass as any)?.responsibleTeacherId;
+    if (responsible && String(responsible) === teacherId) {
+      return true;
+    }
+    return false;
+  });
+}
+
 export async function getClassDetails(id: string): Promise<ClassDetails | null> {
   if (!id) return null;
   const res = await api.get(`/classes/${id}`, {
@@ -637,6 +656,80 @@ export async function getClassCalendar(id: string): Promise<ClassCalendarItem[]>
   return data
     .map((entry) => formatCalendarRecord(entry))
     .filter((entry): entry is ClassCalendarItem => Boolean(entry));
+}
+
+export type TeacherCalendarEvent = {
+  id: string;
+  classId: string;
+  className?: string | null;
+  title: string;
+  type: 'ATIVIDADE' | 'DATA';
+  dateISO: string;
+  date: Date;
+  rawType: ClassCalendarItem['type'];
+  sourceId?: string;
+};
+
+export async function mergeCalendars(
+  classIds: Array<string | null | undefined>,
+  options: { classNames?: Record<string, string | null | undefined> } = {}
+): Promise<TeacherCalendarEvent[]> {
+  const uniqueIds = Array.from(
+    new Set(
+      (classIds || [])
+        .map((value) => (typeof value === 'string' ? value : value ? String(value) : ''))
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+
+  if (!uniqueIds.length) {
+    return [];
+  }
+
+  const classNameMap = { ...(options.classNames ?? {}) } as Record<string, string | null | undefined>;
+  const batches = await Promise.all(
+    uniqueIds.map(async (classId) => {
+      try {
+        const events = await getClassCalendar(classId);
+        return events.map((event) => ({ classId, event }));
+      } catch (err) {
+        console.warn('[classes.service] Falha ao carregar calendário da turma', classId, err);
+        return [] as Array<{ classId: string; event: ClassCalendarItem }>;
+      }
+    })
+  );
+
+  const CALENDAR_TYPE_LABEL: Record<ClassCalendarItem['type'], TeacherCalendarEvent['type']> = {
+    activity: 'ATIVIDADE',
+    milestone: 'DATA',
+  };
+
+  const merged: TeacherCalendarEvent[] = [];
+  batches.flat().forEach(({ classId, event }) => {
+    const iso = event.dateISO;
+    if (!iso) return;
+    const parsed = new Date(iso);
+    if (Number.isNaN(parsed.getTime())) return;
+
+    const type = CALENDAR_TYPE_LABEL[event.type] ?? 'ATIVIDADE';
+    const title = event.title?.trim() ? event.title : type === 'ATIVIDADE' ? 'Atividade' : 'Data';
+    const baseId = event.id || event.sourceId || `${classId}-${iso}`;
+    const id = `${classId}-${baseId}`;
+
+    merged.push({
+      id,
+      classId,
+      className: classNameMap[classId] ?? null,
+      title,
+      type,
+      dateISO: parsed.toISOString(),
+      date: parsed,
+      rawType: event.type,
+      sourceId: event.sourceId ?? event.id ?? undefined,
+    });
+  });
+
+  return merged.sort((a, b) => a.date.getTime() - b.date.getTime());
 }
 
 export async function sendClassEmail(

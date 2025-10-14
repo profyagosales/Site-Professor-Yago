@@ -1,6 +1,7 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { NavLink, Outlet, useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { Outlet, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
+import { Tabs } from '@/components/ui/Tabs';
 import {
   ClassDetails,
   ClassStudent,
@@ -295,22 +296,7 @@ export default function StudentProfilePage() {
         </div>
       </section>
 
-      <nav className="flex flex-wrap gap-2">
-        {tabs.map((tab) => (
-          <NavLink
-            key={tab.key}
-            to={tab.to}
-            end={tab.end}
-            className={({ isActive }) =>
-              `rounded-full px-4 py-2 text-sm font-medium transition ${
-                isActive ? 'bg-ys-ink text-white' : 'bg-white text-ys-ink shadow-ys-sm'
-              }`
-            }
-          >
-            {tab.label}
-          </NavLink>
-        ))}
-      </nav>
+      <Tabs items={tabs.map((tab) => ({ key: tab.key, label: tab.label, to: tab.to, end: tab.end }))} />
 
       <div className="rounded-2xl border border-dashed border-ys-line bg-white/60 p-6 text-sm text-ys-graphite">
         <Outlet context={contextValue} />

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { toast } from 'react-toastify';
+import Modal from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 import { toArray } from '@/lib/api';
 import { listClasses } from '@/services/classes';
 import { listStudents } from '@/services/students';
 import { sendEmail } from '@/services/email';
-import { toast } from 'react-toastify';
 
 function SendEmailModal({ isOpen, onClose }) {
   const [classes, setClasses] = useState([]);
@@ -63,29 +65,27 @@ function SendEmailModal({ isOpen, onClose }) {
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/50">
-      <div className="ys-card w-full max-w-lg p-md">
-        <h2 className="text-xl">Enviar E-mail</h2>
+    <Modal open={isOpen} onClose={onClose}>
+      <div className="p-6">
+        <h2 className="text-xl font-semibold text-slate-800">Enviar e-mail</h2>
         {alert && (
           <div
-            className={`mb-md p-sm rounded ${
+            className={`mt-3 rounded-xl p-3 text-sm ${
               alert.type === 'success'
-                ? 'bg-green-100 text-green-800'
-                : 'bg-red-100 text-red-800'
+                ? 'bg-green-50 text-green-700'
+                : 'bg-red-50 text-red-700'
             }`}
           >
             {alert.text}
           </div>
         )}
-        <form onSubmit={handleSubmit} className="space-y-md">
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
-            <label className="block mb-1">Destinatários</label>
+            <label className="mb-1 block text-sm font-semibold text-slate-700">Destinatários</label>
             <select
               multiple
-              className="w-full border p-sm rounded"
+              className="h-40 w-full rounded-xl border border-slate-200 p-2 text-sm"
               value={recipients}
               onChange={handleChange}
             >
@@ -102,40 +102,29 @@ function SendEmailModal({ isOpen, onClose }) {
             </select>
           </div>
           <div>
-            <label className="block mb-1">Assunto</label>
+            <label className="mb-1 block text-sm font-semibold text-slate-700">Assunto</label>
             <input
               type="text"
-              className="w-full border p-sm rounded"
+              className="w-full rounded-xl border border-slate-200 p-2 text-sm"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
             />
           </div>
           <div>
-            <label className="block mb-1">Mensagem (HTML)</label>
+            <label className="mb-1 block text-sm font-semibold text-slate-700">Mensagem (HTML)</label>
             <textarea
-              className="w-full border p-sm rounded h-40"
+              className="h-48 w-full rounded-xl border border-slate-200 p-2 text-sm"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
             />
           </div>
-          <div className="flex justify-end space-x-sm">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border rounded"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="ys-btn-primary"
-            >
-              Enviar
-            </button>
+          <div className="mt-6 flex justify-end gap-3">
+            <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
+            <Button type="submit">Enviar</Button>
           </div>
         </form>
       </div>
-    </div>
+    </Modal>
   );
 }
 

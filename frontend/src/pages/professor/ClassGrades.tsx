@@ -23,6 +23,19 @@ type FiltersState = {
   sum: boolean;
 };
 
+type TableColumn = {
+  key: string;
+  label: string;
+  align: 'left' | 'center';
+};
+
+type TableRow = {
+  student: ClassGradesStudent;
+  photoUrl: string | null;
+  grades: Array<{ term: number; value: string | null; badge: string | null }>;
+  totalText: string | null;
+};
+
 function resolvePhotoUrl(photo?: string | null): string | null {
   if (!photo) return null;
   const trimmed = photo.trim();
@@ -79,7 +92,7 @@ export default function ClassGradesPage() {
       const data = await getClassGrades(id, { year: filters.year, terms: selectedTerms });
       setClassInfo(data.class);
       setStudents(data.students);
-  const serverTerms = (data.terms.length ? data.terms : DEFAULT_TERMS).slice().sort((a, b) => a - b);
+      const serverTerms = (data.terms.length ? data.terms : DEFAULT_TERMS).slice().sort((a, b) => a - b);
       setSelectedTerms((prev) => {
         const intersection = prev.filter((term) => serverTerms.includes(term));
         const next = intersection.length ? intersection : serverTerms;
@@ -109,9 +122,11 @@ export default function ClassGradesPage() {
     void loadGrades();
   }, [loadGrades]);
 
-  const termsToDisplay = useMemo(() => {
-    return selectedTerms.length ? selectedTerms : [...DEFAULT_TERMS];
+  const visibleTerms = useMemo(() => {
+    return [...selectedTerms].sort((a, b) => a - b);
   }, [selectedTerms]);
+
+  const showTotal = filters.sum;
 
   const availableYears = useMemo(() => {
     const candidates = new Set<number>();
@@ -211,6 +226,44 @@ export default function ClassGradesPage() {
     }
     navigate(`/professor/classes/${id}`);
   }, [id, navigate]);
+
+  const tableColumns = useMemo<TableColumn[]>(() => {
+    const columns: TableColumn[] = [
+      { key: 'photo', label: 'Foto', align: 'left' },
+      { key: 'roll', label: 'Nº', align: 'center' },
+      { key: 'name', label: 'Aluno', align: 'left' },
+    ];
+
+    visibleTerms.forEach((term) => {
+      columns.push({ key: `term-${term}`, label: `${term}º bim.`, align: 'center' });
+    });
+
+    if (showTotal) {
+      columns.push({ key: 'total', label: 'Total', align: 'center' });
+    }
+
+    return columns;
+  }, [visibleTerms, showTotal]);
+
+  const tableRows = useMemo<TableRow[]>(() => {
+    return students.map((student) => {
+      const photoUrl = resolvePhotoUrl(student.photoUrl);
+      const grades = visibleTerms.map((term) => {
+        const grade = student.grades[String(term)];
+        const value = grade ? formatScoreValue(grade.score) : null;
+        const badge = grade && grade.status !== 'FREQUENTE' ? grade.status : null;
+        return { term, value, badge };
+      });
+      const totalScore = showTotal ? computeTotal(student, visibleTerms) : null;
+      const totalText = totalScore !== null ? formatScoreValue(totalScore) : null;
+      return {
+        student,
+        photoUrl,
+        grades,
+        totalText,
+      };
+    });
+  }, [students, visibleTerms, showTotal]);
 
   return (
     <div className="p-4 space-y-6">
@@ -323,69 +376,59 @@ export default function ClassGradesPage() {
           <div className="mt-4 overflow-x-auto">
             <table className="min-w-full border-separate border-spacing-0 text-sm">
               <thead>
-                <tr className="text-left text-xs uppercase tracking-wide text-ys-graphite">
-                  <th className="px-3 py-2">Foto</th>
-                  <th className="px-3 py-2 text-center">Nº</th>
-                  <th className="px-3 py-2">Aluno</th>
-                  {termsToDisplay.map((term) => (
-                    <th key={`head-${term}`} className="px-3 py-2 text-center">
-                      {term}º bim.
+                <tr className="text-xs uppercase tracking-wide text-ys-graphite">
+                  {tableColumns.map((column) => (
+                    <th
+                      key={column.key}
+                      className={`px-3 py-2 ${column.align === 'center' ? 'text-center' : 'text-left'}`}
+                    >
+                      {column.label}
                     </th>
                   ))}
-                  {filters.sum && (
-                    <th className="px-3 py-2 text-center">Total</th>
-                  )}
                 </tr>
               </thead>
               <tbody>
-                {students.map((student) => {
-                  const photoUrl = resolvePhotoUrl(student.photoUrl);
-                  const totalScore = computeTotal(student, termsToDisplay);
-                  const totalText = totalScore !== null ? formatScoreValue(totalScore) : null;
-                  return (
-                    <tr key={student.id} className="border-b border-ys-line last:border-b-0">
-                      <td className="px-3 py-3">
-                        {photoUrl ? (
-                          <img
-                            src={photoUrl}
-                            alt={student.name || 'Foto do aluno'}
-                            className="h-12 w-12 rounded-xl object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-ys-bg text-[0.65rem] font-semibold uppercase text-ys-graphite">
-                            Sem foto
-                          </div>
+                {tableRows.map((row) => (
+                  <tr key={row.student.id} className="border-b border-ys-line last:border-b-0">
+                    <td className="px-3 py-3">
+                      {row.photoUrl ? (
+                        <img
+                          src={row.photoUrl}
+                          alt={row.student.name || 'Foto do aluno'}
+                          className="h-12 w-12 rounded-xl object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-ys-bg text-[0.65rem] font-semibold uppercase text-ys-graphite">
+                          Sem foto
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 text-center font-medium text-ys-ink">
+                      {row.student.roll ?? '—'}
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="font-medium text-ys-ink">{row.student.name || 'Sem nome'}</div>
+                      {row.student.email && (
+                        <div className="text-xs text-ys-graphite">{row.student.email}</div>
+                      )}
+                    </td>
+                    {row.grades.map((grade) => (
+                      <td key={`${row.student.id}-${grade.term}`} className="px-3 py-3 text-center align-middle">
+                        <div className="font-medium text-ys-ink">{grade.value ?? '—'}</div>
+                        {grade.badge && (
+                          <span className="mt-1 inline-block rounded-full bg-ys-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ys-graphite">
+                            {grade.badge}
+                          </span>
                         )}
                       </td>
-                      <td className="px-3 py-3 text-center font-medium text-ys-ink">
-                        {student.roll ?? '—'}
+                    ))}
+                    {showTotal && (
+                      <td className="px-3 py-3 text-center align-middle font-medium text-ys-ink">
+                        {row.totalText ?? '—'}
                       </td>
-                      <td className="px-3 py-3">
-                        <div className="font-medium text-ys-ink">{student.name || 'Sem nome'}</div>
-                        {student.email && <div className="text-xs text-ys-graphite">{student.email}</div>}
-                      </td>
-                      {termsToDisplay.map((term) => {
-                        const grade = student.grades[String(term)];
-                        const gradeText = grade ? formatScoreValue(grade.score) : null;
-                        return (
-                          <td key={`${student.id}-${term}`} className="px-3 py-3 text-center align-middle">
-                            <div className="font-medium text-ys-ink">{gradeText ?? '—'}</div>
-                            {grade && grade.status !== 'FREQUENTE' && (
-                              <span className="mt-1 inline-block rounded-full bg-ys-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ys-graphite">
-                                {grade.status}
-                              </span>
-                            )}
-                          </td>
-                        );
-                      })}
-                      {filters.sum && (
-                        <td className="px-3 py-3 text-center align-middle font-medium text-ys-ink">
-                          {totalText ?? '—'}
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
+                    )}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

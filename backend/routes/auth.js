@@ -37,6 +37,8 @@ router.post('/register-teacher', async (req, res, next) => {
       role: 'teacher',
       email,
       isTeacher: true,
+      name,
+      photoUrl: teacher.photoUrl || null,
     }, { expiresIn: '12h', maxAge: 12 * 60 * 60 * 1000 });
     res.status(200).json({ success: true, data: { token } });
   } catch (err) {
@@ -106,7 +108,41 @@ router.post('/register-student', async (req, res, next) => {
 
 // GET /api/auth/me
 router.get('/me', authRequired, (req, res) => {
-  res.json({ success: true, user: req.user });
+  const sessionUser = req.user || {};
+  const {
+    _id,
+    id,
+    sub,
+    role: rawRole,
+    email,
+    name,
+    nome,
+    isTeacher,
+    photo,
+    photoUrl: rawPhotoUrl,
+  } = sessionUser;
+
+  const normalizedId = String(_id || id || sub || '') || null;
+  const normalizedRole = rawRole || null;
+  const teacherFlag = normalizedRole === 'teacher' || Boolean(isTeacher);
+  const displayName = name || nome || null;
+  const normalizedPhoto = rawPhotoUrl || photo || null;
+
+  const normalizedUser = {
+    ...sessionUser,
+    id: normalizedId,
+    _id: normalizedId,
+    role: normalizedRole,
+    email: email || null,
+    name: displayName,
+    isTeacher: teacherFlag,
+    photoUrl: normalizedPhoto,
+  };
+
+  res.json({
+    success: true,
+    user: normalizedUser,
+  });
 });
 
 // POST /api/auth/logout

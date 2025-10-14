@@ -21,6 +21,10 @@ import { GerencialAuthProvider } from '@/store/GerencialAuthContext';
 
 console.info('[app] version:', APP_VERSION);
 
+if (typeof document !== 'undefined') {
+  document.title = 'Prof. Yago Sales';
+}
+
 const { StrictMode } = React;
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

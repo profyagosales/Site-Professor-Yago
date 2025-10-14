@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import {
   listClasses,
@@ -53,7 +53,11 @@ function toUiClassFromSummary(item: ClassSummary): UiClassItem {
 }
 
 function toUiClassFromDetail(detail: SchoolClassDetail): UiClassItem {
-  const id = detail._id || detail.id;
+  const rawId = detail._id ?? (detail as { id?: string | null }).id;
+  if (!rawId) {
+    throw new Error('Class detail missing identifier');
+  }
+  const id = rawId;
   const summarySource: ClassSummary = {
     id,
     name: detail.name,
@@ -77,7 +81,6 @@ function toUiClassFromDetail(detail: SchoolClassDetail): UiClassItem {
 }
 
 export default function ClassesPage() {
-  const navigate = useNavigate();
   const [items, setItems] = useState<UiClassItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -275,9 +278,10 @@ export default function ClassesPage() {
       {!loading && !error && sortedItems.length > 0 && (
         <div className="grid gap-3">
           {sortedItems.map((item) => (
-            <div
+            <Link
               key={item.id}
-              className="rounded-xl border border-ys-line bg-white p-4 shadow-ys-sm transition-shadow hover:shadow-ys-md"
+              to={`/professor/classes/${item.id}`}
+              className="block rounded-xl border border-ys-line bg-white p-4 shadow-ys-sm transition-shadow hover:shadow-ys-md"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -287,15 +291,26 @@ export default function ClassesPage() {
                     <div className="text-xs text-ys-graphite">Ano letivo: {item.year}</div>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" onClick={() => navigate(`/professor/classes/${item.id}`)}>
-                    Ver detalhes
-                  </Button>
+                <div
+                  className="flex items-center gap-2"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }}
+                >
                   <div ref={registerMenuRef(item.id)} className="relative">
                     <button
                       type="button"
                       className="flex h-9 w-9 items-center justify-center rounded-full border border-ys-line text-lg text-ys-graphite hover:bg-ys-bg"
-                      onClick={() => setMenuOpenId((current) => (current === item.id ? null : item.id))}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setMenuOpenId((current) => (current === item.id ? null : item.id));
+                      }}
                     >
                       ⋮
                     </button>
@@ -304,14 +319,22 @@ export default function ClassesPage() {
                         <button
                           type="button"
                           className="block w-full px-4 py-2 text-left text-ys-ink hover:bg-ys-bg"
-                          onClick={() => handleEditClick(item)}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            handleEditClick(item);
+                          }}
                         >
                           Editar
                         </button>
                         <button
                           type="button"
                           className="block w-full px-4 py-2 text-left text-red-500 hover:bg-red-50"
-                          onClick={() => handleDeleteClick(item)}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            handleDeleteClick(item);
+                          }}
                           disabled={deletingId === item.id}
                         >
                           {deletingId === item.id ? 'Excluindo…' : 'Excluir'}
@@ -331,7 +354,7 @@ export default function ClassesPage() {
                   </span>
                 )}
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

@@ -1,6 +1,6 @@
 const bcrypt = require('bcrypt');
 const { z } = require('zod');
-const { signSessionToken, setAuthCookie, DAY_MS } = require('../utils/sessionToken');
+const { signSessionToken, setAuthCookie, SESSION_COOKIE_MAX_AGE_MS } = require('../utils/sessionToken');
 
 // Ajuste os requires de acordo com os nomes dos modelos do projeto:
 const Teacher = require('../models/Teacher'); // se o nome for diferente, adapte
@@ -60,7 +60,7 @@ async function doLogin({ Model, role, req, res }) {
 
     // Cookie opcional (compat cross-site)
     if (String(process.env.USE_COOKIE_AUTH).toLowerCase() === 'true') {
-      setAuthCookie(res, token, DAY_MS);
+  setAuthCookie(res, token, SESSION_COOKIE_MAX_AGE_MS);
       return res.json({ success: true, user });
     }
 
@@ -119,10 +119,12 @@ exports.loginTeacher = async (req, res) => {
       role: 'teacher',
       isTeacher: true,
       email: teacherEmail,
+      name: teacher.name || teacher.nome || teacherDoc.name || '',
+      photoUrl: teacher.photoUrl || teacher.photo || null,
     };
 
     const token = signSessionToken(payload, '24h');
-    setAuthCookie(res, token, DAY_MS);
+  setAuthCookie(res, token, SESSION_COOKIE_MAX_AGE_MS);
 
     return res.json({
       success: true,
@@ -135,7 +137,8 @@ exports.loginTeacher = async (req, res) => {
           id: teacherId,
           name: teacher.name || teacher.nome || teacherDoc.name || '',
           email: teacherEmail,
-          photo: teacher.photoUrl || null,
+          photoUrl: teacher.photoUrl || teacher.photo || null,
+          photo: teacher.photoUrl || teacher.photo || null,
         },
       },
     });
