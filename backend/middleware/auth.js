@@ -1,5 +1,6 @@
 // backend/middleware/auth.js
 const jwt = require('jsonwebtoken');
+const { maybeRefreshSession } = require('../utils/sessionToken');
 
 /**
  * Lê token de: Cookie (token|access_token), Authorization: Bearer, ou x-access-token
@@ -55,11 +56,25 @@ function attachUser(req, user) {
   if (req.res?.locals) req.res.locals.user = req.user;
 }
 
-function authOptional(req, _res, next) {
+function refreshUserIfNeeded(req, res, user) {
+  if (!user) return user;
+  try {
+    const refreshedToken = maybeRefreshSession(req, res, user);
+    if (!refreshedToken) return user;
+    return decodeUser(refreshedToken) || user;
+  } catch (err) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[AUTH] Falha ao renovar sessão', err?.message || err);
+    }
+    return user;
+  }
+}
+
+function authOptional(req, res, next) {
   try {
     const token = readToken(req);
     if (token) {
-      const user = decodeUser(token);
+      const user = refreshUserIfNeeded(req, res, decodeUser(token));
       attachUser(req, user);
     } else {
       attachUser(req, null);
@@ -74,7 +89,7 @@ function authRequired(req, res, next) {
   try {
     const token = readToken(req);
     if (!token) return res.status(401).json({ success: false, message: 'Unauthorized' });
-    const user = decodeUser(token);
+    const user = refreshUserIfNeeded(req, res, decodeUser(token));
     if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
     attachUser(req, user);
     return next();

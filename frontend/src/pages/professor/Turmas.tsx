@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { listClasses, ClassSummary } from '@/services/classes.service';
-import { Button } from '@/components/ui/Button';
 
 export default function TurmasPage() {
   const [loading, setLoading] = useState(true);
@@ -28,42 +27,39 @@ export default function TurmasPage() {
   }, []);
 
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-semibold mb-1">Turmas</h1>
-      <p className="text-gray-500 mb-4">Gerencie turmas, alunos e avaliações.</p>
+    <div className="min-h-screen bg-slate-50 p-6">
+      <h1 className="mb-1 text-3xl font-semibold text-slate-900">Turmas</h1>
+      <p className="mb-6 text-slate-500">Gerencie turmas, alunos e avaliações.</p>
 
       {loading && <p>Carregando…</p>}
       {!loading && error && <p className="text-red-600">{error}</p>}
       {!loading && !error && items.length === 0 && <p>Nenhuma turma encontrada.</p>}
 
       {!loading && !error && items.length > 0 && (
-        <div className="grid gap-3">
+        <ul className="grid gap-4">
           {items.map((t) => (
-            <div
-              key={t.id}
-              className="border rounded-xl p-4 bg-white shadow-ys-sm hover:shadow-ys-md transition-shadow"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="text-lg font-semibold text-ys-ink">
-                    {t.series ?? '—'}{t.letter ?? ''}
+            <li key={t.id}>
+              <button
+                type="button"
+                onClick={() => navigate(`/professor/classes/${t.id}`)}
+                className="flex w-full flex-col rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ys-amber"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-xl font-semibold text-slate-900">
+                      {t.series ?? '—'}{t.letter ?? ''}
+                    </div>
+                    <div className="text-sm text-slate-500">{t.discipline ?? 'Disciplina'}</div>
                   </div>
-                  <div className="text-sm text-ys-graphite">{t.discipline ?? 'Disciplina'}</div>
                 </div>
-                <Button
-                  variant="ghost"
-                  onClick={() => navigate(`/professor/classes/${t.id}`)}
-                >
-                  Ver detalhes
-                </Button>
-              </div>
-              <div className="mt-3 text-sm text-ys-graphite">
-                <span className="mr-4">Alunos: {t.studentsCount}</span>
-                <span>Professores: {t.teachersCount}</span>
-              </div>
-            </div>
+                <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-600">
+                  <span>Alunos: {t.studentsCount}</span>
+                  <span>Professores: {t.teachersCount}</span>
+                </div>
+              </button>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );

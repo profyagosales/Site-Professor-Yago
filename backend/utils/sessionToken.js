@@ -1,0 +1,75 @@
+const jwt = require('jsonwebtoken');
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const REFRESH_THRESHOLD_SECONDS = 4 * 60 * 60;
+
+function ensureSecret() {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET ausente');
+  }
+  return secret;
+}
+
+function signSessionToken(payload, expiresIn = '24h') {
+  const secret = ensureSecret();
+  return jwt.sign(payload, secret, { expiresIn });
+}
+
+function setAuthCookie(res, token, maxAgeMs = DAY_MS) {
+  if (!res || typeof res.cookie !== 'function') return;
+  const domain = process.env.COOKIE_DOMAIN || '.professoryagosales.com.br';
+  res.cookie('auth_token', token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none',
+    domain,
+    path: '/',
+    maxAge: maxAgeMs,
+  });
+}
+
+function shouldRefreshToken(decoded, thresholdSeconds = REFRESH_THRESHOLD_SECONDS) {
+  if (!decoded || typeof decoded.exp !== 'number') return false;
+  const now = Math.floor(Date.now() / 1000);
+  return decoded.exp - now <= thresholdSeconds;
+}
+
+function sanitizePayload(decoded) {
+  if (!decoded || typeof decoded !== 'object') return null;
+  const clone = { ...decoded };
+  delete clone.iat;
+  delete clone.exp;
+  delete clone.nbf;
+  delete clone.jti;
+  return clone;
+}
+
+function ensureSubject(payload) {
+  if (!payload || typeof payload !== 'object') return payload;
+  if (!payload.sub && (payload.id || payload._id)) {
+    payload.sub = String(payload.id || payload._id);
+  }
+  return payload;
+}
+
+function maybeRefreshSession(req, res, decoded) {
+  const fromCookie = typeof req?.cookies?.auth_token === 'string' && req.cookies.auth_token;
+  if (!fromCookie || !decoded) return null;
+  if (!shouldRefreshToken(decoded)) return null;
+  const payload = ensureSubject(sanitizePayload(decoded));
+  if (!payload || !payload.sub) return null;
+  const token = signSessionToken(payload);
+  setAuthCookie(res, token);
+  return token;
+}
+
+module.exports = {
+  signSessionToken,
+  setAuthCookie,
+  shouldRefreshToken,
+  sanitizePayload,
+  maybeRefreshSession,
+  DAY_MS,
+  REFRESH_THRESHOLD_SECONDS,
+};

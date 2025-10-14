@@ -20,7 +20,6 @@ const TERM_OPTIONS = [
 
 type FiltersState = {
   year: number;
-  terms: number[];
   sum: boolean;
 };
 
@@ -60,28 +59,35 @@ export default function ClassGradesPage() {
 
   const [filters, setFilters] = useState<FiltersState>(() => ({
     year: currentYear,
-    terms: [...DEFAULT_TERMS],
     sum: false,
   }));
   const [classInfo, setClassInfo] = useState<ClassGradesResponse['class'] | null>(null);
   const [students, setStudents] = useState<ClassGradesStudent[]>([]);
-  const [metaTerms, setMetaTerms] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const hasSyncedYearRef = useRef(false);
+  const [selectedTerms, setSelectedTerms] = useState<number[]>(() => [...DEFAULT_TERMS]);
 
   const loadGrades = useCallback(async () => {
-    if (!id || filters.terms.length === 0) {
+    if (!id || selectedTerms.length === 0) {
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const data = await getClassGrades(id, { year: filters.year, terms: filters.terms });
+      const data = await getClassGrades(id, { year: filters.year, terms: selectedTerms });
       setClassInfo(data.class);
       setStudents(data.students);
-      setMetaTerms(data.terms);
+  const serverTerms = (data.terms.length ? data.terms : DEFAULT_TERMS).slice().sort((a, b) => a - b);
+      setSelectedTerms((prev) => {
+        const intersection = prev.filter((term) => serverTerms.includes(term));
+        const next = intersection.length ? intersection : serverTerms;
+        if (prev.length === next.length && prev.every((term, index) => term === next[index])) {
+          return prev;
+        }
+        return [...next];
+      });
       if (!hasSyncedYearRef.current) {
         hasSyncedYearRef.current = true;
         setFilters((prev) => {
@@ -97,17 +103,15 @@ export default function ClassGradesPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, filters.year, filters.terms]);
+  }, [id, filters.year, selectedTerms]);
 
   useEffect(() => {
     void loadGrades();
   }, [loadGrades]);
 
   const termsToDisplay = useMemo(() => {
-    const source = metaTerms.length ? metaTerms : filters.terms;
-    const unique = Array.from(new Set(source.filter((term) => DEFAULT_TERMS.includes(term))));
-    return unique.sort((a, b) => a - b);
-  }, [metaTerms, filters.terms]);
+    return selectedTerms.length ? selectedTerms : [...DEFAULT_TERMS];
+  }, [selectedTerms]);
 
   const availableYears = useMemo(() => {
     const candidates = new Set<number>();
@@ -156,14 +160,15 @@ export default function ClassGradesPage() {
   };
 
   const toggleTerm = (term: number) => {
-    setFilters((prev) => {
-      const exists = prev.terms.includes(term);
-      if (exists && prev.terms.length === 1) {
-        return prev;
+    setSelectedTerms((prev) => {
+      const exists = prev.includes(term);
+      if (exists) {
+        if (prev.length === 1) return prev;
+        return prev.filter((value) => value !== term);
       }
-      const nextTerms = exists ? prev.terms.filter((value) => value !== term) : [...prev.terms, term];
-      nextTerms.sort((a, b) => a - b);
-      return { ...prev, terms: nextTerms };
+      const next = [...prev, term];
+      next.sort((a, b) => a - b);
+      return next;
     });
   };
 
@@ -173,12 +178,12 @@ export default function ClassGradesPage() {
 
   const handleExportPdf = useCallback(async () => {
     if (!id) return;
-    if (termsToDisplay.length === 0) return;
+    if (selectedTerms.length === 0) return;
     setPdfLoading(true);
     try {
       const blob = await exportClassGradesPdf(id, {
         year: filters.year,
-        terms: termsToDisplay,
+        terms: selectedTerms,
         includeTotal: filters.sum,
       });
       const objectUrl = URL.createObjectURL(blob);
@@ -195,9 +200,9 @@ export default function ClassGradesPage() {
     } finally {
       setPdfLoading(false);
     }
-  }, [id, filters.year, filters.sum, termsToDisplay, fileSlug]);
+  }, [id, filters.year, filters.sum, selectedTerms, fileSlug]);
 
-  const disableExport = pdfLoading || loading || students.length === 0 || termsToDisplay.length === 0;
+  const disableExport = pdfLoading || loading || students.length === 0 || selectedTerms.length === 0;
 
   const handleBack = useCallback(() => {
     if (!id) {
@@ -288,7 +293,7 @@ export default function ClassGradesPage() {
                 <label key={option.value} className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
-                    checked={filters.terms.includes(option.value)}
+                    checked={selectedTerms.includes(option.value)}
                     onChange={() => toggleTerm(option.value)}
                   />
                   {option.label}

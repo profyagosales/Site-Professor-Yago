@@ -82,24 +82,15 @@ export default function LoginProfessor() {
     <AuthShell
       roleLabel="Professor"
       heading="Entrar na plataforma"
-      subheading="Use seu e-mail institucional e sua senha."
-      bullets={[
-        'Acesse suas turmas rapidamente',
-        'Lance notas e publique avisos',
-        'Corrija redações e gere relatórios',
-      ]}
     >
       <form onSubmit={onSubmit} className="space-y-4">
-        <Field label="E-mail" type="email" required value={email} placeholder="seunome@escola.df.gov.br" autoComplete="email" onChange={e=>setEmail(e.target.value)} />
-        <Field label="Senha" type="password" required value={senha} placeholder="••••••••" autoComplete="current-password" onChange={e=>setSenha(e.target.value)} />
+        <Field label="E-mail" type="email" required value={email} autoComplete="email" onChange={e=>setEmail(e.target.value)} />
+        <Field label="Senha" type="password" required value={senha} autoComplete="current-password" onChange={e=>setSenha(e.target.value)} />
         {erro && <p className="text-sm text-red-600">{erro}</p>}
         <div className="pt-2">
           <Button type="submit" className="w-full">Entrar</Button>
         </div>
       </form>
-      <div className="mt-6 text-xs text-ys-ink-3">
-        Dica: se esqueceu a senha, entre em contato com a coordenação.
-      </div>
       <div className="mt-8 flex justify-end">
         <Link
           to="/gerencial/login"

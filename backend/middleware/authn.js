@@ -1,13 +1,20 @@
 const { readToken, decodeUser, attachUser } = require('./auth');
+const { maybeRefreshSession } = require('../utils/sessionToken');
 
-function readSession(req, _res, next) {
+function readSession(req, res, next) {
   try {
     const token = readToken(req);
     if (!token) {
       req.sessionUser = null;
       return next();
     }
-    const user = decodeUser(token);
+    let user = decodeUser(token);
+    if (user) {
+      const refreshedToken = maybeRefreshSession(req, res, user);
+      if (refreshedToken) {
+        user = decodeUser(refreshedToken) || user;
+      }
+    }
     req.sessionUser = user || null;
     if (user) attachUser(req, user);
   } catch {

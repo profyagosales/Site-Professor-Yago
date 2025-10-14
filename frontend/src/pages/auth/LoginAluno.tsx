@@ -42,15 +42,15 @@ export default function LoginAluno() {
       ]}
     >
       <form onSubmit={onSubmit} className="space-y-4">
-        <Field label="E-mail" type="email" required value={email} placeholder="seunome@exemplo.com" autoComplete="email" onChange={e=>setEmail(e.target.value)} />
-        <Field label="Senha" type="password" required value={password} placeholder="••••••••" autoComplete="current-password" onChange={e=>setPassword(e.target.value)} />
+        <Field label="E-mail" type="email" required value={email} autoComplete="email" onChange={e=>setEmail(e.target.value)} />
+        <Field label="Senha" type="password" required value={password} autoComplete="current-password" onChange={e=>setPassword(e.target.value)} />
         {erro && <p className="text-sm text-red-600">{erro}</p>}
         <div className="pt-2">
           <Button type="submit" className="w-full">Entrar</Button>
         </div>
       </form>
       <div className="mt-6 text-xs text-ys-ink-3">
-        Precisa de ajuda? Procure seu(a) professor(a) ou coordenação.
+        Precisa de ajuda? Procure o professor.
       </div>
     </AuthShell>
   );

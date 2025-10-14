@@ -1,6 +1,6 @@
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
 const { z } = require('zod');
+const { signSessionToken, setAuthCookie, DAY_MS } = require('../utils/sessionToken');
 
 // Ajuste os requires de acordo com os nomes dos modelos do projeto:
 const Teacher = require('../models/Teacher'); // se o nome for diferente, adapte
@@ -23,12 +23,6 @@ function pickHash(user) {
   // tenta achar o campo de hash independentemente do nome
   const u = user?.toObject?.() ?? user ?? {};
   return u.passwordHash || u.senhaHash || u.hash || u.password || u.senha || null;
-}
-
-function signToken(payload, expiresIn = '7d') {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) throw new Error('JWT_SECRET ausente');
-  return jwt.sign(payload, secret, { expiresIn });
 }
 
 async function doLogin({ Model, role, req, res }) {
@@ -61,20 +55,12 @@ async function doLogin({ Model, role, req, res }) {
       return res.status(401).json({ success: false, message: 'E-mail ou senha inválidos.' });
     }
 
-    const token = signToken({ sub: String(doc._id), role });
+    const token = signSessionToken({ sub: String(doc._id), role }, '24h');
     const user = { id: String(doc._id), nome: doc.nome || doc.name || '', email: doc.email, role };
 
     // Cookie opcional (compat cross-site)
     if (String(process.env.USE_COOKIE_AUTH).toLowerCase() === 'true') {
-      const cookieDomain = process.env.COOKIE_DOMAIN || '.professoryagosales.com.br';
-      res.cookie('auth_token', token, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'none',
-        domain: cookieDomain,
-        path: '/',
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
+      setAuthCookie(res, token, DAY_MS);
       return res.json({ success: true, user });
     }
 
@@ -135,17 +121,8 @@ exports.loginTeacher = async (req, res) => {
       email: teacherEmail,
     };
 
-    const token = signToken(payload, '12h');
-    const domain = process.env.COOKIE_DOMAIN || '.professoryagosales.com.br';
-
-    res.cookie('auth_token', token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'none',
-      domain,
-      path: '/',
-      maxAge: 12 * 60 * 60 * 1000,
-    });
+    const token = signSessionToken(payload, '24h');
+    setAuthCookie(res, token, DAY_MS);
 
     return res.json({
       success: true,

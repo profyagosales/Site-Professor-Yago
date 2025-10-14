@@ -141,24 +141,19 @@ const SLOT_TO_TIME: Record<TimeSlot, string> = {
   3: '10:45',
 };
 
-const NOTICE_AUDIENCE_LABELS: Record<ClassNoticeAudience, string> = {
-  teachers: 'Somente professores',
-  all: 'Visível para alunos e professores',
-};
-
 const NOTICE_AUDIENCE_BADGES: Record<ClassNoticeAudience, { label: string; className: string }> = {
-  teachers: { label: 'Somente professores', className: 'bg-ys-ink/10 text-ys-ink-2' },
-  all: { label: 'Visível aos alunos', className: 'bg-ys-amber/15 text-ys-amber' },
+  teachers: { label: 'SOMENTE PROFESSORES', className: 'border border-slate-300 bg-slate-100 text-slate-700' },
+  all: { label: 'VISÍVEL AOS ALUNOS', className: 'border border-amber-200 bg-amber-50 text-amber-700' },
 };
 
 const CALENDAR_ITEM_BADGES: Record<ClassCalendarItem['type'], { label: string; className: string }> = {
-  activity: { label: 'Atividade', className: 'border border-ys-amber bg-ys-amber/15 text-ys-amber' },
-  milestone: { label: 'Data importante', className: 'border border-ys-ink bg-ys-ink/10 text-ys-ink' },
+  activity: { label: 'Atividade', className: 'border border-orange-200 bg-orange-50 text-orange-700' },
+  milestone: { label: 'Data importante', className: 'border border-slate-200 bg-slate-50 text-slate-700' },
 };
 
 const NOTICE_AUDIENCE_OPTIONS: Array<{ value: ClassNoticeAudience; label: string }> = [
-  { value: 'teachers', label: 'Mostrar só para professores' },
-  { value: 'all', label: 'Mostrar para alunos também' },
+  { value: 'teachers', label: 'SOMENTE_PROFESSORES' },
+  { value: 'all', label: 'ALUNOS_E_PROFESSORES' },
 ];
 
 function buildScheduleKey(weekday: Weekday, slot: TimeSlot): ScheduleKey {
@@ -1001,11 +996,11 @@ function NoticeModal({ open, loading, onClose, onSubmit }: NoticeModalProps) {
             />
           </label>
 
-          <fieldset className="rounded-xl border border-ys-line px-3 py-3">
-            <legend className="px-1 text-sm font-medium text-ys-ink">Visibilidade do aviso</legend>
-            <div className="mt-2 space-y-2">
+          <fieldset className="rounded-xl border border-slate-200 px-4 py-4">
+            <legend className="px-1 text-sm font-medium text-slate-800">Visibilidade do aviso</legend>
+            <div className="mt-3 space-y-2">
               {NOTICE_AUDIENCE_OPTIONS.map((option) => (
-                <label key={option.value} className="flex items-center gap-2 text-sm">
+                <label key={option.value} className="flex items-center gap-2 text-sm text-slate-700">
                   <input
                     type="radio"
                     name="notice-audience"
@@ -1137,7 +1132,6 @@ export default function ClassDetailPage() {
     loadCalendar();
   }, [loadCalendar]);
 
-  const scheduleCount = selectedSlots.size;
   const scheduleModalHasChanges = useMemo(() => !setsAreEqual(scheduleDraft, selectedSlots), [scheduleDraft, selectedSlots]);
   const today = useMemo(() => new Date(), []);
   const sortedCalendarEvents = useMemo(() => {
@@ -1593,19 +1587,17 @@ export default function ClassDetailPage() {
     prefixedName = 'Turma';
   }
   const pageTitle = subjectLabel ? `${prefixedName} • ${subjectLabel}` : prefixedName;
-  const totalStudents = detail.studentsCount ?? detail.students.length;
-  const totalTeachers = detail.teachersCount ?? detail.teachers.length;
 
   return (
-    <div className="p-4 space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="min-h-screen bg-slate-50 p-6 space-y-8">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-ys-ink">{pageTitle}</h1>
+          <h1 className="text-3xl font-semibold text-slate-900">{pageTitle}</h1>
           {detail.year && (
-            <p className="text-sm text-ys-graphite">Ano letivo: {detail.year}</p>
+            <p className="text-sm text-slate-500">Ano letivo: {detail.year}</p>
           )}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-3">
           <Button variant="primary" onClick={handleOpenEmailModal}>
             Enviar e-mail para a turma
           </Button>
@@ -1615,19 +1607,7 @@ export default function ClassDetailPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 text-sm text-ys-graphite">
-        <span>
-          <span className="font-semibold text-ys-ink">{scheduleCount}</span> horários cadastrados
-        </span>
-        <span>
-          <span className="font-semibold text-ys-ink">{totalStudents}</span> alunos
-        </span>
-        <span>
-          <span className="font-semibold text-ys-ink">{totalTeachers}</span> professores
-        </span>
-      </div>
-
-      <div className="flex flex-wrap gap-2 border-b border-ys-line pb-2">
+      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-2">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.key;
           return (
@@ -1637,8 +1617,8 @@ export default function ClassDetailPage() {
               onClick={() => setActiveTab(tab.key)}
               className={`rounded-t-xl px-4 py-2 text-sm font-semibold transition-colors ${
                 isActive
-                  ? 'border border-ys-line border-b-white bg-white text-ys-ink shadow-ys-sm'
-                  : 'text-ys-graphite hover:text-ys-ink'
+                  ? 'border border-slate-200 border-b-white bg-white text-slate-800 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
             >
               {tab.label}
@@ -1651,7 +1631,7 @@ export default function ClassDetailPage() {
             if (!id) return;
             navigate(`/professor/classes/${id}/grades`);
           }}
-          className="text-ys-graphite hover:text-ys-ink rounded-t-xl px-4 py-2 text-sm font-semibold transition-colors"
+          className="text-slate-500 hover:text-slate-800 rounded-t-xl px-4 py-2 text-sm font-semibold transition-colors"
         >
           Notas
         </button>
@@ -1670,30 +1650,30 @@ export default function ClassDetailPage() {
 
       {activeTab === 'overview' && (
         <>
-          <section className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-            <div className="grid gap-3">
-              <div className="rounded-2xl border border-ys-line bg-white p-4 shadow-ys-sm">
-                <div className="flex flex-wrap items-start justify-between gap-3">
+          <section className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <div className="grid gap-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
-                    <h2 className="text-base font-semibold text-ys-ink">Horários da semana</h2>
-                    <p className="text-xs text-ys-graphite">
+                    <h2 className="text-lg font-semibold text-slate-800">Horários da semana</h2>
+                    <p className="text-sm text-slate-500">
                       Visualize e ajuste os tempos de aula da turma.
                     </p>
                   </div>
                   <Button onClick={handleOpenScheduleModal}>Editar horários</Button>
                 </div>
                 {selectedSlots.size === 0 ? (
-                  <p className="mt-4 text-sm text-ys-graphite">Nenhum horário cadastrado.</p>
+                  <p className="mt-6 text-sm text-slate-500">Nenhum horário cadastrado.</p>
                 ) : (
-                  <div className="mt-4 overflow-x-auto">
+                  <div className="mt-6 overflow-x-auto">
                     <table className="min-w-full border-separate border-spacing-0 text-xs">
                       <thead>
                         <tr>
-                          <th className="px-3 py-2 text-left font-semibold uppercase tracking-wide text-ys-graphite">
+                          <th className="px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-600">
                             Horário
                           </th>
                           {WEEKDAYS.map((day) => (
-                            <th key={day.value} className="px-3 py-2 text-center font-semibold uppercase tracking-wide text-ys-graphite">
+                            <th key={day.value} className="px-3 py-2 text-center font-semibold uppercase tracking-wide text-slate-600">
                               {day.short}
                             </th>
                           ))}
@@ -1701,10 +1681,10 @@ export default function ClassDetailPage() {
                       </thead>
                       <tbody>
                         {TIME_SLOTS.map((slot) => (
-                          <tr key={slot.value} className="border-t border-ys-line">
-                            <td className="px-3 py-3 align-top text-ys-ink">
+                          <tr key={slot.value} className="border-t border-slate-200">
+                            <td className="px-3 py-3 align-top text-slate-800">
                               <div className="font-medium">{slot.label}</div>
-                              <div className="text-xs text-ys-graphite">{slot.range}</div>
+                              <div className="text-xs text-slate-500">{slot.range}</div>
                             </td>
                             {WEEKDAYS.map((day) => {
                               const key = buildScheduleKey(day.value, slot.value);
@@ -1713,7 +1693,7 @@ export default function ClassDetailPage() {
                                 <td key={key} className="px-3 py-3 text-center align-middle">
                                   <div className="flex items-center justify-center">
                                     <div
-                                      className={`h-6 w-6 rounded-full border ${active ? 'border-ys-amber bg-ys-amber/20' : 'border-dashed border-ys-line'}`}
+                                      className={`h-6 w-6 rounded-full border ${active ? 'border-ys-amber bg-ys-amber/20' : 'border-dashed border-slate-300'}`}
                                       aria-hidden="true"
                                     />
                                   </div>
@@ -1729,59 +1709,63 @@ export default function ClassDetailPage() {
                 )}
               </div>
 
-              <div className="rounded-2xl border border-ys-line bg-white p-4 shadow-ys-sm">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-base font-semibold text-ys-ink">Calendário da turma</h2>
-                    <p className="text-xs text-ys-graphite">
-                      Atividades e datas importantes ficam reunidas aqui para você acompanhar o que vem pela frente.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className={calendarView === 'week' ? 'border border-ys-amber bg-ys-amber/20 text-ys-ink' : ''}
-                        aria-pressed={calendarView === 'week'}
-                        onClick={() => setCalendarView('week')}
-                      >
-                        Semana
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className={calendarView === 'month' ? 'border border-ys-amber bg-ys-amber/20 text-ys-ink' : ''}
-                        aria-pressed={calendarView === 'month'}
-                        onClick={() => setCalendarView('month')}
-                      >
-                        Mês
-                      </Button>
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="flex flex-wrap items-start gap-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 w-full">
+                    <div>
+                      <h2 className="text-lg font-semibold text-slate-800">Calendário da turma</h2>
+                      <p className="text-sm text-slate-500">
+                        Atividades e datas importantes ficam reunidas aqui para você acompanhar o que vem pela frente.
+                      </p>
                     </div>
-                    <Button variant="ghost" onClick={handleOpenActivityModal}>
-                      Nova atividade
-                    </Button>
-                    <Button variant="ghost" onClick={handleOpenMilestoneModal}>
-                      Nova data importante
-                    </Button>
+                    <div className="flex w-full flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className={calendarView === 'week' ? 'border border-ys-amber bg-ys-amber/20 text-ys-ink' : ''}
+                          aria-pressed={calendarView === 'week'}
+                          onClick={() => setCalendarView('week')}
+                        >
+                          Semana
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className={calendarView === 'month' ? 'border border-ys-amber bg-ys-amber/20 text-ys-ink' : ''}
+                          aria-pressed={calendarView === 'month'}
+                          onClick={() => setCalendarView('month')}
+                        >
+                          Mês
+                        </Button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" onClick={handleOpenActivityModal}>
+                          Nova atividade
+                        </Button>
+                        <Button variant="ghost" onClick={handleOpenMilestoneModal}>
+                          Nova data importante
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 {calendarLoading ? (
-                  <p className="mt-4 text-sm text-ys-graphite">Carregando calendário…</p>
+                  <p className="mt-6 text-sm text-slate-500">Carregando calendário…</p>
                 ) : calendarError ? (
-                  <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600">
+                  <div className="mt-6 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600">
                     {calendarError}
                   </div>
                 ) : calendarGroups.length === 0 ? (
-                  <p className="mt-4 text-sm text-ys-graphite">
+                  <p className="mt-6 text-sm text-slate-500">
                     Nenhum evento encontrado para o período selecionado. Use os botões acima para registrar novas atividades ou datas importantes.
                   </p>
                 ) : (
-                  <ul className="mt-4 space-y-3 text-sm text-ys-ink">
+                  <ul className="mt-6 space-y-3 text-sm text-slate-800">
                     {calendarGroups.map((group) => (
-                      <li key={group.dateISO} className="rounded-2xl border border-ys-line bg-ys-bg px-3 py-2">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-ys-graphite">{group.label}</p>
+                      <li key={group.dateISO} className="rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">{group.label}</p>
                         <ul className="mt-2 space-y-2">
                           {group.items.map((item) => {
                             const badge = CALENDAR_ITEM_BADGES[item.type];
@@ -1790,10 +1774,10 @@ export default function ClassDetailPage() {
                             return (
                               <li
                                 key={`${group.dateISO}-${item.id}`}
-                                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ys-line bg-white px-3 py-3"
+                                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm"
                               >
                                 <div>
-                                  <p className="font-medium text-ys-ink">{label}</p>
+                                  <p className="font-medium text-slate-800">{label}</p>
                                   <div className="mt-1 flex flex-wrap items-center gap-2">
                                     <span
                                       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${badge.className}`}
@@ -1801,7 +1785,7 @@ export default function ClassDetailPage() {
                                       {badge.label}
                                     </span>
                                     {createdLabel && (
-                                      <span className="text-xs text-ys-graphite">Registrado em {createdLabel}</span>
+                                      <span className="text-xs text-slate-500">Registrado em {createdLabel}</span>
                                     )}
                                   </div>
                                 </div>
@@ -1823,38 +1807,38 @@ export default function ClassDetailPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-ys-line bg-white p-4 shadow-ys-sm">
-              <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-base font-semibold text-ys-ink">Avisos internos</h2>
-                  <p className="text-xs text-ys-graphite">Registros visíveis para professores da turma.</p>
+                  <h2 className="text-lg font-semibold text-slate-800">Avisos internos</h2>
+                  <p className="text-sm text-slate-500">Registros visíveis internamente conforme o público selecionado.</p>
                 </div>
                 <Button variant="ghost" onClick={handleNotifyClass}>
                   Registrar aviso
                 </Button>
               </div>
-              <ul className="mt-4 space-y-2 text-sm text-ys-ink">
+              <ul className="mt-6 space-y-3 text-sm text-slate-800">
                 {detail.notices.length === 0 && (
-                  <li className="text-xs text-ys-graphite">Nenhum aviso cadastrado.</li>
+                  <li className="text-xs text-slate-500">Nenhum aviso cadastrado.</li>
                 )}
                 {detail.notices.map((notice) => {
                   const createdLabel = formatDateTimeLabel(notice.createdAt);
                   return (
                     <li key={notice.id} className="flex items-start justify-between gap-3">
                       <div className="space-y-1">
-                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-ys-ink">{notice.message}</p>
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">{notice.message}</p>
                         <div className="flex flex-wrap items-center gap-2">
                           {(() => {
                             const badge = NOTICE_AUDIENCE_BADGES[notice.audience];
                             return (
                               <span
-                                className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${badge.className}`}
+                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${badge.className}`}
                               >
                                 {badge.label}
                               </span>
                             );
                           })()}
-                          {createdLabel && <p className="text-xs text-ys-graphite">Registrado em {createdLabel}</p>}
+                          {createdLabel && <p className="text-xs text-slate-500">Registrado em {createdLabel}</p>}
                         </div>
                       </div>
                       <button
@@ -1871,18 +1855,18 @@ export default function ClassDetailPage() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-ys-line bg-white p-4 shadow-ys-sm">
-            <h2 className="text-lg font-semibold text-ys-ink">Professores</h2>
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+            <h2 className="text-lg font-semibold text-slate-800">Professores</h2>
             {detail.teachers.length === 0 ? (
-              <p className="mt-2 text-sm text-ys-graphite">Nenhum professor vinculado.</p>
+              <p className="text-sm text-slate-500">Nenhum professor vinculado.</p>
             ) : (
-              <ul className="mt-3 space-y-2 text-sm text-ys-ink">
+              <ul className="space-y-3 text-sm text-slate-800">
                 {detail.teachers.map((teacher) => (
                   <li key={teacher.id} className="flex flex-col">
                     <span className="font-medium">{teacher.name}</span>
-                    <span className="text-ys-graphite">{teacher.email}</span>
+                    <span className="text-slate-500">{teacher.email}</span>
                     {teacher.subjects.length > 0 && (
-                      <span className="text-xs text-ys-graphite">{teacher.subjects.join(', ')}</span>
+                      <span className="text-xs text-slate-500">{teacher.subjects.join(', ')}</span>
                     )}
                   </li>
                 ))}
@@ -1892,41 +1876,41 @@ export default function ClassDetailPage() {
         </>
       )}
       {activeTab === 'students' && (
-        <section className="rounded-2xl border border-ys-line bg-white p-4 shadow-ys-sm">
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-ys-ink">Alunos</h2>
+            <h2 className="text-lg font-semibold text-slate-800">Alunos</h2>
             <Button variant="ghost" onClick={handleAddClick}>
               + Adicionar aluno
             </Button>
           </div>
 
           {detail.students.length === 0 ? (
-            <p className="mt-3 text-sm text-ys-graphite">Nenhum aluno cadastrado.</p>
+            <p className="mt-4 text-sm text-slate-500">Nenhum aluno cadastrado.</p>
           ) : (
-            <div className="mt-4 overflow-x-auto">
-              <table className="min-w-full divide-y divide-ys-line text-sm">
-                <thead className="bg-ys-bg">
+            <div className="mt-6 overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-200 text-sm">
+                <thead className="bg-slate-100">
                   <tr>
-                    <th className="px-3 py-2 text-left font-medium text-ys-graphite">#</th>
-                    <th className="px-3 py-2 text-left font-medium text-ys-graphite">Aluno</th>
-                    <th className="px-3 py-2 text-left font-medium text-ys-graphite">Email</th>
-                    <th className="px-3 py-2 text-left font-medium text-ys-graphite">Telefone</th>
-                    <th className="px-3 py-2 text-right font-medium text-ys-graphite">Ações</th>
+                    <th className="px-3 py-2 text-left font-medium text-slate-600">#</th>
+                    <th className="px-3 py-2 text-left font-medium text-slate-600">Aluno</th>
+                    <th className="px-3 py-2 text-left font-medium text-slate-600">Email</th>
+                    <th className="px-3 py-2 text-left font-medium text-slate-600">Telefone</th>
+                    <th className="px-3 py-2 text-right font-medium text-slate-600">Ações</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-ys-line">
+                <tbody className="divide-y divide-slate-200">
                   {detail.students.map((student) => {
                     const photoUrl = resolvePhotoUrl(student.photo);
                     return (
                       <tr
                         key={student.id}
-                        className="cursor-pointer transition hover:bg-ys-bg"
+                        className="cursor-pointer transition hover:bg-slate-100"
                         onClick={() => handleStudentNavigate(student.id)}
                       >
-                        <td className="px-3 py-2 align-middle text-ys-ink">
+                        <td className="px-3 py-2 align-middle text-slate-800">
                           {student.rollNumber ?? '—'}
                         </td>
-                        <td className="px-3 py-2 align-middle text-ys-ink">
+                        <td className="px-3 py-2 align-middle text-slate-800">
                           <div className="flex items-center gap-3">
                             {photoUrl ? (
                               <img
@@ -1935,15 +1919,15 @@ export default function ClassDetailPage() {
                                 className="h-10 w-10 rounded-full object-cover"
                               />
                             ) : (
-                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-ys-bg text-xs font-semibold text-ys-graphite">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">
                                 {student.name.slice(0, 1).toUpperCase()}
                               </div>
                             )}
                             <span className="font-medium">{student.name}</span>
                           </div>
                         </td>
-                        <td className="px-3 py-2 align-middle text-ys-graphite">{student.email ?? '—'}</td>
-                        <td className="px-3 py-2 align-middle text-ys-graphite">{student.phone ?? '—'}</td>
+                        <td className="px-3 py-2 align-middle text-slate-500">{student.email ?? '—'}</td>
+                        <td className="px-3 py-2 align-middle text-slate-500">{student.phone ?? '—'}</td>
                         <td className="px-3 py-2 align-middle text-right">
                           <div className="flex justify-end gap-2">
                             <button

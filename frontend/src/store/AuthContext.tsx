@@ -1,6 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { fetchMe, doLogout, SessionUser } from '@/services/session';
 
+const KEEP_ALIVE_INTERVAL = 10 * 60 * 1000;
+
 type AuthSessionInput =
   | SessionUser
   | null
@@ -52,6 +54,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // bootstrap na montagem, sem redirecionar em 401
     void reload();
   }, [reload]);
+
+  useEffect(() => {
+    if (!user || typeof window === 'undefined') {
+      return () => {};
+    }
+
+    let cancelled = false;
+
+    const keepAlive = async () => {
+      try {
+        const next = await fetchMe();
+        if (cancelled) return;
+        setUser(next);
+        if (!next) {
+          try {
+            localStorage.removeItem('role');
+          } catch {
+            /* ignore */
+          }
+        }
+      } catch {
+        if (cancelled) return;
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      void keepAlive();
+    }, KEEP_ALIVE_INTERVAL);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [user]);
 
   const logout = useCallback(async (options: LogoutOptions = {}) => {
     const { redirect = true, location = '/' } = options;

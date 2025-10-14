@@ -1,4 +1,4 @@
-import { PropsWithChildren, useEffect, useMemo, useState } from 'react';
+import { PropsWithChildren, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/store/AuthContext';
 import api from '@/services/api';
@@ -6,24 +6,18 @@ import api from '@/services/api';
 type GuardStatus = 'checking' | 'allow' | 'deny';
 
 export default function TeacherGuard({ children }: PropsWithChildren) {
-  const { loading, isTeacher, setSession, reload } = useAuth();
+  const { loading, isTeacher, setSession } = useAuth();
   const location = useLocation();
   const [status, setStatus] = useState<GuardStatus>('checking');
-
-  const initialRole = useMemo(() => {
-    try {
-      return localStorage.getItem('role');
-    } catch {
-      return null;
-    }
-  }, []);
 
   useEffect(() => {
     if (loading) return;
 
-    if (isTeacher || initialRole === 'teacher') {
-      if (!isTeacher && initialRole === 'teacher') {
-        void reload();
+    if (isTeacher) {
+      try {
+        localStorage.setItem('role', 'teacher');
+      } catch {
+        /* ignore */
       }
       setStatus('allow');
       return;
@@ -58,13 +52,19 @@ export default function TeacherGuard({ children }: PropsWithChildren) {
         return;
       }
 
+      try {
+        localStorage.removeItem('role');
+      } catch {
+        /* ignore */
+      }
+
       setStatus('deny');
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [isTeacher, loading, initialRole, setSession, reload]);
+  }, [isTeacher, loading, setSession]);
 
   if (status === 'checking') {
     return <div className="p-6">Carregando…</div>;
