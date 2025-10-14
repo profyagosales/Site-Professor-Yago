@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/Button";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "@/services/api";
+import { useAuth } from "@/store/AuthContext";
 
 export default function LoginProfessor() {
   const navigate = useNavigate();
+  const auth = useAuth();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
@@ -15,16 +17,62 @@ export default function LoginProfessor() {
     e.preventDefault();
     setErro("");
     try {
-      const { data } = await api.post("/auth/login-teacher", { email, password: senha });
-      if (data?.success) {
-        // save token for Bearer flows (cookie also set by backend)
-        const t = data?.data?.token;
-        if (t) localStorage.setItem('auth_token', t);
+      const response = await api.post("/auth/login-teacher", { email, password: senha }, { withCredentials: true });
+      const payload = response?.data ?? {};
+      const data = (payload?.data ?? payload) as Record<string, any>;
+      const token = data?.token ?? payload?.token;
+      const teacherInfo = data?.teacher ?? data?.user ?? null;
+      const role = (data?.role ?? payload?.role ?? data?.user?.role ?? "") as string;
+      const isTeacher = (role || "").toLowerCase() === "teacher" || Boolean(data?.isTeacher ?? payload?.isTeacher);
+
+      if (payload?.success && isTeacher) {
+        if (token) {
+          localStorage.setItem("auth_token", token);
+        }
         localStorage.setItem("role", "teacher");
+        if (teacherInfo) {
+          try {
+            localStorage.setItem("teacher", JSON.stringify(teacherInfo));
+          } catch {
+            // ignore serialization errors
+          }
+        }
+        const sessionPayload: any = { role: "teacher" };
+        if (teacherInfo) {
+          sessionPayload.teacher = teacherInfo;
+          sessionPayload.user = teacherInfo;
+        }
+        auth?.setSession?.(sessionPayload);
+        void auth?.reload?.();
         navigate("/professor/classes", { replace: true });
-      } else {
-        setErro(data?.message ?? "Erro no login do professor");
+        return;
       }
+
+      const meResponse = await api
+        .get("/me", { withCredentials: true, meta: { skipAuthRedirect: true, noCache: true } })
+        .catch(() => null);
+      const meData = meResponse?.data ?? null;
+      const meRole: string | undefined = meData?.role ?? meData?.user?.role;
+      const meIsTeacher = Boolean(
+        (meRole && meRole.toLowerCase() === "teacher") || meData?.isTeacher
+      );
+
+      if (meIsTeacher) {
+        localStorage.setItem("role", "teacher");
+        if (meData?.user) {
+          try {
+            localStorage.setItem("teacher", JSON.stringify(meData.user));
+          } catch {
+            /* ignore */
+          }
+        }
+        auth?.setSession?.({ role: "teacher", user: meData?.user ?? { id: meData?.id ?? null, email: meData?.email ?? null, role: "teacher" } });
+        void auth?.reload?.();
+        navigate("/professor/classes", { replace: true });
+        return;
+      }
+
+      setErro(payload?.message ?? "Credenciais válidas, mas sem permissão de professor.");
     } catch (err: any) {
       setErro(err?.response?.data?.message ?? "Erro no login do professor");
     }

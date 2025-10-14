@@ -10,6 +10,7 @@ function readToken(req) {
   const auth = h.authorization || h.Authorization || '';
   const bearer = /^Bearer\s+(.+)$/i.test(auth) ? auth.replace(/^Bearer\s+/i, '').trim() : null;
   return (
+    (typeof c?.auth_token === 'string' && c.auth_token) ||
     (typeof c?.token === 'string' && c.token) ||
     (typeof c?.access_token === 'string' && c.access_token) ||
     (typeof h['x-access-token'] === 'string' && h['x-access-token']) ||
@@ -88,3 +89,6 @@ function authRequired(req, res, next) {
 module.exports = authRequired;
 module.exports.authRequired = authRequired;
 module.exports.authOptional = authOptional;
+module.exports.decodeUser = decodeUser;
+module.exports.readToken = readToken;
+module.exports.attachUser = attachUser;

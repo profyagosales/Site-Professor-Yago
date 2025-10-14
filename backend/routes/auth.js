@@ -4,17 +4,23 @@ const bcrypt = require('bcrypt');
 const Teacher = require('../models/Teacher');
 const Student = require('../models/Student');
 const authRequired = require('../middleware/auth');
+const { loginTeacher } = require('../controllers/authController');
 
 const router = express.Router();
 
-function setSessionCookie(res, payload) {
-  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
-  res.cookie('token', token, {
+const COOKIE_NAME = 'auth_token';
+
+function setSessionCookie(res, payload, options = {}) {
+  const { expiresIn = '7d', maxAge = 7 * 24 * 60 * 60 * 1000 } = options;
+  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
+  const domain = process.env.COOKIE_DOMAIN || '.professoryagosales.com.br';
+  res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
     secure: true,
-  sameSite: 'none',
-    domain: '.professoryagosales.com.br',
+    sameSite: 'none',
+    domain,
     path: '/',
+    maxAge,
   });
   return token;
 }
@@ -24,7 +30,14 @@ router.post('/register-teacher', async (req, res, next) => {
   try {
     const { name, email, password, phone, subjects = [] } = req.body || {};
     const teacher = await Teacher.create({ name, email, password, phone, subjects });
-    const token = setSessionCookie(res, { role: 'teacher', email, id: String(teacher._id) });
+    const teacherId = String(teacher._id);
+    const token = setSessionCookie(res, {
+      sub: teacherId,
+      id: teacherId,
+      role: 'teacher',
+      email,
+      isTeacher: true,
+    }, { expiresIn: '12h', maxAge: 12 * 60 * 60 * 1000 });
     res.status(200).json({ success: true, data: { token } });
   } catch (err) {
     next(err);
@@ -32,25 +45,7 @@ router.post('/register-teacher', async (req, res, next) => {
 });
 
 // POST /api/auth/login-teacher
-router.post('/login-teacher', async (req, res, next) => {
-  try {
-    const { email, password } = req.body || {};
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Informe e-mail e senha.' });
-    }
-
-    const user = await Teacher.findOne({ email: { $regex: `^${email}$`, $options: 'i' } }).lean();
-    if (!user) return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
-
-    const ok = await bcrypt.compare(password, user.password);
-    if (!ok) return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
-
-    const token = setSessionCookie(res, { role: 'teacher', email: user.email, id: String(user._id) });
-    res.json({ success: true, message: 'Login ok (teacher)', data: { token } });
-  } catch (err) {
-    next(err);
-  }
-});
+router.post('/login-teacher', loginTeacher);
 
 // POST /api/auth/login-student
 router.post('/login-student', async (req, res, next) => {
@@ -68,7 +63,13 @@ router.post('/login-student', async (req, res, next) => {
     const ok = await bcrypt.compare(password, student.passwordHash || '');
     if (!ok) return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
 
-    const token = setSessionCookie(res, { role: 'student', email: student.email, id: String(student._id) });
+    const studentId = String(student._id);
+    const token = setSessionCookie(res, {
+      sub: studentId,
+      id: studentId,
+      role: 'student',
+      email: student.email,
+    });
     res.json({
       success: true,
       message: 'Login ok (student)',
@@ -110,11 +111,19 @@ router.get('/me', authRequired, (req, res) => {
 
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {
+  const domain = process.env.COOKIE_DOMAIN || '.professoryagosales.com.br';
+  res.clearCookie(COOKIE_NAME, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none',
+    domain,
+    path: '/',
+  });
   res.clearCookie('token', {
     httpOnly: true,
     secure: true,
-  sameSite: 'none',
-    domain: '.professoryagosales.com.br',
+    sameSite: 'none',
+    domain,
     path: '/',
   });
   res.json({ success: true });

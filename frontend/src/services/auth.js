@@ -40,6 +40,7 @@ export async function logout() {
   }
   localStorage.removeItem('auth_token');
   localStorage.removeItem('role');
+  localStorage.removeItem('teacher');
 }
 
 export default {

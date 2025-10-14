@@ -25,10 +25,10 @@ function pickHash(user) {
   return u.passwordHash || u.senhaHash || u.hash || u.password || u.senha || null;
 }
 
-function signToken(payload) {
+function signToken(payload, expiresIn = '7d') {
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error('JWT_SECRET ausente');
-  return jwt.sign(payload, secret, { expiresIn: '7d' });
+  return jwt.sign(payload, secret, { expiresIn });
 }
 
 async function doLogin({ Model, role, req, res }) {
@@ -67,7 +67,7 @@ async function doLogin({ Model, role, req, res }) {
     // Cookie opcional (compat cross-site)
     if (String(process.env.USE_COOKIE_AUTH).toLowerCase() === 'true') {
       const cookieDomain = process.env.COOKIE_DOMAIN || '.professoryagosales.com.br';
-      res.cookie('token', token, {
+      res.cookie('auth_token', token, {
         httpOnly: true,
         secure: true,
         sameSite: 'none',
@@ -87,8 +87,89 @@ async function doLogin({ Model, role, req, res }) {
   }
 }
 
-exports.loginTeacher = (req, res) =>
-  doLogin({ Model: Teacher, role: 'teacher', req, res });
+exports.loginTeacher = async (req, res) => {
+  const parsed = LoginSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res
+      .status(400)
+      .json({ success: false, message: 'Informe e-mail e senha.' });
+  }
+
+  const { email, password } = parsed.data;
+
+  try {
+    const teacherDoc = await Teacher.findOne({
+      email: { $regex: `^${email}$`, $options: 'i' },
+    });
+
+    if (!teacherDoc) {
+      console.log('[LOGIN] teacher não encontrado', { emailTentado: email });
+      return res.status(401).json({ success: false, message: 'E-mail ou senha inválidos.' });
+    }
+
+    const hash = pickHash(teacherDoc);
+    if (!hash) {
+      console.error('[LOGIN] hash ausente para teacher', {
+        id: String(teacherDoc._id),
+        email: teacherDoc.email,
+      });
+      return res.status(500).json({ success: false, message: 'Conta sem hash de senha.' });
+    }
+
+    const ok = await bcrypt.compare(password, hash);
+    if (!ok) {
+      console.log('[LOGIN] senha incorreta para teacher', {
+        id: String(teacherDoc._id),
+        email: teacherDoc.email,
+      });
+      return res.status(401).json({ success: false, message: 'E-mail ou senha inválidos.' });
+    }
+
+    const teacher = teacherDoc.toObject ? teacherDoc.toObject() : teacherDoc;
+    const teacherId = String(teacherDoc._id);
+    const teacherEmail = teacher.email || teacherDoc.email || email;
+    const payload = {
+      sub: teacherId,
+      role: 'teacher',
+      isTeacher: true,
+      email: teacherEmail,
+    };
+
+    const token = signToken(payload, '12h');
+    const domain = process.env.COOKIE_DOMAIN || '.professoryagosales.com.br';
+
+    res.cookie('auth_token', token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      domain,
+      path: '/',
+      maxAge: 12 * 60 * 60 * 1000,
+    });
+
+    return res.json({
+      success: true,
+      message: 'Login ok (teacher)',
+      data: {
+        token,
+        role: 'teacher',
+        isTeacher: true,
+        teacher: {
+          id: teacherId,
+          name: teacher.name || teacher.nome || teacherDoc.name || '',
+          email: teacherEmail,
+          photo: teacher.photoUrl || null,
+        },
+      },
+    });
+  } catch (err) {
+    console.error('[LOGIN] Erro inesperado (teacher)', {
+      emailTentado: email,
+      stack: err?.stack || String(err),
+    });
+    return res.status(500).json({ success: false, message: 'Erro interno no login.' });
+  }
+};
 
 exports.loginStudent = (req, res) =>
   doLogin({ Model: Student, role: 'student', req, res });

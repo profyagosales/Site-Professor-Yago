@@ -2,11 +2,14 @@
 import api from './api';
 
 export type SessionUser = {
-  _id: string;
-  id?: string;
-  name?: string;
-  email?: string;
-  role?: 'teacher' | 'student' | string;
+  _id?: string | null;
+  id?: string | null;
+  name?: string | null;
+  email?: string | null;
+  role?: 'teacher' | 'student' | string | null;
+  isTeacher?: boolean;
+  photoUrl?: string | null;
+  [key: string]: unknown;
 };
 
 export async function fetchMe(): Promise<SessionUser | null> {

@@ -12,6 +12,7 @@ import { listUpcomingContents } from '@/services/contents'
 import { listUpcomingExams } from '@/services/exams'
 import { listAnnouncements } from '@/services/announcements'
 import { getTeacherWeeklySchedule } from '@/services/schedule'
+import { useAuth } from '@/store/AuthContext'
 
 /*
 // Snippet opcional para habilitar o widget da agenda semanal
@@ -30,6 +31,7 @@ function DashboardProfessor(){
   const [contentOpen, setContentOpen] = useState(false)
   const [announcementOpen, setAnnouncementOpen] = useState(false)
   const navigate = useNavigate()
+  const { logout: logoutSession } = useAuth()
 
   useEffect(() => {
     let abort = false
@@ -60,10 +62,7 @@ function DashboardProfessor(){
   }, [])
 
   const handleLogout = async () => {
-    await api.post('/auth/logout')
-    localStorage.removeItem('auth_token')
-    delete api.defaults.headers.common['Authorization']
-    navigate('/login-professor')
+    await logoutSession()
   }
 
   const reloadContents = async () => {
