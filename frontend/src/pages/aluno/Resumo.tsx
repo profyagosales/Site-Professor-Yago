@@ -336,157 +336,52 @@ export default function ResumoAlunoPage() {
   }
 
   return (
-    <div className="space-y-10">
-      <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+    <div className="space-y-8">
+      <section className="grid gap-6 xl:grid-cols-2">
         <Card className="h-full">
           <CardBody className="space-y-6">
-            <div>
-              <CardTitle>Próximas avaliações</CardTitle>
-              <CardSub>Acompanhe as provas já agendadas para o seu período</CardSub>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <CardTitle>Minhas notas</CardTitle>
+                <CardSub>Resumo por bimestre</CardSub>
+              </div>
+              <Tabs
+                items={BIMESTERS.map((value) => ({
+                  key: String(value),
+                  label: `${value}º bim.`,
+                  isActive: term === value,
+                  onClick: () => setTerm(value),
+                }))}
+              />
             </div>
 
-            {agendaLoading ? (
-              <div className="py-10 text-center text-sm text-slate-500">Carregando agenda…</div>
-            ) : agendaError ? (
-              <EmptyState message="Não foi possível carregar as avaliações. Tente novamente." />
-            ) : proximasAvaliacoes.length ? (
-              <div className="space-y-4">
-                {proximasAvaliacoes.map((evaluation) => (
-                  <div
-                    key={evaluation.id}
-                    className="flex items-start justify-between rounded-2xl border border-slate-200 px-4 py-3"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800">{evaluation.titulo}</p>
-                      <p className="text-xs text-slate-500">{formatLongDate(evaluation.data)}</p>
-                    </div>
-                    <span className="text-xs font-semibold text-orange-500">
-                      {typeof evaluation.valor === 'number'
-                        ? `${evaluation.valor.toFixed(1)} pts`
-                        : 'Sem valor'}
-                    </span>
-                  </div>
-                ))}
+            {gradesLoading ? (
+              <div className="rounded-2xl border border-slate-200 bg-white py-14 text-center text-sm text-slate-500">
+                Carregando notas…
               </div>
+            ) : gradesError ? (
+              <EmptyState message="Não foi possível carregar as notas desse bimestre." />
             ) : (
-              <EmptyState message="Ainda não há avaliações agendadas nesse período." />
-            )}
-
-            {proximaAvaliacao && (
-              <div className="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4">
-                <p className="text-xs font-semibold text-orange-600">Próxima avaliação</p>
-                <p className="mt-1 text-lg font-semibold text-orange-700">{proximaAvaliacao.titulo}</p>
-                <p className="text-sm text-orange-700/90">{formatLongDate(proximaAvaliacao.data)}</p>
-                {typeof proximaAvaliacao.valor === 'number' && (
-                  <p className="text-xs text-orange-700/80">
-                    Vale {proximaAvaliacao.valor.toFixed(1)} pontos
-                  </p>
-                )}
-              </div>
-            )}
-          </CardBody>
-        </Card>
-
-        <Card className="h-full">
-          <CardBody className="space-y-6">
-            <div>
-              <CardTitle>Próximos conteúdos</CardTitle>
-              <CardSub>Saiba o que será trabalhado nas próximas aulas</CardSub>
-            </div>
-
-            {agendaLoading ? (
-              <div className="py-10 text-center text-sm text-slate-500">Carregando agenda…</div>
-            ) : agendaError ? (
-              <EmptyState message="Não foi possível carregar os próximos conteúdos." />
-            ) : proximosConteudos.length ? (
-              <div className="space-y-3">
-                {proximosConteudos.map((content) => (
-                  <div key={content.id} className="rounded-2xl border border-slate-200 px-4 py-3">
-                    <p className="text-sm font-medium text-slate-800">{content.titulo}</p>
-                    <p className="text-xs text-slate-500">{formatLongDate(content.data)}</p>
-                    {content.descricao && (
-                      <p className="mt-2 text-xs text-slate-500">{content.descricao}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyState message="Os próximos conteúdos aparecerão aqui assim que forem publicados." />
-            )}
-          </CardBody>
-        </Card>
-      </section>
-
-      <section>
-        <Card>
-          <CardBody className="space-y-6">
-            <div>
-              <CardTitle>Avisos recentes</CardTitle>
-              <CardSub>Comunicados da turma e do professor</CardSub>
-            </div>
-
-            {announcementsLoading ? (
-              <div className="py-10 text-center text-sm text-slate-500">Carregando avisos…</div>
-            ) : announcementsError ? (
-              <EmptyState message="Não foi possível carregar os avisos." />
-            ) : announcements.length ? (
-              <div className="space-y-4">
-                {announcements.map((announcement) => (
-                  <div key={announcement.id} className="rounded-2xl border border-slate-200 px-4 py-3">
-                    <p className="text-sm font-medium text-slate-800">{announcement.mensagem}</p>
-                    <p className="mt-1 text-xs text-slate-500">{formatLongDate(announcement.data)}</p>
-                    {announcement.origem && (
-                      <p className="text-xs text-slate-400">
-                        Fonte: {announcement.origem === 'class' ? 'Turma' : 'Professor'}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyState message="Você verá seus avisos importantes aqui." />
-            )}
-          </CardBody>
-        </Card>
-      </section>
-
-      <section className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-slate-800">Notas do bimestre</h2>
-            <p className="text-sm text-slate-500">Acompanhe sua pontuação acumulada nas avaliações</p>
-          </div>
-          <Tabs
-            items={BIMESTERS.map((value) => ({
-              key: String(value),
-              label: `${value}º bim.`,
-              isActive: term === value,
-              onClick: () => setTerm(value),
-            }))}
-          />
-        </div>
-
-        {gradesLoading ? (
-          <div className="rounded-2xl border border-slate-200 bg-white py-14 text-center text-sm text-slate-500">
-            Carregando notas…
-          </div>
-        ) : gradesError ? (
-          <EmptyState message="Não foi possível carregar as notas desse bimestre." />
-        ) : (
-          <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
-            <Card className="overflow-hidden">
-              <CardBody>
-                <div className="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-orange-600">
-                    Pontuação acumulada
-                  </p>
-                  <p className="mt-1 text-3xl font-bold text-orange-700">{pontuacaoAcumulada.toFixed(1)}</p>
-                  <p className="text-xs text-orange-700/80">
-                    Soma das notas registradas neste bimestre selecionado
-                  </p>
+              <>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <StatCard
+                    label="Pontuação do bimestre"
+                    value={pontuacaoAcumulada.toFixed(1)}
+                    hint="Soma das notas lançadas"
+                  />
+                  <StatCard
+                    label="Média das atividades"
+                    value={mediaAtividades !== null ? mediaAtividades.toFixed(1) : '—'}
+                    hint="Calculada nas avaliações registradas"
+                  />
+                  <StatCard
+                    label="Atividades avaliadas"
+                    value={String(totalAtividades)}
+                    hint="Notas publicadas neste período"
+                  />
                 </div>
 
-                <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200">
+                <div className="overflow-hidden rounded-2xl border border-slate-200">
                   <table className="min-w-full divide-y divide-slate-200 text-sm">
                     <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                       <tr>
@@ -513,37 +408,22 @@ export default function ResumoAlunoPage() {
                       ) : (
                         <tr>
                           <td colSpan={4} className="px-4 py-6 text-center text-sm text-slate-500">
-                            Ainda não há atividades registradas neste bimestre.
+                            Nenhuma nota lançada para o bimestre selecionado.
                           </td>
                         </tr>
                       )}
                     </tbody>
                   </table>
                 </div>
-              </CardBody>
-            </Card>
 
-            <div className="space-y-4">
-              <StatCard
-                label="Média das atividades"
-                value={mediaAtividades !== null ? mediaAtividades.toFixed(1) : '—'}
-                hint="Calculada com base nas avaliações lançadas"
-              />
-              <StatCard
-                label="Atividades avaliadas"
-                value={String(totalAtividades)}
-                hint="Quantidade de notas registradas"
-              />
-              <Card>
-                <CardBody className="space-y-3">
-                  <CardTitle>Histórico por bimestre</CardTitle>
-                  <CardSub>Veja a evolução da pontuação ao longo do ano</CardSub>
+                <div className="rounded-2xl border border-slate-200 bg-white/60 px-4 py-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pontuação por bimestre</p>
                   {resumoPorBimestre.length ? (
-                    <div className="space-y-2">
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
                       {resumoPorBimestre.map((item) => (
                         <div
                           key={item.bimester}
-                          className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3"
+                          className="flex items-center justify-between rounded-xl bg-white px-4 py-3 shadow-sm"
                         >
                           <div>
                             <p className="text-sm font-semibold text-slate-700">{item.bimester}º bimestre</p>
@@ -558,13 +438,124 @@ export default function ResumoAlunoPage() {
                       ))}
                     </div>
                   ) : (
-                    <EmptyState message="Os bimestres anteriores aparecerão aqui assim que houver registros." />
+                    <p className="mt-3 text-xs text-slate-500">
+                      Os bimestres aparecerão aqui assim que houver notas registradas.
+                    </p>
                   )}
-                </CardBody>
-              </Card>
+                </div>
+              </>
+            )}
+          </CardBody>
+        </Card>
+
+        <Card className="h-full">
+          <CardBody className="space-y-6">
+            <div>
+              <CardTitle>Próximas avaliações</CardTitle>
+              <CardSub>Fique de olho nas provas agendadas para a sua turma</CardSub>
             </div>
-          </div>
-        )}
+
+            {agendaLoading ? (
+              <div className="py-10 text-center text-sm text-slate-500">Carregando agenda…</div>
+            ) : agendaError ? (
+              <EmptyState message="Não foi possível carregar as avaliações." />
+            ) : proximasAvaliacoes.length ? (
+              <div className="space-y-4">
+                {proximasAvaliacoes.map((evaluation) => (
+                  <div
+                    key={evaluation.id}
+                    className="flex items-start justify-between rounded-2xl border border-slate-200 px-4 py-3"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">{evaluation.titulo}</p>
+                      <p className="text-xs text-slate-500">{formatLongDate(evaluation.data)}</p>
+                    </div>
+                    <span className="text-xs font-semibold text-orange-500">
+                      {typeof evaluation.valor === 'number' ? `${evaluation.valor.toFixed(1)} pts` : 'Sem valor'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState message="Nenhuma avaliação nas próximas semanas." />
+            )}
+
+            {proximaAvaliacao && (
+              <div className="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4">
+                <p className="text-xs font-semibold text-orange-600">Próxima avaliação</p>
+                <p className="mt-1 text-lg font-semibold text-orange-700">{proximaAvaliacao.titulo}</p>
+                <p className="text-sm text-orange-700/90">{formatLongDate(proximaAvaliacao.data)}</p>
+                {typeof proximaAvaliacao.valor === 'number' && (
+                  <p className="text-xs text-orange-700/80">
+                    Vale {proximaAvaliacao.valor.toFixed(1)} pontos
+                  </p>
+                )}
+              </div>
+            )}
+          </CardBody>
+        </Card>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-2">
+        <Card className="h-full">
+          <CardBody className="space-y-6">
+            <div>
+              <CardTitle>Próximos conteúdos</CardTitle>
+              <CardSub>Confira o que será trabalhado nas próximas aulas</CardSub>
+            </div>
+
+            {agendaLoading ? (
+              <div className="py-10 text-center text-sm text-slate-500">Carregando agenda…</div>
+            ) : agendaError ? (
+              <EmptyState message="Não foi possível carregar os próximos conteúdos." />
+            ) : proximosConteudos.length ? (
+              <div className="space-y-3">
+                {proximosConteudos.map((content) => (
+                  <div key={content.id} className="rounded-2xl border border-slate-200 px-4 py-3">
+                    <p className="text-sm font-medium text-slate-800">{content.titulo}</p>
+                    <p className="text-xs text-slate-500">{formatLongDate(content.data)}</p>
+                    {content.descricao && (
+                      <p className="mt-2 text-xs text-slate-500">{content.descricao}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState message="Os próximos conteúdos aparecerão aqui assim que forem publicados." />
+            )}
+          </CardBody>
+        </Card>
+
+        <Card className="h-full">
+          <CardBody className="space-y-6">
+            <div>
+              <CardTitle>Avisos recentes</CardTitle>
+              <CardSub>Mensagens importantes da sua turma</CardSub>
+            </div>
+
+            {announcementsLoading ? (
+              <div className="py-10 text-center text-sm text-slate-500">Carregando avisos…</div>
+            ) : announcementsError ? (
+              <EmptyState message="Não foi possível carregar os avisos." />
+            ) : announcements.length ? (
+              <div className="space-y-4">
+                {announcements.map((announcement) => (
+                  <div key={announcement.id} className="rounded-2xl border border-slate-200 px-4 py-3">
+                    <p className="text-sm font-medium text-slate-800">{announcement.mensagem}</p>
+                    <p className="mt-1 text-xs text-slate-500">{formatLongDate(announcement.data)}</p>
+                    {announcement.origem && (
+                      <p className="text-xs text-slate-400">
+                        Fonte: {announcement.origem === 'class' ? 'Turma' : 'Professor'}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState message="Você verá seus avisos importantes aqui." />
+            )}
+          </CardBody>
+        </Card>
       </section>
     </div>
   );

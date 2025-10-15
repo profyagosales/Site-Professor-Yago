@@ -6,10 +6,10 @@ import QuickContentModal from '@/components/QuickContentModal'
 import AnnouncementModal from '@/components/AnnouncementModal'
 import { getCurrentUser } from '@/services/auth'
 import { listMyClasses, mergeCalendars, getClassDetails } from '@/services/classes.service'
-import { listUpcomingContents } from '@/services/contents'
 import { useAuth } from '@/store/AuthContext'
 import { Button } from '@/components/ui/Button'
-import { MediaGeralPorBimestre } from '@/components/dashboard/MediaGeralPorBimestre'
+import MediaGeralBimestreCard from '@/components/dashboard/MediaGeralBimestreCard'
+import ResumoConteudosCard from '@/components/dashboard/ResumoConteudosCard'
 
 /*
 // Snippet opcional para habilitar o widget da agenda semanal
@@ -521,9 +521,9 @@ function DashboardProfessor(){
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] xl:items-start">
-        <div className="flex flex-col items-stretch">
-          <div className="mx-auto w-full max-w-3xl rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100 lg:mx-0">
+      <div className="grid gap-6 lg:grid-cols-12">
+        <section className="lg:col-span-7">
+          <div className="mx-auto w-full max-w-[980px] rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100 lg:mx-0">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-slate-800">Quadro semanal</h2>
@@ -569,9 +569,9 @@ function DashboardProfessor(){
               </div>
             </div>
           </div>
-        </div>
+        </section>
 
-        <div className="flex flex-col gap-6">
+        <aside className="space-y-6 lg:col-span-5">
           <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-slate-800">Destaques próximos</h2>
@@ -678,10 +678,16 @@ function DashboardProfessor(){
               )}
             </div>
           </div>
-        </div>
-      </section>
+        </aside>
 
-      <MediaGeralPorBimestre classes={classSummaries} classNames={classNameMap} />
+        <section className="lg:col-span-7">
+          <ResumoConteudosCard />
+        </section>
+
+        <section className="lg:col-span-12">
+          <MediaGeralBimestreCard />
+        </section>
+      </div>
 
       <SendEmailModal isOpen={showEmail} onClose={() => setShowEmail(false)} />
       <QuickContentModal open={contentOpen} onClose={() => setContentOpen(false)} onSaved={reloadContents} />

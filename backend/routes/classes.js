@@ -18,6 +18,7 @@ const studentNotesController = require('../controllers/studentNotesController');
 const studentEmailController = require('../controllers/studentEmailController');
 const classQuickActionsController = require('../controllers/classQuickActionsController');
 const StudentGrade = require('../models/StudentGrade');
+const { resolveClassAccess } = require('../services/acl');
 
 const router = express.Router();
 const upload = multer();
@@ -145,6 +146,192 @@ function collectTeacherIdsFromClass(klass) {
   }
 
   return Array.from(ids);
+}
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+const EMAIL_BATCH_SIZE = 50;
+
+function normalizeBooleanFlag(value) {
+  if (typeof value === 'string') {
+    return value.trim().toLowerCase() === 'true';
+  }
+  return Boolean(value);
+}
+
+function appendRecipient(target, { email, role, classId, name, onMissing, onInvalid }) {
+  const trimmed = toTrimmedString(email);
+  if (!trimmed) {
+    if (typeof onMissing === 'function') {
+      onMissing({ role, name, classId });
+    }
+    return false;
+  }
+
+  if (!EMAIL_REGEX.test(trimmed)) {
+    if (typeof onInvalid === 'function') {
+      onInvalid({ role, name, classId, value: email });
+    }
+    return false;
+  }
+
+  const key = trimmed.toLowerCase();
+  const entry = target.get(key);
+  if (entry) {
+    entry.roles.add(role);
+    if (classId) {
+      entry.classIds.add(String(classId));
+    }
+  } else {
+    const classIds = new Set();
+    if (classId) {
+      classIds.add(String(classId));
+    }
+    target.set(key, {
+      email: trimmed,
+      roles: new Set([role]),
+      classIds,
+    });
+  }
+
+  return true;
+}
+
+function mergeRecipientMaps(destination, source) {
+  source.forEach((entry, key) => {
+    const existing = destination.get(key);
+    if (existing) {
+      entry.roles.forEach((role) => existing.roles.add(role));
+      entry.classIds.forEach((classId) => existing.classIds.add(classId));
+    } else {
+      destination.set(key, {
+        email: entry.email,
+        roles: new Set(entry.roles),
+        classIds: new Set(entry.classIds),
+      });
+    }
+  });
+}
+
+function summarizeRecipientsMap(recipientMap) {
+  const emails = [];
+  let students = 0;
+  let teachers = 0;
+  recipientMap.forEach((entry) => {
+    emails.push(entry.email);
+    if (entry.roles.has('student')) {
+      students += 1;
+    }
+    if (entry.roles.has('teacher')) {
+      teachers += 1;
+    }
+  });
+  return { emails, students, teachers };
+}
+
+function chunkArray(items, size) {
+  if (!Array.isArray(items) || size <= 0) {
+    return [];
+  }
+  const batches = [];
+  for (let index = 0; index < items.length; index += size) {
+    batches.push(items.slice(index, index + size));
+  }
+  return batches;
+}
+
+async function dispatchBccEmails(recipients, { subject, html, text, replyTo }) {
+  const batches = chunkArray(recipients, EMAIL_BATCH_SIZE);
+  if (batches.length === 0) {
+    return [];
+  }
+
+  const responses = [];
+  for (const batch of batches) {
+    const info = await sendEmail({
+      bcc: batch,
+      subject,
+      html,
+      text,
+      replyTo,
+    });
+    responses.push(info);
+    if (batches.length > 1) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+  return responses;
+}
+
+function htmlToPlainText(html) {
+  if (!html) return '';
+  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+async function collectClassRecipients(classId, { copyTeachers }) {
+  const klass = await Class.findById(classId)
+    .select('name series letter discipline subject teacherIds teachers responsibleTeacherId')
+    .lean();
+
+  if (!klass) {
+    const error = new Error('Turma não encontrada');
+    error.status = 404;
+    throw error;
+  }
+
+  const recipients = new Map();
+  const missingStudents = [];
+  const missingTeachers = [];
+
+  const students = await Student.find({ class: classId })
+    .select('name email')
+    .lean();
+
+  students.forEach((student) => {
+    appendRecipient(recipients, {
+      email: student.email,
+      role: 'student',
+      classId,
+      name: student.name,
+      onMissing: ({ name: missingName }) => {
+        missingStudents.push(missingName || 'Aluno sem nome');
+      },
+      onInvalid: ({ name: invalidName, value }) => {
+        const label = invalidName || value || 'Aluno';
+        missingStudents.push(`${label} (e-mail inválido)`);
+      },
+    });
+  });
+
+  if (copyTeachers) {
+    const teacherIds = collectTeacherIdsFromClass(klass);
+    if (teacherIds.length) {
+      const teachers = await Teacher.find({ _id: { $in: teacherIds } })
+        .select('name email')
+        .lean();
+      teachers.forEach((teacher) => {
+        appendRecipient(recipients, {
+          email: teacher.email,
+          role: 'teacher',
+          classId,
+          name: teacher.name,
+          onMissing: ({ name: missingName }) => {
+            missingTeachers.push(missingName || 'Professor sem nome');
+          },
+          onInvalid: ({ name: invalidName, value }) => {
+            const label = invalidName || value || 'Professor';
+            missingTeachers.push(`${label} (e-mail inválido)`);
+          },
+        });
+      });
+    }
+  }
+
+  return {
+    classId: String(klass._id),
+    recipients,
+    missingStudents,
+    missingTeachers,
+  };
 }
 
 const VALID_TERMS = [1, 2, 3, 4];
@@ -819,7 +1006,7 @@ router.post('/:id/email', authRequired, ensureTeacher, ensureClassTeacher, async
     const subject = toTrimmedString(req.body?.subject);
     const htmlInput = toTrimmedString(req.body?.html);
     const textInput = toTrimmedString(req.body?.text);
-    const includeTeachers = req.body?.includeTeachers === true || req.body?.includeTeachers === 'true';
+    const copyTeachers = normalizeBooleanFlag(req.body?.copyTeachers ?? req.body?.includeTeachers);
 
     if (!subject) {
       const error = new Error('Informe o assunto do e-mail.');
@@ -827,136 +1014,211 @@ router.post('/:id/email', authRequired, ensureTeacher, ensureClassTeacher, async
       throw error;
     }
 
-    if (!htmlInput && !textInput) {
+    let html = htmlInput;
+    if (!html && textInput) {
+      html = textToHtml(textInput);
+    }
+
+    if (!html) {
       const error = new Error('Informe a mensagem do e-mail.');
       error.status = 400;
       throw error;
     }
 
-    const klass = await Class.findById(id)
-      .select('name teachers teacherIds responsibleTeacherId')
-      .lean();
+    const recipientsPayload = await collectClassRecipients(id, { copyTeachers });
+    const summary = summarizeRecipientsMap(recipientsPayload.recipients);
 
-    if (!klass) {
-      const error = new Error('Turma não encontrada');
-      error.status = 404;
-      throw error;
-    }
-
-    const students = await Student.find({ class: id })
-      .select('name email')
-      .lean();
-
-    const recipientsMap = new Map();
-    const duplicateEmails = new Set();
-    const missingStudents = [];
-    const missingTeachers = [];
-
-    const pushRecipient = (email, role, name) => {
-      const trimmed = toTrimmedString(email);
-      if (!trimmed) {
-        if (role === 'student') {
-          missingStudents.push(name || 'Estudante sem nome');
-        } else if (role === 'teacher') {
-          missingTeachers.push(name || 'Professor sem nome');
-        }
-        return;
-      }
-      const normalized = trimmed.toLowerCase();
-      if (recipientsMap.has(normalized)) {
-        duplicateEmails.add(trimmed);
-        const current = recipientsMap.get(normalized);
-        current.roles.add(role);
-        current.names.add(name || trimmed);
-        return;
-      }
-      recipientsMap.set(normalized, {
-        email: trimmed,
-        roles: new Set([role]),
-        names: new Set(name ? [name] : []),
-      });
-    };
-
-    students.forEach((student) => {
-      pushRecipient(student.email, 'student', student.name);
-    });
-
-    if (includeTeachers) {
-      const teacherIds = collectTeacherIdsFromClass(klass);
-      if (teacherIds.length > 0) {
-        const teachers = await Teacher.find({ _id: { $in: teacherIds } })
-          .select('name email')
-          .lean();
-        teachers.forEach((teacher) => {
-          pushRecipient(teacher.email, 'teacher', teacher.name);
-        });
-      }
-    }
-
-    if (recipientsMap.size === 0) {
-      const error = new Error('Nenhum destinatário com e-mail cadastrado.');
+    if (summary.emails.length === 0) {
+      const error = new Error('Turma sem e-mails cadastrados.');
       error.status = 400;
-      error.meta = {
-        missingStudents,
-        missingTeachers,
-      };
       throw error;
     }
 
-    const allRecipients = Array.from(recipientsMap.values());
-    const recipientEmails = allRecipients.map((entry) => entry.email);
-    const studentsSent = allRecipients.filter((entry) => entry.roles.has('student')).length;
-    const teachersSent = allRecipients.filter((entry) => entry.roles.has('teacher')).length;
+    const replyTo = toTrimmedString(req.body?.replyTo) || process.env.EMAIL_REPLY_TO || process.env.SMTP_USER;
+    const text = textInput || htmlToPlainText(html);
 
-    const plainText = textInput || (htmlInput ? htmlInput.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : '');
-    const fallbackHtml = textInput ? textToHtml(textInput) : '';
-    const html = htmlInput || fallbackHtml;
-
-    const info = await sendEmail({
-      to: null,
-      bcc: recipientEmails,
+    await dispatchBccEmails(summary.emails, {
       subject,
-      html: html || undefined,
-      text: plainText || undefined,
+      html,
+      text: text || undefined,
+      replyTo: replyTo || undefined,
     });
 
-    const warnings = [];
-    if (missingStudents.length > 0) {
-      warnings.push(`${missingStudents.length} aluno(s) sem e-mail cadastrado.`);
-    }
-    if (includeTeachers && missingTeachers.length > 0) {
-      warnings.push(`${missingTeachers.length} professor(es) sem e-mail cadastrado.`);
-    }
-    if (duplicateEmails.size > 0) {
-      warnings.push(`${duplicateEmails.size} e-mail(s) removido(s) por duplicidade.`);
-    }
-
-    const baseMessage = `E-mail enviado para ${recipientEmails.length} destinatário(s).`;
-    const message = warnings.length > 0 ? `${baseMessage} ${warnings.join(' ')}` : baseMessage;
-
-    res.status(200).json({
+    res.json({
       success: true,
-      message,
-      data: {
-        recipients: recipientEmails,
-        stats: {
-          totalSent: recipientEmails.length,
-          studentsSent,
-          teachersSent,
-          includeTeachers,
-        },
-        skipped: {
-          studentsWithoutEmail: missingStudents,
-          teachersWithoutEmail: missingTeachers,
-          duplicateEmails: Array.from(duplicateEmails),
-        },
-        messageId: info?.messageId || null,
+      sent: summary.emails.length,
+      stats: {
+        students: summary.students,
+        teachers: summary.teachers,
+        copyTeachers,
+      },
+      skipped: {
+        studentsWithoutEmail: recipientsPayload.missingStudents,
+        teachersWithoutEmail: recipientsPayload.missingTeachers,
       },
     });
   } catch (err) {
     if (!err.status) {
       err.status = 500;
       err.message = 'Erro ao enviar e-mail para a turma';
+    }
+    next(err);
+  }
+});
+
+router.post('/email-bulk', authRequired, ensureTeacher, async (req, res, next) => {
+  try {
+    const subject = toTrimmedString(req.body?.subject);
+    const htmlInput = toTrimmedString(req.body?.html);
+    const textInput = toTrimmedString(req.body?.text);
+    const copyTeachers = normalizeBooleanFlag(req.body?.copyTeachers ?? req.body?.includeTeachers);
+
+    if (!subject) {
+      const error = new Error('Informe o assunto do e-mail.');
+      error.status = 400;
+      throw error;
+    }
+
+    let html = htmlInput;
+    if (!html && textInput) {
+      html = textToHtml(textInput);
+    }
+
+    if (!html) {
+      const error = new Error('Informe a mensagem do e-mail.');
+      error.status = 400;
+      throw error;
+    }
+
+    const explicitClassIds = Array.isArray(req.body?.classIds) ? req.body.classIds : [];
+    const explicitEmails = Array.isArray(req.body?.emails) ? req.body.emails : [];
+    const legacyRecipients = Array.isArray(req.body?.recipients)
+      ? req.body.recipients
+      : Array.isArray(req.body?.to)
+        ? req.body.to
+        : [];
+
+    const classIdSet = new Set();
+    const manualEmailSet = new Set();
+
+    explicitClassIds.forEach((value) => {
+      if (typeof value === 'string' && value.trim()) {
+        classIdSet.add(value.trim());
+      }
+    });
+
+    explicitEmails.forEach((value) => {
+      if (typeof value === 'string' && value.trim()) {
+        manualEmailSet.add(value.trim());
+      }
+    });
+
+    legacyRecipients.forEach((value) => {
+      if (typeof value !== 'string') return;
+      const trimmed = value.trim();
+      if (!trimmed) return;
+      if (isValidObjectId(trimmed)) {
+        classIdSet.add(trimmed);
+      } else {
+        manualEmailSet.add(trimmed);
+      }
+    });
+
+    const invalidClassIds = [];
+    const validClassIds = [];
+    classIdSet.forEach((value) => {
+      if (isValidObjectId(value)) {
+        validClassIds.push(value);
+      } else {
+        invalidClassIds.push(value);
+      }
+    });
+
+    if (invalidClassIds.length) {
+      const error = new Error(`Turma inválida: ${invalidClassIds[0]}`);
+      error.status = 400;
+      throw error;
+    }
+
+    if (!validClassIds.length && manualEmailSet.size === 0) {
+      const error = new Error('Informe ao menos uma turma ou e-mail.');
+      error.status = 400;
+      throw error;
+    }
+
+    for (const classId of validClassIds) {
+      const access = await resolveClassAccess(classId, req.user);
+      if (!access?.ok) {
+        const error = new Error('Acesso restrito aos professores da turma.');
+        error.status = 403;
+        throw error;
+      }
+    }
+
+    const combinedRecipients = new Map();
+    const missingStudents = new Set();
+    const missingTeachers = new Set();
+
+    for (const classId of validClassIds) {
+      const payload = await collectClassRecipients(classId, { copyTeachers });
+      mergeRecipientMaps(combinedRecipients, payload.recipients);
+      payload.missingStudents.forEach((item) => missingStudents.add(item));
+      payload.missingTeachers.forEach((item) => missingTeachers.add(item));
+    }
+
+    const invalidManualEmails = [];
+    manualEmailSet.forEach((value) => {
+      appendRecipient(combinedRecipients, {
+        email: value,
+        role: 'manual',
+        onInvalid: ({ value: invalidValue }) => {
+          invalidManualEmails.push(invalidValue);
+        },
+      });
+    });
+
+    if (invalidManualEmails.length) {
+      const error = new Error(`Destinatário inválido: ${invalidManualEmails[0]}`);
+      error.status = 400;
+      throw error;
+    }
+
+    const summary = summarizeRecipientsMap(combinedRecipients);
+
+    if (summary.emails.length === 0) {
+      const error = new Error('Nenhum destinatário válido.');
+      error.status = 400;
+      throw error;
+    }
+
+    const replyTo = toTrimmedString(req.body?.replyTo) || process.env.EMAIL_REPLY_TO || process.env.SMTP_USER;
+    const text = textInput || htmlToPlainText(html);
+
+    await dispatchBccEmails(summary.emails, {
+      subject,
+      html,
+      text: text || undefined,
+      replyTo: replyTo || undefined,
+    });
+
+    res.json({
+      success: true,
+      sent: summary.emails.length,
+      stats: {
+        students: summary.students,
+        teachers: summary.teachers,
+        copyTeachers,
+        classes: validClassIds.length,
+      },
+      skipped: {
+        studentsWithoutEmail: Array.from(missingStudents),
+        teachersWithoutEmail: Array.from(missingTeachers),
+      },
+    });
+  } catch (err) {
+    if (!err.status) {
+      err.status = 500;
+      err.message = 'Erro ao enviar e-mails das turmas';
     }
     next(err);
   }

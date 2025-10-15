@@ -1,20 +1,26 @@
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
+function resolvePort() {
+  const raw = Number(process.env.SMTP_PORT);
+  if (Number.isFinite(raw) && raw > 0) {
+    return raw;
+  }
+  return 465;
+}
+
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: process.env.SMTP_SECURE === 'true',
+  port: resolvePort(),
+  secure: true,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
-  requireTLS: true,
+  connectionTimeout: 30000,
+  greetingTimeout: 20000,
+  socketTimeout: 30000,
   tls: { minVersion: 'TLSv1.2' },
-  connectionTimeout: 15000,
-  greetingTimeout: 10000,
-  socketTimeout: 20000,
-  family: process.env.SMTP_FAMILY ? Number(process.env.SMTP_FAMILY) : undefined,
 });
 
 async function sendEmail({ to, bcc, subject, html, text, attachments, replyTo } = {}) {

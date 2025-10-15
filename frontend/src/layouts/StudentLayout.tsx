@@ -1,7 +1,7 @@
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '@/store/AuthContext';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getStudentProfile } from '@/services/student';
+import { getStudentProfile, getStudentYearSummary, listStudentUpcomingExams } from '@/services/student';
 
 export type StudentLayoutProfile = {
   id: string;
@@ -18,7 +18,21 @@ export type StudentLayoutContextValue = {
   profile: StudentLayoutProfile | null;
   loading: boolean;
   reload: () => Promise<void>;
+  metrics: StudentHighlights;
 };
+
+export type StudentHighlights = {
+  loading: boolean;
+  totalScore: number | null;
+  upcomingCount: number | null;
+  nextEvaluationDate: string | null;
+  nextEvaluationTitle: string | null;
+};
+
+const HERO_DATE_FORMAT = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit',
+  month: 'long',
+});
 
 function deriveClassName(turma: any): string | null {
   if (!turma) return null;
@@ -59,6 +73,13 @@ export default function StudentLayout() {
   const { logout } = useAuth();
   const [profile, setProfile] = useState<StudentLayoutProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [metrics, setMetrics] = useState<StudentHighlights>({
+    loading: true,
+    totalScore: null,
+    upcomingCount: null,
+    nextEvaluationDate: null,
+    nextEvaluationTitle: null,
+  });
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -74,6 +95,67 @@ export default function StudentLayout() {
   }, []);
 
   useEffect(() => {
+    if (!profile?.id) {
+      setMetrics((prev) => ({
+        ...prev,
+        loading: false,
+        totalScore: null,
+        upcomingCount: null,
+        nextEvaluationDate: null,
+        nextEvaluationTitle: null,
+      }));
+      return;
+    }
+
+    let cancelled = false;
+    const year = profile.classYear ?? new Date().getFullYear();
+
+    setMetrics((prev) => ({ ...prev, loading: true }));
+
+    const loadHighlights = async () => {
+      try {
+        const [summary, upcoming] = await Promise.all([
+          getStudentYearSummary(profile.id, year),
+          listStudentUpcomingExams(profile.id, { limit: 5, daysAhead: 90 }),
+        ]);
+
+        if (cancelled) return;
+
+        const totalScore = Number(summary?.pontuacaoAcumulada ?? summary?.total ?? 0);
+        const normalizedUpcoming = Array.isArray(upcoming) ? upcoming : [];
+        const nextExam = normalizedUpcoming[0] ?? null;
+        const nextDateRaw = nextExam?.date ?? nextExam?.data ?? null;
+        const nextTitle = nextExam?.title ?? nextExam?.titulo ?? null;
+
+        setMetrics({
+          loading: false,
+          totalScore: Number.isFinite(totalScore) ? totalScore : 0,
+          upcomingCount: normalizedUpcoming.length,
+          nextEvaluationDate: nextDateRaw ?? null,
+          nextEvaluationTitle: nextTitle ?? null,
+        });
+      } catch (error) {
+        console.error('[student-layout] Falha ao carregar destaques do aluno', error);
+        if (!cancelled) {
+          setMetrics({
+            loading: false,
+            totalScore: null,
+            upcomingCount: null,
+            nextEvaluationDate: null,
+            nextEvaluationTitle: null,
+          });
+        }
+      }
+    };
+
+    void loadHighlights();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.id, profile?.classYear]);
+
+  useEffect(() => {
     void loadProfile();
   }, [loadProfile]);
 
@@ -85,13 +167,35 @@ export default function StudentLayout() {
     profile,
     loading,
     reload: loadProfile,
-  }), [profile, loading, loadProfile]);
+    metrics,
+  }), [profile, loading, loadProfile, metrics]);
 
   const studentName = loading ? 'Carregando…' : profile?.name ?? 'Aluno';
   const classLabel = loading ? 'Carregando turma…' : profile?.className ?? 'Turma não informada';
   const rollNumber = profile?.number ?? '—';
   const email = profile?.email ?? '—';
   const phone = profile?.phone ?? '—';
+  const totalScoreLabel = metrics.loading
+    ? '—'
+    : metrics.totalScore !== null
+      ? metrics.totalScore.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+      : '—';
+
+  let nextEvaluationHint = 'Nenhuma avaliação nas próximas semanas.';
+  if (metrics.loading) {
+    nextEvaluationHint = 'Carregando próximas avaliações…';
+  } else if ((metrics.upcomingCount ?? 0) > 0 && metrics.nextEvaluationDate) {
+    const date = new Date(metrics.nextEvaluationDate);
+    if (!Number.isNaN(date.getTime())) {
+      nextEvaluationHint = `${HERO_DATE_FORMAT.format(date)}${metrics.nextEvaluationTitle ? ` • ${metrics.nextEvaluationTitle}` : ''}`;
+    } else if (metrics.nextEvaluationTitle) {
+      nextEvaluationHint = metrics.nextEvaluationTitle;
+    }
+  }
+
+  const upcomingCountLabel = metrics.loading
+    ? '—'
+    : String(metrics.upcomingCount ?? 0);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -149,6 +253,19 @@ export default function StudentLayout() {
               )
             )}
           </nav>
+
+          <div className="grid gap-4 pt-2 sm:grid-cols-2">
+            <div className="rounded-2xl border border-white/20 bg-white/10 px-5 py-4 shadow-inner shadow-white/5 backdrop-blur">
+              <p className="text-xs font-semibold uppercase tracking-wide text-white/80">Pontuação total</p>
+              <p className="mt-2 text-3xl font-semibold text-white">{totalScoreLabel}</p>
+              <p className="text-xs text-white/80">Soma das suas notas no ano atual</p>
+            </div>
+            <div className="rounded-2xl border border-white/20 bg-white/10 px-5 py-4 shadow-inner shadow-white/5 backdrop-blur">
+              <p className="text-xs font-semibold uppercase tracking-wide text-white/80">Próximas avaliações</p>
+              <p className="mt-2 text-3xl font-semibold text-white">{upcomingCountLabel}</p>
+              <p className="text-xs text-white/80">{nextEvaluationHint}</p>
+            </div>
+          </div>
         </div>
       </section>
 
