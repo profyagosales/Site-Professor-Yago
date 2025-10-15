@@ -3,7 +3,7 @@ import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api } from "@/services/api";
+import { api, setAuthToken } from "@/services/api";
 import { useAuth } from "@/store/AuthContext";
 
 export default function LoginProfessor() {
@@ -28,6 +28,7 @@ export default function LoginProfessor() {
       if (payload?.success && isTeacher) {
         if (token) {
           localStorage.setItem("auth_token", token);
+          setAuthToken(token);
         }
         localStorage.setItem("role", "teacher");
         if (teacherInfo) {
@@ -59,6 +60,9 @@ export default function LoginProfessor() {
 
       if (meIsTeacher) {
         localStorage.setItem("role", "teacher");
+        if (meData?.token) {
+          setAuthToken(meData.token);
+        }
         if (meData?.user) {
           try {
             localStorage.setItem("teacher", JSON.stringify(meData.user));

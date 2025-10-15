@@ -29,6 +29,15 @@ export const api = axios.create({
   withCredentials: true,
 });
 
+export function setAuthToken(token: string | null): void {
+  if (token) {
+    api.defaults.headers.common = api.defaults.headers.common || {};
+    (api.defaults.headers.common as Record<string, unknown>).Authorization = `Bearer ${token}`;
+  } else if (api.defaults.headers.common?.Authorization) {
+    delete (api.defaults.headers.common as Record<string, unknown>).Authorization;
+  }
+}
+
 // Evita cache nos GET quando meta.noCache for true
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   try {

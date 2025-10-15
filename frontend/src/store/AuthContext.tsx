@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { fetchMe, doLogout, SessionUser } from '@/services/session';
+import { setAuthToken } from '@/services/api';
 
 const KEEP_ALIVE_INTERVAL = 10 * 60 * 1000;
 
@@ -102,6 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('role');
       localStorage.removeItem('teacher');
+      setAuthToken(null);
     } catch {
       // ignore storage errors (private mode, etc.)
     }

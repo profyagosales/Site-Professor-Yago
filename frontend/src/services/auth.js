@@ -1,4 +1,5 @@
 import { api } from '@/lib/api';
+import { setAuthToken } from '@/services/api';
 
 export const getRole = () => localStorage.getItem('role');
 
@@ -19,7 +20,10 @@ export const loginTeacher = async (payload) => {
   const { data } = await api.post('/auth/login-teacher', payload);
   if (data?.success) {
     const t = data?.data?.token;
-    if (t) localStorage.setItem('auth_token', t);
+    if (t) {
+      localStorage.setItem('auth_token', t);
+      setAuthToken(t);
+    }
     localStorage.setItem('role', 'teacher');
   }
   return data;
@@ -29,7 +33,10 @@ export const loginStudent = async ({ email, password }) => {
   const { data } = await api.post('/auth/login-student', { email, password });
   if (data?.success) {
     const t = data?.data?.token;
-    if (t) localStorage.setItem('auth_token', t);
+    if (t) {
+      localStorage.setItem('auth_token', t);
+      setAuthToken(t);
+    }
     localStorage.setItem('role', 'student');
   }
   return data;
@@ -42,6 +49,7 @@ export async function logout() {
     // ignore logout errors (e.g., already logged out)
   }
   localStorage.removeItem('auth_token');
+  setAuthToken(null);
   localStorage.removeItem('role');
   localStorage.removeItem('teacher');
 }
