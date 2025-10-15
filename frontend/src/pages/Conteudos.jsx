@@ -30,7 +30,8 @@ function Conteudos() {
     setLoading(true);
     Promise.all([listContents(), listClasses()])
       .then(([cts, cls]) => {
-        setContents(arrify(cts));
+        const contentItems = Array.isArray(cts?.items) ? cts.items : arrify(cts);
+        setContents(contentItems);
         setClasses(arrify(cls));
       })
       .catch(() => toast.error('Erro ao carregar dados'))
@@ -53,7 +54,19 @@ function Conteudos() {
   const handleSubmit = (e) => {
     e.preventDefault();
     const data = { ...form, bimester: Number(form.bimester) };
-    const action = editing ? updateContent(editing._id, data) : createContent(data);
+
+    let action;
+    if (editing) {
+      const contentId = editing?._id || editing?.id;
+      if (!contentId) {
+        toast.error('Conteúdo inválido.');
+        return;
+      }
+      action = updateContent(contentId, data);
+    } else {
+      action = createContent(data);
+    }
+
     action
       .then(() => {
         toast.success('Conteúdo salvo com sucesso');
@@ -80,7 +93,7 @@ function Conteudos() {
 
   const handleDelete = (id) => {
     if (!window.confirm('Deseja excluir este conteúdo?')) return;
-    deleteContent(id)
+  deleteContent(id)
       .then(() => {
         toast.success('Conteúdo removido');
         loadData();
@@ -89,7 +102,12 @@ function Conteudos() {
   };
 
   const toggleDone = (item) => {
-    updateContent(item._id, { done: !item.done })
+    const contentId = item?._id || item?.id;
+    if (!contentId) {
+      toast.error('Conteúdo inválido.');
+      return;
+    }
+    updateContent(contentId, { done: !item.done })
       .then(() => {
         toast.success('Conteúdo atualizado');
         loadData();

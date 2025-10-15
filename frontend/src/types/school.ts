@@ -51,6 +51,7 @@ export interface StudentGrade {
 
 export interface ContentItem {
   id: string;
+  _id?: string;
   classId: string;
   className: string;
   bimester: 1 | 2 | 3 | 4;
@@ -58,6 +59,8 @@ export interface ContentItem {
   description?: string;
   date: string;
   done: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface StudentNote {
