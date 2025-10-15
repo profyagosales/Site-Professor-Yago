@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
-import ptBR from 'date-fns/locale/pt-BR';
+import { ptBR } from 'date-fns/locale';
 import { api } from '@/services/api';
 
 type ConteudoTipo = 'ATIVIDADE' | 'CONTEUDO' | 'DATA';
@@ -134,7 +135,9 @@ export default function ResumoConteudosCard() {
     <div className="rounded-2xl bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-lg font-semibold text-slate-700">Resumo de conteúdos</h3>
-        <a href="/professor/conteudos" className="text-orange-600 hover:underline">Ver todos</a>
+        <Link to="/professor/conteudos" className="text-orange-600 hover:underline">
+          Ver todos
+        </Link>
       </div>
 
       {loading ? (

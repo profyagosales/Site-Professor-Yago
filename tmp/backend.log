@@ -1,0 +1,8 @@
+nohup: ignoring input
+[dotenv@17.2.1] injecting env (2) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.2.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[email] SMTP credentials missing – using JSON transport for outgoing mail.
+[boot] API_PREFIX = /api
+[DB] MongoDB em memória iniciado (v8.0.4): mongodb://127.0.0.1:45707/
+MongoDB Connected: 127.0.0.1
+[boot] API listening on 5050

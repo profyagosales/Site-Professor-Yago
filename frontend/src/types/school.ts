@@ -49,6 +49,17 @@ export interface StudentGrade {
   updatedAt: string;
 }
 
+export interface ContentItem {
+  id: string;
+  classId: string;
+  className: string;
+  bimester: 1 | 2 | 3 | 4;
+  title: string;
+  description?: string;
+  date: string;
+  done: boolean;
+}
+
 export interface StudentNote {
   _id: string;
   studentId: string;

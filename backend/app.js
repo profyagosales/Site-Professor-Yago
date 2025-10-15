@@ -24,7 +24,10 @@ const pdfHealthRoutes = require('./routes/pdfHealth');
 const sessionRoutes = require('./routes/session');
 const dashboardRoutes = require('./routes/dashboard');
 const contentsRoutes = require('./routes/contents');
+const gradeActivitiesRoutes = require('./routes/gradeActivities');
 const themesRoutes = require('./routes/themes');
+const authMiddleware = require('./middleware/auth');
+const ensureTeacher = require('./middleware/ensureTeacher');
 
 const { corsOptions } = require('./corsConfig');
 
@@ -110,6 +113,10 @@ const api = express.Router();
 
 app.use(API_PREFIX + '/classes', classesRoutes);
 app.use(API_PREFIX + '/professor/classes', classesRoutes);
+app.use(API_PREFIX + '/contents', contentsRoutes);
+app.use(API_PREFIX + '/professor/conteudos', contentsRoutes);
+app.use(API_PREFIX, gradeActivitiesRoutes);
+app.use(API_PREFIX + '/professor', gradeActivitiesRoutes);
 
 // ENSAIO/PDF com compat de token — em /api/essays E /essays
 app.use((req, _res, next) => {
@@ -155,6 +162,12 @@ app.use(API_PREFIX + '/agenda', agendaRoutes);
 app.use(API_PREFIX + '/gerencial', gerencialRoutes);
 app.use(API_PREFIX, pdfHealthRoutes);
 app.use(API_PREFIX, sessionRoutes);
+app.get(
+  API_PREFIX + '/professor/conteudos-resumo',
+  authMiddleware,
+  ensureTeacher,
+  contentsRoutes.getSummary
+);
 
 // Em ambiente de teste, monte as rotas na raiz para compatibilidade com a suíte existente
 

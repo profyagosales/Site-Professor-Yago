@@ -34,6 +34,7 @@ import ListaAlunos from '@/pages/professor/alunos/ListaAlunos';
 import PerfilAluno from '@/pages/professor/alunos/PerfilAluno';
 import AlunoRedacoes from '@/pages/aluno/Redacoes';
 import AlunoNotas from '@/pages/aluno/Notas';
+import ConteudosPage from '@/pages/professor/Conteudos';
 // Opcional: console de telemetria em dev/admin (só monta quando VITE_FEATURE_TELEMETRY_VIEW=1)
 const DevTelemetryConsole = lazy(() => import(/* @vite-ignore */ '@/pages/DevTelemetryConsole'));
 
@@ -73,6 +74,7 @@ export const router = createBrowserRouter([
           { path: '/turmas', element: <Navigate to="/professor/classes" replace /> },
           { path: '/redacao', element: <Navigate to="/professor/redacao" replace /> },
           { path: '/professor/classes', element: <TeacherGuard><ClassesPage /></TeacherGuard> },
+          { path: '/professor/conteudos', element: <TeacherGuard><ConteudosPage /></TeacherGuard> },
           { path: '/professor/classes/:id', element: <TeacherGuard><ClassDetailPage /></TeacherGuard> },
           { path: '/professor/classes/:id/grades', element: <TeacherGuard><ClassGradesPage /></TeacherGuard> },
           {

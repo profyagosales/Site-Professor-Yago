@@ -1,27 +1,88 @@
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
-function resolvePort() {
-  const raw = Number(process.env.SMTP_PORT);
-  if (Number.isFinite(raw) && raw > 0) {
-    return raw;
-  }
-  return 465;
+const DEFAULT_PORT = 465;
+const DEFAULT_TIMEOUT = 30000;
+const DEFAULT_GREETING_TIMEOUT = 20000;
+
+function parseBoolean(value, fallback) {
+  if (value === undefined || value === null) return fallback;
+  const normalized = String(value).trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+  return fallback;
 }
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: resolvePort(),
-  secure: true,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-  connectionTimeout: 30000,
-  greetingTimeout: 20000,
-  socketTimeout: 30000,
-  tls: { minVersion: 'TLSv1.2' },
-});
+function resolveNumber(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function resolvePort() {
+  return resolveNumber(process.env.SMTP_PORT, DEFAULT_PORT);
+}
+
+function resolveSecure(port) {
+  if (process.env.SMTP_SECURE !== undefined) {
+    return parseBoolean(process.env.SMTP_SECURE, port === 465);
+  }
+  return port === 465;
+}
+
+function buildTransportOptions() {
+  const host = process.env.SMTP_HOST ? String(process.env.SMTP_HOST).trim() : '';
+  const user = process.env.SMTP_USER ? String(process.env.SMTP_USER).trim() : '';
+  const pass = process.env.SMTP_PASS ? String(process.env.SMTP_PASS).trim() : '';
+
+  if (!host || !user || !pass) {
+    console.warn('[email] SMTP credentials missing – using JSON transport for outgoing mail.');
+    return { jsonTransport: true }; // Stub transport keeps feature working in dev/test environments.
+  }
+
+  const port = resolvePort();
+  const secure = resolveSecure(port);
+
+  const transportOptions = {
+    host,
+    port,
+    secure,
+    auth: { user, pass },
+    connectionTimeout: resolveNumber(process.env.SMTP_CONNECTION_TIMEOUT, DEFAULT_TIMEOUT),
+    greetingTimeout: resolveNumber(process.env.SMTP_GREETING_TIMEOUT, DEFAULT_GREETING_TIMEOUT),
+    socketTimeout: resolveNumber(process.env.SMTP_SOCKET_TIMEOUT, DEFAULT_TIMEOUT),
+  };
+
+  const tlsOptions = {};
+  const minVersion = process.env.SMTP_TLS_MIN_VERSION || 'TLSv1.2';
+  if (minVersion) {
+    tlsOptions.minVersion = minVersion;
+  }
+  if (parseBoolean(process.env.SMTP_TLS_REJECT_UNAUTHORIZED, true) === false) {
+    tlsOptions.rejectUnauthorized = false;
+  }
+  if (process.env.SMTP_TLS_CIPHERS) {
+    tlsOptions.ciphers = process.env.SMTP_TLS_CIPHERS;
+  }
+  if (Object.keys(tlsOptions).length > 0) {
+    transportOptions.tls = tlsOptions;
+  }
+
+  if (parseBoolean(process.env.SMTP_IGNORE_TLS, false)) {
+    transportOptions.ignoreTLS = true;
+  }
+  if (parseBoolean(process.env.SMTP_REQUIRE_TLS, false)) {
+    transportOptions.requireTLS = true;
+  }
+  if (process.env.SMTP_NAME) {
+    transportOptions.name = process.env.SMTP_NAME;
+  }
+
+  return transportOptions;
+}
+
+const transportOptions = buildTransportOptions();
+const transporter = nodemailer.createTransport(transportOptions);
+const isStubTransport = Boolean(transportOptions.jsonTransport);
 
 async function sendEmail({ to, bcc, subject, html, text, attachments, replyTo } = {}) {
   const recipients = Array.isArray(to) ? to.filter(Boolean) : [to].filter(Boolean);
@@ -51,7 +112,18 @@ async function sendEmail({ to, bcc, subject, html, text, attachments, replyTo } 
     mailOptions.to = fromAddress;
   }
 
-  return transporter.sendMail(mailOptions);
+  const info = await transporter.sendMail(mailOptions);
+
+  if (isStubTransport) {
+    console.log('[email] Captured email via JSON transport:', {
+      subject: mailOptions.subject,
+      to: mailOptions.to,
+      bcc: mailOptions.bcc,
+      replyTo: mailOptions.replyTo,
+    });
+  }
+
+  return info;
 }
 
 module.exports = { transporter, sendEmail };
