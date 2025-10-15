@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const Teacher = require('../models/Teacher');
 const Student = require('../models/Student');
+const Class = require('../models/Class');
 const authRequired = require('../middleware/auth');
 const { loginTeacher } = require('../controllers/authController');
 
@@ -58,14 +59,22 @@ router.post('/login-student', async (req, res, next) => {
     }
 
     const student = await Student.findOne({ email: { $regex: `^${email}$`, $options: 'i' } })
-      .select('+passwordHash')
-      .lean();
+      .select('+passwordHash');
     if (!student) return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
 
     const ok = await bcrypt.compare(password, student.passwordHash || '');
     if (!ok) return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
 
     const studentId = String(student._id);
+    let classId = student.class;
+    if (!classId) {
+      const owningClass = await Class.findOne({ students: student._id }).select('_id');
+      if (owningClass) {
+        student.class = owningClass._id;
+        await student.save();
+        classId = owningClass._id;
+      }
+    }
     const token = setSessionCookie(res, {
       sub: studentId,
       id: studentId,
@@ -75,7 +84,7 @@ router.post('/login-student', async (req, res, next) => {
     res.json({
       success: true,
       message: 'Login ok (student)',
-      data: { token, student: { email: student.email } },
+      data: { token, student: { email: student.email, classId: classId ? String(classId) : null } },
     });
   } catch (err) {
     next(err);

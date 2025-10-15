@@ -1,99 +1,52 @@
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
-let transporter;
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT) || 587,
+  secure: process.env.SMTP_SECURE === 'true',
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+  requireTLS: true,
+  tls: { minVersion: 'TLSv1.2' },
+  connectionTimeout: 15000,
+  greetingTimeout: 10000,
+  socketTimeout: 20000,
+  family: process.env.SMTP_FAMILY ? Number(process.env.SMTP_FAMILY) : undefined,
+});
 
-async function createTransporter() {
-  if (transporter) {
-    return transporter;
-  }
-
-  const {
-    SMTP_HOST,
-    SMTP_PORT,
-    SMTP_USER,
-    SMTP_PASS,
-    NODE_ENV,
-    ZOHO_HOST,
-    ZOHO_PORT,
-    ZOHO_USER,
-    ZOHO_PASS
-  } = process.env;
-
-  const host = SMTP_HOST || ZOHO_HOST;
-  const port = SMTP_PORT || ZOHO_PORT;
-  const user = SMTP_USER || ZOHO_USER;
-  const pass = SMTP_PASS || ZOHO_PASS;
-
-  if (host && port && user && pass) {
-    transporter = nodemailer.createTransport({
-      host,
-      port: Number(port),
-      secure: Number(port) === 465,
-      auth: {
-        user,
-        pass
-      }
-    });
-  } else if (NODE_ENV !== 'production') {
-    const testAccount = await nodemailer.createTestAccount();
-    console.log('Usando conta de teste Ethereal:', testAccount.user);
-    transporter = nodemailer.createTransport({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      auth: {
-        user: testAccount.user,
-        pass: testAccount.pass
-      }
-    });
-  } else {
-    throw new Error('Configuração SMTP ausente');
-  }
-
-  return transporter;
-}
-
-async function sendEmail({ to, bcc, subject, html, text, attachments } = {}) {
-  const transport = await createTransporter();
-
+async function sendEmail({ to, bcc, subject, html, text, attachments, replyTo } = {}) {
   const recipients = Array.isArray(to) ? to.filter(Boolean) : [to].filter(Boolean);
   const bccRecipients = Array.isArray(bcc) ? bcc.filter(Boolean) : bcc ? [bcc] : [];
 
-  if (recipients.length === 0 && bccRecipients.length === 0) {
+  if (!recipients.length && !bccRecipients.length) {
     throw new Error('Nenhum destinatário informado');
   }
 
-  const defaultSender =
+  const fromAddress =
+    process.env.EMAIL_FROM ||
     process.env.SMTP_FROM ||
-    process.env.ZOHO_FROM ||
-    (transport.options.auth && transport.options.auth.user) ||
-    undefined;
-
-  const fromAddress = defaultSender || 'no-reply@classroom.local';
-
-  const toAddresses = recipients.length > 0 ? recipients : [fromAddress];
+    process.env.SMTP_USER;
 
   const mailOptions = {
     from: fromAddress,
-    to: toAddresses.join(', '),
+    to: recipients.length ? recipients : undefined,
+    bcc: bccRecipients.length ? bccRecipients : undefined,
     subject,
     html,
     text,
     attachments,
+    replyTo: replyTo || process.env.EMAIL_REPLY_TO || process.env.SMTP_USER,
   };
 
-  if (bccRecipients.length > 0) {
-    mailOptions.bcc = bccRecipients.join(', ');
+  if (!mailOptions.to) {
+    mailOptions.to = fromAddress;
   }
 
-  const info = await transport.sendMail(mailOptions);
-
-  if (transport.options.host === 'smtp.ethereal.email') {
-    console.log('URL de visualização: ' + nodemailer.getTestMessageUrl(info));
-  }
-
-  return info;
+  return transporter.sendMail(mailOptions);
 }
 
-module.exports = { sendEmail };
+module.exports = { transporter, sendEmail };
 

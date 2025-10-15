@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import PublicLayout from '@/layouts/PublicLayout';
 import AppShellLayout from '@/layouts/AppShellLayout';
+import StudentLayout from '@/layouts/StudentLayout';
 import PrivateRoute from '@/routes/PrivateRoute';
 import TeacherGuard from '@/routes/TeacherGuard';
 import GerencialGuard from '@/routes/GerencialGuard';
@@ -11,8 +12,7 @@ import LoginGerencial from '@/pages/gerencial/LoginGerencial';
 // @ts-expect-error legacy JSX module
 import DashboardProfessor from '@/pages/DashboardProfessor';
 import ResumoAlunoPage from '@/pages/aluno/Resumo';
-import PasUnbProfessorPage from '@/pages/professor/PasUnb';
-import PasUnbAlunoPage from '@/pages/aluno/PasUnb';
+import PasUnbPage from '@/pages/PasUnb';
 import { lazy, Suspense } from 'react';
 import GerencialLayout from '@/layouts/GerencialLayout';
 import GerencialTeachersPage from '@/pages/gerencial/GerencialTeachersPage';
@@ -65,7 +65,8 @@ export const router = createBrowserRouter([
           // Página principal do professor: Resumo
           { path: '/professor', element: <Navigate to="/professor/resumo" replace /> },
           { path: '/professor/resumo', element: <TeacherGuard><DashboardProfessor /></TeacherGuard> },
-          { path: '/professor/pas-unb', element: <TeacherGuard><PasUnbProfessorPage /></TeacherGuard> },
+          { path: '/pas', element: <PasUnbPage /> },
+          { path: '/professor/pas-unb', element: <Navigate to="/pas" replace /> },
           // Compat: rotas antigas/curtas
           { path: '/dashboard', element: <Navigate to="/professor/resumo" replace /> },
           { path: '/professor/dashboard', element: <Navigate to="/professor/resumo" replace /> },
@@ -96,12 +97,21 @@ export const router = createBrowserRouter([
       {
         element: <AppShellLayout />,
         children: [
-          { path: '/aluno', element: <Navigate to="/aluno/resumo" replace /> },
-          { path: '/aluno/resumo', element: <StudentGuard><ResumoAlunoPage /></StudentGuard> },
-          { path: '/aluno/dashboard', element: <Navigate to="/aluno/resumo" replace /> },
-          { path: '/aluno/redacoes', element: <StudentGuard><AlunoRedacoes /></StudentGuard> },
-          { path: '/aluno/notas', element: <StudentGuard><AlunoNotas /></StudentGuard> },
-          { path: '/aluno/pas-unb', element: <StudentGuard><PasUnbAlunoPage /></StudentGuard> },
+          {
+            element: (
+              <StudentGuard>
+                <StudentLayout />
+              </StudentGuard>
+            ),
+            children: [
+              { path: '/aluno', element: <Navigate to="/aluno/resumo" replace /> },
+              { path: '/aluno/resumo', element: <ResumoAlunoPage /> },
+              { path: '/aluno/dashboard', element: <Navigate to="/aluno/resumo" replace /> },
+              { path: '/aluno/redacoes', element: <AlunoRedacoes /> },
+              { path: '/aluno/notas', element: <AlunoNotas /> },
+              { path: '/aluno/pas-unb', element: <Navigate to="/pas" replace /> },
+            ],
+          },
         ],
       },
     ],

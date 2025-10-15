@@ -15,6 +15,7 @@ const essaysRoutes = require('./routes/essays');
 const notificationRoutes = require('./routes/notifications');
 const announcementsRoutes = require('./routes/announcements');
 const teachersUpcomingRoutes = require('./routes/teachers');
+const alunosRoutes = require('./routes/alunos');
 const gerencialRoutes = require('./routes/gerencial');
 const gerencialTeachersRoutes = gerencialRoutes.teachersRouter;
 const agendaRoutes = require('./routes/agenda');
@@ -131,6 +132,8 @@ api.use('/auth', authRoutes);
 api.use('/dashboard', dashboardRoutes);
 api.use('/email', emailRoutes);
 api.use('/students', studentsUpcomingRoutes);
+api.use('/aluno', alunosRoutes);
+api.use('/alunos', alunosRoutes);
 api.use('/classes', classesRoutes);
 api.use('/grades', gradesRoutes);
 api.use('/announcements', announcementsRoutes);
@@ -146,6 +149,8 @@ if (gerencialTeachersRoutes) {
 }
 app.use(API_PREFIX + '/teachers', teachersUpcomingRoutes);
 app.use(API_PREFIX + '/students', studentsUpcomingRoutes);
+app.use(API_PREFIX + '/aluno', alunosRoutes);
+app.use(API_PREFIX + '/alunos', alunosRoutes);
 app.use(API_PREFIX + '/agenda', agendaRoutes);
 app.use(API_PREFIX + '/gerencial', gerencialRoutes);
 app.use(API_PREFIX, pdfHealthRoutes);

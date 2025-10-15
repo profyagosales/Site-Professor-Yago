@@ -231,7 +231,7 @@ export default function AlunoNotas() {
             { key: 'overview', label: 'Resumo', to: '/aluno/resumo' },
             { key: 'grades', label: 'Minhas Notas', to: '/aluno/notas', end: true },
             { key: 'essays', label: 'Redações', to: '/aluno/redacoes' },
-            { key: 'pas', label: 'PAS/UnB', to: '/aluno/pas-unb' },
+            { key: 'pas', label: 'PAS/UnB', to: '/pas' },
           ]}
         />
       </div>

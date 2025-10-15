@@ -5,9 +5,11 @@ import SendEmailModal from '@/components/SendEmailModal'
 import QuickContentModal from '@/components/QuickContentModal'
 import AnnouncementModal from '@/components/AnnouncementModal'
 import { getCurrentUser } from '@/services/auth'
-import { listMyClasses, mergeCalendars, getClassDetails, getClassGrades } from '@/services/classes.service'
+import { listMyClasses, mergeCalendars, getClassDetails } from '@/services/classes.service'
+import { listUpcomingContents } from '@/services/contents'
 import { useAuth } from '@/store/AuthContext'
 import { Button } from '@/components/ui/Button'
+import { MediaGeralPorBimestre } from '@/components/dashboard/MediaGeralPorBimestre'
 
 /*
 // Snippet opcional para habilitar o widget da agenda semanal
@@ -117,7 +119,6 @@ function DashboardProfessor(){
   const [user, setUser] = useState(null)
   const [classSummaries, setClassSummaries] = useState([])
   const [classDetails, setClassDetails] = useState({})
-  const [classGrades, setClassGrades] = useState({})
   const [calendarEvents, setCalendarEvents] = useState([])
   const [schedule, setSchedule] = useState([])
   const [loading, setLoading] = useState(true)
@@ -249,7 +250,6 @@ function DashboardProfessor(){
 
         if (!teacherClasses.length) {
           setClassDetails({})
-          setClassGrades({})
           setInsightsLoading(false)
           return
         }
@@ -277,27 +277,6 @@ function DashboardProfessor(){
         })
         setClassDetails(detailsMap)
 
-        const gradeResults = await Promise.all(
-          teacherClasses.map(async (cls) => {
-            if (abort) return null
-            try {
-              const grades = await getClassGrades(cls.id)
-              return grades ? { classId: cls.id, grades } : null
-            } catch (err) {
-              console.warn('Notas indisponíveis para turma', cls.id, err)
-              return null
-            }
-          })
-        )
-        if (abort) return
-
-        const gradesMap = {}
-        gradeResults.forEach((entry) => {
-          if (entry && entry.classId) {
-            gradesMap[entry.classId] = entry.grades
-          }
-        })
-        setClassGrades(gradesMap)
         setInsightsLoading(false)
       } catch (error) {
         if (!abort) {
@@ -461,35 +440,6 @@ function DashboardProfessor(){
       }))
       .sort((a, b) => (a.date?.getTime() ?? 0) - (b.date?.getTime() ?? 0))
   }, [filteredEvents])
-
-  const gradeAverages = useMemo(() => {
-    const totals = new Map()
-    Object.values(classGrades).forEach((snapshot) => {
-      if (!snapshot || !Array.isArray(snapshot.students)) return
-      snapshot.students.forEach((student) => {
-        if (!student?.grades) return
-        Object.entries(student.grades).forEach(([termKey, grade]) => {
-          const normalizedScore = grade?.score
-          if (!Number.isFinite(normalizedScore)) return
-          const term = Number(termKey)
-          if (!term) return
-          const entry = totals.get(term) || { sum: 0, count: 0 }
-          entry.sum += normalizedScore
-          entry.count += 1
-          totals.set(term, entry)
-        })
-      })
-    })
-
-    return Array.from(totals.entries())
-      .map(([term, value]) => ({
-        term,
-        average: value.count ? value.sum / value.count : 0,
-      }))
-      .sort((a, b) => a.term - b.term)
-  }, [classGrades])
-
-  const gradeMaxAverage = gradeAverages.reduce((max, item) => (item.average > max ? item.average : max), 0)
 
   const resolvedAvatar = resolveAvatarUrl(user?.photoUrl || user?.photo || user?.avatarUrl)
 
@@ -731,36 +681,7 @@ function DashboardProfessor(){
         </div>
       </section>
 
-      <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-800">Média geral por bimestre</h2>
-        </div>
-        <div className="mt-6 h-56">
-          {insightsLoading ? (
-            <p className="text-sm text-slate-500">Carregando notas...</p>
-          ) : gradeAverages.length ? (
-            <div className="flex h-full items-end justify-around gap-4">
-              {gradeAverages.map((item) => {
-                const height = gradeMaxAverage ? Math.max(8, (item.average / gradeMaxAverage) * 100) : 0
-                return (
-                  <div key={item.term} className="flex flex-1 flex-col items-center gap-2">
-                    <div className="flex h-full w-full items-end justify-center">
-                      <div
-                        className="w-12 max-w-full rounded-t-2xl bg-gradient-to-b from-[#FFB347] to-[#FF8A00]"
-                        style={{ height: `${height}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-xs font-semibold text-slate-500">{item.term}º bim.</span>
-                    <span className="text-sm font-semibold text-slate-700">{item.average.toFixed(1).replace('.', ',')}</span>
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            <p className="text-sm text-slate-500">Ainda não há notas cadastradas.</p>
-          )}
-        </div>
-      </section>
+      <MediaGeralPorBimestre classes={classSummaries} classNames={classNameMap} />
 
       <SendEmailModal isOpen={showEmail} onClose={() => setShowEmail(false)} />
       <QuickContentModal open={contentOpen} onClose={() => setContentOpen(false)} onSaved={reloadContents} />
