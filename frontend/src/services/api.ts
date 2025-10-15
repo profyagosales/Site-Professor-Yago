@@ -31,6 +31,17 @@ export const api = axios.create({
 
 // Evita cache nos GET quando meta.noCache for true
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  try {
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
+    if (token) {
+      const headers = (config.headers ?? {}) as Record<string, unknown>;
+      headers.Authorization = `Bearer ${token}`;
+      config.headers = headers as any;
+    }
+  } catch (_err) {
+    // ignore storage failures (e.g. SSR)
+  }
+
   if (config.method?.toLowerCase() === 'get' && config.meta?.noCache) {
     const headers = (config.headers ?? {}) as Record<string, unknown>;
     config.headers = {
