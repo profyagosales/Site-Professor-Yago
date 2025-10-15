@@ -6,6 +6,7 @@ const Student = require('../models/Student');
 const Class = require('../models/Class');
 const authRequired = require('../middleware/auth');
 const { loginTeacher } = require('../controllers/authController');
+const { computeCookieBase } = require('../utils/sessionToken');
 
 const router = express.Router();
 
@@ -14,15 +15,8 @@ const COOKIE_NAME = 'auth_token';
 function setSessionCookie(res, payload, options = {}) {
   const { expiresIn = '7d', maxAge = 7 * 24 * 60 * 60 * 1000 } = options;
   const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
-  const domain = process.env.COOKIE_DOMAIN || '.professoryagosales.com.br';
-  res.cookie(COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'none',
-    domain,
-    path: '/',
-    maxAge,
-  });
+  const base = computeCookieBase(res.req);
+  res.cookie(COOKIE_NAME, token, { ...base, maxAge });
   return token;
 }
 
@@ -156,21 +150,8 @@ router.get('/me', authRequired, (req, res) => {
 
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {
-  const domain = process.env.COOKIE_DOMAIN || '.professoryagosales.com.br';
-  res.clearCookie(COOKIE_NAME, {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'none',
-    domain,
-    path: '/',
-  });
-  res.clearCookie('token', {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'none',
-    domain,
-    path: '/',
-  });
+  res.clearCookie(COOKIE_NAME);
+  res.clearCookie('token');
   res.json({ success: true });
 });
 

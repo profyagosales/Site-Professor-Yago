@@ -55,16 +55,16 @@ async function doLogin({ Model, role, req, res }) {
       return res.status(401).json({ success: false, message: 'E-mail ou senha inválidos.' });
     }
 
-    const token = signSessionToken({ sub: String(doc._id), role }, '24h');
-    const user = { id: String(doc._id), nome: doc.nome || doc.name || '', email: doc.email, role };
+      const token = signSessionToken({ sub: String(doc._id), role }, '24h');
+      const user = { id: String(doc._id), nome: doc.nome || doc.name || '', email: doc.email, role };
 
-    // Cookie opcional (compat cross-site)
-    if (String(process.env.USE_COOKIE_AUTH).toLowerCase() === 'true') {
-  setAuthCookie(res, token, SESSION_COOKIE_MAX_AGE_MS);
-      return res.json({ success: true, user });
-    }
+      // Cookie opcional (compat cross-site)
+      if (String(process.env.USE_COOKIE_AUTH).toLowerCase() === 'true') {
+        setAuthCookie(res, token, SESSION_COOKIE_MAX_AGE_MS, req);
+        return res.json({ success: true, user });
+      }
 
-    return res.json({ success: true, token, user });
+      return res.json({ success: true, token, user });
   } catch (err) {
     console.error('[LOGIN] Erro inesperado', {
       role, emailTentado: email, stack: err?.stack || String(err)
@@ -124,7 +124,7 @@ exports.loginTeacher = async (req, res) => {
     };
 
     const token = signSessionToken(payload, '24h');
-  setAuthCookie(res, token, SESSION_COOKIE_MAX_AGE_MS);
+      setAuthCookie(res, token, SESSION_COOKIE_MAX_AGE_MS, req);
 
     return res.json({
       success: true,

@@ -28,6 +28,7 @@ const gradeActivitiesRoutes = require('./routes/gradeActivities');
 const themesRoutes = require('./routes/themes');
 const authMiddleware = require('./middleware/auth');
 const ensureTeacher = require('./middleware/ensureTeacher');
+const { computeCookieBase } = require('./utils/sessionToken');
 
 const { corsOptions } = require('./corsConfig');
 
@@ -42,19 +43,11 @@ app.set('trust proxy', 1);
 
 // #### Força cookies compatíveis com cross-site (api.<domínio> <-> <domínio>)
 app.use((req, res, next) => {
-  const isProd = process.env.NODE_ENV === 'production';
-  const domain = process.env.COOKIE_DOMAIN || (isProd ? '.professoryagosales.com.br' : undefined);
-  const base = {
-    path: '/',
-    httpOnly: true,
-    sameSite: 'none',
-    secure: isProd,
-    ...(domain ? { domain } : {}),
-  };
+  const base = computeCookieBase(req);
   const origCookie = res.cookie.bind(res);
   res.cookie = (name, value, options = {}) => origCookie(name, value, { ...base, ...options });
   const origClear = res.clearCookie.bind(res);
-  res.clearCookie = (name, options = {}) => origClear(name, { ...base, ...options, maxAge: 0 });
+  res.clearCookie = (name, options = {}) => origClear(name, { ...base, ...options });
   next();
 });
 

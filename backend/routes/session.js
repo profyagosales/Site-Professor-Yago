@@ -59,21 +59,8 @@ router.get('/me', readSession, (req, res) => {
  * Limpa cookies de autenticação usando os mesmos atributos (Domain, Secure, SameSite) definidos no app.js.
  */
 router.post('/logout', authOptional, (req, res) => {
-  const domain = process.env.COOKIE_DOMAIN || '.professoryagosales.com.br';
-  res.clearCookie('auth_token', {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'none',
-    domain,
-    path: '/',
-  });
-  res.clearCookie('token', {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'none',
-    domain,
-    path: '/',
-  });
+  res.clearCookie('auth_token');
+  res.clearCookie('token');
   res.clearCookie('access_token');
   return res.json({ success: true });
 });
