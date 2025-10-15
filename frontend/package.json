@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "axios": "^1.11.0",
+    "date-fns": "^4.1.0",
     "framer-motion": "^12.23.12",
     "konva": "^10.0.2",
     "nanoid": "^5.1.5",
