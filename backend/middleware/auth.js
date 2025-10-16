@@ -5,19 +5,44 @@ const { maybeRefreshSession } = require('../utils/sessionToken');
 /**
  * Lê token de: Cookie (token|access_token), Authorization: Bearer, ou x-access-token
  */
+function extractTokens(req) {
+  const tokens = [];
+  const headers = req?.headers || {};
+  const cookies = req?.cookies || {};
+
+  try {
+    const rawAuth = headers.authorization || headers.Authorization;
+    if (typeof rawAuth === 'string' && rawAuth.trim()) {
+      const match = rawAuth.match(/^Bearer\s+(.+)$/i);
+      if (match && match[1]) {
+        tokens.push(match[1].trim());
+      }
+    }
+  } catch (_err) {
+    // ignore malformed authorization header
+  }
+
+  if (typeof headers['x-access-token'] === 'string' && headers['x-access-token']) {
+    tokens.push(headers['x-access-token']);
+  }
+
+  ['auth_token', 'token', 'access_token'].forEach((name) => {
+    try {
+      const value = cookies?.[name];
+      if (typeof value === 'string' && value) {
+        tokens.push(value);
+      }
+    } catch (_err) {
+      // ignore cookie access errors
+    }
+  });
+
+  return tokens;
+}
+
 function readToken(req) {
-  const h = req.headers || {};
-  const c = req.cookies || {};
-  const auth = h.authorization || h.Authorization || '';
-  const bearer = /^Bearer\s+(.+)$/i.test(auth) ? auth.replace(/^Bearer\s+/i, '').trim() : null;
-  return (
-    (typeof c?.auth_token === 'string' && c.auth_token) ||
-    (typeof c?.token === 'string' && c.token) ||
-    (typeof c?.access_token === 'string' && c.access_token) ||
-    (typeof h['x-access-token'] === 'string' && h['x-access-token']) ||
-    bearer ||
-    null
-  );
+  const tokens = extractTokens(req);
+  return tokens.length ? tokens[0] : null;
 }
 
 /**
@@ -70,15 +95,29 @@ function refreshUserIfNeeded(req, res, user) {
   }
 }
 
+function selectUserFromTokens(req, res) {
+  const tokens = extractTokens(req);
+  if (!tokens.length) return { user: null, token: null };
+
+  for (const candidate of tokens) {
+    if (!candidate) continue;
+    try {
+      const decoded = decodeUser(candidate);
+      if (!decoded) continue;
+      const refreshed = refreshUserIfNeeded(req, res, decoded);
+      return { user: refreshed, token: candidate };
+    } catch (_err) {
+      // try next candidate
+    }
+  }
+
+  return { user: null, token: null };
+}
+
 function authOptional(req, res, next) {
   try {
-    const token = readToken(req);
-    if (token) {
-      const user = refreshUserIfNeeded(req, res, decodeUser(token));
-      attachUser(req, user);
-    } else {
-      attachUser(req, null);
-    }
+    const { user } = selectUserFromTokens(req, res);
+    attachUser(req, user);
   } catch (_e) {
     attachUser(req, null);
   }
@@ -87,9 +126,7 @@ function authOptional(req, res, next) {
 
 function authRequired(req, res, next) {
   try {
-    const token = readToken(req);
-    if (!token) return res.status(401).json({ success: false, message: 'Unauthorized' });
-    const user = refreshUserIfNeeded(req, res, decodeUser(token));
+    const { user } = selectUserFromTokens(req, res);
     if (!user) return res.status(401).json({ success: false, message: 'Unauthorized' });
     attachUser(req, user);
     return next();
@@ -107,3 +144,5 @@ module.exports.authOptional = authOptional;
 module.exports.decodeUser = decodeUser;
 module.exports.readToken = readToken;
 module.exports.attachUser = attachUser;
+module.exports.extractTokens = extractTokens;
+module.exports.selectUserFromTokens = selectUserFromTokens;
