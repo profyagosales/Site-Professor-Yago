@@ -69,11 +69,13 @@ export async function loginGerencial(password: string): Promise<GerencialLoginRe
     { password },
     { meta: { skipAuthRedirect: true }, validateStatus: () => true } as any
   );
-  if (res.status >= 200 && res.status < 300 && res.data?.success) {
-    const token = res.data?.token as string;
+
+  if (res.status >= 200 && res.status < 300 && res.data?.token) {
+    const token = String(res.data.token);
     const expiresIn = Number(res.data?.expiresIn ?? 0);
     return { token, expiresIn };
   }
+
   const message = res.data?.message ?? 'Senha inválida.';
   throw new Error(message);
 }

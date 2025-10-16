@@ -1,29 +1,20 @@
-// frontend/src/services/api.ts
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-function normalizeBase(url?: string | null): string {
-  if (!url) return '';
-  const trimmed = url.trim();
-  if (!trimmed) return '';
-  return trimmed.replace(/\/+$/, '');
-}
-
-type EnvShape = { VITE_API_BASE_URL?: string };
-const env = (import.meta as unknown as { env?: EnvShape }).env;
-const apiBase = normalizeBase(env?.VITE_API_BASE_URL ?? null);
-let baseURL = '/api';
-if (apiBase) {
-  baseURL = `${apiBase}/api`;
-} else if (typeof window !== 'undefined') {
-  const host = window.location.hostname;
-  if (/professoryagosales\.com\.br$/i.test(host)) {
-    baseURL = 'https://api.professoryagosales.com.br/api';
+function normalizeBase(url?: string | null): string | null {
+  if (!url) return null;
+  const trimmed = url.replace(/\s+/g, '').replace(/\/+$/, '');
+  if (!trimmed) return null;
+  if (trimmed.endsWith('/api')) {
+    return trimmed;
   }
+  return `${trimmed}/api`;
 }
 
-// Permitimos meta flags no config
+const { VITE_API_URL, VITE_API_BASE_URL } = import.meta.env;
+const resolvedApiUrl = normalizeBase(VITE_API_URL || null) ?? normalizeBase(VITE_API_BASE_URL || null);
+const baseURL = resolvedApiUrl || '/api';
+
 declare module 'axios' {
-  // eslint-disable-next-line @typescript-eslint/no-empty-interface
   interface AxiosRequestConfig {
     meta?: {
       skipAuthRedirect?: boolean;
@@ -34,63 +25,69 @@ declare module 'axios' {
 
 export const api = axios.create({
   baseURL,
-  withCredentials: false,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-export function setAuthToken(token: string | null): void {
+const STORAGE_KEY = 'auth_token';
+
+export function setAuthToken(token?: string): void {
   if (token) {
-    api.defaults.headers.common = api.defaults.headers.common || {};
-    (api.defaults.headers.common as Record<string, unknown>).Authorization = `Bearer ${token}`;
-  } else if (api.defaults.headers.common?.Authorization) {
-    delete (api.defaults.headers.common as Record<string, unknown>).Authorization;
+    try {
+      window.localStorage.setItem(STORAGE_KEY, token);
+    } catch {
+      /* ignore storage errors */
+    }
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+    return;
   }
+
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore storage errors */
+  }
+  delete api.defaults.headers.common.Authorization;
 }
 
-// Evita cache nos GET quando meta.noCache for true
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  try {
-    const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
-    if (token) {
-      const headers = (config.headers ?? {}) as Record<string, unknown>;
-      headers.Authorization = `Bearer ${token}`;
-      config.headers = headers as any;
-    }
-  } catch (_err) {
-    // ignore storage failures (e.g. SSR)
-  }
-
   if (config.method?.toLowerCase() === 'get' && config.meta?.noCache) {
     const headers = (config.headers ?? {}) as Record<string, unknown>;
-    config.headers = {
-      ...headers,
-      'Cache-Control': 'no-store',
-      Pragma: 'no-cache',
-    } as any;
+    headers['Cache-Control'] = 'no-store';
+    headers.Pragma = 'no-cache';
+    config.headers = headers as any;
   }
   return config;
 });
 
-// Redireciona 401 para login, EXCETO quando pedimos para pular
 api.interceptors.response.use(
-  (r) => r,
+  (response) => response,
   (err: AxiosError) => {
     const status = err?.response?.status;
     const cfg = err?.config as (InternalAxiosRequestConfig & { meta?: any }) | undefined;
-
-    if (status === 401 && !cfg?.meta?.skipAuthRedirect) {
-      const w = typeof window !== 'undefined' ? window : undefined;
-      if (w?.location) {
-        try {
-          const next = encodeURIComponent(`${w.location.pathname}${w.location.search}`);
-          w.location.assign(`/login-professor?next=${next}`);
-        } catch {}
+    if (status === 401 && !cfg?.meta?.skipAuthRedirect && typeof window !== 'undefined') {
+      try {
+        const next = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
+        window.location.assign(`/login-professor?next=${next}`);
+      } catch {
+        /* ignore redirect errors */
       }
     }
     return Promise.reject(err);
   }
 );
+
+if (typeof window !== 'undefined') {
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      api.defaults.headers.common.Authorization = `Bearer ${stored}`;
+    }
+  } catch {
+    /* ignore bootstrap errors */
+  }
+}
 
 export default api;

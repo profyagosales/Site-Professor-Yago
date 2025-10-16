@@ -1,68 +1,64 @@
 // backend/routes/session.js
 const express = require('express');
 const { authOptional } = require('../middleware/auth');
-const { readSession } = require('../middleware/authn');
+const Teacher = require('../models/Teacher');
+const Student = require('../models/Student');
+const { AUTH_COOKIE, authCookieOptions } = require('../utils/cookies');
+const { publicTeacher, publicStudent } = require('../controllers/authController');
 
 const router = express.Router();
 
-/**
- * GET /api/me
- * 200 com usuário normalizado se autenticado; 401 caso contrário.
- */
-router.get('/me', readSession, (req, res) => {
-  const sessionUser = req.sessionUser || req.user;
-  if (!sessionUser) {
-    return res.status(401).json({ success: false, message: 'Unauthorized' });
+router.get('/me', authOptional, async (req, res, next) => {
+  try {
+    const sessionUser = req.user;
+    if (!sessionUser) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const role = sessionUser.role;
+    const subjectId = sessionUser.sub || sessionUser.id || sessionUser._id;
+
+    if (!subjectId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    if (role === 'teacher') {
+      const teacher = await Teacher.findById(subjectId);
+      if (!teacher) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+      return res.json({
+        role: 'teacher',
+        isTeacher: true,
+        user: publicTeacher(teacher),
+      });
+    }
+
+    if (role === 'student') {
+      const student = await Student.findById(subjectId);
+      if (!student) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+      const classId = student.class ? String(student.class) : null;
+      return res.json({
+        role: 'student',
+        isTeacher: false,
+        user: {
+          ...publicStudent(student),
+          classId,
+        },
+      });
+    }
+
+    return res.status(400).json({ message: 'Role inválido' });
+  } catch (err) {
+    next(err);
   }
-  const {
-    _id,
-    id,
-    sub,
-    role: rawRole,
-    email,
-    name,
-    nome,
-    isTeacher,
-    photo,
-    photoUrl: rawPhotoUrl,
-  } = sessionUser;
-
-  const normalizedId = String(_id || id || sub || '');
-  const normalizedRole = rawRole || null;
-  const teacherFlag = normalizedRole === 'teacher' || Boolean(isTeacher);
-  const displayName = name || nome || null;
-  const normalizedPhoto = rawPhotoUrl || photo || null;
-
-  return res.json({
-    success: true,
-    id: normalizedId,
-    _id: normalizedId,
-    role: normalizedRole,
-    isTeacher: teacherFlag,
-    email: email || null,
-    name: displayName,
-    photoUrl: normalizedPhoto,
-    user: {
-      id: normalizedId,
-      _id: normalizedId,
-      role: normalizedRole,
-      email: email || null,
-      name: displayName,
-      isTeacher: teacherFlag,
-      photoUrl: normalizedPhoto,
-    },
-  });
 });
 
-/**
- * POST /api/logout
- * Limpa cookies de autenticação usando os mesmos atributos (Domain, Secure, SameSite) definidos no app.js.
- */
 router.post('/logout', authOptional, (req, res) => {
-  res.clearCookie('auth_token');
-  res.clearCookie('token');
-  res.clearCookie('access_token');
-  return res.json({ success: true });
+  res.clearCookie(AUTH_COOKIE, { ...authCookieOptions(), maxAge: 0 });
+  return res.sendStatus(204);
 });
 
 module.exports = router;

@@ -1,10 +1,9 @@
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const { z } = require('zod');
-const { signSessionToken, setAuthCookie, SESSION_COOKIE_MAX_AGE_MS } = require('../utils/sessionToken');
-
-// Ajuste os requires de acordo com os nomes dos modelos do projeto:
-const Teacher = require('../models/Teacher'); // se o nome for diferente, adapte
-const Student = require('../models/Student'); // idem
+const Teacher = require('../models/Teacher');
+const Student = require('../models/Student');
+const { AUTH_COOKIE, authCookieOptions } = require('../utils/cookies');
 
 // aceita "password" ou "senha" para maior tolerância com clientes
 const LoginSchema = z
@@ -23,6 +22,53 @@ function pickHash(user) {
   // tenta achar o campo de hash independentemente do nome
   const u = user?.toObject?.() ?? user ?? {};
   return u.passwordHash || u.senhaHash || u.hash || u.password || u.senha || null;
+}
+
+function ensureSecret() {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET ausente');
+  }
+  return secret;
+}
+
+function publicTeacher(doc) {
+  if (!doc) return null;
+  const raw = doc.toObject?.() ?? doc;
+  const id = String(raw._id ?? raw.id ?? '');
+  return {
+    id,
+    _id: id,
+    name: raw.name ?? raw.nome ?? '',
+    email: raw.email ?? null,
+    role: 'teacher',
+    isTeacher: true,
+    photoUrl: raw.photoUrl ?? raw.photo ?? null,
+    photo: raw.photoUrl ?? raw.photo ?? null,
+  };
+}
+
+function publicStudent(doc) {
+  if (!doc) return null;
+  const raw = doc.toObject?.() ?? doc;
+  const id = String(raw._id ?? raw.id ?? '');
+  return {
+    id,
+    _id: id,
+    name: raw.name ?? raw.nome ?? '',
+    email: raw.email ?? null,
+    role: 'student',
+    isTeacher: false,
+  };
+}
+
+function issueToken(payload) {
+  const secret = ensureSecret();
+  return jwt.sign(payload, secret, { expiresIn: '12h' });
+}
+
+function sendSessionCookie(res, token) {
+  res.cookie(AUTH_COOKIE, token, { ...authCookieOptions(), maxAge: 12 * 60 * 60 * 1000 });
 }
 
 async function doLogin({ Model, role, req, res }) {
@@ -55,16 +101,10 @@ async function doLogin({ Model, role, req, res }) {
       return res.status(401).json({ success: false, message: 'E-mail ou senha inválidos.' });
     }
 
-      const token = signSessionToken({ sub: String(doc._id), role }, '24h');
-      const user = { id: String(doc._id), nome: doc.nome || doc.name || '', email: doc.email, role };
-
-      // Cookie opcional (compat cross-site)
-      if (String(process.env.USE_COOKIE_AUTH).toLowerCase() === 'true') {
-        setAuthCookie(res, token, SESSION_COOKIE_MAX_AGE_MS, req);
-        return res.json({ success: true, user });
-      }
-
-      return res.json({ success: true, token, user });
+    const token = issueToken({ sub: String(doc._id), role });
+    sendSessionCookie(res, token);
+    const publicUser = role === 'teacher' ? publicTeacher(doc) : publicStudent(doc);
+    return res.json({ role, isTeacher: role === 'teacher', user: publicUser, token });
   } catch (err) {
     console.error('[LOGIN] Erro inesperado', {
       role, emailTentado: email, stack: err?.stack || String(err)
@@ -114,33 +154,15 @@ exports.loginTeacher = async (req, res) => {
     const teacher = teacherDoc.toObject ? teacherDoc.toObject() : teacherDoc;
     const teacherId = String(teacherDoc._id);
     const teacherEmail = teacher.email || teacherDoc.email || email;
-    const payload = {
-      sub: teacherId,
+    const token = issueToken({ sub: teacherId, role: 'teacher' });
+    sendSessionCookie(res, token);
+    const user = publicTeacher(teacherDoc);
+
+    return res.status(200).json({
       role: 'teacher',
       isTeacher: true,
-      email: teacherEmail,
-      name: teacher.name || teacher.nome || teacherDoc.name || '',
-      photoUrl: teacher.photoUrl || teacher.photo || null,
-    };
-
-    const token = signSessionToken(payload, '24h');
-      setAuthCookie(res, token, SESSION_COOKIE_MAX_AGE_MS, req);
-
-    return res.json({
-      success: true,
-      message: 'Login ok (teacher)',
-      data: {
-        token,
-        role: 'teacher',
-        isTeacher: true,
-        teacher: {
-          id: teacherId,
-          name: teacher.name || teacher.nome || teacherDoc.name || '',
-          email: teacherEmail,
-          photoUrl: teacher.photoUrl || teacher.photo || null,
-          photo: teacher.photoUrl || teacher.photo || null,
-        },
-      },
+      user,
+      token,
     });
   } catch (err) {
     console.error('[LOGIN] Erro inesperado (teacher)', {
@@ -153,4 +175,7 @@ exports.loginTeacher = async (req, res) => {
 
 exports.loginStudent = (req, res) =>
   doLogin({ Model: Student, role: 'student', req, res });
+
+exports.publicTeacher = publicTeacher;
+exports.publicStudent = publicStudent;
 

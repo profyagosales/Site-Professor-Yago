@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { AUTH_COOKIE, authCookieOptions } = require('../utils/cookies');
 
 function resolveDoorPassword() {
   return process.env.GERENCIAL_DOOR_PASSWORD || 'TR24339es';
@@ -37,7 +38,18 @@ exports.login = (req, res) => {
       }
     );
 
-    return res.json({ success: true, token, expiresIn: expiresInSeconds });
+    res.cookie(AUTH_COOKIE, token, {
+      ...authCookieOptions(),
+      maxAge: expiresInSeconds * 1000,
+    });
+
+    return res.json({
+      role: 'gerencial',
+      isTeacher: false,
+      scope: 'gerencial/admin',
+      token,
+      expiresIn: expiresInSeconds,
+    });
   } catch (err) {
     console.error('[gerencialAuth] Falha inesperada no login gerencial', err);
     return res.status(500).json({ success: false, message: 'Erro ao efetuar login gerencial.' });

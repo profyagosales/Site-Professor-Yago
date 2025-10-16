@@ -3,9 +3,8 @@ import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { api, setAuthToken } from "@/services/api";
 import { useAuth } from "@/store/AuthContext";
-import { fetchMe } from "@/services/session";
+import { loginStudent } from "@/services/session";
 
 export default function LoginAluno() {
   const navigate = useNavigate();
@@ -40,68 +39,19 @@ export default function LoginAluno() {
     if (submitting) return;
     setSubmitting(true);
     try {
-      const response = await api.post("/auth/login-student", { email, password });
-      const payload = response?.data ?? {};
-      const data = (payload?.data ?? payload) as Record<string, any>;
-      const token = data?.token ?? payload?.token ?? null;
-      const userInfo = data?.user ?? null;
+      const redirectTo = resolveRedirect(searchParams.get("next"));
+      const session = await loginStudent(email, password);
 
-      if (token) {
-        try {
-          localStorage.setItem("auth_token", token);
-        } catch {
-          // ignore storage failures
-        }
-        setAuthToken(token);
-      }
+      auth.setSession({
+        role: "student",
+        user: { ...session.user, role: "student", isTeacher: false },
+      });
 
-      if (payload?.success) {
-        try {
-          localStorage.setItem("role", "student");
-        } catch {
-          // ignore storage failures
-        }
-        const redirectTo = resolveRedirect(searchParams.get("next"));
-        if (userInfo) {
-          auth.setSession({ role: "student", user: { ...userInfo, role: "student" } });
-        } else {
-          auth.setSession({ role: "student" });
-        }
-        await auth.reload();
-        navigate(redirectTo, { replace: true });
-        return;
-      }
-
-      const me = await fetchMe(true);
-      const meRole = me?.role ? String(me.role).toLowerCase() : "";
-      const isStudent = meRole === "student";
-
-      if (isStudent) {
-        try {
-          localStorage.setItem("role", "student");
-        } catch {
-          // ignore storage failures
-        }
-        auth.setSession(me ?? { role: "student" });
-        if (!token) {
-          const meToken = (me as any)?.token;
-          if (meToken) {
-            try {
-              localStorage.setItem("auth_token", meToken);
-            } catch {
-              // ignore storage failures
-            }
-            setAuthToken(meToken);
-          }
-        }
-        const redirectTo = resolveRedirect(searchParams.get("next"));
-        navigate(redirectTo, { replace: true });
-        return;
-      }
-
-      setErro(payload?.message ?? "Erro no login do aluno");
+      await auth.reload();
+      navigate(redirectTo, { replace: true });
     } catch (err: any) {
-      setErro(err?.response?.data?.message ?? "Erro no login do aluno");
+      const message = err?.response?.data?.message ?? err?.message ?? "Erro no login do aluno";
+      setErro(message);
     } finally {
       setSubmitting(false);
     }

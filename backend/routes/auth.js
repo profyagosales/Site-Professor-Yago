@@ -5,18 +5,22 @@ const Teacher = require('../models/Teacher');
 const Student = require('../models/Student');
 const Class = require('../models/Class');
 const authRequired = require('../middleware/auth');
-const { loginTeacher } = require('../controllers/authController');
-const { computeCookieBase } = require('../utils/sessionToken');
+const { loginTeacher, publicTeacher, publicStudent } = require('../controllers/authController');
+const { AUTH_COOKIE, authCookieOptions } = require('../utils/cookies');
 
 const router = express.Router();
 
-const COOKIE_NAME = 'auth_token';
+function ensureSecret() {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET ausente');
+  }
+  return secret;
+}
 
-function setSessionCookie(res, payload, options = {}) {
-  const { expiresIn = '7d', maxAge = 7 * 24 * 60 * 60 * 1000 } = options;
-  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
-  const base = computeCookieBase(res.req);
-  res.cookie(COOKIE_NAME, token, { ...base, maxAge });
+function signAndSetCookie(res, payload, expiresIn = '12h') {
+  const token = jwt.sign(payload, ensureSecret(), { expiresIn });
+  res.cookie(AUTH_COOKIE, token, { ...authCookieOptions(), maxAge: 12 * 60 * 60 * 1000 });
   return token;
 }
 
@@ -26,16 +30,16 @@ router.post('/register-teacher', async (req, res, next) => {
     const { name, email, password, phone, subjects = [] } = req.body || {};
     const teacher = await Teacher.create({ name, email, password, phone, subjects });
     const teacherId = String(teacher._id);
-    const token = setSessionCookie(res, {
+    const token = signAndSetCookie(res, {
       sub: teacherId,
-      id: teacherId,
       role: 'teacher',
-      email,
+    });
+    res.status(200).json({
+      role: 'teacher',
       isTeacher: true,
-      name,
-      photoUrl: teacher.photoUrl || null,
-    }, { expiresIn: '12h', maxAge: 12 * 60 * 60 * 1000 });
-    res.status(200).json({ success: true, data: { token } });
+      user: publicTeacher(teacher),
+      token,
+    });
   } catch (err) {
     next(err);
   }
@@ -49,15 +53,18 @@ router.post('/login-student', async (req, res, next) => {
   try {
     const { email, password } = req.body || {};
     if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Informe e-mail e senha.' });
+      return res.status(400).json({ message: 'Informe e-mail e senha.' });
     }
 
-    const student = await Student.findOne({ email: { $regex: `^${email}$`, $options: 'i' } })
-      .select('+passwordHash');
-    if (!student) return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
+    const student = await Student.findOne({ email: { $regex: `^${email}$`, $options: 'i' } }).select('+passwordHash');
+    if (!student) {
+      return res.status(401).json({ message: 'Credenciais inválidas.' });
+    }
 
     const ok = await bcrypt.compare(password, student.passwordHash || '');
-    if (!ok) return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
+    if (!ok) {
+      return res.status(401).json({ message: 'Credenciais inválidas.' });
+    }
 
     const studentId = String(student._id);
     let classId = student.class;
@@ -69,16 +76,18 @@ router.post('/login-student', async (req, res, next) => {
         classId = owningClass._id;
       }
     }
-    const token = setSessionCookie(res, {
-      sub: studentId,
-      id: studentId,
+
+    const token = signAndSetCookie(res, { sub: studentId, role: 'student' });
+    const user = {
+      ...publicStudent(student),
+      classId: classId ? String(classId) : null,
+    };
+
+    return res.status(200).json({
       role: 'student',
-      email: student.email,
-    });
-    res.json({
-      success: true,
-      message: 'Login ok (student)',
-      data: { token, student: { email: student.email, classId: classId ? String(classId) : null } },
+      isTeacher: false,
+      user,
+      token,
     });
   } catch (err) {
     next(err);
@@ -110,49 +119,54 @@ router.post('/register-student', async (req, res, next) => {
 });
 
 // GET /api/auth/me
-router.get('/me', authRequired, (req, res) => {
-  const sessionUser = req.user || {};
-  const {
-    _id,
-    id,
-    sub,
-    role: rawRole,
-    email,
-    name,
-    nome,
-    isTeacher,
-    photo,
-    photoUrl: rawPhotoUrl,
-  } = sessionUser;
+router.get('/me', authRequired, async (req, res, next) => {
+  try {
+    const sessionUser = req.user;
+    if (!sessionUser) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
 
-  const normalizedId = String(_id || id || sub || '') || null;
-  const normalizedRole = rawRole || null;
-  const teacherFlag = normalizedRole === 'teacher' || Boolean(isTeacher);
-  const displayName = name || nome || null;
-  const normalizedPhoto = rawPhotoUrl || photo || null;
+    const role = sessionUser.role || null;
+    const subjectId = sessionUser.sub || sessionUser.id || sessionUser._id;
 
-  const normalizedUser = {
-    ...sessionUser,
-    id: normalizedId,
-    _id: normalizedId,
-    role: normalizedRole,
-    email: email || null,
-    name: displayName,
-    isTeacher: teacherFlag,
-    photoUrl: normalizedPhoto,
-  };
+    if (role === 'teacher') {
+      const teacher = await Teacher.findById(subjectId);
+      if (!teacher) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+      return res.json({
+        role: 'teacher',
+        isTeacher: true,
+        user: publicTeacher(teacher),
+      });
+    }
 
-  res.json({
-    success: true,
-    user: normalizedUser,
-  });
+    if (role === 'student') {
+      const student = await Student.findById(subjectId);
+      if (!student) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+      const classId = student.class ? String(student.class) : null;
+      return res.json({
+        role: 'student',
+        isTeacher: false,
+        user: {
+          ...publicStudent(student),
+          classId,
+        },
+      });
+    }
+
+    return res.status(400).json({ message: 'Role inválido' });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {
-  res.clearCookie(COOKIE_NAME);
-  res.clearCookie('token');
-  res.json({ success: true });
+  res.clearCookie(AUTH_COOKIE, { ...authCookieOptions(), maxAge: 0 });
+  res.status(204).send();
 });
 
 module.exports = router;

@@ -28,7 +28,6 @@ const gradeActivitiesRoutes = require('./routes/gradeActivities');
 const themesRoutes = require('./routes/themes');
 const authMiddleware = require('./middleware/auth');
 const ensureTeacher = require('./middleware/ensureTeacher');
-const { computeCookieBase } = require('./utils/sessionToken');
 
 const { corsOptions } = require('./corsConfig');
 
@@ -40,16 +39,6 @@ app.options(/.*/, cors(corsOptions));
 
 // #### Sessão estável em produção atrás de proxy (Render/Cloudflare)
 app.set('trust proxy', 1);
-
-// #### Força cookies compatíveis com cross-site (api.<domínio> <-> <domínio>)
-app.use((req, res, next) => {
-  const base = computeCookieBase(req);
-  const origCookie = res.cookie.bind(res);
-  res.cookie = (name, value, options = {}) => origCookie(name, value, { ...base, ...options });
-  const origClear = res.clearCookie.bind(res);
-  res.clearCookie = (name, options = {}) => origClear(name, { ...base, ...options });
-  next();
-});
 
 // --- API: desabilita ETag e cache para evitar 304 em endpoints como /api/me e /api/professor/classes
 app.set('etag', false);

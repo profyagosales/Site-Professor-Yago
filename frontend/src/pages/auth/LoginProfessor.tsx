@@ -3,9 +3,8 @@ import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { api, setAuthToken } from "@/services/api";
 import { useAuth } from "@/store/AuthContext";
-import { fetchMe } from "@/services/session";
+import { loginTeacher } from "@/services/session";
 
 export default function LoginProfessor() {
   const navigate = useNavigate();
@@ -40,74 +39,20 @@ export default function LoginProfessor() {
     if (submitting) return;
     setSubmitting(true);
     try {
-      const response = await api.post("/auth/login-teacher", { email, password: senha }, { withCredentials: true });
-      const payload = response?.data ?? {};
-      const data = (payload?.data ?? payload) as Record<string, any>;
-      const token = data?.token ?? payload?.token ?? null;
-      const teacherInfo = data?.teacher ?? data?.user ?? null;
-      const role = (data?.role ?? payload?.role ?? data?.user?.role ?? "") as string;
-      const declaredTeacher = (role || "").toLowerCase() === "teacher" || Boolean(data?.isTeacher ?? payload?.isTeacher);
+      const redirectTo = resolveRedirect(searchParams.get("next"));
+      const session = await loginTeacher(email, senha);
 
-      if (token) {
-        try {
-          localStorage.setItem("auth_token", token);
-        } catch {
-          // ignore storage failures (private mode, etc.)
-        }
-        setAuthToken(token);
-      }
+      auth.setSession({
+        role: "teacher",
+        teacher: session.user,
+        user: { ...session.user, role: "teacher", isTeacher: true },
+      });
 
-      if (payload?.success && declaredTeacher) {
-        try {
-          localStorage.setItem("role", "teacher");
-        } catch {
-          // ignore storage failures
-        }
-        const redirectTo = resolveRedirect(searchParams.get("next"));
-        if (teacherInfo) {
-          auth.setSession({
-            role: "teacher",
-            teacher: teacherInfo,
-            user: { ...teacherInfo, role: "teacher", isTeacher: true },
-          });
-        } else {
-          auth.setSession({ role: "teacher" });
-        }
-        await auth.reload();
-        navigate(redirectTo, { replace: true });
-        return;
-      }
-
-      const me = await fetchMe(true);
-      const meRole = me?.role ? String(me.role).toLowerCase() : "";
-      const isTeacher = meRole === "teacher" || Boolean(me?.isTeacher);
-
-      if (isTeacher) {
-        try {
-          localStorage.setItem("role", "teacher");
-        } catch {
-          // ignore storage failures
-        }
-        auth.setSession(me ?? { role: "teacher" });
-        if (!token) {
-          const meToken = (me as any)?.token;
-          if (meToken) {
-            try {
-              localStorage.setItem("auth_token", meToken);
-            } catch {
-              // ignore storage failures
-            }
-            setAuthToken(meToken);
-          }
-        }
-        const redirectTo = resolveRedirect(searchParams.get("next"));
-        navigate(redirectTo, { replace: true });
-        return;
-      }
-
-      setErro(payload?.message ?? "Credenciais válidas, mas sem permissão de professor.");
+      await auth.reload();
+      navigate(redirectTo, { replace: true });
     } catch (err: any) {
-      setErro(err?.response?.data?.message ?? "Erro no login do professor");
+      const message = err?.response?.data?.message ?? err?.message ?? "Erro no login do professor";
+      setErro(message);
     } finally {
       setSubmitting(false);
     }
