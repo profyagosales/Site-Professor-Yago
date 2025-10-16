@@ -22,6 +22,7 @@ const corsOptions = {
   allowedHeaders: [
     'Content-Type',
     'Authorization',
+    'authorization',
     'X-Requested-With',
     'X-File-Token',
     'Cache-Control', // alguns browsers validam case-insensitive, outros são chatos
