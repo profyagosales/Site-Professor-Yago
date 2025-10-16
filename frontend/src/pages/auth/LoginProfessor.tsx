@@ -2,83 +2,114 @@ import AuthShell from "@/components/auth/AuthShell";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, setAuthToken } from "@/services/api";
 import { useAuth } from "@/store/AuthContext";
+import { fetchMe } from "@/services/session";
 
 export default function LoginProfessor() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const auth = useAuth();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const resolveRedirect = (nextParam: string | null): string => {
+    const fallback = "/professor/resumo";
+    if (!nextParam) return fallback;
+
+    let decoded = nextParam.trim();
+    try {
+      decoded = decodeURIComponent(decoded);
+    } catch {
+      // keep original value when decode fails
+    }
+
+    if (!decoded || !decoded.startsWith("/") || decoded.startsWith("//")) {
+      return fallback;
+    }
+
+    return decoded;
+  };
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErro("");
+    if (submitting) return;
+    setSubmitting(true);
     try {
       const response = await api.post("/auth/login-teacher", { email, password: senha }, { withCredentials: true });
       const payload = response?.data ?? {};
       const data = (payload?.data ?? payload) as Record<string, any>;
-      const token = data?.token ?? payload?.token;
+      const token = data?.token ?? payload?.token ?? null;
       const teacherInfo = data?.teacher ?? data?.user ?? null;
       const role = (data?.role ?? payload?.role ?? data?.user?.role ?? "") as string;
-      const isTeacher = (role || "").toLowerCase() === "teacher" || Boolean(data?.isTeacher ?? payload?.isTeacher);
+      const declaredTeacher = (role || "").toLowerCase() === "teacher" || Boolean(data?.isTeacher ?? payload?.isTeacher);
 
-      if (payload?.success && isTeacher) {
-        if (token) {
+      if (token) {
+        try {
           localStorage.setItem("auth_token", token);
-          setAuthToken(token);
+        } catch {
+          // ignore storage failures (private mode, etc.)
         }
-        localStorage.setItem("role", "teacher");
+        setAuthToken(token);
+      }
+
+      if (payload?.success && declaredTeacher) {
+        try {
+          localStorage.setItem("role", "teacher");
+        } catch {
+          // ignore storage failures
+        }
+        const redirectTo = resolveRedirect(searchParams.get("next"));
         if (teacherInfo) {
-          try {
-            localStorage.setItem("teacher", JSON.stringify(teacherInfo));
-          } catch {
-            // ignore serialization errors
-          }
+          auth.setSession({
+            role: "teacher",
+            teacher: teacherInfo,
+            user: { ...teacherInfo, role: "teacher", isTeacher: true },
+          });
+        } else {
+          auth.setSession({ role: "teacher" });
         }
-        const sessionPayload: any = { role: "teacher" };
-        if (teacherInfo) {
-          sessionPayload.teacher = teacherInfo;
-          sessionPayload.user = teacherInfo;
-        }
-        auth?.setSession?.(sessionPayload);
-        void auth?.reload?.();
-  navigate("/professor/resumo", { replace: true });
+        await auth.reload();
+        navigate(redirectTo, { replace: true });
         return;
       }
 
-      const meResponse = await api
-        .get("/me", { withCredentials: true, meta: { skipAuthRedirect: true, noCache: true } })
-        .catch(() => null);
-      const meData = meResponse?.data ?? null;
-      const meRole: string | undefined = meData?.role ?? meData?.user?.role;
-      const meIsTeacher = Boolean(
-        (meRole && meRole.toLowerCase() === "teacher") || meData?.isTeacher
-      );
+      const me = await fetchMe(true);
+      const meRole = me?.role ? String(me.role).toLowerCase() : "";
+      const isTeacher = meRole === "teacher" || Boolean(me?.isTeacher);
 
-      if (meIsTeacher) {
-        localStorage.setItem("role", "teacher");
-        if (meData?.token) {
-          setAuthToken(meData.token);
+      if (isTeacher) {
+        try {
+          localStorage.setItem("role", "teacher");
+        } catch {
+          // ignore storage failures
         }
-        if (meData?.user) {
-          try {
-            localStorage.setItem("teacher", JSON.stringify(meData.user));
-          } catch {
-            /* ignore */
+        auth.setSession(me ?? { role: "teacher" });
+        if (!token) {
+          const meToken = (me as any)?.token;
+          if (meToken) {
+            try {
+              localStorage.setItem("auth_token", meToken);
+            } catch {
+              // ignore storage failures
+            }
+            setAuthToken(meToken);
           }
         }
-        auth?.setSession?.({ role: "teacher", user: meData?.user ?? { id: meData?.id ?? null, email: meData?.email ?? null, role: "teacher" } });
-        void auth?.reload?.();
-  navigate("/professor/resumo", { replace: true });
+        const redirectTo = resolveRedirect(searchParams.get("next"));
+        navigate(redirectTo, { replace: true });
         return;
       }
 
       setErro(payload?.message ?? "Credenciais válidas, mas sem permissão de professor.");
     } catch (err: any) {
       setErro(err?.response?.data?.message ?? "Erro no login do professor");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -108,7 +139,9 @@ export default function LoginProfessor() {
         />
         {erro && <p className="text-sm text-red-600">{erro}</p>}
         <div className="pt-2">
-          <Button type="submit" className="w-full">Entrar</Button>
+          <Button type="submit" className="w-full" disabled={submitting}>
+            {submitting ? "Entrando..." : "Entrar"}
+          </Button>
         </div>
       </form>
       <div className="mt-8 flex justify-end">

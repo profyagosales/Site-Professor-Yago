@@ -12,17 +12,19 @@ export type SessionUser = {
   [key: string]: unknown;
 };
 
-export async function fetchMe(): Promise<SessionUser | null> {
+export async function fetchMe(silent = true): Promise<SessionUser | null> {
   try {
     const { data } = await api.get<{ user?: SessionUser }>('/me', {
-      meta: { skipAuthRedirect: true, noCache: true },
+      meta: { skipAuthRedirect: silent, noCache: true },
     });
     return (data as any)?.user ?? null;
   } catch (e: any) {
-    if (e?.response?.status === 401) return null;
+    if (silent && e?.response?.status === 401) return null;
     throw e;
   }
 }
+
+export const getMe = fetchMe;
 
 export async function doLogout(): Promise<void> {
   try {

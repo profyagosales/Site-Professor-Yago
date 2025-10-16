@@ -11,7 +11,15 @@ function normalizeBase(url?: string | null): string {
 type EnvShape = { VITE_API_BASE_URL?: string };
 const env = (import.meta as unknown as { env?: EnvShape }).env;
 const apiBase = normalizeBase(env?.VITE_API_BASE_URL ?? null);
-const baseURL = apiBase ? `${apiBase}/api` : '/api';
+let baseURL = '/api';
+if (apiBase) {
+  baseURL = `${apiBase}/api`;
+} else if (typeof window !== 'undefined') {
+  const host = window.location.hostname;
+  if (/professoryagosales\.com\.br$/i.test(host)) {
+    baseURL = 'https://api.professoryagosales.com.br/api';
+  }
+}
 
 // Permitimos meta flags no config
 declare module 'axios' {
@@ -26,7 +34,10 @@ declare module 'axios' {
 
 export const api = axios.create({
   baseURL,
-  withCredentials: true,
+  withCredentials: false,
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
 export function setAuthToken(token: string | null): void {
