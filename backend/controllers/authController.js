@@ -26,6 +26,38 @@ function pickHash(user) {
   return u.passwordHash || u.senhaHash || u.hash || u.password || u.senha || null;
 }
 
+function buildLoginQuery(Model, email) {
+  const query = Model.findOne({ email: { $regex: `^${email}$`, $options: 'i' } });
+  const schema = Model?.schema;
+  const ensureSelected = (field) => {
+    if (!schema?.path) return;
+    const path = schema.path(field);
+    if (path?.options?.select === false) {
+      query.select(`+${field}`);
+    }
+  };
+
+  ['passwordHash', 'senhaHash', 'hash', 'password', 'senha'].forEach(ensureSelected);
+  return query;
+}
+
+async function verifyPassword(password, hash) {
+  if (!hash || typeof hash !== 'string') return false;
+  const trimmed = hash.trim();
+  const bcryptPrefixes = ['$2a$', '$2b$', '$2y$', '$2$'];
+  if (bcryptPrefixes.some((prefix) => trimmed.startsWith(prefix))) {
+    try {
+      return await bcrypt.compare(password, trimmed);
+    } catch (err) {
+      console.error('[LOGIN] Falha ao comparar hash bcrypt', err?.message || err);
+      return false;
+    }
+  }
+
+  // Fallback para hashes legados em texto simples
+  return password === trimmed;
+}
+
 function ensureSecret() {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
@@ -83,7 +115,7 @@ async function doLogin({ Model, role, req, res }) {
   const { email, password } = parsed.data;
 
   try {
-    const doc = await Model.findOne({ email: { $regex: `^${email}$`, $options: 'i' } }).lean();
+  const doc = await buildLoginQuery(Model, email).exec();
     if (!doc) {
       console.log(`[LOGIN] ${role} não encontrado`, { emailTentado: email });
       return res.status(401).json({ success: false, message: 'E-mail ou senha inválidos.' });
@@ -97,7 +129,7 @@ async function doLogin({ Model, role, req, res }) {
       return res.status(500).json({ success: false, message: 'Conta sem hash de senha.' });
     }
 
-    const ok = await bcrypt.compare(password, hash);
+    const ok = await verifyPassword(password, hash);
     if (!ok) {
       console.log(`[LOGIN] senha incorreta para ${role}`, { id: String(doc._id), email: doc.email });
       return res.status(401).json({ success: false, message: 'E-mail ou senha inválidos.' });
@@ -133,9 +165,7 @@ exports.loginTeacher = async (req, res) => {
   const { email, password } = parsed.data;
 
   try {
-    const teacherDoc = await Teacher.findOne({
-      email: { $regex: `^${email}$`, $options: 'i' },
-    });
+  const teacherDoc = await buildLoginQuery(Teacher, email).exec();
 
     if (!teacherDoc) {
       console.log('[LOGIN] teacher não encontrado', { emailTentado: email });
@@ -151,7 +181,7 @@ exports.loginTeacher = async (req, res) => {
       return res.status(500).json({ success: false, message: 'Conta sem hash de senha.' });
     }
 
-    const ok = await bcrypt.compare(password, hash);
+    const ok = await verifyPassword(password, hash);
     if (!ok) {
       console.log('[LOGIN] senha incorreta para teacher', {
         id: String(teacherDoc._id),
