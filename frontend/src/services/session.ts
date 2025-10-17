@@ -12,6 +12,8 @@ export type SessionUser = {
 };
 
 export type SessionPayload = {
+  success?: boolean;
+  message?: string;
   role: string;
   isTeacher: boolean;
   user: SessionUser;

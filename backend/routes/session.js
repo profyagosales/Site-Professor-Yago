@@ -12,22 +12,24 @@ router.get('/me', authOptional, async (req, res, next) => {
   try {
     const sessionUser = req.user;
     if (!sessionUser) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
     const role = sessionUser.role;
     const subjectId = sessionUser.sub || sessionUser.id || sessionUser._id;
 
     if (!subjectId) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
     if (role === 'teacher') {
       const teacher = await Teacher.findById(subjectId);
       if (!teacher) {
-        return res.status(401).json({ message: 'Unauthorized' });
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
       }
       return res.json({
+        success: true,
+        message: 'ok',
         role: 'teacher',
         isTeacher: true,
         user: publicTeacher(teacher),
@@ -37,10 +39,12 @@ router.get('/me', authOptional, async (req, res, next) => {
     if (role === 'student') {
       const student = await Student.findById(subjectId);
       if (!student) {
-        return res.status(401).json({ message: 'Unauthorized' });
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
       }
       const classId = student.class ? String(student.class) : null;
       return res.json({
+        success: true,
+        message: 'ok',
         role: 'student',
         isTeacher: false,
         user: {
@@ -50,14 +54,14 @@ router.get('/me', authOptional, async (req, res, next) => {
       });
     }
 
-    return res.status(400).json({ message: 'Role inválido' });
+    return res.status(400).json({ success: false, message: 'Role inválido' });
   } catch (err) {
     next(err);
   }
 });
 
 router.post('/logout', authOptional, (req, res) => {
-  res.clearCookie(AUTH_COOKIE, { ...authCookieOptions(), maxAge: 0 });
+  res.clearCookie(AUTH_COOKIE, authCookieOptions());
   return res.sendStatus(204);
 });
 

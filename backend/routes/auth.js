@@ -9,6 +9,7 @@ const { loginTeacher, publicTeacher, publicStudent } = require('../controllers/a
 const { AUTH_COOKIE, authCookieOptions } = require('../utils/cookies');
 
 const router = express.Router();
+const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function ensureSecret() {
   const secret = process.env.JWT_SECRET;
@@ -18,9 +19,9 @@ function ensureSecret() {
   return secret;
 }
 
-function signAndSetCookie(res, payload, expiresIn = '12h') {
+function signAndSetCookie(res, payload, expiresIn = '7d') {
   const token = jwt.sign(payload, ensureSecret(), { expiresIn });
-  res.cookie(AUTH_COOKIE, token, { ...authCookieOptions(), maxAge: 12 * 60 * 60 * 1000 });
+  res.cookie(AUTH_COOKIE, token, { ...authCookieOptions(), maxAge: COOKIE_MAX_AGE_MS });
   return token;
 }
 
@@ -35,6 +36,8 @@ router.post('/register-teacher', async (req, res, next) => {
       role: 'teacher',
     });
     res.status(200).json({
+      success: true,
+      message: 'ok',
       role: 'teacher',
       isTeacher: true,
       user: publicTeacher(teacher),
@@ -53,17 +56,17 @@ router.post('/login-student', async (req, res, next) => {
   try {
     const { email, password } = req.body || {};
     if (!email || !password) {
-      return res.status(400).json({ message: 'Informe e-mail e senha.' });
+  return res.status(400).json({ success: false, message: 'Informe e-mail e senha.' });
     }
 
     const student = await Student.findOne({ email: { $regex: `^${email}$`, $options: 'i' } }).select('+passwordHash');
     if (!student) {
-      return res.status(401).json({ message: 'Credenciais inválidas.' });
+  return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
     }
 
     const ok = await bcrypt.compare(password, student.passwordHash || '');
     if (!ok) {
-      return res.status(401).json({ message: 'Credenciais inválidas.' });
+  return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
     }
 
     const studentId = String(student._id);
@@ -84,6 +87,8 @@ router.post('/login-student', async (req, res, next) => {
     };
 
     return res.status(200).json({
+      success: true,
+      message: 'ok',
       role: 'student',
       isTeacher: false,
       user,
@@ -123,7 +128,7 @@ router.get('/me', authRequired, async (req, res, next) => {
   try {
     const sessionUser = req.user;
     if (!sessionUser) {
-      return res.status(401).json({ message: 'Unauthorized' });
+  return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
     const role = sessionUser.role || null;
@@ -132,9 +137,11 @@ router.get('/me', authRequired, async (req, res, next) => {
     if (role === 'teacher') {
       const teacher = await Teacher.findById(subjectId);
       if (!teacher) {
-        return res.status(401).json({ message: 'Unauthorized' });
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
       }
       return res.json({
+        success: true,
+        message: 'ok',
         role: 'teacher',
         isTeacher: true,
         user: publicTeacher(teacher),
@@ -144,10 +151,12 @@ router.get('/me', authRequired, async (req, res, next) => {
     if (role === 'student') {
       const student = await Student.findById(subjectId);
       if (!student) {
-        return res.status(401).json({ message: 'Unauthorized' });
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
       }
       const classId = student.class ? String(student.class) : null;
       return res.json({
+        success: true,
+        message: 'ok',
         role: 'student',
         isTeacher: false,
         user: {
@@ -157,7 +166,7 @@ router.get('/me', authRequired, async (req, res, next) => {
       });
     }
 
-    return res.status(400).json({ message: 'Role inválido' });
+    return res.status(400).json({ success: false, message: 'Role inválido' });
   } catch (err) {
     next(err);
   }
@@ -165,7 +174,7 @@ router.get('/me', authRequired, async (req, res, next) => {
 
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {
-  res.clearCookie(AUTH_COOKIE, { ...authCookieOptions(), maxAge: 0 });
+  res.clearCookie(AUTH_COOKIE, authCookieOptions());
   res.status(204).send();
 });
 

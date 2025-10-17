@@ -8,6 +8,7 @@ const cookieParser = require('cookie-parser');
 const authRoutes = require('./routes/auth');
 const emailRoutes = require('./routes/email');
 const classesRoutes = require('./routes/classes');
+const authMiddleware = require('./middleware/auth');
 const studentsUpcomingRoutes = require('./routes/studentsUpcoming');
 const evaluationRoutes = require('./routes/evaluations');
 const gradesRoutes = require('./routes/grades');
@@ -26,16 +27,15 @@ const dashboardRoutes = require('./routes/dashboard');
 const contentsRoutes = require('./routes/contents');
 const gradeActivitiesRoutes = require('./routes/gradeActivities');
 const themesRoutes = require('./routes/themes');
-const authMiddleware = require('./middleware/auth');
 const ensureTeacher = require('./middleware/ensureTeacher');
 
-const { corsOptions } = require('./corsConfig');
+const { corsOptions, preflightOptions } = require('./corsConfig');
 
 const app = express();
 
 // CORS (centralizado)
 app.use(cors(corsOptions));
-app.options(/.*/, cors(corsOptions));
+app.options('*', cors(preflightOptions));
 
 // #### Sessão estável em produção atrás de proxy (Render/Cloudflare)
 app.set('trust proxy', 1);

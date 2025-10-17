@@ -5,6 +5,8 @@ const Teacher = require('../models/Teacher');
 const Student = require('../models/Student');
 const { AUTH_COOKIE, authCookieOptions } = require('../utils/cookies');
 
+const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
 // aceita "password" ou "senha" para maior tolerância com clientes
 const LoginSchema = z
   .object({
@@ -64,11 +66,11 @@ function publicStudent(doc) {
 
 function issueToken(payload) {
   const secret = ensureSecret();
-  return jwt.sign(payload, secret, { expiresIn: '12h' });
+  return jwt.sign(payload, secret, { expiresIn: '7d' });
 }
 
 function sendSessionCookie(res, token) {
-  res.cookie(AUTH_COOKIE, token, { ...authCookieOptions(), maxAge: 12 * 60 * 60 * 1000 });
+  res.cookie(AUTH_COOKIE, token, { ...authCookieOptions(), maxAge: COOKIE_MAX_AGE_MS });
 }
 
 async function doLogin({ Model, role, req, res }) {
@@ -104,7 +106,14 @@ async function doLogin({ Model, role, req, res }) {
     const token = issueToken({ sub: String(doc._id), role });
     sendSessionCookie(res, token);
     const publicUser = role === 'teacher' ? publicTeacher(doc) : publicStudent(doc);
-    return res.json({ role, isTeacher: role === 'teacher', user: publicUser, token });
+    return res.json({
+      success: true,
+      message: 'ok',
+      role,
+      isTeacher: role === 'teacher',
+      user: publicUser,
+      token,
+    });
   } catch (err) {
     console.error('[LOGIN] Erro inesperado', {
       role, emailTentado: email, stack: err?.stack || String(err)
@@ -159,6 +168,8 @@ exports.loginTeacher = async (req, res) => {
     const user = publicTeacher(teacherDoc);
 
     return res.status(200).json({
+      success: true,
+      message: 'ok',
       role: 'teacher',
       isTeacher: true,
       user,

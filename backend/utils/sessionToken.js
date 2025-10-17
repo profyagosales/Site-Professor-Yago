@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { AUTH_COOKIE, authCookieOptions } = require('./cookies');
 
-const SESSION_COOKIE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+const SESSION_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const REFRESH_THRESHOLD_SECONDS = 4 * 60 * 60;
 
 function ensureSecret() {
@@ -12,7 +12,7 @@ function ensureSecret() {
   return secret;
 }
 
-function signSessionToken(payload, expiresIn = '24h') {
+function signSessionToken(payload, expiresIn = '7d') {
   const secret = ensureSecret();
   return jwt.sign(payload, secret, { expiresIn });
 }

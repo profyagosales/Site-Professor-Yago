@@ -2,6 +2,8 @@ import { api } from './api';
 import { gerencialApi } from './gerencialApi';
 
 export type GerencialLoginResponse = {
+  success?: boolean;
+  message?: string;
   token: string;
   expiresIn: number;
 };

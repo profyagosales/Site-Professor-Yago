@@ -44,6 +44,8 @@ exports.login = (req, res) => {
     });
 
     return res.json({
+      success: true,
+      message: 'ok',
       role: 'gerencial',
       isTeacher: false,
       scope: 'gerencial/admin',

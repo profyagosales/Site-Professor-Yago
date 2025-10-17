@@ -1,8 +1,22 @@
+const allowedOrigin = 'https://professoryagosales.com.br';
+
+const sharedHeaders = ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'Pragma'];
+
 const corsOptions = {
-  origin: 'https://professoryagosales.com.br',
+  origin: allowedOrigin,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: sharedHeaders,
+  exposedHeaders: ['Set-Cookie'],
+  optionsSuccessStatus: 204,
 };
 
-module.exports = { corsOptions };
+const preflightOptions = {
+  origin: allowedOrigin,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: sharedHeaders,
+  optionsSuccessStatus: 204,
+};
+
+module.exports = { corsOptions, preflightOptions, allowedOrigin };

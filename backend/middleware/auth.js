@@ -62,7 +62,7 @@ function makeAuth(required) {
     const token = extractToken(req);
     if (!token) {
       if (required) {
-        return res.status(401).json({ message: 'Unauthorized' });
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
       }
       attachUser(req, null);
       return next();
@@ -71,13 +71,13 @@ function makeAuth(required) {
     try {
       let user = verifyToken(token);
       if (!user) {
-        return res.status(401).json({ message: 'Unauthorized' });
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
       }
       user = applyRefresh(req, res, user);
       attachUser(req, user);
       return next();
     } catch {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
   };
 }
