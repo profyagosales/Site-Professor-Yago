@@ -26,15 +26,22 @@ function bufferToStream(buffer) {
   return readable;
 }
 
-async function uploadBuffer(buffer, folder, mimetype) {
+async function uploadBuffer(buffer, folder, mimetype, options = {}) {
   // Define resource_type baseado no mimetype: PDFs -> 'raw'; imagens -> 'image'
   const isImage = typeof mimetype === 'string' && mimetype.startsWith('image/');
   const resource_type = isImage ? 'image' : 'raw';
   return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream({ folder, resource_type }, (err, result) => {
-      if (err) return reject(err);
-      resolve(result.secure_url);
-    });
+    const stream = cloudinary.uploader.upload_stream(
+      { folder, resource_type },
+      (err, result) => {
+        if (err) return reject(err);
+        if (options && options.returnResult) {
+          resolve(result);
+        } else {
+          resolve(result.secure_url);
+        }
+      }
+    );
     bufferToStream(buffer).pipe(stream);
   });
 }
@@ -120,13 +127,17 @@ function normalizeEssayDetail(essay) {
     status: essay.status || 'PENDING',
     type: essay.type || null,
     theme: themeName,
+    topic: themeName,
     term: essay.bimester ?? null,
     submittedAt: essay.submittedAt || essay.createdAt || null,
     updatedAt: essay.updatedAt || null,
     student,
+    studentName: student?.name || essay.studentName || null,
     classId: essay.classId?._id ? String(essay.classId._id) : essay.classId || null,
     className: student?.className || null,
     file: normalizeEssayFile(essay),
+    fileUrl: essay.originalUrl || null,
+    correctedUrl: essay.correctedUrl || null,
     grade: normalizeEssayGrade(essay),
     comments: essay.comments || null,
     annotations: Array.isArray(essay.annotations) ? essay.annotations : [],
@@ -139,9 +150,11 @@ function normalizeEssayDetail(essay) {
     themeId: essay.themeId || null,
     teacherId: essay.teacherId || null,
     originalUrl: essay.originalUrl || null,
+    originalMimeType: essay.originalMimeType || null,
     bimestreWeight: essay.bimestreWeight ?? null,
     bimestralPointsValue: essay.bimestralPointsValue ?? null,
     countInBimestral: essay.countInBimestral ?? false,
+    sentAt: essay.submittedAt || essay.createdAt || null,
   };
 }
 
@@ -156,14 +169,34 @@ function normalizeEssaySummary(essay) {
     submittedAt: essay.submittedAt || essay.createdAt || null,
     updatedAt: essay.updatedAt || null,
     student,
+    studentName: student?.name || essay.studentName || null,
     classId: essay.classId?._id ? String(essay.classId._id) : essay.classId || null,
     className: student?.className || null,
     corrected: Boolean(essay.correctedUrl),
+    fileUrl: essay.originalUrl || null,
+    correctedUrl: essay.correctedUrl || null,
     rawScore: essay.rawScore != null ? Number(essay.rawScore) : null,
     scaledScore: essay.scaledScore != null ? Number(essay.scaledScore) : null,
     bimestralPointsValue: essay.bimestralPointsValue != null ? Number(essay.bimestralPointsValue) : null,
     studentId: essay.studentId || null,
     class: essay.classId || null,
+    sentAt: essay.submittedAt || essay.createdAt || null,
+  };
+}
+
+function normalizeTheme(doc) {
+  if (!doc) return null;
+  const raw = doc.toObject?.() ?? doc;
+  return {
+    id: String(raw._id || raw.id || ''),
+    type: raw.type,
+    title: raw.name,
+    description: raw.description || null,
+    active: raw.active !== false,
+    promptFileUrl: raw.promptFileUrl || null,
+    promptFilePublicId: raw.promptFilePublicId || null,
+    createdAt: raw.createdAt || null,
+    updatedAt: raw.updatedAt || null,
   };
 }
 
@@ -200,37 +233,189 @@ async function getEssay(req, res) {
 
 // Theme endpoints
 async function getThemes(req, res) {
-  const filter = {};
-  if (req.query.type) filter.type = req.query.type;
-  if (req.query.active !== undefined) filter.active = req.query.active === 'true';
-  const themes = await EssayTheme.find(filter);
-  res.json(themes);
+  try {
+    const filter = {};
+    if (req.query.type) {
+      filter.type = String(req.query.type).trim().toUpperCase();
+    }
+    if (req.query.active === 'false') {
+      filter.active = false;
+    } else if (req.query.active === 'all') {
+      // no active filter
+    } else {
+      filter.active = true;
+    }
+
+    const themes = await EssayTheme.find(filter).sort({ updatedAt: -1 });
+    const data = themes.map((theme) => normalizeTheme(theme));
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('[themes] list error', err);
+    res.status(500).json({ success: false, message: 'Erro ao listar temas' });
+  }
 }
 
 async function createTheme(req, res) {
-  const { name, type } = req.body;
-  if (!name || !type) return res.status(400).json({ message: 'Dados inválidos' });
-  const theme = await EssayTheme.create({ name, type });
-  res.status(201).json(theme);
+  try {
+    const typeRaw = typeof req.body.type === 'string' ? req.body.type.trim().toUpperCase() : '';
+    const titleRaw = typeof req.body.title === 'string' ? req.body.title : req.body.name;
+    const title = typeof titleRaw === 'string' ? titleRaw.trim() : '';
+    if (!title) {
+      return res.status(400).json({ success: false, message: 'Título do tema obrigatório' });
+    }
+    if (!['ENEM', 'PAS'].includes(typeRaw)) {
+      return res.status(400).json({ success: false, message: 'Tipo de tema inválido' });
+    }
+
+    let uploadResult = null;
+    if (req.file) {
+      uploadResult = await uploadBuffer(req.file.buffer, 'essays/themes', req.file.mimetype || 'application/octet-stream', { returnResult: true });
+    }
+
+    const theme = await EssayTheme.create({
+      name: title,
+      type: typeRaw,
+      description: typeof req.body.description === 'string' && req.body.description.trim() ? req.body.description.trim() : null,
+      promptFileUrl: uploadResult?.secure_url || null,
+      promptFilePublicId: uploadResult?.public_id || null,
+      active: true,
+    });
+
+    res.status(201).json({ success: true, data: normalizeTheme(theme) });
+  } catch (err) {
+    console.error('[themes] create error', err);
+    res.status(500).json({ success: false, message: 'Erro ao criar tema' });
+  }
 }
 
 async function updateTheme(req, res) {
-  const { id } = req.params;
-  const { name, type, active } = req.body;
-  const theme = await EssayTheme.findByIdAndUpdate(
-    id,
-    { $set: { ...(name && { name }), ...(type && { type }), ...(active !== undefined && { active }) } },
-    { new: true }
-  );
-  if (!theme) return res.status(404).json({ message: 'Tema não encontrado' });
-  res.json(theme);
+  try {
+    const { id } = req.params;
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ success: false, message: 'ID inválido' });
+    }
+
+    const theme = await EssayTheme.findById(id);
+    if (!theme) {
+      return res.status(404).json({ success: false, message: 'Tema não encontrado' });
+    }
+
+    if (req.body.title !== undefined || req.body.name !== undefined) {
+      const titleRaw = typeof req.body.title === 'string' ? req.body.title : req.body.name;
+      const title = typeof titleRaw === 'string' ? titleRaw.trim() : '';
+      if (!title) {
+        return res.status(400).json({ success: false, message: 'Título do tema obrigatório' });
+      }
+      theme.name = title;
+    }
+
+    if (req.body.type !== undefined) {
+      const typeRaw = String(req.body.type).trim().toUpperCase();
+      if (!['ENEM', 'PAS'].includes(typeRaw)) {
+        return res.status(400).json({ success: false, message: 'Tipo de tema inválido' });
+      }
+      theme.type = typeRaw;
+    }
+
+    if (req.body.description !== undefined) {
+      const description = typeof req.body.description === 'string' ? req.body.description.trim() : '';
+      theme.description = description || null;
+    }
+
+    if (req.body.active !== undefined) {
+      if (typeof req.body.active === 'string') {
+        theme.active = req.body.active.trim().toLowerCase() === 'true';
+      } else {
+        theme.active = Boolean(req.body.active);
+      }
+    }
+
+    if (req.file) {
+      if (theme.promptFilePublicId) {
+        try {
+          await cloudinary.uploader.destroy(theme.promptFilePublicId);
+        } catch (err) {
+          console.warn('[themes] falha ao remover arquivo anterior', err?.message || err);
+        }
+      }
+      const uploadResult = await uploadBuffer(req.file.buffer, 'essays/themes', req.file.mimetype || 'application/octet-stream', { returnResult: true });
+      theme.promptFileUrl = uploadResult?.secure_url || null;
+      theme.promptFilePublicId = uploadResult?.public_id || null;
+    }
+
+    await theme.save();
+
+    res.json({ success: true, data: normalizeTheme(theme) });
+  } catch (err) {
+    console.error('[themes] update error', err);
+    res.status(500).json({ success: false, message: 'Erro ao atualizar tema' });
+  }
+}
+
+async function deleteTheme(req, res) {
+  try {
+    const { id } = req.params;
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ success: false, message: 'ID inválido' });
+    }
+
+    const theme = await EssayTheme.findById(id);
+    if (!theme) {
+      return res.status(404).json({ success: false, message: 'Tema não encontrado' });
+    }
+
+    if (theme.promptFilePublicId) {
+      try {
+        await cloudinary.uploader.destroy(theme.promptFilePublicId);
+      } catch (err) {
+        console.warn('[themes] falha ao remover arquivo tema', err?.message || err);
+      }
+    }
+
+    await theme.deleteOne();
+    res.json({ success: true, data: null });
+  } catch (err) {
+    console.error('[themes] delete error', err);
+    res.status(500).json({ success: false, message: 'Erro ao remover tema' });
+  }
+}
+
+async function deleteTheme(req, res) {
+  try {
+    const { id } = req.params;
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ success: false, message: 'ID inválido' });
+    }
+
+    const theme = await EssayTheme.findById(id);
+    if (!theme) {
+      return res.status(404).json({ success: false, message: 'Tema não encontrado' });
+    }
+
+    if (theme.promptFilePublicId) {
+      try {
+        await cloudinary.uploader.destroy(theme.promptFilePublicId);
+      } catch (err) {
+        console.warn('[themes] falha ao remover arquivo associado', err?.message || err);
+      }
+    }
+
+    await theme.deleteOne();
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[themes] delete error', err);
+    res.status(500).json({ success: false, message: 'Erro ao remover tema' });
+  }
 }
 
 // Create essay
 async function createEssay(req, res) {
   try {
     const { type, bimester, themeId, customTheme } = req.body;
-    if (!req.file || !type || !bimester || (!themeId && !customTheme)) {
+    const typeNormalized = typeof type === 'string' ? type.trim().toUpperCase() : '';
+    const requiresBimester = typeNormalized !== 'ENEM';
+    if (!req.file || !['ENEM', 'PAS'].includes(typeNormalized) || (requiresBimester && !bimester) || (!themeId && !customTheme)) {
       return res.status(400).json({ message: 'Dados inválidos' });
     }
 
@@ -251,13 +436,13 @@ async function createEssay(req, res) {
         return res.status(400).json({ message: 'Aluno e turma obrigatórios' });
       }
 
-  const originalUrl = await uploadBuffer(req.file.buffer, 'essays/original', req.file.mimetype);
+    const originalUrl = await uploadBuffer(req.file.buffer, 'essays/original', req.file.mimetype);
 
     let essay = await Essay.create({
       studentId,
       classId,
-      type,
-      bimester,
+      type: typeNormalized,
+      bimester: bimester ? Number(bimester) : null,
       themeId: themeId || null,
       customTheme: customTheme || null,
       originalUrl,
@@ -274,7 +459,7 @@ async function createEssay(req, res) {
     res.status(201).json({ success: true, data: payload });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Erro ao enviar redação' });
+    res.status(500).json({ success: false, message: 'Erro ao enviar redação' });
   }
 }
 
@@ -295,8 +480,12 @@ async function updateEssay(req, res) {
       update.customTheme = customTheme || null;
       if (customTheme) update.themeId = null;
     }
-    if (bimester !== undefined) update.bimester = Number(bimester);
-    if (type !== undefined) update.type = type;
+    if (bimester !== undefined) {
+      update.bimester = bimester === '' || bimester === null ? null : Number(bimester);
+    }
+    if (type !== undefined) {
+      update.type = typeof type === 'string' ? type.trim().toUpperCase() : type;
+    }
     if (studentId !== undefined) update.studentId = studentId || null;
 
     if (req.file) {
@@ -340,7 +529,7 @@ async function listEssays(req, res) {
   }
 
   if (bimester) filter.bimester = Number(bimester);
-  if (type) filter.type = type;
+  if (type) filter.type = String(type).trim().toUpperCase();
   if (req.profile === 'student') {
     filter.studentId = req.user._id;
   } else {
@@ -721,6 +910,7 @@ module.exports = {
   getThemes,
   createTheme,
   updateTheme,
+  deleteTheme,
   createEssay,
   updateEssay,
   listEssays,

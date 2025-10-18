@@ -6,6 +6,15 @@ import { toArray } from '@/lib/api'
 import Modal from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 
+const toId = (value) => {
+  if (!value) return ''
+  if (typeof value === 'string') return value
+  if (value._id) return String(value._id)
+  if (value.id) return String(value.id)
+  if (value.classId) return String(value.classId)
+  return ''
+}
+
 export default function QuickContentModal({ open, onClose, onSaved }) {
   const [classes, setClasses] = useState([])
   const [classId, setClassId] = useState('')
@@ -31,6 +40,9 @@ export default function QuickContentModal({ open, onClose, onSaved }) {
     try {
       await quickCreateContent({ classId, term: Number(term), title, description, date, done })
       toast.success('Conteúdo criado')
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('contents:refresh'))
+      }
       onClose()
       onSaved && onSaved()
       setClassId(''); setTerm(''); setTitle(''); setDescription(''); setDate(''); setDone(false)
@@ -48,9 +60,19 @@ export default function QuickContentModal({ open, onClose, onSaved }) {
             <label className="mb-1 block text-sm font-semibold text-slate-700">Turma</label>
             <select className="w-full rounded-xl border border-slate-200 p-2 text-sm" value={classId} onChange={e=>setClassId(e.target.value)} required>
               <option value="">Selecione</option>
-              {arrify(classes).map(cls => (
-                <option key={cls.classId} value={cls.classId}>Turma {cls.series}{cls.letter} - {cls.discipline}</option>
-              ))}
+              {arrify(classes).map(cls => {
+                const id = toId(cls)
+                const name = cls?.name || cls?.nome
+                const gradePart = cls?.series ? `${cls.series}º${cls.letter ?? ''}`.trim() : ''
+                const discipline = cls?.discipline || cls?.subject || ''
+                const fallback = [gradePart && `Turma ${gradePart}`, discipline].filter(Boolean).join(' - ')
+                const label = name || fallback || 'Turma'
+                return (
+                  <option key={id} value={id}>
+                    {label}
+                  </option>
+                )
+              })}
             </select>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">

@@ -10,13 +10,16 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error?.response?.status === 401) {
-      try {
-        localStorage.removeItem('role');
-      } catch {}
+    const skipRedirect = (error?.config as any)?.meta?.skipAuthRedirect;
+    if (!skipRedirect && error?.response?.status === 401) {
       if (typeof window !== 'undefined') {
-        const here = window.location.pathname;
-        if (!/login-professor/.test(here)) {
+        try {
+          const here = `${window.location.pathname}${window.location.search}`;
+          if (!/login-professor/.test(here)) {
+            const next = encodeURIComponent(here || '/professor/resumo');
+            window.location.replace(`/login-professor?next=${next}`);
+          }
+        } catch {
           window.location.replace('/login-professor');
         }
       }

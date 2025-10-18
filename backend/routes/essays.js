@@ -1,5 +1,6 @@
 const express = require('express');
 const { isValidObjectId } = require('mongoose');
+const multer = require('multer');
 
 // Auth unificado (lê cookie/Authorization/x-access-token)
 const authMod = require('../middleware/auth');
@@ -13,6 +14,7 @@ const {
   getThemes,
   createTheme,
   updateTheme,
+  deleteTheme,
   createEssay,
   updateEssay,
   listEssays,
@@ -27,8 +29,34 @@ const {
 const fileController = require('../controllers/fileController');
 const fileTokenCompat = require('../middlewares/fileTokenCompat'); // único compat
 const ensureTeacher = require('../middleware/ensureTeacher');
+const authFileOrTeacher = require('../middleware/authFileOrTeacher');
 
 const router = express.Router();
+
+const themeUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'image/png',
+      'image/jpeg',
+      'image/jpg',
+    ];
+    if (allowed.includes(file.mimetype)) return cb(null, true);
+    cb(new Error('Invalid theme file type'));
+  },
+});
+
+const optionalThemeUpload = (req, res, next) => {
+  const contentType = req.headers['content-type'] || req.headers['Content-Type'] || '';
+  if (typeof contentType === 'string' && contentType.toLowerCase().includes('multipart/form-data')) {
+    return themeUpload.single('file')(req, res, next);
+  }
+  return next();
+};
 
 function ensureValidId(req, res, next) {
   if (!isValidObjectId(req.params.id)) {
@@ -39,8 +67,9 @@ function ensureValidId(req, res, next) {
 
 /** --------- Themes --------- */
 router.get('/themes', authRequired, ensureTeacher, getThemes);
-router.post('/themes', authRequired, ensureTeacher, createTheme);
-router.patch('/themes/:id', authRequired, ensureTeacher, updateTheme);
+router.post('/themes', authRequired, ensureTeacher, optionalThemeUpload, createTheme);
+router.patch('/themes/:id', authRequired, ensureTeacher, optionalThemeUpload, updateTheme);
+router.delete('/themes/:id', authRequired, ensureTeacher, deleteTheme);
 
 /** --------- Essays CRUD + listas --------- */
 router.post('/', authRequired, ensureTeacher, upload.single('file'), createEssay);
@@ -69,7 +98,8 @@ router.get('/:id/file-token', ensureValidId, authRequired, ensureTeacher, fileCo
 router.head(
   '/:id/file',
   ensureValidId,
-  authOptional,                    // não obriga login pro HEAD
+  fileTokenCompat,
+  authFileOrTeacher,
   fileController.authorizeFileAccess, // valida sessão OU token curto se presente
   async (req, res, next) => {
     try {
@@ -109,9 +139,11 @@ router.get(
   '/:id/pdf',
   ensureValidId,
   fileTokenCompat,
+  authFileOrTeacher,
   fileController.authorizeFileAccess,
   async (req, res, next) => {
     try {
+      res.set('Cache-Control', 'private, max-age=60');
       await fileController.streamFile(req, res, req.params.id);
     } catch (err) {
       next(err);

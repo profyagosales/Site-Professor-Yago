@@ -18,9 +18,12 @@ export default function ThemeCombo({ value, onChange, allowCreate }: Props) {
     if (timer) clearTimeout(timer);
     const t = setTimeout(async () => {
       try {
-        const res = await api.get('/essays/themes', { params: { q: query } });
+        const res = await api.get('/essays/themes', { params: { type: undefined, active: true } });
         const payload = (res?.data?.data ?? res?.data ?? res) as any;
-        setOptions(Array.isArray(payload) ? payload : []);
+        const normalized = Array.isArray(payload)
+          ? payload.map((theme) => ({ id: theme.id || theme._id, name: theme.title || theme.name }))
+          : [];
+        setOptions(normalized);
       } catch {
         setOptions([]);
       }
@@ -33,9 +36,12 @@ export default function ThemeCombo({ value, onChange, allowCreate }: Props) {
     if (!allowCreate) return;
     const name = query.trim();
     if (!name) return;
-  const res = await api.post('/essays/themes', { name });
-  const created = (res?.data?.data ?? res?.data ?? res) as Theme;
-  onChange(created || { name });
+  const form = new FormData();
+  form.append('title', name);
+  form.append('type', 'PAS');
+  const res = await api.post('/essays/themes', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  const created = (res?.data?.data ?? res?.data ?? res) as any;
+  onChange({ id: created?.id, name: created?.title || name });
     setQuery('');
     setOptions([]);
   }

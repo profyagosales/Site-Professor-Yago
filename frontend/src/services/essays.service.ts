@@ -106,6 +106,58 @@ function toStudentEssaySummary(raw: any): StudentEssaySummary {
   };
 }
 
+type EssayListItem = {
+  id: string;
+  studentName: string;
+  student?: any;
+  className: string | null;
+  classId?: string | null;
+  theme: string;
+  type?: string | null;
+  bimester?: number | null;
+  submittedAt: string | null;
+  sentAt: string | null;
+  fileUrl?: string | null;
+  correctedUrl?: string | null;
+  score?: number | null;
+  comments?: string | null;
+  raw?: any;
+};
+
+function normalizeEssayListItem(raw: any): EssayListItem {
+  const id = normalizeId(raw);
+  const studentName = raw?.studentName || raw?.student?.name || raw?.student || '-';
+  const className = raw?.className || raw?.class?.name || raw?.class || null;
+  const classId = normalizeId(raw?.classId || raw?.class);
+  const theme = raw?.theme || raw?.topic || raw?.title || 'Tema não informado';
+  const type = typeof raw?.type === 'string' ? raw.type : typeof raw?.model === 'string' ? raw.model : null;
+  const bimester = raw?.term ?? raw?.bimester ?? raw?.bimestre ?? null;
+  const sentAt = raw?.sentAt || raw?.submittedAt || raw?.createdAt || null;
+  const fileUrl = raw?.fileUrl || raw?.originalUrl || null;
+  const correctedUrl = raw?.correctedUrl || null;
+  const score = raw?.rawScore ?? raw?.score ?? null;
+  const comments = raw?.comments ?? null;
+
+  return {
+    id,
+    studentName,
+    student: raw?.student,
+    className,
+    classId,
+    theme,
+    topic: theme,
+    type,
+    bimester: typeof bimester === 'number' && Number.isFinite(bimester) ? bimester : null,
+    submittedAt: sentAt ? new Date(sentAt).toISOString() : null,
+    sentAt: sentAt ? new Date(sentAt).toISOString() : null,
+    fileUrl,
+    correctedUrl,
+    score: typeof score === 'number' ? score : null,
+    comments: typeof comments === 'string' ? comments : null,
+    raw,
+  };
+}
+
 type GradeEssayPayload = {
   essayType: 'ENEM' | 'PAS';
   weight: number;
@@ -122,11 +174,34 @@ type GradeEssayPayload = {
 
 /** -------- base helpers (sem hardcode de localhost) -------- */
 export function normalizeApiOrigin(origin?: string): string {
+  const axiosBase = typeof api?.defaults?.baseURL === 'string' ? api.defaults.baseURL.trim() : '';
   const env = (import.meta as any)?.env || {};
-  let base = (origin || env?.VITE_API_BASE_URL || '').trim();
-  if (!base) base = typeof window !== 'undefined' ? `${window.location.origin}` : '';
+  let base = '';
+  if (typeof origin === 'string' && origin.trim()) {
+    base = origin.trim();
+  } else if (axiosBase) {
+    base = axiosBase;
+  } else if (typeof env?.VITE_API_BASE_URL === 'string' && env.VITE_API_BASE_URL.trim()) {
+    base = env.VITE_API_BASE_URL.trim();
+  } else if (typeof window !== 'undefined') {
+    base = `${window.location.origin}`;
+  }
+
+  if (!base) {
+    base = '/api';
+  }
+
   base = base.replace(/\/+$/, '');
-  if (!/\/api$/i.test(base)) base += '/api';
+  if (!/\/api$/i.test(base)) {
+    base = `${base}/api`;
+  }
+
+  if (!/^https?:\/\//i.test(base)) {
+    if (typeof window !== 'undefined') {
+      return `${window.location.origin}${base.startsWith('/') ? base : `/${base}`}`;
+    }
+    return `http://localhost${base.startsWith('/') ? base : `/${base}`}`;
+  }
   return base;
 }
 
@@ -158,25 +233,11 @@ export async function fetchEssayPdfUrl(
   essayId: string,
   options?: { signal?: AbortSignal; apiOrigin?: string }
 ): Promise<string> {
-  const preparedUrl = await prepareEssayFileToken(essayId, options);
-  const res = await fetch(preparedUrl, {
-    method: 'GET',
-    credentials: 'omit',
-    cache: 'no-store',
-    signal: options?.signal,
-    redirect: 'follow',
-  });
-  if (!res.ok) {
-    const error = new Error(`HTTP ${res.status}`) as Error & { status?: number };
-    error.status = res.status;
-    throw error;
-  }
-  const blob = await res.blob();
-  return URL.createObjectURL(blob);
+  return prepareEssayFileToken(essayId, options);
 }
 
 /** -------- essays CRUD/list -------- */
-export async function fetchEssays(params: FetchEssaysParams): Promise<EssaysPage> {
+export async function fetchEssays(params: FetchEssaysParams): Promise<EssaysPage & { items: EssayListItem[] }> {
   const {
     status,
     page = 1,
@@ -187,9 +248,16 @@ export async function fetchEssays(params: FetchEssaysParams): Promise<EssaysPage
     type,
   } = params;
 
+  const statusParam =
+    status === 'pending'
+      ? 'PENDING'
+      : status === 'corrected'
+        ? 'GRADED'
+        : status;
+
   const { data } = await api.get('/essays', {
     params: {
-      status,
+      status: statusParam,
       page,
       limit: pageSize,
       q,
@@ -200,38 +268,50 @@ export async function fetchEssays(params: FetchEssaysParams): Promise<EssaysPage
   });
 
   const payload = data && typeof data === 'object' ? data : {};
-  const items: any[] = Array.isArray(payload.data)
+  const rawItems: any[] = Array.isArray(payload.data)
     ? payload.data
     : Array.isArray(payload.items)
       ? payload.items
       : Array.isArray(payload)
         ? payload
         : [];
+
+  const items = rawItems.map((item) => normalizeEssayListItem(item));
 
   return {
     items,
     page: payload.page ?? page,
     pageSize: payload.limit ?? payload.pageSize ?? pageSize,
-    total: payload.total ?? items.length,
-  } as EssaysPage;
+    total: payload.total ?? rawItems.length,
+  };
 }
 
-export async function fetchEssaysPage(params: FetchEssaysPageParams): Promise<EssaysPage> {
-  const { data } = await api.get('/essays', { params });
+export async function fetchEssaysPage(params: FetchEssaysPageParams): Promise<EssaysPage & { items: EssayListItem[] }> {
+  const mappedParams = {
+    ...params,
+    status:
+      params.status === 'pending'
+        ? 'PENDING'
+        : params.status === 'corrected'
+          ? 'GRADED'
+          : params.status,
+  };
+  const { data } = await api.get('/essays', { params: mappedParams });
   const payload = data && typeof data === 'object' ? data : {};
-  const items: any[] = Array.isArray(payload.data)
+  const rawItems: any[] = Array.isArray(payload.data)
     ? payload.data
     : Array.isArray(payload.items)
       ? payload.items
       : Array.isArray(payload)
         ? payload
         : [];
+  const items = rawItems.map((item) => normalizeEssayListItem(item));
   return {
     items,
     page: payload.page ?? params.page ?? 1,
     pageSize: payload.limit ?? payload.pageSize ?? params.limit ?? 10,
-    total: payload.total ?? items.length,
-  } as EssaysPage;
+    total: payload.total ?? rawItems.length,
+  };
 }
 
 export async function listStudentEssaysByStatus(
@@ -371,23 +451,77 @@ export async function updateEssayAnnotations(
 }
 
 /** -------- util compat (ainda usado em alguns pontos do UI) -------- */
-export async function fetchThemes(params?: { type?: 'ENEM' | 'PAS'; active?: boolean }) {
-  const res = await api.get('/essays/themes', { params });
-  return res.data;
+export type EssayTheme = {
+  id: string;
+  title: string;
+  type: 'ENEM' | 'PAS';
+  description: string | null;
+  active: boolean;
+  promptFileUrl: string | null;
+  promptFilePublicId?: string | null;
+};
+
+function normalizeTheme(raw: any): EssayTheme {
+  return {
+    id: normalizeId(raw),
+    title: raw?.title || raw?.name || 'Tema',
+    type: (raw?.type || 'PAS') as 'ENEM' | 'PAS',
+    description: typeof raw?.description === 'string' ? raw.description : null,
+    active: raw?.active !== false,
+    promptFileUrl: raw?.promptFileUrl || null,
+    promptFilePublicId: raw?.promptFilePublicId || null,
+  };
 }
 
-export async function createThemeApi(payload: { name: string; type: 'ENEM' | 'PAS' }) {
-  const res = await api.post('/essays/themes', payload);
-  return res.data;
+export async function fetchThemes(params?: { type?: 'ENEM' | 'PAS'; active?: boolean | 'all' }) {
+  const res = await api.get('/essays/themes', { params });
+  const payload = res?.data;
+  const list: any[] = Array.isArray(payload?.data)
+    ? payload.data
+    : Array.isArray(payload)
+      ? payload
+      : [];
+  return list.map((item) => normalizeTheme(item));
+}
+
+export async function createThemeApi(payload: { title: string; type: 'ENEM' | 'PAS'; description?: string; file?: File | null }) {
+  const form = new FormData();
+  form.append('title', payload.title);
+  form.append('type', payload.type);
+  if (payload.description) form.append('description', payload.description);
+  if (payload.file) form.append('file', payload.file);
+  const res = await api.post('/essays/themes', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  const data = res?.data?.data ?? res?.data;
+  return normalizeTheme(data);
 }
 
 export async function updateThemeApi(
   id: string,
-  payload: { name?: string; type?: 'ENEM' | 'PAS'; active?: boolean }
+  payload: { title?: string; type?: 'ENEM' | 'PAS'; description?: string | null; active?: boolean; file?: File | null }
 ) {
-  const res = await api.patch(`/essays/themes/${id}`, payload);
-  return res.data;
+  let body: any = payload;
+  let config: any = {};
+  if (payload.file) {
+    const form = new FormData();
+    if (payload.title !== undefined) form.append('title', payload.title);
+    if (payload.type !== undefined) form.append('type', payload.type);
+    if (payload.description !== undefined) form.append('description', payload.description ?? '');
+    if (payload.active !== undefined) form.append('active', String(payload.active));
+    form.append('file', payload.file);
+    body = form;
+    config.headers = { 'Content-Type': 'multipart/form-data' };
+  }
+  const res = await api.patch(`/essays/themes/${id}`, body, config);
+  const data = res?.data?.data ?? res?.data;
+  return normalizeTheme(data);
 }
+
+export async function deleteThemeApi(id: string) {
+  const res = await api.delete(`/essays/themes/${id}`);
+  return res?.data ?? { success: true };
+}
+
+export type { EssayListItem };
 
 /** -------- compat helpers for file token + peek -------- */
 export async function issueFileToken(essayId: EssayId, options?: { signal?: AbortSignal }) {

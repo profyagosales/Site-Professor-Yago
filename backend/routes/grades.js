@@ -5,10 +5,179 @@ const Student = require('../models/Student');
 const Class = require('../models/Class');
 const pdfReport = require('../utils/pdfReport');
 const authRequired = require('../middleware/auth');
+const ensureTeacher = require('../middleware/ensureTeacher');
 
 const router = express.Router();
 
 router.use(authRequired);
+
+function parseBimestersParam(raw) {
+  if (raw === undefined || raw === null) return [1, 2, 3, 4];
+  const values = Array.isArray(raw) ? raw : String(raw).split(',');
+  const unique = new Set();
+  values.forEach((token) => {
+    const trimmed = String(token).trim();
+    if (!trimmed) return;
+    const parsed = Number(trimmed);
+    if (Number.isInteger(parsed) && parsed >= 1 && parsed <= 4) {
+      unique.add(parsed);
+    }
+  });
+  return unique.size ? Array.from(unique).sort((a, b) => a - b) : [1, 2, 3, 4];
+}
+
+function toMedian(values) {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 0) {
+    return (sorted[mid - 1] + sorted[mid]) / 2;
+  }
+  return sorted[mid];
+}
+
+router.get('/summary', ensureTeacher, async (req, res, next) => {
+  try {
+    const currentYear = new Date().getFullYear();
+    const requestedYear = Number(req.query.year) || currentYear;
+    const bimesters = parseBimestersParam(req.query.b);
+
+    const pipeline = [
+      {
+        $addFields: {
+          scoreNumber: {
+            $cond: [
+              { $isNumber: '$score' },
+              '$score',
+              {
+                $cond: [
+                  { $ne: ['$score', null] },
+                  { $toDouble: '$score' },
+                  null,
+                ],
+              },
+            ],
+          },
+        },
+      },
+      {
+        $match: {
+          scoreNumber: { $ne: null },
+          bimester: { $in: bimesters },
+        },
+      },
+      {
+        $lookup: {
+          from: 'evaluations',
+          localField: 'evaluation',
+          foreignField: '_id',
+          as: 'evaluationDoc',
+        },
+      },
+      {
+        $addFields: {
+          evaluationDoc: { $arrayElemAt: ['$evaluationDoc', 0] },
+        },
+      },
+      {
+        $addFields: {
+          evaluationDates: {
+            $map: {
+              input: {
+                $filter: {
+                  input: { $ifNull: ['$evaluationDoc.classes', []] },
+                  as: 'cls',
+                  cond: { $ne: ['$$cls.date', null] },
+                },
+              },
+              as: 'cls',
+              in: '$$cls.date',
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          evaluationDate: {
+            $cond: [
+              { $gt: [{ $size: '$evaluationDates' }, 0] },
+              { $min: '$evaluationDates' },
+              '$createdAt',
+            ],
+          },
+        },
+      },
+      {
+        $addFields: {
+          referenceDate: {
+            $cond: [
+              { $ne: ['$evaluationDate', null] },
+              '$evaluationDate',
+              '$createdAt',
+            ],
+          },
+        },
+      },
+      {
+        $addFields: {
+          referenceYear: {
+            $cond: [
+              { $ne: ['$referenceDate', null] },
+              { $year: '$referenceDate' },
+              null,
+            ],
+          },
+        },
+      },
+      {
+        $match: {
+          referenceYear: requestedYear,
+        },
+      },
+      {
+        $group: {
+          _id: '$bimester',
+          scores: { $push: '$scoreNumber' },
+          avg: { $avg: '$scoreNumber' },
+          count: { $sum: 1 },
+        },
+      },
+    ];
+
+    const aggregation = await Grade.aggregate(pipeline);
+
+    const statsMap = new Map();
+    aggregation.forEach((entry) => {
+      const scores = (entry.scores || []).filter((value) => Number.isFinite(value));
+      statsMap.set(entry._id, {
+        avg: typeof entry.avg === 'number' ? Number(entry.avg.toFixed(2)) : 0,
+        median: Number(toMedian(scores).toFixed(2)),
+        n: entry.count || 0,
+      });
+    });
+
+    const stats = bimesters.map((bim) => {
+      const bucket = statsMap.get(bim);
+      if (!bucket) {
+        return { bim, avg: 0, median: 0, n: 0 };
+      }
+      return { bim, avg: bucket.avg, median: bucket.median, n: bucket.n };
+    });
+
+    res.status(200).json({
+      success: true,
+      year: requestedYear,
+      bimesters,
+      stats,
+    });
+  } catch (err) {
+    if (!err.status) {
+      err.status = 500;
+      err.message = 'Erro ao consolidar as médias por bimestre';
+    }
+    next(err);
+  }
+});
 
 // Get grades for a single student grouped by bimester
 router.get('/student/:studentId', async (req, res, next) => {
@@ -186,4 +355,3 @@ router.post('/', async (req, res, next) => {
 });
 
 module.exports = router;
-

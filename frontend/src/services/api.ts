@@ -25,7 +25,9 @@ api.interceptors.response.use(
   (err: AxiosError) => {
     const status = err?.response?.status;
     const cfg = err?.config as (InternalAxiosRequestConfig & { meta?: any }) | undefined;
-    if (status === 401 && !cfg?.meta?.skipAuthRedirect && typeof window !== 'undefined') {
+    const url = typeof cfg?.url === 'string' ? cfg.url : '';
+    const isEssayPdf = /\/essays\/[^/]+\/pdf/i.test(url);
+    if (status === 401 && !cfg?.meta?.skipAuthRedirect && !isEssayPdf && typeof window !== 'undefined') {
       try {
         const next = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
         window.location.assign(`/login-professor?next=${next}`);

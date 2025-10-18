@@ -15,8 +15,8 @@ export async function listAnnouncementsForStudent({ studentId, limit = 5 }) {
 }
 
 export async function createAnnouncement(payload) {
-  const { data } = await api.post('/announcements', payload);
-  return data?.data || data;
+  const response = await api.post('/announcements', payload);
+  return response?.data ?? {};
 }
 
 export default {

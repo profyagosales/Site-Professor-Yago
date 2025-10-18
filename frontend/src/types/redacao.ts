@@ -3,14 +3,19 @@ export type EssayStatus = 'pending' | 'corrected';
 export interface Essay {
   id: string;
   studentName: string;
-  className: string;
-  topic: string;
-  submittedAt: string; // ISO
-  fileUrl: string;     // link para download/visualização
-  score?: number;      // só em corrigidas
-  comments?: string;   // só em corrigidas
-  type?: 'ENEM' | 'PAS';
-  bimester?: number;
+  className: string | null;
+  classId?: string | null;
+  theme: string;
+  topic?: string;
+  submittedAt: string | null;
+  sentAt?: string | null;
+  fileUrl?: string | null;
+  correctedUrl?: string | null;
+  score?: number | null;
+  comments?: string | null;
+  type?: string | null;
+  bimester?: number | null;
+  raw?: any;
 }
 
 export interface EssaysPage {

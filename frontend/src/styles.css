@@ -24,3 +24,12 @@ html, body, #root { height: 100%; background: #F2F4F7; }
 @media (prefers-reduced-motion: reduce) {
   .ys-noise { background: linear-gradient(180deg, #F7F8FA 0%, #F1F4F7 100%); }
 }
+
+@layer components {
+  .ys-card-title {
+    @apply text-lg font-semibold tracking-[-0.01em];
+  }
+  .ys-card-subtitle {
+    @apply text-sm text-muted-foreground;
+  }
+}

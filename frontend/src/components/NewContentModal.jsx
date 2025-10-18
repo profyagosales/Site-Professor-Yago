@@ -4,6 +4,15 @@ import { createContent } from '@/services/contents';
 import { toArray } from '@/lib/api';
 import { toast } from 'react-toastify';
 
+const toId = (value) => {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (value._id) return String(value._id);
+  if (value.id) return String(value.id);
+  if (value.classId) return String(value.classId);
+  return '';
+};
+
 function NewContentModal({ isOpen, onClose, onSuccess }) {
   const [classes, setClasses] = useState([]);
   const [classId, setClassId] = useState('');
@@ -32,6 +41,9 @@ function NewContentModal({ isOpen, onClose, onSuccess }) {
     try {
       await createContent({ classId, bimester: Number(bimester), title, description });
       toast.success('Conteúdo criado com sucesso');
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('contents:refresh'));
+      }
       setClassId('');
       setBimester('');
       setTitle('');
@@ -60,11 +72,19 @@ function NewContentModal({ isOpen, onClose, onSuccess }) {
               required
             >
               <option value="">Selecione</option>
-              {arrify(classes).map((cls) => (
-                <option key={cls.classId} value={cls.classId}>
-                  Turma {cls.series}{cls.letter} - {cls.discipline}
-                </option>
-              ))}
+              {arrify(classes).map((cls) => {
+                const id = toId(cls);
+                const name = cls?.name || cls?.nome;
+                const gradePart = cls?.series ? `${cls.series}º${cls.letter ?? ''}`.trim() : '';
+                const discipline = cls?.discipline || cls?.subject || '';
+                const fallback = [gradePart && `Turma ${gradePart}`, discipline].filter(Boolean).join(' - ');
+                const label = name || fallback || 'Turma';
+                return (
+                  <option key={id} value={id}>
+                    {label}
+                  </option>
+                );
+              })}
             </select>
           </div>
           <div>
@@ -116,4 +136,3 @@ function NewContentModal({ isOpen, onClose, onSuccess }) {
 }
 
 export default NewContentModal;
-

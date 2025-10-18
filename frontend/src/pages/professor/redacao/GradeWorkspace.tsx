@@ -67,7 +67,6 @@ export default function GradeWorkspace() {
   const [fileErrorCode, setFileErrorCode] = useState<number | undefined>(undefined);
   const [refreshTick, setRefreshTick] = useState(0);
   const navigateRef = useRef(navigate);
-  const pdfObjectUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     navigateRef.current = navigate;
@@ -78,6 +77,7 @@ export default function GradeWorkspace() {
     || (essay as any)?.classId?._id
     || (essay as any)?.classId?.id
     || (typeof (essay as any)?.classId === 'string' ? (essay as any).classId : undefined);
+  const studentInfo = (essay as any)?.student || (essay as any)?.studentId || null;
 
   const refreshFileUrl = useCallback(() => setRefreshTick((tick) => tick + 1), []);
 
@@ -88,10 +88,6 @@ export default function GradeWorkspace() {
     setFileError(null);
     setFileErrorCode(undefined);
 
-    if (pdfObjectUrlRef.current) {
-      URL.revokeObjectURL(pdfObjectUrlRef.current);
-      pdfObjectUrlRef.current = null;
-    }
     setFileUrl(null);
 
     if (!essayId) {
@@ -103,13 +99,11 @@ export default function GradeWorkspace() {
 
     (async () => {
       try {
-        const objectUrl = await fetchEssayPdfUrl(String(essayId), { signal: controller.signal });
+        const signedUrl = await fetchEssayPdfUrl(String(essayId), { signal: controller.signal });
         if (aborted) {
-          URL.revokeObjectURL(objectUrl);
           return;
         }
-        pdfObjectUrlRef.current = objectUrl;
-        setFileUrl(objectUrl);
+        setFileUrl(signedUrl);
       } catch (e: any) {
         if (aborted || e?.name === 'AbortError') return;
 
@@ -151,13 +145,6 @@ export default function GradeWorkspace() {
       controller.abort();
     };
   }, [essayId, refreshTick]);
-
-  useEffect(() => () => {
-    if (pdfObjectUrlRef.current) {
-      URL.revokeObjectURL(pdfObjectUrlRef.current);
-      pdfObjectUrlRef.current = null;
-    }
-  }, []);
 
   const joinClassAndRefresh = useCallback(async () => {
     if (!classId) {
@@ -412,20 +399,20 @@ export default function GradeWorkspace() {
       )}
   <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          {essay.studentId?.photo ? (
-            <img src={essay.studentId.photo} alt={essay.studentId.name} className="h-16 w-16 rounded-full object-cover" />
+          {studentInfo?.photo ? (
+            <img src={studentInfo.photo} alt={studentInfo.name} className="h-16 w-16 rounded-full object-cover" />
           ) : (
-            <div className="h-16 w-16 rounded-full bg-[#E5E7EB] flex items-center justify-center text-[#6B7280]">
-              {(essay.studentId?.name || 'A').slice(0,1)}
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#E5E7EB] text-[#6B7280]">
+              {(studentInfo?.name || 'A').slice(0, 1)}
             </div>
           )}
           <div>
-            <h2 className="text-lg font-semibold">{essay.studentId?.name || '-'}</h2>
+            <h2 className="text-lg font-semibold">{studentInfo?.name || '-'}</h2>
             <p className="text-sm text-ys-ink-2">
-              {essay.classId ? `${essay.classId.series || ''}${essay.classId.letter || ''}` : '-'}
-              {essay.studentId?.rollNumber != null ? ` • Nº ${essay.studentId.rollNumber}` : ''}
+              {essay.className || '-'}
+              {studentInfo?.rollNumber != null ? ` • Nº ${studentInfo.rollNumber}` : ''}
             </p>
-            <p className="text-sm text-ys-ink-2">Tema: {essay.customTheme || essay.theme?.name || '-'}</p>
+            <p className="text-sm text-ys-ink-2">Tema: {essay.customTheme || essay.theme?.name || essay.theme || '-'}</p>
             <p className="text-sm text-ys-ink-2">Modelo: {essay.type}</p>
           </div>
         </div>

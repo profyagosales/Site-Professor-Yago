@@ -1225,6 +1225,37 @@ router.post('/email-bulk', authRequired, ensureTeacher, async (req, res, next) =
 });
 
 // Get class by id
+router.get('/:id/students', authRequired, ensureTeacher, async (req, res) => {
+  const { id } = req.params;
+  if (!isValidObjectId(id)) {
+    return res.status(400).json({ success: false, message: 'Turma inválida' });
+  }
+
+  try {
+    const access = await resolveClassAccess(id, req.user);
+    if (!access?.ok) {
+      return res.status(403).json({ success: false, message: 'Acesso negado' });
+    }
+
+    const students = await Student.find({ class: id })
+      .select('name email rollNumber')
+      .sort({ name: 1 })
+      .lean();
+
+    const data = students.map((student) => ({
+      id: String(student._id),
+      name: typeof student.name === 'string' ? student.name : '',
+      email: typeof student.email === 'string' ? student.email : null,
+      rollNumber: typeof student.rollNumber === 'number' ? student.rollNumber : null,
+    }));
+
+    return res.json({ success: true, data });
+  } catch (err) {
+    console.error('[classes] list students error', err);
+    return res.status(500).json({ success: false, message: 'Erro ao carregar alunos da turma' });
+  }
+});
+
 router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;

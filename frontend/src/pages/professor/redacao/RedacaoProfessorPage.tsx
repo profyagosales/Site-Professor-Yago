@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useEssays } from '@/hooks/useEssays';
+import { fetchEssayPdfUrl } from '@/services/essays.service';
 // import GradeModal from '@/components/redacao/GradeModal';
 // @ts-expect-error serviço legado em JS
 import { reenviarPdf } from '@/services/redacoes';
@@ -150,18 +151,54 @@ export default function RedacaoProfessorPage() {
               return (
               <tr key={essayId ?? `${e.studentName}-${e.submittedAt}`} className="odd:bg-[#F9FAFB]">
                 <td className="px-4 py-3">{e.studentName}</td>
-                <td className="px-4 py-3">{e.className}</td>
-                <td className="px-4 py-3">{e.topic}</td>
+                <td className="px-4 py-3">{e.className ?? '-'}</td>
+                <td className="px-4 py-3">{(e as any).theme ?? (e as any).topic ?? '-'}</td>
                 <td className="px-4 py-3">{(e as any).type || '-'}</td>
                 <td className="px-4 py-3">{(e as any).bimester ?? '-'}</td>
-                <td className="px-4 py-3">{new Date(e.submittedAt).toLocaleDateString()}</td>
-        {status === 'pending' ? (
-                  <td className="px-4 py-3"><span className="text-muted-foreground/70 select-none" title="Visualização inline">Visualização inline</span></td>
+                <td className="px-4 py-3">{e.submittedAt ? new Date(e.submittedAt).toLocaleDateString() : '-'}</td>
+                {status === 'pending' ? (
+                  <td className="px-4 py-3">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={async () => {
+                        if (!essayId) return;
+                        try {
+                          const url = await fetchEssayPdfUrl(essayId);
+                          window.open(url, '_blank', 'noopener');
+                        } catch (err) {
+                          toast.error('Não foi possível abrir o PDF.');
+                        }
+                      }}
+                      disabled={!essayId}
+                    >
+                      Ver PDF
+                    </Button>
+                  </td>
                 ) : (
                   <>
-                    <td className="px-4 py-3">{e.score ?? '-'}</td>
-                    <td className="px-4 py-3">{e.comments ?? '-'}</td>
-          <td className="px-4 py-3"><span className="text-muted-foreground/70 select-none" title="Visualização inline">Visualização inline</span></td>
+                    <td className="px-4 py-3">{(e as any).score ?? '-'}</td>
+                    <td className="px-4 py-3">{(e as any).comments ?? '-'}</td>
+                    <td className="px-4 py-3">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={async () => {
+                          if (!essayId) return;
+                          try {
+                            const url = await fetchEssayPdfUrl(essayId);
+                            window.open(url, '_blank', 'noopener');
+                          } catch (err) {
+                            toast.error('Não foi possível abrir o PDF.');
+                          }
+                        }}
+                        disabled={!essayId}
+                      >
+                        Ver PDF
+                      </Button>
+                    </td>
                   </>
                 )}
                 <td className="px-4 py-3">
@@ -180,11 +217,16 @@ export default function RedacaoProfessorPage() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
-                          if (!e.fileUrl) return;
-                          window.open(e.fileUrl, '_blank', 'noopener');
+                        onClick={async () => {
+                          if (!essayId) return;
+                          try {
+                            const url = await fetchEssayPdfUrl(essayId);
+                            window.open(url, '_blank', 'noopener');
+                          } catch (err) {
+                            toast.error('Não foi possível abrir o PDF.');
+                          }
                         }}
-                        disabled={!e.fileUrl}
+                        disabled={!essayId}
                       >
                         Ver PDF
                       </Button>

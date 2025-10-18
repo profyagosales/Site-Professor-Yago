@@ -33,6 +33,44 @@ function extractClassName(raw) {
   return '';
 }
 
+function serializeContentPayload(payload = {}) {
+  const data = { ...payload };
+
+  if (data.description !== undefined) {
+    if (typeof data.description === 'string') {
+      const trimmed = data.description.trim();
+      data.description = trimmed ? trimmed : null;
+    } else if (data.description === null) {
+      data.description = null;
+    }
+  }
+
+  if (data.date instanceof Date) {
+    data.date = data.date.toISOString();
+  }
+
+  if (typeof data.bimester === 'string') {
+    const parsed = Number(data.bimester);
+    if (Number.isFinite(parsed)) {
+      data.bimester = parsed;
+    }
+  }
+
+  if (typeof data.done === 'string') {
+    const normalized = data.done.trim().toLowerCase();
+    if (BOOLEAN_TRUE.includes(normalized)) data.done = true;
+    else if (BOOLEAN_FALSE.includes(normalized)) data.done = false;
+  }
+
+  Object.keys(data).forEach((key) => {
+    if (data[key] === undefined) {
+      delete data[key];
+    }
+  });
+
+  return data;
+}
+
 function normalizeContent(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const id = typeof raw.id === 'string' ? raw.id : typeof raw._id === 'string' ? raw._id : null;
@@ -111,7 +149,7 @@ export async function listUpcomingContents({ teacherId, daysAhead = 14, limit = 
 export async function createContent(payload) {
   const response = await api.post(
     '/contents',
-    payload,
+    serializeContentPayload(payload),
     { meta: { noCache: true } },
   );
   const normalized = normalizeContent(pickData(response));
@@ -129,7 +167,7 @@ export async function quickCreateContent(payload) {
   if (mapped.term !== undefined) delete mapped.term;
   const response = await api.post(
     '/contents',
-    mapped,
+    serializeContentPayload(mapped),
     { meta: { noCache: true } },
   );
   const normalized = normalizeContent(pickData(response));
@@ -140,9 +178,9 @@ export async function quickCreateContent(payload) {
 }
 
 export async function updateContent(id, payload) {
-  const response = await api.patch(
+  const response = await api.put(
     `/contents/${id}`,
-    payload,
+    serializeContentPayload(payload),
     { meta: { noCache: true } },
   );
   const normalized = normalizeContent(pickData(response));

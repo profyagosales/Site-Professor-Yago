@@ -23,8 +23,8 @@ export function useEssays(initialStatus: EssayStatus) {
         setData(getMockPage({ status, page, pageSize, q, classId }));
         return;
       }
-  const res = await fetchEssays({ status, page, pageSize, q, classId, bimester: extra.bimester, type: extra.type });
-  setData(res as any);
+      const res = await fetchEssays({ status, page, pageSize, q, classId, bimester: extra.bimester, type: extra.type });
+      setData(res as EssaysPage);
     } catch (e: any) {
       setError(e?.response?.data?.message ?? 'Erro ao carregar redações');
     } finally {
@@ -32,7 +32,7 @@ export function useEssays(initialStatus: EssayStatus) {
     }
   }
 
-  useEffect(() => { load(); }, [status, page, pageSize, q, classId]);
+  useEffect(() => { load(); }, [status, page, pageSize, q, classId, extra.bimester, extra.type]);
 
   return {
     status, setStatus,
