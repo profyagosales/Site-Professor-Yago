@@ -47,10 +47,130 @@ function fileFilter(req, file, cb) {
 }
 const upload = multer({ storage, limits: { fileSize: 15 * 1024 * 1024 }, fileFilter });
 
+function logEssayAuth(status, req, extra = {}) {
+  if (status !== 401 && status !== 403) return;
+  console.warn('[essays] access denied', {
+    status,
+    path: req.originalUrl,
+    method: req.method,
+    role: req.auth?.role ?? req.user?.role ?? null,
+    user: req.auth?.sub ?? req.auth?.userId ?? req.user?._id ?? req.user?.id ?? null,
+    ...extra,
+  });
+}
+
+function resolveClassName(cls) {
+  if (!cls) return null;
+  const series = cls.series || cls.serie || cls.grade;
+  const letter = cls.letter || cls.turma;
+  const discipline = cls.discipline || cls.subject;
+  const parts = [];
+  if (series) parts.push(`${series}º${letter ? ` ${letter}` : ''}`.trim());
+  if (discipline) parts.push(discipline);
+  if (cls.name && !parts.length) parts.push(cls.name);
+  return parts.filter(Boolean).join(' • ') || cls.name || null;
+}
+
+function normalizeStudent(student, cls) {
+  if (!student) return null;
+  const id = String(student._id || student.id || '');
+  return {
+    id,
+    name: student.name || student.nome || 'Aluno',
+    className: resolveClassName(cls) || null,
+  };
+}
+
+function normalizeEssayFile(essay) {
+  const mime = essay.originalMimeType || '';
+  let kind = 'pdf';
+  if (mime.startsWith('image/')) kind = 'image';
+  return {
+    kind,
+    mimeType: mime || null,
+    hasCorrected: Boolean(essay.correctedUrl),
+  };
+}
+
+function normalizeEssayGrade(essay) {
+  const nc = essay?.pasBreakdown?.NC ?? null;
+  const nl = essay?.pasBreakdown?.NL ?? null;
+  const ne = essay?.pasBreakdown?.NE ?? null;
+  return {
+    nc: nc != null ? Number(nc) : null,
+    nl: nl != null ? Number(nl) : null,
+    ne: ne != null ? Number(ne) : null,
+    nb: essay?.rawScore != null ? Number(essay.rawScore) : null,
+    considerInTerm: Boolean(essay?.countInBimestral),
+    bimestralPointsValue: essay?.bimestralPointsValue != null ? Number(essay.bimestralPointsValue) : null,
+    scaledScore: essay?.scaledScore != null ? Number(essay.scaledScore) : null,
+    bimestreWeight: essay?.bimestreWeight != null ? Number(essay.bimestreWeight) : null,
+  };
+}
+
+function normalizeEssayDetail(essay) {
+  const student = normalizeStudent(essay.studentId, essay.classId);
+  const themeName =
+    essay.customTheme ||
+    essay.themeId?.name ||
+    'Tema não informado';
+
+  return {
+    id: String(essay._id),
+    status: essay.status || 'PENDING',
+    type: essay.type || null,
+    theme: themeName,
+    term: essay.bimester ?? null,
+    submittedAt: essay.submittedAt || essay.createdAt || null,
+    updatedAt: essay.updatedAt || null,
+    student,
+    classId: essay.classId?._id ? String(essay.classId._id) : essay.classId || null,
+    className: student?.className || null,
+    file: normalizeEssayFile(essay),
+    grade: normalizeEssayGrade(essay),
+    comments: essay.comments || null,
+    annotations: Array.isArray(essay.annotations) ? essay.annotations : [],
+    richAnnotations: Array.isArray(essay.richAnnotations) ? essay.richAnnotations : [],
+    enemCompetencies: essay.enemCompetencies || null,
+    pasBreakdown: essay.pasBreakdown || null,
+    annulmentReason: essay.annulmentReason || null,
+    studentId: essay.studentId || null,
+    class: essay.classId || null,
+    themeId: essay.themeId || null,
+    teacherId: essay.teacherId || null,
+    originalUrl: essay.originalUrl || null,
+    bimestreWeight: essay.bimestreWeight ?? null,
+    bimestralPointsValue: essay.bimestralPointsValue ?? null,
+    countInBimestral: essay.countInBimestral ?? false,
+  };
+}
+
+function normalizeEssaySummary(essay) {
+  const student = normalizeStudent(essay.studentId, essay.classId);
+  return {
+    id: String(essay._id),
+    status: essay.status || 'PENDING',
+    type: essay.type || null,
+    theme: essay.customTheme || essay.themeId?.name || 'Tema não informado',
+    term: essay.bimester ?? null,
+    submittedAt: essay.submittedAt || essay.createdAt || null,
+    updatedAt: essay.updatedAt || null,
+    student,
+    classId: essay.classId?._id ? String(essay.classId._id) : essay.classId || null,
+    className: student?.className || null,
+    corrected: Boolean(essay.correctedUrl),
+    rawScore: essay.rawScore != null ? Number(essay.rawScore) : null,
+    scaledScore: essay.scaledScore != null ? Number(essay.scaledScore) : null,
+    bimestralPointsValue: essay.bimestralPointsValue != null ? Number(essay.bimestralPointsValue) : null,
+    studentId: essay.studentId || null,
+    class: essay.classId || null,
+  };
+}
+
 async function getEssay(req, res) {
   const { id } = req.params;
   if (!isValidObjectId(id)) {
-    return res.status(400).json({ message: 'ID inválido' });
+    return res.status(400).json({ success: false, message: 'ID inválido' });
   }
   try {
     const essay = await Essay.findById(id)
@@ -61,27 +181,20 @@ async function getEssay(req, res) {
       .lean();
 
     if (!essay) {
-      return res.status(404).json({ message: 'Redação não encontrada' });
+      return res.status(404).json({ success: false, message: 'Redação não encontrada' });
     }
 
     await assertUserCanAccessEssay(req.user, essay);
+    const normalized = normalizeEssayDetail(essay);
 
-    const normalized = {
-      ...essay,
-      id: essay._id ? String(essay._id) : undefined,
-      studentId: essay.studentId,
-      classId: essay.classId,
-      themeId: essay.themeId,
-      teacherId: essay.teacherId,
-    };
-
-    return res.json(normalized);
+    return res.json({ success: true, data: normalized });
   } catch (err) {
     const status = err?.status || 500;
+    logEssayAuth(status, req, { essayId: id, reason: err?.reason || err?.message });
     if (status >= 500) {
       console.error('getEssay error', err);
     }
-    return res.status(status).json({ message: err?.message || 'Erro ao buscar redação' });
+    return res.status(status).json({ success: false, message: err?.message || 'Erro ao buscar redação' });
   }
 }
 
@@ -140,7 +253,7 @@ async function createEssay(req, res) {
 
   const originalUrl = await uploadBuffer(req.file.buffer, 'essays/original', req.file.mimetype);
 
-    const essay = await Essay.create({
+    let essay = await Essay.create({
       studentId,
       classId,
       type,
@@ -152,7 +265,13 @@ async function createEssay(req, res) {
       status: 'PENDING'
     });
 
-    res.status(201).json(essay);
+    essay = await essay.populate([
+      { path: 'studentId', select: 'name email photo rollNumber class' },
+      { path: 'classId', select: 'series letter discipline name' },
+      { path: 'themeId', select: 'name type active' },
+    ]);
+    const payload = normalizeEssayDetail(essay.toObject());
+    res.status(201).json({ success: true, data: payload });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erro ao enviar redação' });
@@ -190,10 +309,14 @@ async function updateEssay(req, res) {
       return res.status(400).json({ message: 'Nenhum dado para atualizar' });
     }
 
-    const essay = await Essay.findByIdAndUpdate(id, { $set: update }, { new: true });
+    const essay = await Essay.findByIdAndUpdate(id, { $set: update }, { new: true })
+      .populate('studentId', 'name email photo rollNumber class')
+      .populate('classId', 'series letter discipline name')
+      .populate('themeId', 'name type active');
     if (!essay) return res.status(404).json({ message: 'Redação não encontrada' });
 
-    res.json(essay);
+    const payload = normalizeEssayDetail(essay.toObject());
+    res.json({ success: true, data: payload });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Erro ao atualizar redação' });
@@ -246,7 +369,7 @@ async function listEssays(req, res) {
     const students = await Student.find({ name: { $regex: q, $options: 'i' } }).select('_id');
     studentIdsFilter = students.map((s) => s._id);
     if (studentIdsFilter.length === 0) {
-      return res.json({ items: [], total: 0, page, limit });
+      return res.json({ success: true, data: [], items: [], total: 0, page, limit });
     }
     filter.studentId = filter.studentId ? filter.studentId : { $in: studentIdsFilter };
     if (filter.studentId && filter.studentId.$in) {
@@ -256,16 +379,26 @@ async function listEssays(req, res) {
 
   const [items, total] = await Promise.all([
     Essay.find(filter)
-      .populate('studentId', 'name rollNumber photo')
-      .populate('classId', 'series letter discipline')
+      .populate('studentId', 'name rollNumber photo class')
+      .populate('classId', 'series letter discipline name')
       .populate('themeId', 'name type')
       .sort({ submittedAt: -1 })
       .skip(skip)
-      .limit(limit),
+      .limit(limit)
+      .lean(),
     Essay.countDocuments(filter)
   ]);
 
-  res.json({ items, total, page, limit });
+  const data = items.map((essay) => normalizeEssaySummary(essay));
+
+  res.json({
+    success: true,
+    data,
+    items: data,
+    total,
+    page,
+    limit,
+  });
 }
 
 function roundToOneDecimal(num) {
@@ -409,8 +542,13 @@ async function gradeEssay(req, res) {
 
     res.json(essay);
   } catch (err) {
+    const status = err?.status || 500;
+    if (status === 401 || status === 403) {
+      logEssayAuth(status, req, { essayId: id, reason: err?.reason || err?.message });
+      return res.status(status).json({ success: false, message: err?.message || 'Acesso negado' });
+    }
     console.error(err);
-    res.status(500).json({ message: 'Erro ao corrigir redação' });
+    res.status(500).json({ success: false, message: 'Erro ao corrigir redação' });
   }
 }
 
@@ -475,11 +613,17 @@ async function updateAnnotations(req, res) {
       }
     }
 
-  await essay.save();
-  res.json(essay);
+    await essay.save();
+    const payload = normalizeEssayDetail(essay.toObject());
+    res.json({ success: true, data: payload });
   } catch (err) {
+    const status = err?.status || 500;
+    if (status === 401 || status === 403) {
+      logEssayAuth(status, req, { essayId: id, reason: err?.reason || err?.message });
+      return res.status(status).json({ success: false, message: err?.message || 'Acesso negado' });
+    }
     console.error(err);
-    res.status(500).json({ message: 'Erro ao atualizar anotações' });
+    res.status(500).json({ success: false, message: 'Erro ao atualizar anotações' });
   }
 }
 
@@ -517,10 +661,15 @@ async function renderCorrection(req, res) {
       await sendEmail({ to: student.email, subject: 'Sua redação foi corrigida', html });
     }
 
-    res.json({ correctedUrl });
+    res.json({ success: true, data: { correctedUrl } });
   } catch (err) {
+    const status = err?.status || 500;
+    if (status === 401 || status === 403) {
+      logEssayAuth(status, req, { essayId: req.params?.id, reason: err?.reason || err?.message });
+      return res.status(status).json({ success: false, message: err?.message || 'Acesso negado' });
+    }
     console.error(err);
-    res.status(500).json({ message: 'Erro ao gerar correção' });
+    res.status(500).json({ success: false, message: 'Erro ao gerar correção' });
   }
 }
 
@@ -554,10 +703,15 @@ async function sendCorrectionEmail(req, res) {
     essay.email.lastSentAt = new Date();
     await essay.save();
 
-    res.json({ message: 'Email enviado' });
+    res.json({ success: true, message: 'Email enviado' });
   } catch (err) {
+    const status = err?.status || 500;
+    if (status === 401 || status === 403) {
+      logEssayAuth(status, req, { essayId: req.params?.id, reason: err?.reason || err?.message });
+      return res.status(status).json({ success: false, message: err?.message || 'Acesso negado' });
+    }
     console.error(err);
-    res.status(500).json({ message: 'Erro ao enviar email' });
+    res.status(500).json({ success: false, message: 'Erro ao enviar email' });
   }
 }
 

@@ -43,6 +43,12 @@ async function authorizeFileAccess(req, res, next) {
         return next();
       }
       if (dbg) console.warn('[auth:file]', 'token/essay mismatch', { tokenEssayId, essayId });
+      console.warn('[auth:file] 401 invalid token', {
+        path: req.originalUrl,
+        method: req.method,
+        essayId,
+        sub,
+      });
       return res.status(401).json({ error: 'invalid file token' });
     }
 
@@ -52,12 +58,30 @@ async function authorizeFileAccess(req, res, next) {
         if (dbg) console.log('[auth:file]', 'granted by session', { essayId, user: req.user._id });
         return next();
       }
+      console.warn('[auth:file] 403 forbidden', {
+        path: req.originalUrl,
+        method: req.method,
+        essayId,
+        user: req.user?._id || req.user?.id || null,
+        reason: check?.reason || null,
+      });
       return res.status(403).json({ error: check?.reason ?? 'forbidden' });
     }
 
+    console.warn('[auth:file] 401 missing auth', {
+      path: req.originalUrl,
+      method: req.method,
+      essayId,
+    });
     return res.status(401).json({ success: false, message: 'Unauthorized' });
   } catch (e) {
     if (dbg) console.warn('[auth:file]', 'error', e.message);
+    console.warn('[auth:file] 401 exception', {
+      path: req.originalUrl,
+      method: req.method,
+      essayId,
+      error: e?.message || String(e),
+    });
     return res.status(401).json({ success: false, message: 'Unauthorized' });
   }
 }

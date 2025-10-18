@@ -26,6 +26,7 @@ const {
 
 const fileController = require('../controllers/fileController');
 const fileTokenCompat = require('../middlewares/fileTokenCompat'); // único compat
+const ensureTeacher = require('../middleware/ensureTeacher');
 
 const router = express.Router();
 
@@ -37,31 +38,31 @@ function ensureValidId(req, res, next) {
 }
 
 /** --------- Themes --------- */
-router.get('/themes', authRequired, getThemes);
-router.post('/themes', authRequired, createTheme);
-router.patch('/themes/:id', authRequired, updateTheme);
+router.get('/themes', authRequired, ensureTeacher, getThemes);
+router.post('/themes', authRequired, ensureTeacher, createTheme);
+router.patch('/themes/:id', authRequired, ensureTeacher, updateTheme);
 
 /** --------- Essays CRUD + listas --------- */
-router.post('/', authRequired, upload.single('file'), createEssay);
-router.get('/', authRequired, listEssays);
-router.get('/:id', authRequired, getEssay);
-router.put('/:id', authRequired, upload.single('file'), updateEssay);
-router.patch('/:id/grade', authRequired, upload.single('correctedFile'), gradeEssay);
+router.post('/', authRequired, ensureTeacher, upload.single('file'), createEssay);
+router.get('/', authRequired, ensureTeacher, listEssays);
+router.get('/:id', authRequired, ensureTeacher, getEssay);
+router.put('/:id', authRequired, ensureTeacher, upload.single('file'), updateEssay);
+router.patch('/:id/grade', authRequired, ensureTeacher, upload.single('correctedFile'), gradeEssay);
 
 /** --------- Anotações (somente usuário logado) --------- */
 // Compat: estrutura { highlights:[], comments:[] }
-router.get('/:id/annotations', authRequired, getAnnotationsCompat);
-router.put('/:id/annotations', authRequired, putAnnotationsCompat);
-router.patch('/:id/annotations', authRequired, updateAnnotations);
+router.get('/:id/annotations', authRequired, ensureTeacher, getAnnotationsCompat);
+router.put('/:id/annotations', authRequired, ensureTeacher, putAnnotationsCompat);
+router.patch('/:id/annotations', authRequired, ensureTeacher, updateAnnotations);
 
 /** --------- Render / e-mail --------- */
-router.post('/:id/render-correction', authRequired, renderCorrection);
-router.post('/:id/send-email', authRequired, sendCorrectionEmail);
+router.post('/:id/render-correction', authRequired, ensureTeacher, renderCorrection);
+router.post('/:id/send-email', authRequired, ensureTeacher, sendCorrectionEmail);
 
 /** --------- File-token curto --------- */
 // POST legacy (mantido) + GET (usado por loaders que não aceitam POST)
-router.post('/:id/file-token', ensureValidId, authRequired, fileController.issueFileToken);
-router.get('/:id/file-token', ensureValidId, authRequired, fileController.issueFileToken);
+router.post('/:id/file-token', ensureValidId, authRequired, ensureTeacher, fileController.issueFileToken);
+router.get('/:id/file-token', ensureValidId, authRequired, ensureTeacher, fileController.issueFileToken);
 
 /** --------- Download/stream do PDF --------- */
 // HEAD “leve” para o visualizador descobrir tipo/tamanho sem baixar
@@ -102,6 +103,20 @@ router.get(
 );
 
 // URL assinada curta (opcional)
-router.get('/:id/file-signed', ensureValidId, authRequired, fileController.getSignedFileUrl);
+router.get('/:id/file-signed', ensureValidId, authRequired, ensureTeacher, fileController.getSignedFileUrl);
+
+router.get(
+  '/:id/pdf',
+  ensureValidId,
+  fileTokenCompat,
+  fileController.authorizeFileAccess,
+  async (req, res, next) => {
+    try {
+      await fileController.streamFile(req, res, req.params.id);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 module.exports = router;

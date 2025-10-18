@@ -74,7 +74,8 @@ export default function GradeWorkspace() {
   }, [navigate]);
 
   const essayId = (essay as any)?._id || (essay as any)?.id;
-  const classId = (essay as any)?.classId?._id
+  const classId = (essay as any)?.classId
+    || (essay as any)?.classId?._id
     || (essay as any)?.classId?.id
     || (typeof (essay as any)?.classId === 'string' ? (essay as any).classId : undefined);
 
@@ -197,9 +198,9 @@ export default function GradeWorkspace() {
   if (data?.annotations) setAnnotations(data.annotations as any);
   if (data?.richAnnotations) setRichAnnos(data.richAnnotations);
   if (data?.comments) setComments(data.comments);
-  if (data?.bimestreWeight) setWeight(String(data.bimestreWeight));
-  if (data?.bimestralPointsValue != null) setBimestralValue(String(data.bimestralPointsValue));
-  if (data?.countInBimestral !== undefined) setCountInBimestral(Boolean(data.countInBimestral));
+        if (data?.grade?.bimestreWeight != null) setWeight(String(data.grade.bimestreWeight));
+        if (data?.grade?.bimestralPointsValue != null) setBimestralValue(String(data.grade.bimestralPointsValue));
+        if (data?.grade?.considerInTerm !== undefined) setCountInBimestral(Boolean(data.grade.considerInTerm));
         if (data?.type === 'ENEM' && data?.enemCompetencies) {
           setC1(String(data.enemCompetencies.c1 || 0));
           setC2(String(data.enemCompetencies.c2 || 0));
@@ -216,9 +217,9 @@ export default function GradeWorkspace() {
         const snap = {
           annotations: data?.annotations || [],
           comments: data?.comments || '',
-          weight: String(data?.bimestreWeight || '1'),
-          bimestralPointsValue: String(data?.bimestralPointsValue || '1'),
-          countInBimestral: Boolean(data?.countInBimestral),
+          weight: String(data?.grade?.bimestreWeight ?? '1'),
+          bimestralPointsValue: String(data?.grade?.bimestralPointsValue ?? '1'),
+          countInBimestral: Boolean(data?.grade?.considerInTerm),
           annulmentReason: String(data?.annulmentReason || ''),
           c1: String(data?.enemCompetencies?.c1 || '0'),
           c2: String(data?.enemCompetencies?.c2 || '0'),

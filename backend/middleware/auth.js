@@ -150,6 +150,12 @@ function authOptional(req, res, next) {
 function authRequired(req, res, next) {
   authOptional(req, res, () => {
     if (!req.auth) {
+      console.warn('[auth] 401 authRequired', {
+        path: req.originalUrl,
+        method: req.method,
+        role: req.user?.role ?? req.auth?.role ?? null,
+        user: req.user?._id ?? req.user?.id ?? req.auth?.sub ?? req.auth?.userId ?? null,
+      });
       return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
     return next();

@@ -131,14 +131,18 @@ export function normalizeApiOrigin(origin?: string): string {
 }
 
 export function buildEssayFileUrl(essayId: string, token: string, origin?: string): string {
-  const u = new URL(`/essays/${essayId}/file`, normalizeApiOrigin(origin));
+  const u = new URL(`/essays/${essayId}/pdf`, normalizeApiOrigin(origin));
   u.searchParams.set('file-token', token);
   return u.toString();
 }
 
 /** -------- short token + PDF helpers -------- */
 export async function getFileToken(essayId: string, options?: { signal?: AbortSignal }): Promise<string> {
-  const { data } = await api.post(`/essays/${essayId}/file-token`, undefined, { signal: options?.signal });
+  const { data } = await api.post(
+    `/essays/${essayId}/file-token`,
+    undefined,
+    { signal: options?.signal, meta: { skipAuthRedirect: true } }
+  );
   return data?.token;
 }
 
@@ -195,12 +199,39 @@ export async function fetchEssays(params: FetchEssaysParams): Promise<EssaysPage
     },
   });
 
-  return data;
+  const payload = data && typeof data === 'object' ? data : {};
+  const items: any[] = Array.isArray(payload.data)
+    ? payload.data
+    : Array.isArray(payload.items)
+      ? payload.items
+      : Array.isArray(payload)
+        ? payload
+        : [];
+
+  return {
+    items,
+    page: payload.page ?? page,
+    pageSize: payload.limit ?? payload.pageSize ?? pageSize,
+    total: payload.total ?? items.length,
+  } as EssaysPage;
 }
 
 export async function fetchEssaysPage(params: FetchEssaysPageParams): Promise<EssaysPage> {
   const { data } = await api.get('/essays', { params });
-  return data;
+  const payload = data && typeof data === 'object' ? data : {};
+  const items: any[] = Array.isArray(payload.data)
+    ? payload.data
+    : Array.isArray(payload.items)
+      ? payload.items
+      : Array.isArray(payload)
+        ? payload
+        : [];
+  return {
+    items,
+    page: payload.page ?? params.page ?? 1,
+    pageSize: payload.limit ?? payload.pageSize ?? params.limit ?? 10,
+    total: payload.total ?? items.length,
+  } as EssaysPage;
 }
 
 export async function listStudentEssaysByStatus(
@@ -232,17 +263,19 @@ export async function listStudentEssaysByStatus(
   }
 
   const payload = res?.data;
-  const rawItems: any[] = Array.isArray(payload?.items)
-    ? payload.items
-    : Array.isArray(payload)
-      ? payload
-      : [];
+  const rawItems: any[] = Array.isArray(payload?.data)
+    ? payload.data
+    : Array.isArray(payload?.items)
+      ? payload.items
+      : Array.isArray(payload)
+        ? payload
+        : [];
   return rawItems.map((item) => toStudentEssaySummary(item));
 }
 
 export async function fetchEssayById(id: EssayId, options?: { signal?: AbortSignal }) {
   const { data } = await api.get(`/essays/${id}`, { signal: options?.signal });
-  return data;
+  return data?.data ?? data;
 }
 
 export async function getSubmission(id: EssayId, options?: { signal?: AbortSignal }) {
@@ -251,12 +284,12 @@ export async function getSubmission(id: EssayId, options?: { signal?: AbortSigna
 
 export async function createEssay(form: FormData) {
   const { data } = await api.post('/essays', form, { headers: { 'Content-Type': 'multipart/form-data' } });
-  return data;
+  return data?.data ?? data;
 }
 
 export async function updateEssay(id: string, form: FormData) {
   const { data } = await api.put(`/essays/${id}`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
-  return data;
+  return data?.data ?? data;
 }
 
 /** -------- notas/correção -------- */
@@ -293,17 +326,17 @@ export async function gradeEssay(id: EssayId, payload: GradeEssayPayload) {
   }
 
   const { data } = await api.patch(`/essays/${id}/grade`, body);
-  return data;
+  return data?.data ?? data;
 }
 
 export async function renderCorrection(id: string, payload?: any) {
   const { data } = await api.post(`/essays/${id}/render-correction`, payload || {});
-  return data;
+  return data?.data ?? data;
 }
 
 export async function sendCorrectionEmail(id: EssayId) {
   const { data } = await api.post(`/essays/${id}/send-email`);
-  return data;
+  return data?.data ?? data;
 }
 
 /** -------- anotações --------
@@ -318,7 +351,7 @@ export async function saveAnnotations(
     body.richAnnotations = opts.annos;
   }
   const { data } = await api.put(`/essays/${id}/annotations`, body);
-  return data;
+  return data?.data ?? data;
 }
 
 /** Mantemos o nome para quem ainda importa `updateEssayAnnotations`,
@@ -334,7 +367,7 @@ export async function updateEssayAnnotations(
   else body.richAnnotations = [];
 
   const { data } = await api.patch(`/essays/${id}/annotations`, body);
-  return data;
+  return data?.data ?? data;
 }
 
 /** -------- util compat (ainda usado em alguns pontos do UI) -------- */
