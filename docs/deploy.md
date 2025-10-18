@@ -137,6 +137,14 @@ npm run vercel:deploy
 
 ---
 
+## Notas de operação (auth estudantes)
+
+- `POST /api/auth/login-student` deve definir o cookie `auth_token` com os atributos `Secure`, `HttpOnly`, `SameSite=None` e `Domain=.professoryagosales.com.br`. O payload de resposta inclui `role: "student"`, `isTeacher: false`, o objeto `user` e o campo de topo `classId` (pode ser `null`).
+- `GET /api/students/me` requer autenticação (cookie ou Bearer) e responde 200 para alunos válidos mesmo que não exista turma associada. O JSON traz `{ success, role, isTeacher, user, classId }`, onde `classId` pode ser `null`.
+- Se houver 401, verifique a validade do token; se houver 403, confirme se o token realmente pertence a um aluno.
+
+---
+
 ## Backend Express (deploy manual)
 
 - Hospedagem atual: servidor próprio / Render / Docker (dependendo do ambiente). Não há automação registrada aqui; suba manualmente conforme o provedor escolhido.

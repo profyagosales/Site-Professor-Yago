@@ -1,12 +1,93 @@
 const express = require('express');
 const authRequired = require('../middleware/auth');
+const ensureStudent = require('../middleware/ensureStudent');
 const Content = require('../models/Content');
 const Evaluation = require('../models/Evaluation');
 const Class = require('../models/Class');
 const Student = require('../models/Student');
+const { publicStudent } = require('../controllers/authController');
+
+function normalizeClassLabel(cls) {
+  if (!cls) return null;
+  const serie = cls.series ? `${cls.series}º` : '';
+  const letter = cls.letter ? `${cls.letter}` : '';
+  const discipline = cls.discipline || cls.subject || '';
+  const base = [serie, letter].join('').trim();
+  const namePart = cls.name || (base ? `Turma ${base}` : null);
+  const labelParts = [namePart, discipline].filter(Boolean);
+  return labelParts.join(' • ') || discipline || namePart || null;
+}
+
+function buildClassSummary(classDoc) {
+  if (!classDoc) return null;
+  return {
+    id: String(classDoc._id),
+    nome: normalizeClassLabel(classDoc),
+    ano: classDoc.year ?? null,
+    serie: classDoc.series ?? null,
+    letra: classDoc.letter ?? null,
+    disciplina: classDoc.discipline ?? classDoc.subject ?? null,
+  };
+}
 
 const router = express.Router();
 router.use(authRequired);
+
+router.get('/me', ensureStudent, async (req, res, next) => {
+  try {
+    const requesterId = req.auth?.userId || req.user?.id || req.user?._id;
+    if (!requesterId) {
+      return res.status(401).json({ success: false, message: 'unauthorized' });
+    }
+
+    const student = await Student.findById(requesterId);
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'student not found' });
+    }
+
+    let classDoc = null;
+    if (student.class) {
+      const classKey = student.class?._id ?? student.class;
+      classDoc = await Class.findById(classKey)
+        .select('name year series letter discipline subject notices schedule students')
+        .lean();
+    }
+
+    if (!classDoc) {
+      classDoc = await Class.findOne({ students: student._id })
+        .select('name year series letter discipline subject notices schedule students')
+        .lean();
+      if (classDoc?._id && !student.class) {
+        student.class = classDoc._id;
+        await student.save().catch(() => {});
+      }
+    }
+
+    const classId = classDoc?._id ? String(classDoc._id) : null;
+    const turmaAtual = buildClassSummary(classDoc);
+
+    const userPayload = {
+      ...publicStudent(student),
+      classId,
+      nome: student.name ?? null,
+      email: student.email ?? null,
+      numero: student.rollNumber ?? student.numero ?? null,
+      telefone: student.phone ?? student.telefone ?? null,
+      foto: student.photo ?? student.foto ?? null,
+      turmaAtual,
+    };
+
+    return res.json({
+      success: true,
+      role: 'student',
+      isTeacher: false,
+      user: userPayload,
+      classId,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 function parseWindow(query) {
   let daysAhead = parseInt(query.daysAhead, 10);

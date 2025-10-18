@@ -10,7 +10,7 @@ const cookieParser = require('cookie-parser');
 const authRoutes = require('./routes/auth');
 const emailRoutes = require('./routes/email');
 const classesRoutes = require('./routes/classes');
-const authMiddleware = require('./middleware/auth');
+const { authRequired } = require('./middleware/auth');
 const studentsUpcomingRoutes = require('./routes/studentsUpcoming');
 const evaluationRoutes = require('./routes/evaluations');
 const gradesRoutes = require('./routes/grades');
@@ -35,12 +35,13 @@ const fileTokenCompat = require('./middlewares/fileTokenCompat');
 
 
 const app = express();
+app.set('trust proxy', 1);
 
 // --- Configurações e Middlewares Globais ---
 app.use(cors(corsOptions));
 app.options(/.*/, cors(preflightOptions));
-app.use(cookieParser());
 app.use(express.json());
+app.use(cookieParser());
 
 // --- Cache e ETag ---
 app.set('etag', false);
@@ -130,7 +131,7 @@ app.use(API_PREFIX, publicApiRouter);
 
 // APLICA O MIDDLEWARE DE AUTENTICAÇÃO.
 // Todas as rotas montadas DEPOIS desta linha estarão protegidas.
-app.use(API_PREFIX, authMiddleware);
+app.use(API_PREFIX, authRequired);
 
 // Monta o router com as rotas PRIVADAS.
 app.use(API_PREFIX, privateApiRouter);

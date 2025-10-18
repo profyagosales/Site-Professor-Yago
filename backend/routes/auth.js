@@ -87,13 +87,18 @@ router.post('/register-student', async (req, res, next) => {
 // GET /api/auth/me
 router.get('/me', authRequired, async (req, res, next) => {
   try {
+    const sessionAuth = req.auth;
     const sessionUser = req.user;
-    if (!sessionUser) {
+    if (!sessionAuth) {
       return res.status(401).json({ success: false, message: 'unauthorized' });
     }
 
-    const role = (sessionUser.role || '').toLowerCase();
-    const subjectId = sessionUser.sub || sessionUser.id || sessionUser._id;
+    const role = (sessionAuth.role || sessionUser?.role || '').toLowerCase();
+    const subjectId =
+      sessionAuth.userId ||
+      sessionAuth.sub ||
+      sessionUser?.id ||
+      sessionUser?._id;
 
     if (role === 'gerencial') {
       return res.json({
@@ -102,9 +107,13 @@ router.get('/me', authRequired, async (req, res, next) => {
         isTeacher: false,
         user: {
           role: 'gerencial',
-          scope: sessionUser.scope || 'gerencial/admin',
+          scope: sessionAuth.scope || sessionUser?.scope || 'gerencial/admin',
         },
       });
+    }
+
+    if (!subjectId) {
+      return res.status(401).json({ success: false, message: 'unauthorized' });
     }
 
     if (role === 'teacher') {
@@ -150,4 +159,3 @@ router.post('/logout', (req, res) => {
 });
 
 module.exports = router;
-

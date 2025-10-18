@@ -46,8 +46,8 @@ function formatDate(value?: string | null, fallback = '—'): string {
 }
 
 function resolveClassLabel(profile: StudentLayoutContextValue['profile']): string {
-  if (!profile) return 'turma não informada';
-  return profile.className ?? 'turma não informada';
+  if (!profile) return 'Turma não informada';
+  return profile.className ?? 'Turma não informada';
 }
 
 function EmptyState({ message }: { message: string }) {
@@ -92,10 +92,10 @@ export default function StudentGradesPage() {
         if (cancelled) return;
         console.error('[aluno/notas] Falha ao carregar notas', err);
         const status = Number(err?.response?.status ?? 0);
-        if (status >= 500) {
-          toast.error('Erro inesperado ao carregar notas.');
+        if (status >= 500 || status === 403) {
+          toast.error('Erro ao carregar notas. Tente novamente em instantes.');
         }
-        setError(status === 403 ? 'Você não tem acesso a este conteúdo.' : 'Não foi possível carregar as notas deste bimestre.');
+        setError('Não foi possível carregar as notas deste bimestre.');
         setGrades(null);
       } finally {
         if (!cancelled) {

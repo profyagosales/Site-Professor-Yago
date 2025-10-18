@@ -206,18 +206,23 @@ async function doLogin({ Model, role, req, res }) {
     const token = issueToken({ sub: String(doc._id), role });
     sendSessionCookie(res, token);
     let publicUser = role === 'teacher' ? publicTeacher(doc) : publicStudent(doc);
+    let classId = null;
     if (role === 'student') {
-      const classId = doc.class ? String(doc.class) : null;
+      classId = doc.class ? String(doc.class) : null;
       publicUser = { ...publicUser, classId };
     }
-    return res.json({
+    const payload = {
       success: true,
       message: 'ok',
       role,
       isTeacher: role === 'teacher',
       user: publicUser,
       token,
-    });
+    };
+    if (role === 'student') {
+      payload.classId = classId;
+    }
+    return res.json(payload);
   } catch (err) {
     console.error('[LOGIN] Erro inesperado', {
       role, emailTentado: email, stack: err?.stack || String(err)
@@ -233,4 +238,3 @@ exports.loginStudent = (req, res) =>
 
 exports.publicTeacher = publicTeacher;
 exports.publicStudent = publicStudent;
-

@@ -47,16 +47,41 @@ function deriveClassName(turma: any): string | null {
 
 function normalizeProfile(raw: any): StudentLayoutProfile | null {
   if (!raw) return null;
-  const id = raw.id ?? raw._id ?? null;
+  const source = raw.user ?? raw;
+  if (!source) return null;
+  const id = source.id ?? source._id ?? raw.id ?? raw._id ?? null;
   if (!id) return null;
-  const turma = raw.turmaAtual ?? raw.turma ?? raw.class ?? null;
+  const turma =
+    source.turmaAtual ??
+    raw.turmaAtual ??
+    source.turma ??
+    raw.turma ??
+    source.class ??
+    raw.class ??
+    null;
+  const metaClassId = raw.classId ?? source.classId ?? null;
+  const resolvedClassId = (() => {
+    if (metaClassId != null) return String(metaClassId);
+    if (turma?.id) return String(turma.id);
+    if (turma?._id) return String(turma._id);
+    return null;
+  })();
   return {
     id: String(id),
-    name: raw.nome ?? raw.name ?? null,
-    email: raw.email ?? null,
-    number: raw.numero != null ? String(raw.numero) : raw.rollNumber != null ? String(raw.rollNumber) : null,
-    phone: raw.telefone ?? raw.phone ?? null,
-    classId: turma?.id ? String(turma.id) : turma?._id ? String(turma._id) : null,
+    name: source.nome ?? source.name ?? raw.nome ?? raw.name ?? null,
+    email: source.email ?? raw.email ?? null,
+    number:
+      source.numero != null
+        ? String(source.numero)
+        : source.rollNumber != null
+        ? String(source.rollNumber)
+        : raw.numero != null
+        ? String(raw.numero)
+        : raw.rollNumber != null
+        ? String(raw.rollNumber)
+        : null,
+    phone: source.telefone ?? source.phone ?? raw.telefone ?? raw.phone ?? null,
+    classId: resolvedClassId,
     className: deriveClassName(turma),
     classYear: typeof turma?.ano === 'number' ? turma.ano : typeof turma?.year === 'number' ? turma.year : null,
   };

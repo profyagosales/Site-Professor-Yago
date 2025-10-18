@@ -595,7 +595,7 @@ export default function StudentEssaysPage() {
           {profile ? (
             <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
               <div className="flex justify-between"><span>Aluno</span><span className="font-semibold text-slate-700">{profile.name ?? '—'}</span></div>
-              <div className="flex justify-between"><span>Turma</span><span className="font-semibold text-slate-700">{profile.className ?? '—'}</span></div>
+              <div className="flex justify-between"><span>Turma</span><span className="font-semibold text-slate-700">{profile.className ?? 'Turma não informada'}</span></div>
               <div className="flex justify-between"><span>E-mail</span><span className="font-semibold text-slate-700">{profile.email ?? '—'}</span></div>
             </div>
           ) : null}

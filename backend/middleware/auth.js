@@ -36,14 +36,68 @@ function verifyToken(token) {
   };
 }
 
+function normalizeUser(user) {
+  if (!user) return null;
+  const id = user.sub || user.id || user._id;
+  if (!id) return { ...user };
+  return {
+    ...user,
+    id: String(id),
+    _id: String(id),
+    sub: user.sub ?? String(id),
+  };
+}
+
+function deriveRole(user) {
+  const role = user?.role ?? user?.profile;
+  return typeof role === 'string' ? role : undefined;
+}
+
+function buildAuthState(user) {
+  if (!user) return null;
+  const id = user.sub || user.id || user._id;
+  if (!id) return null;
+  const auth = {
+    sub: String(id),
+    userId: String(id),
+  };
+  const role = deriveRole(user);
+  if (role) auth.role = role;
+  if (user.scope) auth.scope = user.scope;
+  if (user.scopes) auth.scopes = user.scopes;
+  return auth;
+}
+
 function attachUser(req, user) {
-  req.user = user || null;
-  if (user?.role && !req.profile) {
-    req.profile = user.role;
+  const normalized = normalizeUser(user);
+  req.user = normalized || null;
+  if (normalized?.role && !req.profile) {
+    req.profile = normalized.role;
   }
   if (req.res?.locals) {
     req.res.locals.user = req.user;
   }
+}
+
+function attachAuth(req, user) {
+  const authState = buildAuthState(user);
+  req.auth = authState;
+  if (req.res?.locals) {
+    req.res.locals.auth = authState || null;
+  }
+  if (authState) {
+    const enrichedUser = {
+      ...user,
+      role: authState.role ?? deriveRole(user),
+      id: authState.userId,
+      _id: authState.userId,
+      sub: authState.sub,
+    };
+    attachUser(req, enrichedUser);
+  } else {
+    attachUser(req, null);
+  }
+  return authState;
 }
 
 function applyRefresh(req, res, user) {
@@ -57,36 +111,54 @@ function applyRefresh(req, res, user) {
   }
 }
 
-function makeAuth(required) {
-  return (req, res, next) => {
-    const token = extractToken(req);
-    if (!token) {
-      if (required) {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
-      }
-      attachUser(req, null);
-      return next();
+function selectUserFromTokens(req, res) {
+  const token = extractToken(req);
+  if (!token) {
+    return { token: null, user: null };
+  }
+  try {
+    const decoded = verifyToken(token);
+    if (!decoded) {
+      return { token, user: null };
     }
-
-    try {
-      let user = verifyToken(token);
-      if (!user) {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
-      }
-      user = applyRefresh(req, res, user);
-      attachUser(req, user);
-      return next();
-    } catch {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
-    }
-  };
+    const maybeRefreshed = applyRefresh(req, res, decoded);
+    return { token, user: maybeRefreshed || decoded };
+  } catch {
+    return { token, user: null };
+  }
 }
 
-const authRequired = makeAuth(true);
-const authOptional = makeAuth(false);
+function authOptional(req, res, next) {
+  attachAuth(req, null);
+  const token = extractToken(req);
+  if (!token) {
+    return next();
+  }
+  try {
+    const decoded = verifyToken(token);
+    if (!decoded) {
+      return next();
+    }
+    const user = applyRefresh(req, res, decoded);
+    attachAuth(req, user);
+  } catch {
+    // requisição segue sem autenticação
+  }
+  return next();
+}
+
+function authRequired(req, res, next) {
+  authOptional(req, res, () => {
+    if (!req.auth) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+    return next();
+  });
+}
 
 module.exports = authRequired;
 module.exports.authRequired = authRequired;
 module.exports.authOptional = authOptional;
 module.exports.attachUser = attachUser;
 module.exports.extractToken = extractToken;
+module.exports.selectUserFromTokens = selectUserFromTokens;

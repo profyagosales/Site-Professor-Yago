@@ -10,13 +10,18 @@ const router = express.Router();
 
 router.get('/me', authOptional, async (req, res, next) => {
   try {
+    const sessionAuth = req.auth;
     const sessionUser = req.user;
-    if (!sessionUser) {
+    if (!sessionAuth) {
       return res.status(401).json({ success: false, message: 'unauthorized' });
     }
 
-    const role = (sessionUser.role || '').toLowerCase();
-    const subjectId = sessionUser.sub || sessionUser.id || sessionUser._id;
+    const role = (sessionAuth.role || sessionUser?.role || '').toLowerCase();
+    const subjectId =
+      sessionAuth.userId ||
+      sessionAuth.sub ||
+      sessionUser?.id ||
+      sessionUser?._id;
 
     if (role === 'gerencial') {
       return res.json({
@@ -25,7 +30,7 @@ router.get('/me', authOptional, async (req, res, next) => {
         isTeacher: false,
         user: {
           role: 'gerencial',
-          scope: sessionUser.scope || 'gerencial/admin',
+          scope: sessionAuth.scope || sessionUser?.scope || 'gerencial/admin',
         },
       });
     }
