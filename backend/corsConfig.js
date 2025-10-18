@@ -1,36 +1,47 @@
-const DEFAULT_ORIGINS = [
+const STATIC_ORIGINS = [
   'https://professoryagosales.com.br',
+  'https://www.professoryagosales.com.br',
   'https://site-professor-yago-frontend.vercel.app',
 ];
 
-function resolveOrigins() {
-  const envOrigins = [];
-  const raw = process.env.APP_DOMAIN || process.env.CORS_ALLOWED_ORIGINS;
-  if (typeof raw === 'string' && raw.trim()) {
-    raw.split(',').forEach((item) => {
-      const trimmed = item.trim();
-      if (trimmed) {
-        envOrigins.push(trimmed);
-      }
-    });
-  }
+const VERCEL_PREVIEW_REGEX = /^https:\/\/.*\.vercel\.app$/i;
 
-  const all = [...DEFAULT_ORIGINS, ...envOrigins];
-  return Array.from(new Set(all));
+function parseAppDomains() {
+  const value = process.env.APP_DOMAIN;
+  if (typeof value !== 'string' || !value.trim()) {
+    return [];
+  }
+  return value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
 }
 
-const allowedOrigins = resolveOrigins();
+const allowedExact = new Set([...STATIC_ORIGINS, ...parseAppDomains()]);
 
-const sharedHeaders = ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'Pragma'];
+const sharedHeaders = [
+  'Content-Type',
+  'Authorization',
+  'X-Requested-With',
+  'Cache-Control',
+  'Pragma',
+  'Expires',
+];
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+  if (allowedExact.has(origin)) return true;
+  if (VERCEL_PREVIEW_REGEX.test(origin)) return true;
+  return false;
+}
 
 function originMatcher(origin, callback) {
-  if (!origin) {
+  if (isAllowedOrigin(origin)) {
     return callback(null, true);
   }
-  if (allowedOrigins.includes(origin)) {
-    return callback(null, true);
-  }
-  return callback(new Error(`Origin ${origin} not allowed by CORS`));
+  const error = new Error(`Origin ${origin} not allowed by CORS`);
+  error.status = 403;
+  return callback(error);
 }
 
 const corsBase = {
@@ -45,4 +56,4 @@ const corsBase = {
 const corsOptions = { ...corsBase };
 const preflightOptions = { ...corsBase };
 
-module.exports = { corsOptions, preflightOptions, allowedOrigins };
+module.exports = { corsOptions, preflightOptions, allowedOrigins: Array.from(allowedExact) };

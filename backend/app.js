@@ -59,9 +59,6 @@ const app = express();
 app.use(cors(corsOptions));
 app.options(/.*/, cors(preflightOptions));
 
-// #### Sessão estável em produção atrás de proxy (Render/Cloudflare)
-app.set('trust proxy', 1);
-
 // --- API: desabilita ETag e cache para evitar 304 em endpoints como /api/me e /api/professor/classes
 app.set('etag', false);
 const apiNoStore = (_req, res, next) => {
@@ -109,7 +106,7 @@ function register(label, handler) {
 }
 
 // *** NOVO: confiar no proxy (Render/Cloudflare) para cookies secure
-// Já habilitado acima com app.set('trust proxy', 1);
+// Configurado em server.js via app.set('trust proxy', 1);
 
 // ---------- CONFIG BÁSICA ----------
 

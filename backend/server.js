@@ -6,6 +6,8 @@ const notificationScheduler = require('./services/notificationScheduler');
 
 const PORT = process.env.PORT || 5050;
 
+app.set('trust proxy', 1);
+
 if (!app?._router?.stack?.some?.((layer) => layer?.handle?.name === 'cookieParser')) {
   app.use(cookieParser());
 }
