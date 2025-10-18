@@ -1,18 +1,5 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-
-function normalizeBase(url?: string | null): string | null {
-  if (!url) return null;
-  const trimmed = url.replace(/\s+/g, '').replace(/\/+$/, '');
-  if (!trimmed) return null;
-  if (trimmed.endsWith('/api')) {
-    return trimmed;
-  }
-  return `${trimmed}/api`;
-}
-
-const { VITE_API_URL, VITE_API_BASE_URL } = import.meta.env;
-const resolvedApiUrl = normalizeBase(VITE_API_URL || null) ?? normalizeBase(VITE_API_BASE_URL || null);
-const baseURL = resolvedApiUrl || '/api';
+import { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { api } from '@/lib/http';
 
 declare module 'axios' {
   interface AxiosRequestConfig {
@@ -21,25 +8,6 @@ declare module 'axios' {
       noCache?: boolean;
     };
   }
-}
-
-export const api = axios.create({
-  baseURL,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-export const AUTH_TOKEN_STORAGE_KEY = 'auth_token';
-
-export function setAuthToken(token?: string): void {
-  if (token) {
-    api.defaults.headers.common.Authorization = `Bearer ${token}`;
-    return;
-  }
-
-  delete api.defaults.headers.common.Authorization;
 }
 
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
@@ -69,4 +37,5 @@ api.interceptors.response.use(
   }
 );
 
+export { api };
 export default api;

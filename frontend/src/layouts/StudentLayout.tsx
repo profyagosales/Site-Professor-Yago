@@ -95,7 +95,7 @@ const STUDENT_TABS = [
 ];
 
 export default function StudentLayout() {
-  const { logout } = useAuth();
+  const { logout, user: sessionUser } = useAuth();
   const [profile, setProfile] = useState<StudentLayoutProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState<StudentHighlights>({
@@ -105,19 +105,39 @@ export default function StudentLayout() {
     nextEvaluationDate: null,
     nextEvaluationTitle: null,
   });
+  const [profileError, setProfileError] = useState<string | null>(null);
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
+    setProfileError(null);
     try {
       const data = await getStudentProfile();
       setProfile(normalizeProfile(data));
+      setProfileError(null);
     } catch (error) {
       console.error('[student-layout] Falha ao carregar perfil do aluno', error);
       setProfile(null);
+      const status = Number((error as any)?.response?.status ?? 0);
+      if (status === 401) {
+        await logout({ redirect: true, location: '/login-aluno' });
+        return;
+      }
+      if (status === 403) {
+        const roleFromResponse = String((error as any)?.response?.data?.role ?? '').toLowerCase();
+        const roleFromSession = typeof sessionUser?.role === 'string' ? sessionUser.role.toLowerCase() : null;
+        const effectiveRole = roleFromResponse || roleFromSession;
+        if (effectiveRole && effectiveRole !== 'student') {
+          setProfileError('Acesso negado para este perfil.');
+        } else {
+          setProfileError('Não foi possível carregar seu perfil de aluno.');
+        }
+      } else {
+        setProfileError('Não foi possível carregar seu perfil de aluno.');
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [logout, sessionUser?.role]);
 
   useEffect(() => {
     if (!profile?.id) {
@@ -295,6 +315,11 @@ export default function StudentLayout() {
       </section>
 
       <main className="mx-auto max-w-6xl px-4 py-8 md:px-6">
+        {profileError && (
+          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {profileError}
+          </div>
+        )}
         <Outlet context={contextValue} />
       </main>
     </div>

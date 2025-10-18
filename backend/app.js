@@ -40,8 +40,9 @@ app.set('trust proxy', 1);
 // --- Configurações e Middlewares Globais ---
 app.use(cors(corsOptions));
 app.options(/.*/, cors(preflightOptions));
-app.use(express.json());
 app.use(cookieParser());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // --- Cache e ETag ---
 app.set('etag', false);

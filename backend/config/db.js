@@ -1,37 +1,79 @@
 const mongoose = require('mongoose');
 
-const connectDB = async () => {
-  let uri = process.env.MONGO_URI || process.env.MONGODB_URI;
-  if (!uri) {
-    // Fallback: usar MongoDB em memória para dev
-    try {
-        const { MongoMemoryServer } = require('mongodb-memory-server');
-        // Usa binário do MongoDB 7.x por compatibilidade com OpenSSL 3 (Ubuntu 24.04)
-  const version = process.env.MEM_MONGO_VERSION || '8.0.4';
-        const mongo = await MongoMemoryServer.create({
-          binary: { version },
-          instance: { storageEngine: 'wiredTiger' },
-        });
-      uri = mongo.getUri();
-        console.log(`[DB] MongoDB em memória iniciado (v${version}):`, uri);
-        // Encerra o servidor em memória no shutdown do processo
-        const shutdown = async () => {
-          try { await mongo.stop(); console.log('[DB] MongoDB em memória parado'); } catch {}
+let memoryServer = null;
+let memoryShutdownRegistered = false;
+
+async function startMemoryServer() {
+  try {
+    const { MongoMemoryServer } = require('mongodb-memory-server');
+    const version = process.env.MEM_MONGO_VERSION || '8.0.4';
+    memoryServer = await MongoMemoryServer.create({
+      binary: { version },
+      instance: { storageEngine: 'wiredTiger' },
+    });
+    const uri = memoryServer.getUri();
+    console.log(`[DB] MongoDB em memória iniciado (v${version}):`, uri);
+
+    if (!memoryShutdownRegistered) {
+      memoryShutdownRegistered = true;
+      const shutdown = async () => {
+        if (!memoryServer) return;
+        try {
+          await memoryServer.stop();
+          console.log('[DB] MongoDB em memória parado');
+        } catch (err) {
+          console.warn('[DB] Falha ao parar MongoDB em memória', err?.message || err);
+        } finally {
           process.exit(0);
-        };
-        process.on('SIGINT', shutdown);
-        process.on('SIGTERM', shutdown);
-    } catch (err) {
-        console.error('Erro ao iniciar MongoDB em memória:', err?.message || err);
-      process.exit(1);
+        }
+      };
+      process.on('SIGINT', shutdown);
+      process.on('SIGTERM', shutdown);
+    }
+
+    return uri;
+  } catch (err) {
+    console.error('[DB] Erro ao iniciar MongoDB em memória:', err?.message || err);
+    return null;
+  }
+}
+
+async function resolveMongoUri() {
+  const direct = process.env.MONGO_URI || process.env.MONGODB_URI;
+  if (direct) {
+    return direct;
+  }
+
+  const isProd = process.env.NODE_ENV === 'production';
+  if (isProd) {
+    throw new Error('MONGO_URI ausente em produção.');
+  }
+
+  const preferMemory = process.env.MONGO_USE_MEMORY !== '0';
+  if (preferMemory) {
+    const memoryUri = await startMemoryServer();
+    if (memoryUri) {
+      return memoryUri;
     }
   }
+
+  const localUri = process.env.LOCAL_MONGO_URI || 'mongodb://127.0.0.1:27017/site-professor-yago';
+  console.warn('[DB] Usando MongoDB local:', localUri);
+  return localUri;
+}
+
+const connectDB = async () => {
   try {
+    const uri = await resolveMongoUri();
+    if (!uri) {
+      throw new Error('Não foi possível resolver a URI do MongoDB.');
+    }
     const conn = await mongoose.connect(uri);
     const { host, name } = conn.connection;
-    console.log(`[db] MongoDB conectado`, { host, db: name });
+    console.log('[db] MongoDB conectado', { host, db: name });
+    return conn;
   } catch (err) {
-    console.error('MongoDB connection error:', err.message);
+    console.error('MongoDB connection error:', err?.message || err);
     process.exit(1);
   }
 };

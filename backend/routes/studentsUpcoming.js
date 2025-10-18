@@ -66,16 +66,10 @@ router.get('/me', ensureStudent, async (req, res, next) => {
     const classId = classDoc?._id ? String(classDoc._id) : null;
     const turmaAtual = buildClassSummary(classDoc);
 
-    const userPayload = {
-      ...publicStudent(student),
+    const userPayload = publicStudent(student, {
       classId,
-      nome: student.name ?? null,
-      email: student.email ?? null,
-      numero: student.rollNumber ?? student.numero ?? null,
-      telefone: student.phone ?? student.telefone ?? null,
-      foto: student.photo ?? student.foto ?? null,
       turmaAtual,
-    };
+    });
 
     return res.json({
       success: true,

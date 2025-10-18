@@ -4,6 +4,11 @@ function ensureStudent(req, res, next) {
     return next();
   }
 
+  console.warn('[auth] ensureStudent forbidden', {
+    path: req.originalUrl,
+    role: role ?? null,
+  });
+
   return res.status(403).json({ success: false, message: 'forbidden: student role required' });
 }
 

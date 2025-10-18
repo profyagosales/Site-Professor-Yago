@@ -1,37 +1,23 @@
-const jwt = require('jsonwebtoken');
-
-function readBearerToken(req) {
-  const headers = req.headers || {};
-  const authHeader = headers.authorization || headers.Authorization || '';
-  if (typeof authHeader === 'string' && /^Bearer\s+/i.test(authHeader)) {
-    return authHeader.replace(/^Bearer\s+/i, '').trim();
-  }
-  return null;
-}
+const { selectUserFromTokens } = require('./auth');
 
 module.exports = function ensureGerencial(req, res, next) {
   try {
-    const token = readBearerToken(req);
-    if (!token) {
+    const { token, user } = selectUserFromTokens(req, res);
+    if (!token || !user) {
       return res.status(401).json({ success: false, message: 'Gerencial token ausente.' });
     }
 
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      console.error('[ensureGerencial] JWT_SECRET ausente.');
-      return res.status(500).json({ success: false, message: 'Configuração inválida do servidor.' });
-    }
-
-    const payload = jwt.verify(token, secret);
-    if (!payload || typeof payload !== 'object' || payload.role !== 'gerencial') {
+    const role = typeof user.role === 'string' ? user.role.toLowerCase() : '';
+    if (role !== 'gerencial') {
       return res.status(401).json({ success: false, message: 'Gerencial token inválido.' });
     }
 
     req.gerencial = {
       role: 'gerencial',
-      id: payload.sub || payload.id || null,
+      id: user.sub || user.id || user._id || null,
       token,
-      exp: payload.exp || null,
+      exp: user.exp || null,
+      scope: user.scope || null,
     };
 
     return next();

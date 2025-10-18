@@ -1,6 +1,5 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { fetchMe, doLogout, SessionUser } from '@/services/session';
-import { AUTH_TOKEN_STORAGE_KEY, setAuthToken } from '@/services/api';
 
 const KEEP_ALIVE_INTERVAL = 10 * 60 * 1000;
 
@@ -40,22 +39,6 @@ const Ctx = createContext<AuthState | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<SessionUser | null>(null);
-
-  const hasBootstrappedLegacyToken = useRef(false);
-
-  useEffect(() => {
-    if (hasBootstrappedLegacyToken.current) return;
-    hasBootstrappedLegacyToken.current = true;
-    if (typeof window === 'undefined') return;
-    try {
-      const legacyToken = window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
-      if (legacyToken) {
-        setAuthToken(legacyToken);
-      }
-    } catch {
-      /* ignore storage errors */
-    }
-  }, []);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -115,10 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // ignore logout errors (e.g., already logged out)
     }
 
-    setAuthToken(undefined);
-
     try {
-      localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
       localStorage.removeItem('role');
       localStorage.removeItem('teacher');
     } catch {
@@ -273,4 +253,3 @@ export function useAuth(): AuthState {
   }
   return ctx;
 }
-

@@ -129,17 +129,37 @@ function publicTeacher(doc) {
   };
 }
 
-function publicStudent(doc) {
+function normalizeNullable(value) {
+  if (value === undefined || value === null) return null;
+  const str = String(value).trim();
+  return str.length ? str : null;
+}
+
+function publicStudent(doc, overrides = {}) {
   if (!doc) return null;
   const raw = doc.toObject?.() ?? doc;
   const id = String(raw._id ?? raw.id ?? '');
+  const name = normalizeNullable(raw.name ?? raw.nome);
+  const email = normalizeNullable(raw.email);
+  const rollNumber = normalizeNullable(raw.rollNumber ?? raw.numero ?? raw.registration ?? raw.matricula);
+  const phone = normalizeNullable(raw.phone ?? raw.telefone);
+  const photo = normalizeNullable(raw.photoUrl ?? raw.photo ?? raw.foto);
   return {
     id,
     _id: id,
-    name: raw.name ?? raw.nome ?? '',
-    email: raw.email ?? null,
     role: 'student',
     isTeacher: false,
+    name,
+    nome: name,
+    email,
+    rollNumber,
+    numero: rollNumber,
+    phone,
+    telefone: phone,
+    photo,
+    photoUrl: photo,
+    foto: photo,
+    ...overrides,
   };
 }
 
@@ -205,11 +225,14 @@ async function doLogin({ Model, role, req, res }) {
 
     const token = issueToken({ sub: String(doc._id), role });
     sendSessionCookie(res, token);
-    let publicUser = role === 'teacher' ? publicTeacher(doc) : publicStudent(doc);
+    let publicUser;
     let classId = null;
-    if (role === 'student') {
-      classId = doc.class ? String(doc.class) : null;
-      publicUser = { ...publicUser, classId };
+    if (role === 'teacher') {
+      publicUser = publicTeacher(doc);
+    } else {
+      const classRef = doc.class?._id ?? doc.class ?? null;
+      classId = classRef ? String(classRef) : null;
+      publicUser = publicStudent(doc, { classId });
     }
     const payload = {
       success: true,

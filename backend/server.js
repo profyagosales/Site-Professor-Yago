@@ -1,5 +1,4 @@
 require('dotenv').config();
-const cookieParser = require('cookie-parser');
 const { app } = require('./app');
 const { validateEnv } = require('./boot/checkEnv');
 const connectDB = require('./config/db');
@@ -8,12 +7,6 @@ const notificationScheduler = require('./services/notificationScheduler');
 const PORT = process.env.PORT || 5050;
 
 validateEnv();
-
-app.set('trust proxy', 1);
-
-if (!app?._router?.stack?.some?.((layer) => layer?.handle?.name === 'cookieParser')) {
-  app.use(cookieParser());
-}
 
 // Render expects the process to respond on the port it injects via PORT.
 // Adiciona verificação simples de saúde sem depender de middlewares externos.

@@ -1,17 +1,4 @@
-import axios from 'axios';
-
-function normalizeBase(url?: string) {
-  const base = String(url || '').replace(/\/+$/, '');
-  return base.endsWith('/api') ? base : `${base}/api`;
-}
-
-const baseURL = normalizeBase((import.meta as any).env?.VITE_API_BASE_URL || (import.meta as any).env?.VITE_API_URL);
-
-export const api = axios.create({
-  baseURL,
-  withCredentials: true,
-  headers: { 'Content-Type': 'application/json' },
-});
+import { api } from './http';
 
 api.interceptors.request.use((config) => {
   if (config.headers) {
@@ -41,4 +28,5 @@ api.interceptors.response.use(
 export const pickData = (r: any) => r?.data?.data ?? r?.data ?? r;
 export const toArray = (v: any) => (Array.isArray(v) ? v : v ? [v] : []);
 
+export { api };
 export default api;

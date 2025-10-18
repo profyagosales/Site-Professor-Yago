@@ -57,15 +57,15 @@ router.get('/me', authOptional, async (req, res, next) => {
       if (!student) {
         return res.status(401).json({ success: false, message: 'unauthorized' });
       }
-      const classId = student.class ? String(student.class) : null;
+      const classRef = student.class?._id ?? student.class ?? null;
+      const classId = classRef ? String(classRef) : null;
+      const userPayload = publicStudent(student, { classId });
       return res.json({
         success: true,
         role: 'student',
         isTeacher: false,
-        user: {
-          ...publicStudent(student),
-          classId,
-        },
+        user: userPayload,
+        classId,
       });
     }
 
