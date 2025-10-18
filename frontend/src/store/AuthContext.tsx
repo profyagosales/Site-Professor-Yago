@@ -1,6 +1,6 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchMe, doLogout, SessionUser } from '@/services/session';
-import { setAuthToken } from '@/services/api';
+import { AUTH_TOKEN_STORAGE_KEY, setAuthToken } from '@/services/api';
 
 const KEEP_ALIVE_INTERVAL = 10 * 60 * 1000;
 
@@ -40,6 +40,22 @@ const Ctx = createContext<AuthState | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<SessionUser | null>(null);
+
+  const hasBootstrappedLegacyToken = useRef(false);
+
+  useEffect(() => {
+    if (hasBootstrappedLegacyToken.current) return;
+    hasBootstrappedLegacyToken.current = true;
+    if (typeof window === 'undefined') return;
+    try {
+      const legacyToken = window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+      if (legacyToken) {
+        setAuthToken(legacyToken);
+      }
+    } catch {
+      /* ignore storage errors */
+    }
+  }, []);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -99,11 +115,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // ignore logout errors (e.g., already logged out)
     }
 
+    setAuthToken(undefined);
+
     try {
-      localStorage.removeItem('auth_token');
+      localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
       localStorage.removeItem('role');
       localStorage.removeItem('teacher');
-      setAuthToken(null);
     } catch {
       // ignore storage errors (private mode, etc.)
     }
@@ -200,6 +217,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       /* ignore storage errors */
     }
   }, [resolvedRole]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (loading) return;
+    if (user) return;
+
+    const publicPaths = ['/login-professor', '/login-aluno', '/gerencial/login', '/'];
+    const pathname = window.location.pathname || '/';
+    const normalized = pathname === '/' ? '/' : (pathname.replace(/\/+$/, '') || '/');
+    const isPublic = publicPaths.some((publicPath) => {
+      if (publicPath === '/') {
+        return normalized === '/';
+      }
+      return normalized === publicPath || normalized.startsWith(`${publicPath}/`);
+    });
+    if (isPublic) return;
+
+    const redirectTargets = [
+      { prefix: '/professor', target: '/login-professor' },
+      { prefix: '/aluno', target: '/login-aluno' },
+      { prefix: '/gerencial', target: '/gerencial/login' },
+    ];
+    const match = redirectTargets.find(({ prefix }) => normalized === prefix || normalized.startsWith(`${prefix}/`));
+    if (!match) return;
+
+    const nextParam = encodeURIComponent(`${pathname}${window.location.search || ''}`);
+    window.location.replace(`${match.target}?next=${nextParam}`);
+  }, [loading, user]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

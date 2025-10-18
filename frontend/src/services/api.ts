@@ -31,24 +31,14 @@ export const api = axios.create({
   },
 });
 
-const STORAGE_KEY = 'auth_token';
+export const AUTH_TOKEN_STORAGE_KEY = 'auth_token';
 
 export function setAuthToken(token?: string): void {
   if (token) {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, token);
-    } catch {
-      /* ignore storage errors */
-    }
     api.defaults.headers.common.Authorization = `Bearer ${token}`;
     return;
   }
 
-  try {
-    window.localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    /* ignore storage errors */
-  }
   delete api.defaults.headers.common.Authorization;
 }
 
@@ -78,16 +68,5 @@ api.interceptors.response.use(
     return Promise.reject(err);
   }
 );
-
-if (typeof window !== 'undefined') {
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      api.defaults.headers.common.Authorization = `Bearer ${stored}`;
-    }
-  } catch {
-    /* ignore bootstrap errors */
-  }
-}
 
 export default api;

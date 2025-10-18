@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const { z } = require('zod');
 const Teacher = require('../models/Teacher');
 const Student = require('../models/Student');
+const Class = require('../models/Class');
 const { AUTH_COOKIE, authCookieOptions } = require('../utils/cookies');
 function toBuffer(str, encoding = 'utf8') {
   try {
@@ -238,9 +239,25 @@ async function doLogin({ Model, role, req, res }) {
       return res.status(401).json({ success: false, message: 'E-mail ou senha inválidos.' });
     }
 
+    if (role === 'student') {
+      if (!doc.class) {
+        const owningClass = await Class.findOne({ students: doc._id }).select('_id');
+        if (owningClass) {
+          doc.class = owningClass._id;
+          if (typeof doc.save === 'function') {
+            await doc.save();
+          }
+        }
+      }
+    }
+
     const token = issueToken({ sub: String(doc._id), role });
     sendSessionCookie(res, token);
-    const publicUser = role === 'teacher' ? publicTeacher(doc) : publicStudent(doc);
+    let publicUser = role === 'teacher' ? publicTeacher(doc) : publicStudent(doc);
+    if (role === 'student') {
+      const classId = doc.class ? String(doc.class) : null;
+      publicUser = { ...publicUser, classId };
+    }
     return res.json({
       success: true,
       message: 'ok',

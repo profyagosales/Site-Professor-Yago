@@ -1,19 +1,13 @@
-export function getToken(): string | null {
-  try {
-    return localStorage.getItem('auth_token');
-  } catch {
-    return null;
-  }
+export function getToken(): null {
+  return null;
 }
 
 export function isAuthenticated(): boolean {
-  return !!getToken();
+  return false;
 }
 
 export function ensureAuthOrRedirect(): void {
-  if (!isAuthenticated()) {
-    window.location.replace('/login-professor');
-  }
+  /* auth handled via AuthContext + cookies */
 }
 
 export default { getToken, isAuthenticated, ensureAuthOrRedirect };

@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { getToken } from '@/utils/auth';
 
 function normalizeBase(url?: string) {
   const base = String(url || '').replace(/\/+$/, '');
@@ -18,12 +17,6 @@ api.interceptors.request.use((config) => {
   if (config.headers) {
     try { delete (config.headers as any)['Content-Type']; } catch {}
   }
-  const token = getToken();
-  if (token) {
-    const headers = (config.headers ?? {}) as Record<string, any>;
-    headers.Authorization = `Bearer ${token}`;
-    config.headers = headers as any;
-  }
   return config;
 });
 
@@ -32,7 +25,6 @@ api.interceptors.response.use(
   (error) => {
     if (error?.response?.status === 401) {
       try {
-        localStorage.removeItem('auth_token');
         localStorage.removeItem('role');
       } catch {}
       if (typeof window !== 'undefined') {

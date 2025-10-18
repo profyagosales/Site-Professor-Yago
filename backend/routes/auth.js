@@ -1,11 +1,9 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
 const Teacher = require('../models/Teacher');
 const Student = require('../models/Student');
-const Class = require('../models/Class');
 const authRequired = require('../middleware/auth');
-const { loginTeacher, publicTeacher, publicStudent } = require('../controllers/authController');
+const { loginTeacher, loginStudent, publicTeacher, publicStudent } = require('../controllers/authController');
 const { AUTH_COOKIE, authCookieOptions } = require('../utils/cookies');
 
 const router = express.Router();
@@ -52,52 +50,7 @@ router.post('/register-teacher', async (req, res, next) => {
 router.post('/login-teacher', loginTeacher);
 
 // POST /api/auth/login-student
-router.post('/login-student', async (req, res, next) => {
-  try {
-    const { email, password } = req.body || {};
-    if (!email || !password) {
-  return res.status(400).json({ success: false, message: 'Informe e-mail e senha.' });
-    }
-
-    const student = await Student.findOne({ email: { $regex: `^${email}$`, $options: 'i' } }).select('+passwordHash');
-    if (!student) {
-  return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
-    }
-
-    const ok = await bcrypt.compare(password, student.passwordHash || '');
-    if (!ok) {
-  return res.status(401).json({ success: false, message: 'Credenciais inválidas.' });
-    }
-
-    const studentId = String(student._id);
-    let classId = student.class;
-    if (!classId) {
-      const owningClass = await Class.findOne({ students: student._id }).select('_id');
-      if (owningClass) {
-        student.class = owningClass._id;
-        await student.save();
-        classId = owningClass._id;
-      }
-    }
-
-    const token = signAndSetCookie(res, { sub: studentId, role: 'student' });
-    const user = {
-      ...publicStudent(student),
-      classId: classId ? String(classId) : null,
-    };
-
-    return res.status(200).json({
-      success: true,
-      message: 'ok',
-      role: 'student',
-      isTeacher: false,
-      user,
-      token,
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+router.post('/login-student', loginStudent);
 
 // POST /api/auth/register-student (usado em testes e seeds)
 router.post('/register-student', async (req, res, next) => {

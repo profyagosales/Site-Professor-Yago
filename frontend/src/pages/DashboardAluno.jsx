@@ -12,7 +12,7 @@ import {
   getStudentNotebookSummary,
   getStudentGrades,
 } from '@/services/student'
-import { logout } from '@/services/auth'
+import { useAuth } from '@/store/AuthContext'
 import { FaPen, FaStar, FaFilePdf, FaBook } from 'react-icons/fa'
 import flags from '@/config/features'
 
@@ -183,6 +183,7 @@ export default function DashboardAluno() {
   const [grades, setGrades] = useState(null)
   const [loading, setLoading] = useState(true)
   const [term, setTerm] = useState(1)
+  const { user, loading: authLoading, logout: logoutSession } = useAuth()
 
   async function load() {
     try {
@@ -212,20 +213,19 @@ export default function DashboardAluno() {
   }
 
   useEffect(() => {
-    load()
+    void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [term])
 
   useEffect(() => {
-    const token = localStorage.getItem('auth_token')
-    const role = localStorage.getItem('role')
-    if (!token || role !== 'student') {
+    if (authLoading) return
+    if (!user || (user.role && user.role !== 'student' && !user?.isStudent)) {
       navigate('/login-aluno')
     }
-  }, [navigate])
+  }, [authLoading, user, navigate])
 
   const handleLogout = async () => {
-    await logout()
+    await logoutSession({ redirect: false })
     navigate('/login-aluno')
   }
 
