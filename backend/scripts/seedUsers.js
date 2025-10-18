@@ -42,16 +42,17 @@ async function ensureClass() {
 
 async function upsertTeacher() {
   const password = DEFAULT_PASSWORD;
-  let teacher = await Teacher.findOne({ email: TEACHER_EMAIL });
+  const passwordHash = await Teacher.hashPassword(password);
+  let teacher = await Teacher.findOne({ email: TEACHER_EMAIL }).select('+passwordHash +password');
   if (!teacher) {
     teacher = new Teacher({
       name: 'Professor Seed',
       email: TEACHER_EMAIL,
-      password,
+      passwordHash,
       subjects: ['Seed'],
     });
   } else {
-    teacher.password = password;
+    teacher.passwordHash = passwordHash;
     if (!teacher.name) {
       teacher.name = 'Professor Seed';
     }
@@ -59,6 +60,7 @@ async function upsertTeacher() {
       teacher.subjects = ['Seed'];
     }
   }
+  teacher.password = undefined;
   await teacher.save();
   return teacher;
 }

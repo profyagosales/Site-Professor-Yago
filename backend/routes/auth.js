@@ -27,7 +27,15 @@ function signAndSetCookie(res, payload, expiresIn = '7d') {
 router.post('/register-teacher', async (req, res, next) => {
   try {
     const { name, email, password, phone, subjects = [] } = req.body || {};
-    const teacher = await Teacher.create({ name, email, password, phone, subjects });
+    const teacher = new Teacher({
+      name,
+      email,
+      phone,
+      subjects,
+      role: 'teacher',
+    });
+    await teacher.setPassword(password);
+    await teacher.save();
     const teacherId = String(teacher._id);
     const token = signAndSetCookie(res, {
       sub: teacherId,
@@ -69,7 +77,7 @@ router.post('/register-student', async (req, res, next) => {
       phone,
       passwordHash: await require('bcrypt').hash(password, 10),
     });
-    const token = jwt.sign({ role: 'student', email: student.email, id: String(student._id) }, process.env.JWT_SECRET, { expiresIn: '7d' });
+  const token = jwt.sign({ role: 'student', email: student.email, id: String(student._id) }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.status(200).json({ success: true, data: { token, student: { email: student.email } } });
   } catch (err) {
     next(err);

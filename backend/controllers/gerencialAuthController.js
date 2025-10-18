@@ -1,21 +1,49 @@
+const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { AUTH_COOKIE, authCookieOptions } = require('../utils/cookies');
 
-function resolveDoorPassword() {
-  return process.env.GERENCIAL_DOOR_PASSWORD || 'TR24339!es';
+function resolveGerencialSecrets() {
+  const hashedCandidates = [
+    process.env.GERENCIAL_DOOR_PASSWORD_BCRYPT,
+    process.env.GERENCIAL_MASTER_PASSWORD_BCRYPT,
+  ].filter(Boolean);
+  const plainCandidates = [
+    process.env.GERENCIAL_DOOR_PASSWORD,
+    process.env.GERENCIAL_MASTER_PASSWORD,
+    'TR24339!es',
+  ].filter(Boolean);
+
+  return {
+    hashed: hashedCandidates,
+    plain: plainCandidates,
+  };
 }
 
 exports.login = (req, res) => {
   try {
     const { password } = req.body || {};
-    const provided = typeof password === 'string' ? password : '';
-    const expected = resolveDoorPassword();
+    const provided = typeof password === 'string' ? password.trim() : '';
+    const secrets = resolveGerencialSecrets();
 
     if (!provided) {
       return res.status(400).json({ success: false, message: 'Informe a senha gerencial.' });
     }
 
-    if (provided !== expected) {
+    let ok = false;
+    for (const hash of secrets.hashed) {
+      if (hash && hash.trim().startsWith('$2')) {
+        if (bcrypt.compareSync(provided, hash.trim())) {
+          ok = true;
+          break;
+        }
+      }
+    }
+
+    if (!ok) {
+      ok = secrets.plain.some((candidate) => candidate === provided);
+    }
+
+    if (!ok) {
       return res.status(401).json({ success: false, message: 'Senha inválida.' });
     }
 

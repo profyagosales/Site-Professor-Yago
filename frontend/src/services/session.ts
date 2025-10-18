@@ -22,7 +22,7 @@ export type SessionPayload = {
 
 export async function fetchMe(silent = true): Promise<SessionUser | null> {
   try {
-    const { data } = await api.get<SessionPayload>('/me', {
+    const { data } = await api.get<SessionPayload>('/auth/me', {
       meta: { skipAuthRedirect: silent, noCache: true },
     });
     return data?.user ?? null;
@@ -41,7 +41,7 @@ export async function loginTeacher(email: string, password: string): Promise<Ses
     { meta: { skipAuthRedirect: true } }
   );
 
-  const { data } = await api.get<SessionPayload>('/me', {
+  const { data } = await api.get<SessionPayload>('/auth/me', {
     meta: { skipAuthRedirect: true, noCache: true },
   });
 
@@ -59,7 +59,7 @@ export async function loginStudent(email: string, password: string): Promise<Ses
     { meta: { skipAuthRedirect: true } }
   );
 
-  const { data } = await api.get<SessionPayload>('/me', {
+  const { data } = await api.get<SessionPayload>('/auth/me', {
     meta: { skipAuthRedirect: true, noCache: true },
   });
 

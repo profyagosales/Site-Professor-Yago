@@ -68,10 +68,10 @@ exports.create = async (req, res, next) => {
     const teacher = new Teacher({
       name: trimmedName,
       email: trimmedEmail.toLowerCase(),
-      password: rawPassword,
       phone: typeof phone === 'string' && phone.trim() ? phone.trim() : undefined,
       role: 'teacher',
     });
+    await teacher.setPassword(rawPassword);
 
     const photoUrl = await upsertPhoto(req);
     if (photoUrl) {
@@ -99,7 +99,7 @@ exports.update = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Identificador inválido.' });
     }
 
-    const teacher = await Teacher.findById(id);
+  const teacher = await Teacher.findById(id).select('+passwordHash +password');
     if (!teacher) {
       return res.status(404).json({ success: false, message: 'Professor não encontrado.' });
     }
@@ -126,7 +126,7 @@ exports.update = async (req, res, next) => {
       teacher.phone = undefined;
     }
     if (typeof payload.password === 'string' && payload.password.trim()) {
-      teacher.password = payload.password.trim();
+      await teacher.setPassword(payload.password);
     }
 
     const photoUrl = await upsertPhoto(req);
