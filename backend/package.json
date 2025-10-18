@@ -10,7 +10,8 @@
     "start:dev": "nodemon server.js",
     "build": "echo \"no build step for backend\"",
     "lint": "npm --prefix ../frontend exec eslint .",
-    "gen-secret": "node scripts/gen-secret.js"
+    "gen-secret": "node scripts/gen-secret.js",
+    "seed:prod": "node scripts/seedUsers.js"
   },
   "keywords": [],
   "author": "",
