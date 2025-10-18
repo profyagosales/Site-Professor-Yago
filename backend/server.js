@@ -1,10 +1,13 @@
 require('dotenv').config();
 const cookieParser = require('cookie-parser');
 const { app } = require('./app');
+const { validateEnv } = require('./boot/checkEnv');
 const connectDB = require('./config/db');
 const notificationScheduler = require('./services/notificationScheduler');
 
 const PORT = process.env.PORT || 5050;
+
+validateEnv();
 
 app.set('trust proxy', 1);
 
