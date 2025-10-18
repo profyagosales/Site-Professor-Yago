@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const { AUTH_COOKIE, authCookieOptions } = require('../utils/cookies');
 
 function resolveDoorPassword() {
-  return process.env.GERENCIAL_DOOR_PASSWORD || 'TR24339es';
+  return process.env.GERENCIAL_DOOR_PASSWORD || 'TR24339!es';
 }
 
 exports.login = (req, res) => {
@@ -49,6 +49,10 @@ exports.login = (req, res) => {
       role: 'gerencial',
       isTeacher: false,
       scope: 'gerencial/admin',
+      user: {
+        role: 'gerencial',
+        scope: 'gerencial/admin',
+      },
       token,
       expiresIn: expiresInSeconds,
     });

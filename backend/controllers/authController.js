@@ -219,7 +219,7 @@ async function doLogin({ Model, role, req, res }) {
   const { email, password } = parsed.data;
 
   try {
-  const doc = await buildLoginQuery(Model, email).exec();
+    const doc = await buildLoginQuery(Model, email).exec();
     if (!doc) {
       console.log(`[LOGIN] ${role} não encontrado`, { emailTentado: email });
       return res.status(401).json({ success: false, message: 'E-mail ou senha inválidos.' });
@@ -274,65 +274,7 @@ async function doLogin({ Model, role, req, res }) {
   }
 }
 
-exports.loginTeacher = async (req, res) => {
-  const parsed = LoginSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res
-      .status(400)
-      .json({ success: false, message: 'Informe e-mail e senha.' });
-  }
-
-  const { email, password } = parsed.data;
-
-  try {
-  const teacherDoc = await buildLoginQuery(Teacher, email).exec();
-
-    if (!teacherDoc) {
-      console.log('[LOGIN] teacher não encontrado', { emailTentado: email });
-      return res.status(401).json({ success: false, message: 'E-mail ou senha inválidos.' });
-    }
-
-    const hash = pickHash(teacherDoc);
-    if (!hash) {
-      console.error('[LOGIN] hash ausente para teacher', {
-        id: String(teacherDoc._id),
-        email: teacherDoc.email,
-      });
-      return res.status(500).json({ success: false, message: 'Conta sem hash de senha.' });
-    }
-
-    const ok = await verifyPassword(password, hash);
-    if (!ok) {
-      console.log('[LOGIN] senha incorreta para teacher', {
-        id: String(teacherDoc._id),
-        email: teacherDoc.email,
-      });
-      return res.status(401).json({ success: false, message: 'E-mail ou senha inválidos.' });
-    }
-
-    const teacher = teacherDoc.toObject ? teacherDoc.toObject() : teacherDoc;
-    const teacherId = String(teacherDoc._id);
-    const teacherEmail = teacher.email || teacherDoc.email || email;
-    const token = issueToken({ sub: teacherId, role: 'teacher' });
-    sendSessionCookie(res, token);
-    const user = publicTeacher(teacherDoc);
-
-    return res.status(200).json({
-      success: true,
-      message: 'ok',
-      role: 'teacher',
-      isTeacher: true,
-      user,
-      token,
-    });
-  } catch (err) {
-    console.error('[LOGIN] Erro inesperado (teacher)', {
-      emailTentado: email,
-      stack: err?.stack || String(err),
-    });
-    return res.status(500).json({ success: false, message: 'Erro interno no login.' });
-  }
-};
+exports.loginTeacher = (req, res) => doLogin({ Model: Teacher, role: 'teacher', req, res });
 
 exports.loginStudent = (req, res) =>
   doLogin({ Model: Student, role: 'student', req, res });

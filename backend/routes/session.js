@@ -12,24 +12,35 @@ router.get('/me', authOptional, async (req, res, next) => {
   try {
     const sessionUser = req.user;
     if (!sessionUser) {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
+      return res.status(401).json({ success: false, message: 'unauthorized' });
     }
 
-    const role = sessionUser.role;
+    const role = (sessionUser.role || '').toLowerCase();
     const subjectId = sessionUser.sub || sessionUser.id || sessionUser._id;
 
+    if (role === 'gerencial') {
+      return res.json({
+        success: true,
+        role: 'gerencial',
+        isTeacher: false,
+        user: {
+          role: 'gerencial',
+          scope: sessionUser.scope || 'gerencial/admin',
+        },
+      });
+    }
+
     if (!subjectId) {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
+      return res.status(401).json({ success: false, message: 'unauthorized' });
     }
 
     if (role === 'teacher') {
       const teacher = await Teacher.findById(subjectId);
       if (!teacher) {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
+        return res.status(401).json({ success: false, message: 'unauthorized' });
       }
       return res.json({
         success: true,
-        message: 'ok',
         role: 'teacher',
         isTeacher: true,
         user: publicTeacher(teacher),
@@ -39,12 +50,11 @@ router.get('/me', authOptional, async (req, res, next) => {
     if (role === 'student') {
       const student = await Student.findById(subjectId);
       if (!student) {
-        return res.status(401).json({ success: false, message: 'Unauthorized' });
+        return res.status(401).json({ success: false, message: 'unauthorized' });
       }
       const classId = student.class ? String(student.class) : null;
       return res.json({
         success: true,
-        message: 'ok',
         role: 'student',
         isTeacher: false,
         user: {
@@ -54,14 +64,14 @@ router.get('/me', authOptional, async (req, res, next) => {
       });
     }
 
-    return res.status(400).json({ success: false, message: 'Role inválido' });
+    return res.status(401).json({ success: false, message: 'unauthorized' });
   } catch (err) {
     next(err);
   }
 });
 
 router.post('/logout', authOptional, (req, res) => {
-  res.clearCookie(AUTH_COOKIE, authCookieOptions());
+  res.clearCookie(AUTH_COOKIE, { ...authCookieOptions(), maxAge: 0 });
   return res.sendStatus(204);
 });
 
