@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { resolveClassColors } from '@/utils/classColor';
 
 type SlotConfig = {
   id: number;
@@ -21,47 +22,6 @@ type WeeklyScheduleProps = {
   days: DayConfig[];
   cells: Record<string, WeeklyScheduleCellItem[]>;
 };
-
-function hashString(value: string): number {
-  let hash = 0;
-  for (let i = 0; i < value.length; i += 1) {
-    hash = (hash * 31 + value.charCodeAt(i)) % 360;
-  }
-  return hash;
-}
-
-function hslToRgb(h: number, s: number, l: number) {
-  const hue = h / 360;
-  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-  const p = 2 * l - q;
-
-  const convert = (t: number) => {
-    let temp = t;
-    if (temp < 0) temp += 1;
-    if (temp > 1) temp -= 1;
-    if (temp < 1 / 6) return p + (q - p) * 6 * temp;
-    if (temp < 1 / 2) return q;
-    if (temp < 2 / 3) return p + (q - p) * (2 / 3 - temp) * 6;
-    return p;
-  };
-
-  const r = Math.round(convert(hue + 1 / 3) * 255);
-  const g = Math.round(convert(hue) * 255);
-  const b = Math.round(convert(hue - 1 / 3) * 255);
-  return { r, g, b };
-}
-
-function classColor(classId?: string | null) {
-  const base = classId && classId.trim() ? classId.trim() : 'default';
-  const hue = hashString(base);
-  const saturation = 0.68;
-  const lightness = 0.58;
-  const { r, g, b } = hslToRgb(hue, saturation, lightness);
-  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-  const textColor = luminance > 0.6 ? '#0f172a' : '#ffffff';
-  const background = `hsl(${hue}, ${Math.round(saturation * 100)}%, ${Math.round(lightness * 100)}%)`;
-  return { background, textColor };
-}
 
 export default function WeeklySchedule({ slots, days, cells }: WeeklyScheduleProps) {
   return (
@@ -110,7 +70,8 @@ export default function WeeklySchedule({ slots, days, cells }: WeeklySchedulePro
                     className="flex min-h-[56px] flex-col gap-1.5 rounded-2xl border border-slate-100 bg-white p-2"
                   >
                     {items.map((item, index) => {
-                      const { background, textColor } = classColor(item.classId || item.label);
+                    const source = item.classId && item.classId.trim() ? item.classId : item.label;
+                    const { background, textColor } = resolveClassColors(null, source);
                       const style: CSSProperties = {
                         background,
                         color: textColor,

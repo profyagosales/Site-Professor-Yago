@@ -58,6 +58,8 @@ type AvisosCardProps = {
   className?: string;
   limit?: number;
   onEdit?: (announcement: Announcement) => void;
+  classId?: string | null;
+  onCreate?: () => void;
 };
 
 const SLIDE_INTERVAL = 10000;
@@ -119,7 +121,13 @@ function isPdf(attachment: Attachment): boolean {
   return typeof attachment?.mime === 'string' && attachment.mime === 'application/pdf';
 }
 
-export default function AvisosCard({ className = '', limit = 5 }: AvisosCardProps) {
+export default function AvisosCard({
+  className = '',
+  limit = 5,
+  classId = null,
+  onEdit,
+  onCreate,
+}: AvisosCardProps) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -163,7 +171,7 @@ export default function AvisosCard({ className = '', limit = 5 }: AvisosCardProp
     setLoading(true);
     setError(null);
     try {
-      const { items } = await listAnnouncements({ limit });
+      const { items } = await listAnnouncements({ limit, classId: classId ?? undefined });
       setAnnouncements(items);
       setActiveIndex(0);
     } catch (err) {
@@ -173,7 +181,7 @@ export default function AvisosCard({ className = '', limit = 5 }: AvisosCardProp
     } finally {
       setLoading(false);
     }
-  }, [limit]);
+  }, [limit, classId]);
 
   useEffect(() => {
     void fetchAnnouncements();
@@ -245,7 +253,11 @@ export default function AvisosCard({ className = '', limit = 5 }: AvisosCardProp
     async (page: number) => {
       setModalLoading(true);
       try {
-        const { items, hasMore, total } = await listAnnouncements({ limit: MODAL_PAGE_SIZE, page });
+        const { items, hasMore, total } = await listAnnouncements({
+          limit: MODAL_PAGE_SIZE,
+          page,
+          classId: classId ?? undefined,
+        });
         setModalItems(items);
         setModalHasMore(hasMore);
         setModalTotal(total);
@@ -257,7 +269,7 @@ export default function AvisosCard({ className = '', limit = 5 }: AvisosCardProp
         setModalLoading(false);
       }
     },
-    []
+    [classId]
   );
 
   useEffect(() => {
@@ -369,9 +381,16 @@ export default function AvisosCard({ className = '', limit = 5 }: AvisosCardProp
         title="Avisos"
         className={className}
         actions={
-          <Button variant="link" onClick={openModal} disabled={loading || (!error && !announcements.length)}>
-            Ver todos
-          </Button>
+          <div className="flex gap-2">
+            {onCreate ? (
+              <Button type="button" variant="ghost" onClick={onCreate}>
+                Registrar aviso
+              </Button>
+            ) : null}
+            <Button variant="link" onClick={openModal} disabled={loading || (!error && !announcements.length)}>
+              Ver todos
+            </Button>
+          </div>
         }
         contentClassName="flex-1"
       >

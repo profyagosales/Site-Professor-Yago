@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { classColor, resolveClassColors } from '@/utils/classColor';
 import { getClassDetails } from '@/services/classes.service';
 import { TurmaResumo } from './TurmaResumo';
 import { NotasTab } from './NotasTab';
 import { NotasTabela } from '@/components/grades/NotasTabela';
+import AnnouncementModal from '@/components/AnnouncementModal';
 
 type TabKey = 'resumo' | 'alunos' | 'notas';
 
@@ -16,6 +17,8 @@ export default function TurmaPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [classInfo, setClassInfo] = useState<any>(null);
+  const [announcementOpen, setAnnouncementOpen] = useState(false);
+  const [announcementDraft, setAnnouncementDraft] = useState<any>(null);
 
   useEffect(() => {
     if (!classId) return;
@@ -43,6 +46,16 @@ export default function TurmaPage() {
     if (!classInfo) return classColor(classId);
     return resolveClassColors(classInfo.color ?? null, classInfo.id || classId);
   }, [classInfo, classId]);
+
+  const handleCreateAnnouncement = useCallback(() => {
+    setAnnouncementDraft(null);
+    setAnnouncementOpen(true);
+  }, []);
+
+  const handleEditAnnouncement = useCallback((announcement: any) => {
+    setAnnouncementDraft(announcement);
+    setAnnouncementOpen(true);
+  }, []);
 
   if (!classId) {
     return (
@@ -111,7 +124,14 @@ export default function TurmaPage() {
         {loading && <p className="text-sm text-slate-500">Carregando turma…</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        {!loading && !error && activeTab === 'resumo' && <TurmaResumo classId={classId} />}
+        {!loading && !error && activeTab === 'resumo' && (
+          <TurmaResumo
+            classId={classId}
+            classInfo={classInfo}
+            onCreateAnnouncement={handleCreateAnnouncement}
+            onEditAnnouncement={handleEditAnnouncement}
+          />
+        )}
         {!loading && !error && activeTab === 'notas' && classInfo && (
           <div className="space-y-6">
             <NotasTab
@@ -131,6 +151,20 @@ export default function TurmaPage() {
           </div>
         )}
       </div>
+
+      <AnnouncementModal
+        open={announcementOpen}
+        onClose={() => {
+          setAnnouncementOpen(false);
+          setAnnouncementDraft(null);
+        }}
+        onSaved={() => {
+          setAnnouncementOpen(false);
+          setAnnouncementDraft(null);
+        }}
+        initialAnnouncement={announcementDraft}
+        defaultClassIds={[classId]}
+      />
     </div>
   );
 }

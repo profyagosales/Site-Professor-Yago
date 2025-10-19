@@ -554,6 +554,10 @@ function DashboardProfessor(){
             setAnnouncementDraft(announcement)
             setAnnouncementOpen(true)
           }}
+          onCreate={() => {
+            setAnnouncementDraft(null)
+            setAnnouncementOpen(true)
+          }}
         />
       </div>
 

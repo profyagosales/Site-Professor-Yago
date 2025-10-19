@@ -138,11 +138,12 @@ function extractItems(payload) {
   return [];
 }
 
-export async function listAnnouncements({ limit = 5, page = 1, includeScheduled = false } = {}) {
+export async function listAnnouncements({ limit = 5, page = 1, includeScheduled = false, classId } = {}) {
   const params = {};
   if (Number.isFinite(limit)) params.limit = limit;
   if (Number.isFinite(page)) params.page = page;
   if (includeScheduled) params.includeScheduled = true;
+  if (classId) params.classId = classId;
 
   const response = await api.get('/announcements', {
     params,
@@ -177,15 +178,8 @@ export async function listAnnouncements({ limit = 5, page = 1, includeScheduled 
 
 export async function getClassAnnouncements({ classId, limit = 5 } = {}) {
   if (!classId) return [];
-  const response = await api.get('/announcements', {
-    params: { classId, limit },
-    meta: { noCache: true },
-  });
-  const payload = unwrapData(response);
-  const source = Array.isArray(payload?.items) ? payload.items : payload;
-  return extractItems(source)
-    .map((entry) => normalizeAnnouncement(entry))
-    .filter(Boolean);
+  const { items } = await listAnnouncements({ classId, limit });
+  return items;
 }
 
 export async function listAnnouncementsForStudent({ studentId, limit = 5 } = {}) {
