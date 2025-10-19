@@ -278,12 +278,13 @@ export default function AnnouncementModal({
 
   return (
     <Modal open={open} onClose={closeIfAllowed} className="max-w-3xl">
-      <div className="flex max-h-[90vh] flex-col">
+      <div className="flex max-h-[80vh] flex-col">
         <header className="mb-4">
           <h2 className="text-xl font-semibold text-slate-900">{isEditMode ? 'Editar aviso' : 'Novo aviso'}</h2>
         </header>
         <form onSubmit={handleSubmit} className="flex flex-1 flex-col">
-          <div className="modal-body-scroll flex-1 space-y-5 pr-1" style={{ maxHeight: 'min(80vh, 900px)' }}>
+          <div className="flex-1 overflow-y-auto pr-2" style={{ maxHeight: '70vh' }}>
+            <div className="space-y-5">
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Assunto</label>
               <input
@@ -460,6 +461,7 @@ export default function AnnouncementModal({
                 />
               </div>
             )}
+            </div>
           </div>
 
           <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">

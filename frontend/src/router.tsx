@@ -24,6 +24,7 @@ import TurmaAlunosPage from '@/pages/professor/TurmaAlunos';
 import ClassesPage from '@/pages/professor/classes';
 import ClassDetailPage from '@/pages/professor/classes/[id]';
 import ClassGradesPage from '@/pages/professor/classes/[id]/grades';
+import AppErrorBoundary from '@/components/common/AppErrorBoundary';
 import StudentProfilePage, {
   StudentEmailTab,
   StudentEssaysTab,
@@ -65,7 +66,7 @@ export const router = createBrowserRouter([
         children: [
           // Página principal do professor: Resumo
           { path: '/professor', element: <Navigate to="/professor/resumo" replace /> },
-          { path: '/professor/resumo', element: <TeacherGuard><DashboardProfessor /></TeacherGuard> },
+          { path: '/professor/resumo', element: <TeacherGuard><AppErrorBoundary><DashboardProfessor /></AppErrorBoundary></TeacherGuard> },
           { path: '/professor/pas-unb', element: <Navigate to="/pas" replace /> },
           // Compat: rotas antigas/curtas
           { path: '/dashboard', element: <Navigate to="/professor/resumo" replace /> },

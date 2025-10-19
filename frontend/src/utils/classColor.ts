@@ -1,7 +1,27 @@
 type ClassColorResult = {
   background: string;
+  hoverBackground: string;
   textColor: string;
 };
+
+const HOVER_DELTA = -0.06;
+
+function clamp01(value: number): number {
+  if (value < 0) return 0;
+  if (value > 1) return 1;
+  return value;
+}
+
+function formatHsl(h: number, s: number, l: number): string {
+  const hue = Math.round((h % 360 + 360) % 360);
+  const saturation = Math.round(clamp01(s) * 100);
+  const lightness = Math.round(clamp01(l) * 100);
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+}
+
+function adjustLightness(h: number, s: number, l: number, delta: number): string {
+  return formatHsl(h, s, clamp01(l + delta));
+}
 
 function hashString(value: string): number {
   let hash = 0;
@@ -32,6 +52,46 @@ function hslToRgb(h: number, s: number, l: number) {
   return { r, g, b };
 }
 
+function rgbToHsl(r: number, g: number, b: number) {
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case rn:
+        h = (gn - bn) / d + (gn < bn ? 6 : 0);
+        break;
+      case gn:
+        h = (bn - rn) / d + 2;
+        break;
+      default:
+        h = (rn - gn) / d + 4;
+        break;
+    }
+    h /= 6;
+  }
+
+  return { h: h * 360, s, l };
+}
+
+function parseHsl(color: string) {
+  const match = color.match(/^hsl\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%\s*\)$/i);
+  if (!match) return null;
+  const h = Number.parseFloat(match[1]);
+  const s = Number.parseFloat(match[2]) / 100;
+  const l = Number.parseFloat(match[3]) / 100;
+  if (Number.isNaN(h) || Number.isNaN(s) || Number.isNaN(l)) return null;
+  return { h, s, l };
+}
+
 export function classColor(classId?: string | null): ClassColorResult {
   const base = classId && classId.trim() ? classId.trim() : 'default';
   const hue = hashString(base);
@@ -41,7 +101,8 @@ export function classColor(classId?: string | null): ClassColorResult {
   const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
   const textColor = luminance > 0.6 ? '#0f172a' : '#ffffff';
   return {
-    background: `hsl(${hue}, ${Math.round(saturation * 100)}%, ${Math.round(lightness * 100)}%)`,
+    background: formatHsl(hue, saturation, lightness),
+    hoverBackground: adjustLightness(hue, saturation, lightness, HOVER_DELTA),
     textColor,
   };
 }
@@ -60,13 +121,19 @@ export function resolveClassColors(explicitColor: string | null | undefined, cla
       const g = Number.parseInt(expanded.slice(2, 4), 16);
       const b = Number.parseInt(expanded.slice(4, 6), 16);
       const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+      const { h, s, l } = rgbToHsl(r, g, b);
       return {
         background: color,
+        hoverBackground: adjustLightness(h, s, l, HOVER_DELTA),
         textColor: luminance > 0.6 ? '#0f172a' : '#ffffff',
       };
     }
     if (color.startsWith('hsl')) {
-      return { background: color, textColor: '#0f172a' };
+      const parsed = parseHsl(color);
+      const hoverBackground = parsed
+        ? adjustLightness(parsed.h, parsed.s, parsed.l, HOVER_DELTA)
+        : color;
+      return { background: color, hoverBackground, textColor: '#0f172a' };
     }
   }
   return classColor(classId);

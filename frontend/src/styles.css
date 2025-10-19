@@ -72,6 +72,38 @@ html, body, #root { height: 100%; background: #F2F4F7; }
     display: block;
     margin: 8px 0;
   }
+  .class-card {
+    background: var(--class-card-bg);
+    color: var(--class-card-text);
+    transition: background-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+  }
+  .class-card:hover,
+  .class-card:focus-visible {
+    background: var(--class-card-hover-bg);
+    transform: translateY(-2px);
+    box-shadow: 0 24px 32px rgba(15, 23, 42, 0.12);
+  }
+  .classes-grid {
+    display: grid;
+    gap: 1.5rem;
+    justify-items: center;
+    grid-template-columns: repeat(auto-fit, minmax(clamp(280px, 30vw, 340px), 1fr));
+  }
+  @media (max-width: 767px) {
+    .classes-grid {
+      grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+  }
+  @media (min-width: 768px) and (max-width: 1279px) {
+    .classes-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (min-width: 1280px) {
+    .classes-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
   .card-scroll {
     @apply overflow-y-auto pr-2;
     max-height: 16rem;

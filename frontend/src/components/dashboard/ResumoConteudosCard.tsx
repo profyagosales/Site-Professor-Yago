@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import Modal from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/services/api';
@@ -38,6 +36,9 @@ type EditFormState = {
 };
 
 const MODAL_PAGE_SIZE = 6;
+const WEEKDAY_FORMATTER = new Intl.DateTimeFormat('pt-BR', { weekday: 'short' });
+const DAY_FORMATTER = new Intl.DateTimeFormat('pt-BR', { day: '2-digit' });
+const MONTH_FORMATTER = new Intl.DateTimeFormat('pt-BR', { month: 'short' });
 
 function normalizeTipo(value: unknown): ConteudoTipo {
   const normalized = typeof value === 'string' ? value.trim().toUpperCase() : '';
@@ -98,15 +99,20 @@ function extractSummaryItems(payload: unknown): SummaryItem[] {
   return nestedData;
 }
 
-function formatDate(iso: string): string {
+function formatAgendaDate(value: string | Date): string {
   try {
-    const parsed = new Date(iso);
-    if (Number.isNaN(parsed.getTime())) {
+    const parsed = typeof value === 'string' ? new Date(value) : value;
+    if (!(parsed instanceof Date) || Number.isNaN(parsed.getTime())) {
       return 'Data não disponível';
     }
-    return format(parsed, "d 'de' LLL", { locale: ptBR });
+    const weekdayRaw = WEEKDAY_FORMATTER.format(parsed).replace('.', '');
+    const weekday = weekdayRaw.charAt(0).toUpperCase() + weekdayRaw.slice(1);
+    const day = DAY_FORMATTER.format(parsed);
+    const month = MONTH_FORMATTER.format(parsed).replace('.', '');
+    const year = parsed.getFullYear();
+    return `${weekday} • ${day} ${month} ${year}`;
   } catch (err) {
-    console.warn('Falha ao formatar data do conteúdo', iso, err);
+    console.warn('Falha ao formatar data do conteúdo', value, err);
     return 'Data não disponível';
   }
 }
@@ -303,24 +309,30 @@ export default function ResumoConteudosCard({
       return <p className="text-sm text-slate-500">Nenhuma atividade cadastrada recentemente.</p>;
     }
     return (
-      <ul className="space-y-3">
-        {displayedItems.map((item) => (
-          <li key={item.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate font-semibold text-slate-800">{item.titulo}</p>
-                <p className="text-xs text-slate-500">{item.turmaNome}</p>
+      <div
+        className="max-h-64 overflow-y-auto pr-2"
+        role="region"
+        aria-label="Próximas atividades agendadas"
+      >
+        <ul className="space-y-3">
+          {displayedItems.map((item) => (
+            <li key={item.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-slate-800">{item.titulo}</p>
+                  <p className="text-xs text-slate-500">{item.turmaNome}</p>
+                </div>
+                <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700">
+                  {item.tipo}
+                </span>
               </div>
-              <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700">
-                {item.tipo}
-              </span>
-            </div>
-            <p className="mt-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-              {formatDate(item.data)}
-            </p>
-          </li>
-        ))}
-      </ul>
+              <p className="mt-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+                {formatAgendaDate(item.data)}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </div>
     );
   };
 
@@ -331,7 +343,7 @@ export default function ResumoConteudosCard({
           <h3 className="card-title text-slate-900">Próximas Atividades</h3>
         </div>
       )}
-      <div className="card-scroll flex-1">{content()}</div>
+      <div className="flex-1">{content()}</div>
       {hasMore && (
         <div className="mt-4 flex justify-end">
           <Button variant="link" onClick={openModal}>
@@ -374,7 +386,7 @@ export default function ResumoConteudosCard({
                     <tr key={item.id}>
                       <td className="px-4 py-3 font-medium text-slate-800">{item.title}</td>
                       <td className="px-4 py-3 text-slate-600">{item.className}</td>
-                      <td className="px-4 py-3 text-slate-600">{formatDate(item.date)}</td>
+                      <td className="px-4 py-3 text-slate-600">{formatAgendaDate(item.date)}</td>
                       <td className="px-4 py-3 text-slate-600">{item.bimester}º</td>
                       <td className="px-4 py-3 text-slate-600">{item.done ? 'Concluída' : 'Pendente'}</td>
                       <td className="px-4 py-3 text-right">

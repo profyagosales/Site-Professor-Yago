@@ -66,7 +66,7 @@ export default function DivisaoNotasModal({
   classOptions,
   defaultClassId = null,
   defaultYear = CURRENT_YEAR,
-  onSaved,
+  onSaved = () => {},
 }: DivisaoNotasModalProps) {
   const [classId, setClassId] = useState<string>(() => defaultClassId || classOptions[0]?.id || '');
   const [year, setYear] = useState<number>(defaultYear);

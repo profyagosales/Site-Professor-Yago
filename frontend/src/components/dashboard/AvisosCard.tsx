@@ -15,6 +15,8 @@ type Announcement = NonNullable<ReturnType<typeof normalizeAnnouncement>>;
 
 type Attachment = NonNullable<Announcement['attachments']>[number];
 
+const noop = () => {};
+
 const SANITIZE_CONFIG = {
   ALLOWED_TAGS: [
     'p',
@@ -125,9 +127,11 @@ export default function AvisosCard({
   className = '',
   limit = 5,
   classId = null,
-  onEdit,
-  onCreate,
+  onEdit = noop,
+  onCreate = noop,
 }: AvisosCardProps) {
+  const hasEditAction = onEdit !== noop;
+  const hasCreateAction = onCreate !== noop;
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -382,7 +386,7 @@ export default function AvisosCard({
         className={className}
         actions={
           <div className="flex gap-2">
-            {onCreate ? (
+            {hasCreateAction ? (
               <Button type="button" variant="ghost" onClick={onCreate}>
                 Registrar aviso
               </Button>
@@ -609,9 +613,11 @@ export default function AvisosCard({
                       </div>
                     ) : null}
                     <div className="mt-4 flex flex-wrap justify-end gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => handleEdit(announcement)}>
-                        Editar
-                      </Button>
+                      {hasEditAction ? (
+                        <Button variant="ghost" size="sm" onClick={() => handleEdit(announcement)}>
+                          Editar
+                        </Button>
+                      ) : null}
                       <Button
                         variant="ghost"
                         size="sm"

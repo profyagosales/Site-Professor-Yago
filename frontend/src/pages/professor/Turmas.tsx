@@ -80,7 +80,7 @@ export default function TurmasPage() {
         </div>
 
         {loading && (
-          <div className="grid place-items-center gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="classes-grid" aria-hidden="true">
             {Array.from({ length: 6 }).map((_, index) => (
               <div
                 key={`skeleton-${index}`}
@@ -101,7 +101,7 @@ export default function TurmasPage() {
         )}
 
         {!loading && !error && sortedItems.length > 0 && (
-          <div className="grid justify-items-center gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="classes-grid">
             {sortedItems.map((item) => (
               <ClassCard
                 key={item.id}

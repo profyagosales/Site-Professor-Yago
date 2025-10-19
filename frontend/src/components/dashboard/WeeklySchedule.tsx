@@ -28,16 +28,16 @@ export default function WeeklySchedule({ slots, days, cells }: WeeklySchedulePro
     <div className="pb-1">
       <div className="min-w-full">
         <div
-          className="grid gap-2 md:gap-3"
+          className="grid gap-1.5 md:gap-2"
           style={{
-            gridTemplateColumns: `140px repeat(${days.length}, minmax(0, 1fr))`,
+            gridTemplateColumns: `132px repeat(${days.length}, minmax(0, 1fr))`,
           }}
         >
-          <div className="h-8" />
+          <div className="h-6" />
           {days.map((day) => (
             <div
               key={day.id}
-              className="flex h-10 items-center justify-center rounded-2xl bg-slate-100 px-2 text-xs font-semibold uppercase tracking-wide text-slate-600"
+              className="flex h-8 items-center justify-center rounded-xl bg-slate-100 px-2 text-[11px] font-semibold uppercase tracking-wide text-slate-600"
             >
               {day.label}
             </div>
@@ -45,9 +45,9 @@ export default function WeeklySchedule({ slots, days, cells }: WeeklySchedulePro
 
           {slots.map((slot) => (
             <div key={slot.id} className="contents">
-              <div className="flex min-h-[56px] flex-col justify-center rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs">
+              <div className="flex min-h-[48px] flex-col justify-center rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-2 text-[11px]">
                 <span className="font-semibold text-slate-700">{slot.label} horário</span>
-                <span className="text-[11px] text-slate-500">{slot.time}</span>
+                <span className="text-[10px] text-slate-500">{slot.time}</span>
               </div>
 
               {days.map((day) => {
@@ -57,35 +57,33 @@ export default function WeeklySchedule({ slots, days, cells }: WeeklySchedulePro
                   return (
                     <div
                       key={key}
-                      className="flex min-h-[56px] items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white text-[11px] text-slate-300"
+                      className="flex min-h-[48px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white text-[11px] text-slate-300"
                     >
                       —
                     </div>
                   );
                 }
 
+                const primary = items[0];
+                const source =
+                  primary.classId && primary.classId.trim() ? primary.classId : primary.label;
+                const { background, textColor } = resolveClassColors(null, source);
+                const cellStyle: CSSProperties = {
+                  background,
+                  color: textColor,
+                };
+
                 return (
                   <div
                     key={key}
-                    className="flex min-h-[56px] flex-col gap-1.5 rounded-2xl border border-slate-100 bg-white p-2"
+                    className="flex min-h-[48px] flex-col justify-center gap-1 rounded-xl border border-transparent px-2.5 py-2 text-xs font-medium shadow-sm"
+                    style={cellStyle}
                   >
-                    {items.map((item, index) => {
-                    const source = item.classId && item.classId.trim() ? item.classId : item.label;
-                    const { background, textColor } = resolveClassColors(null, source);
-                      const style: CSSProperties = {
-                        background,
-                        color: textColor,
-                      };
-                      return (
-                        <div
-                          key={`${item.classId || item.label}-${index}`}
-                          className="rounded-xl px-2.5 py-2 text-xs font-medium shadow-sm transition hover:shadow-md"
-                          style={style}
-                        >
-                          {item.label}
-                        </div>
-                      );
-                    })}
+                    {items.map((item, index) => (
+                      <span key={`${item.classId || item.label}-${index}`} className="leading-snug">
+                        {item.label}
+                      </span>
+                    ))}
                   </div>
                 );
               })}
