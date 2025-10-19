@@ -72,6 +72,17 @@ html, body, #root { height: 100%; background: #F2F4F7; }
     display: block;
     margin: 8px 0;
   }
+  .announcement-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+  }
+  .chip {
+    border-radius: 9999px;
+    font-weight: 600;
+    padding: 8px 12px;
+    border: none;
+  }
   .class-card {
     background: var(--class-card-bg);
     color: var(--class-card-text);

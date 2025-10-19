@@ -15,6 +15,9 @@ type DayConfig = {
 export type WeeklyScheduleCellItem = {
   classId: string | null;
   label: string;
+  color?: string | null;
+  className?: string | null;
+  discipline?: string | null;
 };
 
 type WeeklyScheduleProps = {
@@ -64,26 +67,37 @@ export default function WeeklySchedule({ slots, days, cells }: WeeklySchedulePro
                   );
                 }
 
-                const primary = items[0];
-                const source =
-                  primary.classId && primary.classId.trim() ? primary.classId : primary.label;
-                const { background, textColor } = resolveClassColors(null, source);
-                const cellStyle: CSSProperties = {
-                  background,
-                  color: textColor,
-                };
-
                 return (
                   <div
                     key={key}
-                    className="flex min-h-[48px] flex-col justify-center gap-1 rounded-xl border border-transparent px-2.5 py-2 text-xs font-medium shadow-sm"
-                    style={cellStyle}
+                    className="flex min-h-[48px] flex-col justify-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-2"
                   >
-                    {items.map((item, index) => (
-                      <span key={`${item.classId || item.label}-${index}`} className="leading-snug">
-                        {item.label}
-                      </span>
-                    ))}
+                    {items.map((item, index) => {
+                      const palette = resolveClassColors(item.color ?? null, item.classId ?? item.label);
+                      const ariaDiscipline = item.discipline?.trim() || item.label;
+                      const classLabel = item.className?.trim() || item.label;
+                      const timeInfo = slot.time?.trim() || slot.label;
+                      const ariaLabel = `Aula de ${ariaDiscipline}${
+                        classLabel && classLabel !== ariaDiscipline ? ` — ${classLabel}` : ''
+                      } em ${day.label}/${timeInfo}`;
+                      const chipStyle: CSSProperties = {
+                        backgroundColor: palette.bg,
+                        color: palette.fg,
+                        maxWidth: '100%',
+                      };
+
+                      return (
+                        <span
+                          key={`${item.classId || item.label}-${index}`}
+                          className="chip inline-flex w-full items-center justify-center text-center text-xs leading-tight"
+                          style={chipStyle}
+                          title={item.label}
+                          aria-label={ariaLabel}
+                        >
+                          <span className="block w-full truncate">{item.label}</span>
+                        </span>
+                      );
+                    })}
                   </div>
                 );
               })}

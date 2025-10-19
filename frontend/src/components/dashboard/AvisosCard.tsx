@@ -10,6 +10,7 @@ import {
   normalizeAnnouncement,
   type normalizeAnnouncement as NormalizeAnnouncementFn,
 } from '@/services/announcements';
+import { FiEdit2, FiFileText, FiTrash2 } from 'react-icons/fi';
 
 type Announcement = NonNullable<ReturnType<typeof normalizeAnnouncement>>;
 
@@ -147,6 +148,9 @@ export default function AvisosCard({
   const [modalTotal, setModalTotal] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [processingIds, setProcessingIds] = useState<Set<string>>(() => new Set());
+
+  const iconButtonClass =
+    'inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 disabled:opacity-60 disabled:cursor-not-allowed';
 
   const resetInterval = useCallback(() => {
     if (intervalRef.current !== undefined) {
@@ -437,7 +441,7 @@ export default function AvisosCard({
                 <h4 className="text-lg font-semibold text-slate-900">{activeAnnouncement?.subject}</h4>
               </header>
               <div
-                className="rich-content prose prose-sm mt-4 max-w-none flex-1 overflow-y-auto text-slate-700"
+                className="announcement-content rich-content prose prose-sm mt-4 max-w-none flex-1 overflow-y-auto text-slate-700"
                 dangerouslySetInnerHTML={{ __html: announcementHtml }}
               />
               {activeAnnouncement?.attachments?.length ? (
@@ -465,7 +469,8 @@ export default function AvisosCard({
                           rel="noreferrer"
                           className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
                         >
-                          📄 {attachment.name || 'Ver PDF'}
+                          <FiFileText aria-hidden="true" className="h-4 w-4" />
+                          {attachment.name || 'Ver PDF'}
                         </a>
                       );
                     }
@@ -578,7 +583,7 @@ export default function AvisosCard({
                       <h3 className="text-lg font-semibold text-slate-900">{announcement.subject}</h3>
                     </header>
                     <div
-                      className="rich-content prose prose-sm max-w-none text-slate-700"
+                      className="announcement-content rich-content prose prose-sm max-w-none text-slate-700"
                       dangerouslySetInnerHTML={{ __html: html }}
                     />
                     {announcement.attachments?.length ? (
@@ -594,7 +599,8 @@ export default function AvisosCard({
                                 rel="noreferrer"
                                 className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
                               >
-                                📄 {attachment.name || 'Ver PDF'}
+                                <FiFileText aria-hidden="true" className="h-4 w-4" />
+                                {attachment.name || 'Ver PDF'}
                               </a>
                             );
                           }
@@ -614,18 +620,28 @@ export default function AvisosCard({
                     ) : null}
                     <div className="mt-4 flex flex-wrap justify-end gap-2">
                       {hasEditAction ? (
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(announcement)}>
-                          Editar
-                        </Button>
+                        <button
+                          type="button"
+                          onClick={() => handleEdit(announcement)}
+                          className={iconButtonClass}
+                          title="Editar aviso"
+                          aria-label="Editar aviso"
+                        >
+                          <FiEdit2 aria-hidden="true" />
+                          <span className="sr-only">Editar aviso</span>
+                        </button>
                       ) : null}
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                      <button
+                        type="button"
                         onClick={() => handleDelete(announcement)}
+                        className={iconButtonClass}
+                        title="Excluir aviso"
+                        aria-label="Excluir aviso"
                         disabled={processingIds.has(announcement.id)}
                       >
-                        {processingIds.has(announcement.id) ? 'Removendo…' : 'Excluir'}
-                      </Button>
+                        <FiTrash2 aria-hidden="true" />
+                        <span className="sr-only">Excluir aviso</span>
+                      </button>
                     </div>
                   </article>
                 );

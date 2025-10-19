@@ -1,10 +1,18 @@
 type ClassColorResult = {
+  bg: string;
+  fg: string;
+  hoverBg: string;
+  /** @deprecated use bg */
   background: string;
+  /** @deprecated use hoverBg */
   hoverBackground: string;
+  /** @deprecated use fg */
   textColor: string;
 };
 
 const HOVER_DELTA = -0.06;
+const DARK_TEXT = '#1E293B';
+const LIGHT_TEXT = '#ffffff';
 
 function clamp01(value: number): number {
   if (value < 0) return 0;
@@ -92,19 +100,31 @@ function parseHsl(color: string) {
   return { h, s, l };
 }
 
-export function classColor(classId?: string | null): ClassColorResult {
-  const base = classId && classId.trim() ? classId.trim() : 'default';
+function toResult(bg: string, hoverBg: string, luminance: number): ClassColorResult {
+  const fg = luminance > 0.6 ? DARK_TEXT : LIGHT_TEXT;
+  return {
+    bg,
+    fg,
+    hoverBg,
+    background: bg,
+    hoverBackground: hoverBg,
+    textColor: fg,
+  };
+}
+
+export function classColor(classId?: string | number | null): ClassColorResult {
+  const base =
+    classId !== undefined && classId !== null && String(classId).trim()
+      ? String(classId).trim()
+      : 'default';
   const hue = hashString(base);
-  const saturation = 0.68;
-  const lightness = 0.58;
+  const saturation = 0.65;
+  const lightness = 0.55;
+  const bg = formatHsl(hue, saturation, lightness);
+  const hoverBg = adjustLightness(hue, saturation, lightness, HOVER_DELTA);
   const { r, g, b } = hslToRgb(hue, saturation, lightness);
   const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-  const textColor = luminance > 0.6 ? '#0f172a' : '#ffffff';
-  return {
-    background: formatHsl(hue, saturation, lightness),
-    hoverBackground: adjustLightness(hue, saturation, lightness, HOVER_DELTA),
-    textColor,
-  };
+  return toResult(bg, hoverBg, luminance);
 }
 
 export function resolveClassColors(explicitColor: string | null | undefined, classId?: string | null) {
@@ -122,18 +142,17 @@ export function resolveClassColors(explicitColor: string | null | undefined, cla
       const b = Number.parseInt(expanded.slice(4, 6), 16);
       const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
       const { h, s, l } = rgbToHsl(r, g, b);
-      return {
-        background: color,
-        hoverBackground: adjustLightness(h, s, l, HOVER_DELTA),
-        textColor: luminance > 0.6 ? '#0f172a' : '#ffffff',
-      };
+      const hover = adjustLightness(h, s, l, HOVER_DELTA);
+      return toResult(color, hover, luminance);
     }
     if (color.startsWith('hsl')) {
       const parsed = parseHsl(color);
       const hoverBackground = parsed
         ? adjustLightness(parsed.h, parsed.s, parsed.l, HOVER_DELTA)
         : color;
-      return { background: color, hoverBackground, textColor: '#0f172a' };
+      const rgb = parsed ? hslToRgb(parsed.h, parsed.s, parsed.l) : { r: 255, g: 255, b: 255 };
+      const y = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
+      return toResult(color, hoverBackground, y);
     }
   }
   return classColor(classId);

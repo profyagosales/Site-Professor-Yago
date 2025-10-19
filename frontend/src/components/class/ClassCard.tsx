@@ -28,16 +28,16 @@ export function ClassCard({
   onClick,
   actions,
 }: ClassCardProps) {
-  const { background, hoverBackground, textColor } = resolveClassColors(color ?? null, id);
-  const isDark = textColor === '#ffffff';
+  const palette = resolveClassColors(color ?? null, id);
+  const isDark = palette.fg.toLowerCase() === '#ffffff';
   const badgeBackground = isDark ? 'bg-white/25 text-white' : 'bg-white/70 text-slate-700';
   const subTextClass = isDark ? 'text-white/90' : 'text-slate-800';
   const badgeMutedClass = isDark ? 'text-white/70' : 'text-slate-500';
 
   const cardStyle: CSSProperties = {
-    '--class-card-bg': background,
-    '--class-card-hover-bg': hoverBackground,
-    '--class-card-text': textColor,
+    '--class-card-bg': palette.bg,
+    '--class-card-hover-bg': palette.hoverBg,
+    '--class-card-text': palette.fg,
   } as CSSProperties;
 
   const metaParts: string[] = [];
@@ -68,7 +68,7 @@ export function ClassCard({
             <span className={`inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] ${badgeMutedClass}`}>
               Turma
             </span>
-            <h2 className="text-2xl font-semibold leading-snug" style={{ color: textColor }}>
+              <h2 className="text-2xl font-semibold leading-snug" style={{ color: palette.fg }}>
               {name}
             </h2>
             {subject && <p className={`text-sm font-medium ${subTextClass}`}>{subject}</p>}

@@ -56,7 +56,13 @@ function normalizeScheduleCells(classId: string, classInfo?: ClassDetails | null
   }
 
   const entries = Array.isArray(classInfo.schedule) ? classInfo.schedule : [];
-  const label = classInfo.discipline || classInfo.subject || classInfo.name || 'Aula';
+  const discipline = classInfo.discipline || classInfo.subject || null;
+  const seriesLabel = classInfo.name
+    || (classInfo.series || classInfo.letter
+      ? `Turma ${(classInfo.series || '')}${classInfo.letter || ''}`.trim()
+      : null);
+  const baseLabel = [discipline, seriesLabel].filter(Boolean).join(' — ') || discipline || seriesLabel || 'Aula';
+  const color = classInfo.color || classInfo.themeColor || null;
 
   const addCell = (slot: number, weekday: number) => {
     if (!Number.isFinite(slot) || !Number.isFinite(weekday)) return;
@@ -68,7 +74,13 @@ function normalizeScheduleCells(classId: string, classInfo?: ClassDetails | null
     }
     const exists = cells[key].some((item) => item.classId === classId);
     if (!exists) {
-      cells[key].push({ classId, label });
+      cells[key].push({
+        classId,
+        label: baseLabel,
+        color,
+        className: seriesLabel,
+        discipline,
+      });
     }
   };
 

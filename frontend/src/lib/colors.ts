@@ -11,8 +11,8 @@ function resolveIdentifier(input: ClassIdentifier): string {
 }
 
 export function getClassColor(identifier: ClassIdentifier): string {
-  const { background } = classColor(resolveIdentifier(identifier));
-  return background;
+  const { bg } = classColor(resolveIdentifier(identifier));
+  return bg;
 }
 
 export function getClassColorPair(identifier: ClassIdentifier) {

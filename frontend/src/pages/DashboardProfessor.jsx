@@ -233,13 +233,20 @@ function DashboardProfessor(){
 
         const aggregatedSchedule = teacherClasses.flatMap((cls) => {
           const entries = Array.isArray(cls?.schedule) ? cls.schedule : []
+          const classColorValue = cls?.color || cls?.themeColor || null
+          const classDiscipline = cls?.discipline || cls?.subject || null
+          const className = cls?.name || null
           return entries
             .map((entry) => {
               if (!entry || typeof entry !== 'object') return null
               return {
                 ...entry,
                 classId: cls.id,
-                label: classNameMap[cls.id],
+                label:
+                  [classDiscipline, className].filter(Boolean).join(' — ') || classNameMap[cls.id],
+                color: classColorValue,
+                className,
+                discipline: classDiscipline,
               }
             })
             .filter(Boolean)
@@ -321,6 +328,16 @@ function DashboardProfessor(){
     return map
   }, [classSummaries, classDetails])
 
+  const classSummaryMap = useMemo(() => {
+    const map = {}
+    classSummaries.forEach((summary) => {
+      const id = coalesceId(summary) || summary?.id
+      if (!id) return
+      map[id] = summary
+    })
+    return map
+  }, [classSummaries])
+
   const classOptions = useMemo(
     () =>
       classSummaries
@@ -360,14 +377,14 @@ function DashboardProfessor(){
 
     const ensureArray = (value) => (Array.isArray(value) ? value : value ? [value] : [])
 
-    const addEntry = (key, classId, label) => {
-      if (!label) return
+    const addEntry = (key, payload) => {
+      if (!payload?.label) return
       if (!cells[key]) cells[key] = []
       const exists = cells[key].some((item) =>
-        classId ? item.classId === classId : item.label === label
+        payload.classId ? item.classId === payload.classId : item.label === payload.label
       )
       if (!exists) {
-        cells[key].push({ classId: classId || null, label })
+        cells[key].push(payload)
       }
     }
 
@@ -381,30 +398,83 @@ function DashboardProfessor(){
         const dayIndex = toDayIndex(dayValue)
         if (!dayIndex) return
         const key = `${slot}-${dayIndex}`
-        const labelFromMap = entry?.classId ? classNameMap[entry.classId] : undefined
-        const label = labelFromMap || entry?.label || entry?.className || entry?.discipline || '—'
         const entryClassId = entry?.classId ? String(entry.classId) : null
-        addEntry(key, entryClassId, label)
+        const detail = entryClassId ? classDetails[entryClassId] : null
+        const summary = entryClassId ? classSummaryMap[entryClassId] : null
+        const discipline =
+          detail?.discipline ||
+          detail?.subject ||
+          entry?.discipline ||
+          entry?.subject ||
+          summary?.discipline ||
+          summary?.subject ||
+          null
+        const classLabel =
+          detail?.name ||
+          summary?.name ||
+          entry?.className ||
+          (summary?.series || summary?.letter
+            ? `Turma ${(summary?.series || '')}${summary?.letter || ''}`.trim()
+            : null)
+        const labelFromMap = entryClassId ? classNameMap[entryClassId] : undefined
+        const composedLabel = [discipline, classLabel].filter(Boolean).join(' — ')
+        const label = composedLabel || labelFromMap || entry?.label || '—'
+        const colorCandidate =
+          entry?.color ||
+          detail?.color ||
+          detail?.themeColor ||
+          summary?.color ||
+          summary?.themeColor ||
+          null
+        addEntry(key, {
+          classId: entryClassId,
+          label,
+          color: colorCandidate,
+          className: classLabel,
+          discipline,
+        })
       })
     })
 
     Object.entries(classDetails).forEach(([classId, detail]) => {
       if (!detail?.schedule) return
       const entries = Array.isArray(detail.schedule) ? detail.schedule : []
+      const summary = classSummaryMap[classId]
+      const detailDiscipline = detail?.discipline || detail?.subject || summary?.discipline || summary?.subject || null
+      const detailClassName =
+        detail?.name ||
+        summary?.name ||
+        (summary?.series || summary?.letter
+          ? `Turma ${(summary?.series || '')}${summary?.letter || ''}`.trim()
+          : null)
+      const combinedLabel = [detailDiscipline, detailClassName].filter(Boolean).join(' — ')
+      const labelFromMap = classNameMap[classId]
+      const paletteLabel = combinedLabel || labelFromMap || '—'
+      const colorCandidate =
+        detail?.color ||
+        detail?.themeColor ||
+        summary?.color ||
+        summary?.themeColor ||
+        null
       entries.forEach((item) => {
         const slot = Number(item?.slot)
         if (!SLOT_CONFIG.some((s) => s.id === slot)) return
         const dayIndex = Number(item?.weekday)
         if (!dayIndex) return
         const key = `${slot}-${dayIndex}`
-        const label = classNameMap[classId]
-        if (!label) return
-        addEntry(key, classId, label)
+        if (!paletteLabel) return
+        addEntry(key, {
+          classId,
+          label: paletteLabel,
+          color: colorCandidate,
+          className: detailClassName,
+          discipline: detailDiscipline,
+        })
       })
     })
 
     return cells
-  }, [schedule, classDetails, classNameMap])
+  }, [schedule, classDetails, classNameMap, classSummaryMap])
 
   const aggregatedEvents = useMemo(() => {
     if (!calendarEvents.length) return []

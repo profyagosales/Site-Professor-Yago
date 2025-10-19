@@ -78,7 +78,7 @@ export default function TurmaPage() {
 
         <header
           className="relative overflow-hidden rounded-3xl p-8 shadow-sm"
-          style={{ background: colors.background, color: colors.textColor }}
+          style={{ background: colors.bg, color: colors.fg }}
         >
           <div className="absolute inset-0 bg-gradient-to-br from-black/5 via-transparent to-black/20" />
           <div className="relative flex flex-col gap-3">
