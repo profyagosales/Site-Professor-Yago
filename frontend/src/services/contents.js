@@ -157,6 +157,30 @@ export async function listContents(params = {}) {
   return parseListResponse(response);
 }
 
+export async function getContents({ classId, from, to, status } = {}) {
+  const params = {};
+  if (classId) params.classId = classId;
+  if (from) params.from = from;
+  if (to) params.to = to;
+  if (status) params.status = status;
+
+  const response = await api.get('/contents', {
+    params,
+    meta: { noCache: true },
+  });
+
+  const raw = response?.data ?? {};
+  const payload = raw?.data ?? raw;
+  const source = Array.isArray(payload?.items)
+    ? payload.items
+    : Array.isArray(payload)
+      ? payload
+      : Array.isArray(raw?.data)
+        ? raw.data
+        : [];
+  return source.map((entry) => normalizeContent(entry)).filter(Boolean);
+}
+
 export async function listUpcomingContents({ teacherId, daysAhead = 14, limit = 5 } = {}) {
   if (!teacherId) return [];
   const response = await api.get(`/teachers/${teacherId}/contents/upcoming`, {
@@ -219,6 +243,7 @@ export async function toggleContentStatus(id, done) {
 
 export default {
   listContents,
+  getContents,
   listUpcomingContents,
   createContent,
   quickCreateContent,

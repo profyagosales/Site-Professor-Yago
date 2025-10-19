@@ -1,59 +1,25 @@
-const { isValidObjectId } = require('mongoose');
-const Student = require('../models/Student');
-const StudentGrade = require('../models/StudentGrade');
+const mongoose = require('mongoose');
 const GradeActivity = require('../models/GradeActivity');
+const StudentActivityGrade = require('../models/StudentActivityGrade');
+const Student = require('../models/Student');
+const { resolveClassAccess } = require('../services/acl');
 
-const VALID_STATUSES = StudentGrade.STATUS_VALUES || ['FREQUENTE', 'INFREQUENTE', 'TRANSFERIDO', 'ABANDONO'];
-
-function clampScore(value) {
-  if (!Number.isFinite(value)) return 0;
-  if (value < 0) return 0;
-  if (value > 10) return 10;
-  return Number(value.toFixed(2));
+function toObjectId(value) {
+  if (value instanceof mongoose.Types.ObjectId) return value;
+  if (typeof value === 'string' && mongoose.Types.ObjectId.isValid(value)) {
+    return new mongoose.Types.ObjectId(value);
+  }
+  return null;
 }
 
-function sanitizeActivity(entry) {
-  if (!entry) return null;
-  const activityDoc = entry.activity && typeof entry.activity === 'object' ? entry.activity : null;
-  const id = activityDoc ? activityDoc._id || activityDoc.id : entry.activity;
-  const weight = Number(entry.weight ?? activityDoc?.weight ?? 0);
-  const maxScore = Number(entry.maxScore ?? activityDoc?.maxScore ?? weight);
-  const score = Number(entry.score ?? 0);
-  const rawDate = entry.activityDate || activityDoc?.dueDate;
-  const recordedAt = entry.recordedAt instanceof Date ? entry.recordedAt.toISOString() : entry.recordedAt || null;
-
-  return {
-    id: id ? String(id) : undefined,
-    title: entry.activityTitle || activityDoc?.title || 'Atividade',
-    kind: entry.activityKind || activityDoc?.kind || 'ATIVIDADE',
-    date: rawDate instanceof Date ? rawDate.toISOString() : rawDate || null,
-    weight: Number.isFinite(weight) ? weight : 0,
-    maxScore: Number.isFinite(maxScore) ? maxScore : Number.isFinite(weight) ? weight : 0,
-    score: Number.isFinite(score) ? Number(score.toFixed(2)) : 0,
-    recordedAt,
-  };
-}
-
-function sanitizeGrade(doc) {
-  if (!doc) return null;
-  const activities = Array.isArray(doc.activities)
-    ? doc.activities.map((activity) => sanitizeActivity(activity)).filter(Boolean)
-    : [];
-  const totalScore = clampScore(doc.score ?? activities.reduce((acc, entry) => acc + (entry?.score || 0), 0));
-
-  return {
-    id: String(doc._id),
-    _id: String(doc._id),
-    class: String(doc.class),
-    student: String(doc.student),
-    year: Number(doc.year),
-    term: Number(doc.term),
-    score: totalScore,
-    activities,
-    status: doc.status,
-    createdAt: doc.createdAt instanceof Date ? doc.createdAt.toISOString() : doc.createdAt,
-    updatedAt: doc.updatedAt instanceof Date ? doc.updatedAt.toISOString() : doc.updatedAt,
-  };
+async function ensureClassAccess(classId, req) {
+  const access = await resolveClassAccess(classId, req.user);
+  if (!access.ok) {
+    const error = new Error('Acesso restrito aos professores da turma.');
+    error.status = access.reason === 'class-not-found' ? 404 : 403;
+    throw error;
+  }
+  return access.classRef;
 }
 
 async function ensureStudentInClass(classId, studentId) {
@@ -65,171 +31,145 @@ async function ensureStudentInClass(classId, studentId) {
   }
 }
 
-exports.listStudentGrades = async (req, res, next) => {
-  try {
-    const { classId, studentId } = req.params;
-    if (!isValidObjectId(classId) || !isValidObjectId(studentId)) {
-      const error = new Error('ID inválido');
-      error.status = 400;
-      throw error;
-    }
-
-    await ensureStudentInClass(classId, studentId);
-
-    const grades = await StudentGrade.find({ class: classId, student: studentId })
-      .sort({ year: 1, term: 1 })
-      .populate('activities.activity')
-      .lean({ virtuals: true });
-
-    const sanitized = grades
-      .map((grade) => sanitizeGrade(grade))
-      .filter(Boolean);
-
-    res.status(200).json({
-      success: true,
-      message: 'Notas obtidas com sucesso',
-      data: sanitized,
-    });
-  } catch (err) {
-    if (!err.status) {
-      err.status = 500;
-      err.message = 'Erro ao buscar notas do aluno';
-    }
-    next(err);
+function parseYear(raw) {
+  const now = new Date();
+  const fallback = now.getFullYear();
+  if (raw === undefined || raw === null || raw === '') return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed < 2000 || parsed > 3000) {
+    const error = new Error('Ano inválido.');
+    error.status = 400;
+    throw error;
   }
-};
-
-function validateActivitiesInput(activities, { classId, year, term, activityDocs }) {
-  if (!Array.isArray(activities) || activities.length === 0) {
-    return [];
-  }
-
-  const byId = new Map(activityDocs.map((doc) => [String(doc._id), doc]));
-  return activities.map((entry) => {
-    const activityId = String(entry.activityId || entry.activity || '');
-    if (!isValidObjectId(activityId)) {
-      const error = new Error('Atividade inválida.');
-      error.status = 400;
-      throw error;
-    }
-
-    const activityDoc = byId.get(activityId);
-    if (!activityDoc) {
-      const error = new Error('Atividade não encontrada para a turma.');
-      error.status = 404;
-      throw error;
-    }
-
-    if (String(activityDoc.class) !== String(classId) || activityDoc.year !== year || activityDoc.term !== term) {
-      const error = new Error('Atividade não pertence ao bimestre informado.');
-      error.status = 400;
-      throw error;
-    }
-
-    const score = Number(entry.score);
-    if (!Number.isFinite(score) || score < 0) {
-      const error = new Error('Pontuação da atividade inválida.');
-      error.status = 400;
-      throw error;
-    }
-
-    const snapshot = {
-      activity: activityDoc._id,
-      activityTitle: activityDoc.title,
-      activityKind: activityDoc.kind || 'ATIVIDADE',
-      activityDate: activityDoc.dueDate || null,
-      weight: activityDoc.weight,
-      maxScore: activityDoc.maxScore ?? activityDoc.weight,
-      score: Number(score.toFixed(2)),
-      recordedAt: new Date(),
-    };
-
-    if (snapshot.score > snapshot.maxScore) {
-      const error = new Error('A pontuação não pode exceder o valor máximo da atividade.');
-      error.status = 400;
-      throw error;
-    }
-
-    return snapshot;
-  });
+  return parsed;
 }
 
-exports.upsertStudentGrade = async (req, res, next) => {
+function parseBimester(raw) {
+  if (raw === undefined || raw === null || raw === '') {
+    const currentMonth = new Date().getMonth();
+    return Math.min(4, Math.max(1, Math.floor(currentMonth / 3) + 1));
+  }
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed < 1 || parsed > 4) {
+    const error = new Error('Bimestre inválido.');
+    error.status = 400;
+    throw error;
+  }
+  return parsed;
+}
+
+function clampScore(value) {
+  if (!Number.isFinite(value) || value < 0) return 0;
+  if (value > 10) return 10;
+  return Number(value.toFixed(2));
+}
+
+exports.listStudentGrades = async (req, res, next) => {
   try {
-    const { classId, studentId } = req.params;
-    if (!isValidObjectId(classId) || !isValidObjectId(studentId)) {
-      const error = new Error('ID inválido');
+    const classId = toObjectId(req.params.classId);
+    const studentId = toObjectId(req.params.studentId);
+    if (!classId || !studentId) {
+      const error = new Error('IDs inválidos.');
       error.status = 400;
       throw error;
     }
 
-    const year = Number(req.body.year);
-    const term = Number(req.body.term);
-    const status = String(req.body.status || '').trim().toUpperCase();
-
-    if (!Number.isInteger(year) || year < 1900 || year > 3000) {
-      const error = new Error('Ano inválido');
-      error.status = 400;
-      throw error;
-    }
-
-    if (![1, 2, 3, 4].includes(term)) {
-      const error = new Error('Bimestre inválido');
-      error.status = 400;
-      throw error;
-    }
-
+    await ensureClassAccess(classId, req);
     await ensureStudentInClass(classId, studentId);
 
-    const activitiesInput = Array.isArray(req.body.activities) ? req.body.activities : [];
-    let activityDocs = [];
-    if (activitiesInput.length) {
-      const ids = activitiesInput
-        .map((entry) => String(entry.activityId || entry.activity || ''))
-        .filter((value) => isValidObjectId(value));
-      activityDocs = await GradeActivity.find({ _id: { $in: ids } }).lean();
+    const year = parseYear(req.query.year);
+    const bimester = parseBimester(req.query.bimester);
+
+    const activities = await GradeActivity.find({
+      classId,
+      year,
+      active: true,
+    })
+      .sort({ bimester: 1, order: 1, label: 1 })
+      .lean();
+
+    const activitiesByBimester = new Map();
+    activities.forEach((activity) => {
+      const list = activitiesByBimester.get(activity.bimester) || [];
+      list.push(activity);
+      activitiesByBimester.set(activity.bimester, list);
+    });
+
+    const activityIds = activities.map((activity) => activity._id);
+    const gradeDocs = activityIds.length
+      ? await StudentActivityGrade.find({
+          classId,
+          studentId,
+          activityId: { $in: activityIds },
+        })
+          .select('activityId points')
+          .lean()
+      : [];
+
+    const gradeMap = new Map();
+    gradeDocs.forEach((grade) => {
+      gradeMap.set(String(grade.activityId), Number(grade.points ?? 0));
+    });
+
+    const activitiesForBimester = activitiesByBimester.get(bimester) || [];
+    const activitiesPayload = activitiesForBimester.map((activity) => {
+      const key = String(activity._id);
+      const points = clampScore(gradeMap.get(key) ?? 0);
+      return {
+        activityId: key,
+        label: activity.label,
+        value: Number(activity.value ?? 0),
+        points,
+      };
+    });
+
+    const totalBimester = clampScore(
+      activitiesPayload.reduce((acc, entry) => acc + (entry.points || 0), 0)
+    );
+    const missingFor5 = Math.max(0, Number((5 - totalBimester).toFixed(2)));
+
+    const totalsByBimester = { 1: 0, 2: 0, 3: 0, 4: 0 };
+    for (const [bim, list] of activitiesByBimester.entries()) {
+      const total = list.reduce((acc, activity) => {
+        const key = String(activity._id);
+        const points = clampScore(gradeMap.get(key) ?? 0);
+        return acc + points;
+      }, 0);
+      totalsByBimester[bim] = clampScore(total);
     }
 
-    const grade = await StudentGrade.findOne({ class: classId, student: studentId, year, term });
-    const doc =
-      grade ||
-      new StudentGrade({
-        class: classId,
-        student: studentId,
-        year,
-        term,
-        score: 0,
-        status: 'FREQUENTE',
-        activities: [],
-      });
+    const annualTotal = clampScore(
+      Object.values(totalsByBimester).reduce((acc, value) => acc + value, 0)
+    );
+    const missingFor20 = Math.max(0, Number((20 - annualTotal).toFixed(2)));
 
-    if (activitiesInput.length) {
-      const snapshots = validateActivitiesInput(activitiesInput, { classId, year, term, activityDocs });
-      doc.activities = snapshots;
-      doc.recalculateScore();
-    } else if (req.body.score !== undefined) {
-      doc.score = clampScore(Number(req.body.score));
-    }
-
-    if (status) {
-      doc.status = VALID_STATUSES.includes(status) ? status : 'FREQUENTE';
-    }
-
-    await doc.save();
-    await doc.populate('activities.activity');
-
-    res.status(grade ? 200 : 201).json({
+    res.json({
       success: true,
-      message: 'Nota salva com sucesso',
-      data: sanitizeGrade(doc.toObject()),
+      data: {
+        classId: String(classId),
+        studentId: String(studentId),
+        year,
+        bimester,
+        activities: activitiesPayload,
+        totalBimester,
+        missingFor5,
+        annualTotal,
+        missingFor20,
+        totalsByBimester,
+      },
     });
   } catch (err) {
     if (!err.status) {
       err.status = 500;
-      err.message = 'Erro ao salvar nota do aluno';
+      err.message = 'Erro ao carregar notas do aluno.';
     }
     next(err);
   }
 };
 
-exports._sanitizeGradeForResponse = sanitizeGrade;
+exports.upsertStudentGrade = async (_req, res) => {
+  res.status(410).json({
+    success: false,
+    message: 'Endpoint substituído. Utilize POST /api/grade-activities/:id/grades.',
+  });
+};

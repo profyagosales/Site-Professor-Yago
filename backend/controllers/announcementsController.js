@@ -697,6 +697,14 @@ async function listAnnouncements(req, res, next) {
     }
 
     const includeScheduled = parseBoolean(req.query.includeScheduled, false);
+    const rawClassId = Array.isArray(req.query.classId) ? req.query.classId[0] : req.query.classId;
+    const classId = rawClassId ? toObjectId(rawClassId) : null;
+    if (rawClassId && !classId) {
+      const error = new Error('classId inválido.');
+      error.status = 400;
+      throw error;
+    }
+
     const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 10, 1), 100);
     const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
     const skip = (page - 1) * limit;
@@ -715,6 +723,11 @@ async function listAnnouncements(req, res, next) {
       teacher: teacherObjectId,
       ...visibility,
     };
+
+    if (classId) {
+      query.targetType = 'class';
+      query.classIds = classId;
+    }
 
     const [items, total] = await Promise.all([
       Announcement.find(query)

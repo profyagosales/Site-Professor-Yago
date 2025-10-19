@@ -10,6 +10,7 @@ export interface ClassSummary {
   teachersCount: number;
   teacherIds?: string[];
   responsibleTeacherId?: string | null;
+  color?: string | null;
 }
 
 export interface TeacherLite {

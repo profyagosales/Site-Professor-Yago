@@ -7,10 +7,20 @@ const Class = require('../models/Class');
 const pdfReport = require('../utils/pdfReport');
 const authRequired = require('../middleware/auth');
 const ensureTeacher = require('../middleware/ensureTeacher');
+const {
+  getGradesTable,
+  exportGradesTablePdf,
+} = require('../controllers/gradesTableController');
 
 const router = express.Router();
 
 router.use(authRequired);
+
+const tableRouter = express.Router();
+tableRouter.use(authRequired);
+tableRouter.use(ensureTeacher);
+tableRouter.get('/classes/:classId/grades/table', getGradesTable);
+tableRouter.get('/classes/:classId/grades/export/pdf', exportGradesTablePdf);
 
 function parseBimestersParam(raw) {
   if (raw === undefined || raw === null) return [1, 2, 3, 4];
@@ -420,3 +430,4 @@ router.post('/', async (req, res, next) => {
 });
 
 module.exports = router;
+module.exports.tableRouter = tableRouter;

@@ -6,6 +6,7 @@ import ProtectedRoute from "./routes/ProtectedRoute";
 const Landing = lazy(() => import("@/pages/Landing"));
 const Turmas = lazy(() => import("@/pages/professor/Turmas"));
 const TurmaAlunos = lazy(() => import("@/pages/professor/TurmaAlunos"));
+const TurmaPage = lazy(() => import("@/pages/professor/turma/TurmaPage"));
 const RedacoesProf = lazy(() => import("@/pages/redacao/DashboardRedacoes"));
 // @ts-expect-error legacy JSX module
 const DashboardProfessor = lazy(() => import("@/pages/DashboardProfessor"));
@@ -40,6 +41,16 @@ export default function App() {
             <ProtectedRoute>
               <AppShell>
                 <Turmas />
+              </AppShell>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/professor/classes/:id"
+          element={
+            <ProtectedRoute>
+              <AppShell>
+                <TurmaPage />
               </AppShell>
             </ProtectedRoute>
           }

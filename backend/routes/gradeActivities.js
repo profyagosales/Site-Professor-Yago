@@ -8,10 +8,10 @@ const router = express.Router();
 router.use(authRequired);
 router.use(ensureTeacher);
 
-router.get('/classes/:classId/activities', controller.listActivities);
-router.post('/classes/:classId/activities', controller.createActivity);
-router.patch('/classes/:classId/activities/:activityId', controller.updateActivity);
-router.delete('/classes/:classId/activities/:activityId', controller.deleteActivity);
-router.post('/classes/:classId/activities/:activityId/scores', controller.bulkUpsertScores);
+router.get('/grade-activities', controller.listGradeActivities);
+router.post('/grade-activities', controller.createGradeActivity);
+router.put('/grade-activities/:id', controller.updateGradeActivity);
+router.delete('/grade-activities/:id', controller.deleteGradeActivity);
+router.post('/grade-activities/:id/grades', controller.bulkSetActivityGrades);
 
 module.exports = router;

@@ -175,6 +175,19 @@ export async function listAnnouncements({ limit = 5, page = 1, includeScheduled 
   };
 }
 
+export async function getClassAnnouncements({ classId, limit = 5 } = {}) {
+  if (!classId) return [];
+  const response = await api.get('/announcements', {
+    params: { classId, limit },
+    meta: { noCache: true },
+  });
+  const payload = unwrapData(response);
+  const source = Array.isArray(payload?.items) ? payload.items : payload;
+  return extractItems(source)
+    .map((entry) => normalizeAnnouncement(entry))
+    .filter(Boolean);
+}
+
 export async function listAnnouncementsForStudent({ studentId, limit = 5 } = {}) {
   if (!studentId) return [];
   const response = await api.get(`/announcements/student/${studentId}`, {
@@ -248,6 +261,7 @@ export async function createAnnouncement({
 export default {
   listAnnouncements,
   listAnnouncementsForStudent,
+  getClassAnnouncements,
   createAnnouncement,
   normalizeAnnouncement,
   uploadAnnouncementImage,

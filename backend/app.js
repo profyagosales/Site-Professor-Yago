@@ -97,6 +97,9 @@ privateApiRouter.use('/aluno', alunosRoutes);
 privateApiRouter.use('/alunos', alunosRoutes);
 privateApiRouter.use('/classes', classesRoutes);
 privateApiRouter.use('/grades', gradesRoutes);
+if (gradesRoutes.tableRouter) {
+  privateApiRouter.use('/', gradesRoutes.tableRouter);
+}
 privateApiRouter.use('/grade-scheme', gradeSchemeRoutes);
 privateApiRouter.use('/announcements', announcementsRoutes);
 privateApiRouter.use('/evaluations', evaluationRoutes);

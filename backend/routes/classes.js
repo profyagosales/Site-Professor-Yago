@@ -731,7 +731,7 @@ router.get('/', async (req, res, next) => {
   try {
     const [classes, counts] = await Promise.all([
       Class.find()
-        .select('name subject year series letter discipline schedule teachers teacherIds responsibleTeacherId studentsCount')
+        .select('name subject year series letter discipline color schedule teachers teacherIds responsibleTeacherId studentsCount')
         .lean({ virtuals: true }),
       Student.aggregate([
         { $match: { class: { $ne: null } } },
@@ -759,6 +759,7 @@ router.get('/', async (req, res, next) => {
         subject: subject || cls.discipline,
         year,
         ...rest,
+        color: typeof cls.color === 'string' && cls.color.trim() ? cls.color.trim() : null,
         teachersCount,
         studentsCount: storedCount ?? computedCount ?? 0,
         responsibleTeacherId: responsibleTeacherId ? String(responsibleTeacherId) : null,
@@ -768,8 +769,7 @@ router.get('/', async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Turmas obtidas com sucesso',
-      data: enriched
+      data: enriched,
     });
   } catch (err) {
     err.status = 500;
@@ -1266,7 +1266,7 @@ router.get('/:id', async (req, res, next) => {
     }
 
     const cls = await Class.findById(id)
-      .select('name subject year series letter discipline schedule teachers teacherIds responsibleTeacherId studentsCount activities milestones notices')
+      .select('name subject year series letter discipline color schedule teachers teacherIds responsibleTeacherId studentsCount activities milestones notices')
       .lean();
     if (!cls) {
       const error = new Error('Turma não encontrada');
@@ -1287,11 +1287,12 @@ router.get('/:id', async (req, res, next) => {
       id: String(cls._id),
       _id: String(cls._id),
       name: cls.name || (cls.series && cls.letter ? `${cls.series}${cls.letter}` : ''),
-  subject: cls.subject || cls.discipline,
+      color: typeof cls.color === 'string' && cls.color.trim() ? cls.color.trim() : null,
+      subject: cls.subject || cls.discipline,
       year: cls.year,
       series: cls.series,
       letter: cls.letter,
-  discipline: cls.discipline || cls.subject,
+      discipline: cls.discipline || cls.subject,
       schedule: cls.schedule || [],
       activities: Array.isArray(cls.activities)
         ? cls.activities.map(sanitizeActivityRecord).filter(Boolean)
@@ -1317,8 +1318,7 @@ router.get('/:id', async (req, res, next) => {
     };
     res.status(200).json({
       success: true,
-      message: 'Turma obtida com sucesso',
-      data
+      data,
     });
   } catch (err) {
     if (!err.status) {
@@ -1628,14 +1628,6 @@ router.get(
   ensureTeacher,
   ensureClassTeacher,
   studentGradesController.listStudentGrades
-);
-
-router.post(
-  '/:classId/students/:studentId/grades',
-  authRequired,
-  ensureTeacher,
-  ensureClassTeacher,
-  studentGradesController.upsertStudentGrade
 );
 
 router.get(

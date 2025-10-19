@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ClassCard } from '@/components/class/ClassCard';
 import { listClasses, ClassSummary } from '@/services/classes.service';
 
 export default function TurmasPage() {
@@ -27,41 +28,36 @@ export default function TurmasPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
-      <h1 className="mb-1 text-3xl font-semibold text-slate-900">Turmas</h1>
-      <p className="mb-6 text-slate-500">Gerencie turmas, alunos e avaliações.</p>
+    <div className="min-h-screen bg-slate-50 py-10">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-6 md:px-8">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-semibold text-slate-900">Turmas</h1>
+          <p className="text-sm text-slate-500">Selecione uma turma para gerenciar alunos, agenda e avaliações.</p>
+        </div>
 
-      {loading && <p>Carregando…</p>}
-      {!loading && error && <p className="text-red-600">{error}</p>}
-      {!loading && !error && items.length === 0 && <p>Nenhuma turma encontrada.</p>}
+        {loading && <p className="text-sm text-slate-500">Carregando…</p>}
+        {!loading && error && <p className="text-sm font-medium text-red-600">{error}</p>}
+        {!loading && !error && items.length === 0 && (
+          <p className="text-sm text-slate-500">Nenhuma turma cadastrada ainda.</p>
+        )}
 
-      {!loading && !error && items.length > 0 && (
-        <ul className="grid gap-4">
-          {items.map((t) => (
-            <li key={t.id}>
-              <button
-                type="button"
-                onClick={() => navigate(`/professor/classes/${t.id}`)}
-                className="flex w-full flex-col rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ys-amber"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="text-xl font-semibold text-slate-900">
-                      {t.series ?? '—'}{t.letter ?? ''}
-                    </div>
-                    <div className="text-sm text-slate-500">{t.discipline ?? 'Disciplina'}</div>
-                  </div>
-                </div>
-                <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-600">
-                  <span>Alunos: {t.studentsCount}</span>
-                  <span>Professores: {t.teachersCount}</span>
-                </div>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+        {!loading && !error && items.length > 0 && (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {items.map((item) => (
+              <ClassCard
+                key={item.id}
+                id={item.id}
+                name={item.name ?? `${item.series ?? ''}${item.letter ?? ''}`}
+                subject={item.discipline ?? item.subject}
+                studentsCount={item.studentsCount}
+                teachersCount={item.teachersCount}
+                color={item.color}
+                onClick={() => navigate(`/professor/classes/${item.id}`)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
-

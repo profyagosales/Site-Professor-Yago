@@ -1,207 +1,160 @@
-const { isValidObjectId } = require('mongoose');
+const mongoose = require('mongoose');
 const GradeActivity = require('../models/GradeActivity');
-const StudentGrade = require('../models/StudentGrade');
+const StudentActivityGrade = require('../models/StudentActivityGrade');
 const Student = require('../models/Student');
-const Class = require('../models/Class');
 const { resolveClassAccess } = require('../services/acl');
-const { _sanitizeGradeForResponse } = require('./studentGradesController');
 
-function toId(value) {
-  if (!value) return undefined;
-  if (typeof value === 'string') return value;
-  if (value instanceof Date) return undefined;
-  if (typeof value === 'object' && value !== null) {
-    const candidate = value._id || value.id;
-    return candidate ? String(candidate) : undefined;
+function toObjectId(value) {
+  if (value instanceof mongoose.Types.ObjectId) return value;
+  if (typeof value === 'string' && mongoose.Types.ObjectId.isValid(value)) {
+    return new mongoose.Types.ObjectId(value);
   }
-  return undefined;
+  return null;
 }
 
-async function ensureTeacherAccess(req, classId) {
+async function ensureClassAccess(classId, req) {
   const access = await resolveClassAccess(classId, req.user);
   if (!access.ok) {
     const error = new Error('Acesso restrito aos professores da turma.');
     error.status = access.reason === 'class-not-found' ? 404 : 403;
     throw error;
   }
-  if (access.classRef && (access.classRef.name || access.classRef.series || access.classRef.discipline)) {
-    return access.classRef;
-  }
-  const classDoc = await Class.findById(classId)
-    .select('name series letter discipline teacherIds teachers responsibleTeacherId')
-    .lean();
-  return classDoc || access.classRef;
+  return access.classRef;
 }
 
-function parseNumber(value, { min, max, fallback } = {}) {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) {
-    if (fallback !== undefined) return fallback;
-    return NaN;
+function getTeacherId(req) {
+  const raw = req.user && (req.user._id || req.user.id);
+  if (!raw) return null;
+  return toObjectId(raw);
+}
+
+function parseYear(input) {
+  const now = new Date();
+  const fallback = now.getFullYear();
+  if (input === undefined || input === null || input === '') {
+    return fallback;
   }
-  if (min !== undefined && parsed < min) return NaN;
-  if (max !== undefined && parsed > max) return NaN;
+  const parsed = Number.parseInt(input, 10);
+  if (!Number.isFinite(parsed) || parsed < 2000 || parsed > 3000) {
+    const error = new Error('Ano inválido.');
+    error.status = 400;
+    throw error;
+  }
   return parsed;
 }
 
-function parseDate(value) {
-  if (value === undefined || value === null || value === '') return undefined;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return undefined;
+function parseBimester(input, { optional = false } = {}) {
+  if (input === undefined || input === null || input === '') {
+    if (optional) return undefined;
+    const error = new Error('Bimestre é obrigatório.');
+    error.status = 400;
+    throw error;
+  }
+  const parsed = Number.parseInt(input, 10);
+  if (!Number.isFinite(parsed) || parsed < 1 || parsed > 4) {
+    const error = new Error('Bimestre inválido.');
+    error.status = 400;
+    throw error;
+  }
   return parsed;
 }
 
-function buildClassLabel(doc) {
-  if (!doc) return '';
-  const parts = [];
-  if (doc.name) {
-    parts.push(doc.name);
-  } else {
-    if (doc.series) {
-      parts.push(`${doc.series}º${doc.letter ?? ''}`.trim());
-    }
-    if (doc.discipline) {
-      parts.push(doc.discipline);
-    }
-  }
-  return parts.filter(Boolean).join(' • ');
-}
-
-function sanitizeActivity(doc, classInfo) {
+function sanitizeActivity(doc) {
   if (!doc) return null;
-  const maxScore = Number(doc.maxScore ?? doc.weight ?? 0);
-  const dueDate = doc.dueDate instanceof Date ? doc.dueDate.toISOString() : doc.dueDate || null;
-  return {
-    id: String(doc._id),
-    classId: toId(doc.class),
-    className: buildClassLabel(classInfo),
-    year: doc.year,
-    term: doc.term,
-    title: doc.title,
-    description: doc.description || '',
-    kind: doc.kind || 'ATIVIDADE',
-    weight: Number(doc.weight ?? 0),
-    maxScore: Number.isFinite(maxScore) ? maxScore : Number(doc.weight ?? 0),
-    dueDate,
-    order: doc.order ?? 0,
-    createdAt: doc.createdAt instanceof Date ? doc.createdAt.toISOString() : undefined,
-    updatedAt: doc.updatedAt instanceof Date ? doc.updatedAt.toISOString() : undefined,
+  const json = doc.toObject ? doc.toObject() : doc;
+  const result = {
+    id: String(json._id),
+    classId: String(json.classId),
+    year: json.year,
+    bimester: json.bimester,
+    label: json.label,
+    value: Number(json.value ?? 0),
+    order: Number(json.order ?? 0),
+    active: Boolean(json.active),
   };
+  if (json.createdBy) {
+    result.createdBy = String(json.createdBy);
+  }
+  if (json.createdAt instanceof Date) {
+    result.createdAt = json.createdAt.toISOString();
+  } else if (typeof json.createdAt === 'string') {
+    result.createdAt = json.createdAt;
+  }
+  if (json.updatedAt instanceof Date) {
+    result.updatedAt = json.updatedAt.toISOString();
+  } else if (typeof json.updatedAt === 'string') {
+    result.updatedAt = json.updatedAt;
+  }
+  return result;
 }
 
-async function assertWeightCap({ classId, year, term, weight, excludeId }) {
-  const filters = { class: classId, year, term };
+async function validateBimesterSum({ classId, year, bimester, candidateValue, excludeId }) {
+  const filters = {
+    classId,
+    year,
+    bimester,
+    active: true,
+  };
   if (excludeId) {
     filters._id = { $ne: excludeId };
   }
-  const existing = await GradeActivity.find(filters).select('weight').lean();
-  const total = existing.reduce((acc, entry) => acc + Number(entry.weight ?? 0), 0);
-  if (total + weight > 10.0001) {
-    const error = new Error('A soma dos pesos das atividades do bimestre não pode ultrapassar 10 pontos.');
+  const existing = await GradeActivity.find(filters).select('value').lean();
+  const total = existing.reduce((acc, entry) => acc + Number(entry?.value ?? 0), 0);
+  if (total + candidateValue > 10 + 1e-6) {
+    const error = new Error('Soma de valores do bimestre excede 10');
     error.status = 400;
     throw error;
   }
 }
 
-async function getActivityScores(req, res, next) {
-  try {
-    const { classId, activityId } = req.params;
-    if (!isValidObjectId(classId) || !isValidObjectId(activityId)) {
-      const error = new Error('Identificadores inválidos.');
-      error.status = 400;
-      throw error;
-    }
-
-    const classDoc = await ensureTeacherAccess(req, classId);
-    const activity = await GradeActivity.findById(activityId).lean();
-    if (!activity || String(activity.class) !== String(classId)) {
-      const error = new Error('Atividade não encontrada.');
-      error.status = 404;
-      throw error;
-    }
-
-    const grades = await StudentGrade.find({
-      class: classId,
-      year: activity.year,
-      term: activity.term,
-      'activities.activity': activity._id,
-    })
-      .select('_id student status activities')
-      .lean();
-
-    const scores = grades
-      .map((grade) => {
-        const entry = Array.isArray(grade.activities)
-          ? grade.activities.find((snapshot) => String(snapshot.activity) === String(activity._id))
-          : null;
-        if (!entry) return null;
-        const numeric = Number(entry.score ?? 0);
-        const score = Number.isFinite(numeric) ? numeric : 0;
-        const recordedAt = entry.recordedAt instanceof Date
-          ? entry.recordedAt.toISOString()
-          : entry.recordedAt || null;
-        return {
-          studentId: String(grade.student),
-          gradeId: grade._id ? String(grade._id) : undefined,
-          score,
-          status: typeof grade.status === 'string' ? grade.status : 'FREQUENTE',
-          recordedAt,
-        };
-      })
-      .filter(Boolean);
-
-    res.json({
-      success: true,
-      data: {
-        activity: sanitizeActivity(activity, classDoc),
-        scores,
-      },
-    });
-  } catch (err) {
-    if (!err.status) {
-      err.status = 500;
-      err.message = 'Erro ao carregar notas da atividade.';
-    }
-    next(err);
+function parseValue(input) {
+  const parsed = Number(input);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 10) {
+    const error = new Error('Valor deve estar entre 0 e 10.');
+    error.status = 400;
+    throw error;
   }
+  return parsed;
 }
 
-exports.getActivityScores = getActivityScores;
+function parseOrder(input) {
+  if (input === undefined || input === null || input === '') return 0;
+  const parsed = Number(input);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.trunc(parsed);
+}
 
-exports.listActivities = async (req, res, next) => {
+exports.listGradeActivities = async (req, res, next) => {
   try {
-    const { classId } = req.params;
-    if (!isValidObjectId(classId)) {
-      const error = new Error('Turma inválida.');
+    const rawClassId = req.query.classId;
+    if (!rawClassId) {
+      const error = new Error('classId é obrigatório.');
+      error.status = 400;
+      throw error;
+    }
+    const classId = toObjectId(rawClassId);
+    if (!classId) {
+      const error = new Error('classId inválido.');
       error.status = 400;
       throw error;
     }
 
-    const classDoc = await ensureTeacherAccess(req, classId);
+    await ensureClassAccess(classId, req);
+    const year = parseYear(req.query.year);
+    const bimester = parseBimester(req.query.bimester, { optional: true });
 
-    const year = parseNumber(req.query.year, { min: 1900, max: 3000, fallback: new Date().getFullYear() });
-    const termFilter = req.query.term !== undefined ? parseNumber(req.query.term, { min: 1, max: 4 }) : undefined;
-    if (Number.isNaN(year)) {
-      const error = new Error('Ano inválido.');
-      error.status = 400;
-      throw error;
-    }
-    if (req.query.term !== undefined && Number.isNaN(termFilter)) {
-      const error = new Error('Bimestre inválido.');
-      error.status = 400;
-      throw error;
+    const filters = { classId, year, active: true };
+    if (bimester !== undefined) {
+      filters.bimester = bimester;
     }
 
-    const filters = { class: classId, year };
-    if (termFilter) {
-      filters.term = termFilter;
-    }
-
-    const activities = await GradeActivity.find(filters).sort({ term: 1, order: 1, dueDate: 1 }).lean();
+    const activities = await GradeActivity.find(filters)
+      .sort({ bimester: 1, order: 1, label: 1 })
+      .lean();
 
     res.json({
       success: true,
-      data: activities.map((activity) => sanitizeActivity(activity, classDoc)),
+      data: activities.map(sanitizeActivity),
     });
   } catch (err) {
     if (!err.status) {
@@ -212,74 +165,51 @@ exports.listActivities = async (req, res, next) => {
   }
 };
 
-exports.createActivity = async (req, res, next) => {
+exports.createGradeActivity = async (req, res, next) => {
   try {
-    const { classId } = req.params;
-    if (!isValidObjectId(classId)) {
-      const error = new Error('Turma inválida.');
+    const rawClassId = req.body.classId;
+    const classId = toObjectId(rawClassId);
+    if (!classId) {
+      const error = new Error('classId inválido.');
+      error.status = 400;
+      throw error;
+    }
+    await ensureClassAccess(classId, req);
+
+    const year = parseYear(req.body.year);
+    const bimester = parseBimester(req.body.bimester);
+    const label =
+      typeof req.body.label === 'string' && req.body.label.trim()
+        ? req.body.label.trim()
+        : null;
+    if (!label) {
+      const error = new Error('Descrição da atividade é obrigatória.');
       error.status = 400;
       throw error;
     }
 
-    const classDoc = await ensureTeacherAccess(req, classId);
+    const value = parseValue(req.body.value);
+    const order = parseOrder(req.body.order);
+    await validateBimesterSum({ classId, year, bimester, candidateValue: value });
 
-    const titleRaw = typeof req.body.title === 'string' ? req.body.title.trim() : '';
-    const year = parseNumber(req.body.year, { min: 1900, max: 3000, fallback: new Date().getFullYear() });
-    const term = parseNumber(req.body.term, { min: 1, max: 4 });
-    const weight = parseNumber(req.body.weight, { min: 0, max: 10 });
-    const maxScore = req.body.maxScore !== undefined ? parseNumber(req.body.maxScore, { min: 0, max: 10 }) : weight;
-    const dueDate = parseDate(req.body.dueDate);
-    const order = parseNumber(req.body.order, { min: 0, fallback: 0 });
-    const kind = typeof req.body.kind === 'string' ? req.body.kind.trim().toUpperCase() : 'ATIVIDADE';
-    const description = typeof req.body.description === 'string' ? req.body.description.trim() : '';
-
-    if (!titleRaw) {
-      const error = new Error('Informe o título da atividade.');
-      error.status = 400;
-      throw error;
-    }
-    if (Number.isNaN(year) || Number.isNaN(term) || Number.isNaN(weight)) {
-      const error = new Error('Parâmetros de data ou peso inválidos.');
-      error.status = 400;
-      throw error;
-    }
-    if (Number.isNaN(maxScore)) {
-      const error = new Error('Valor máximo da atividade inválido.');
-      error.status = 400;
-      throw error;
-    }
-    if (weight <= 0) {
-      const error = new Error('O peso da atividade deve ser maior que zero.');
-      error.status = 400;
-      throw error;
-    }
-    if (maxScore < weight) {
-      const error = new Error('O valor máximo da atividade não pode ser menor que o peso.');
-      error.status = 400;
-      throw error;
-    }
-
-    await assertWeightCap({ classId, year, term, weight });
-
-    const activity = await GradeActivity.create({
-      class: classId,
+    const teacherId = getTeacherId(req);
+    const payload = {
+      classId,
       year,
-      term,
-      title: titleRaw,
-      description,
-      kind,
-      weight,
-      maxScore,
-      dueDate,
+      bimester,
+      label,
+      value,
       order,
-      createdBy: req.user?._id,
-      updatedBy: req.user?._id,
-    });
+      active: true,
+    };
+    if (teacherId) {
+      payload.createdBy = teacherId;
+    }
 
+    const activity = await GradeActivity.create(payload);
     res.status(201).json({
       success: true,
-      message: 'Atividade criada com sucesso.',
-      data: sanitizeActivity(activity, classDoc),
+      data: sanitizeActivity(activity),
     });
   } catch (err) {
     if (!err.status) {
@@ -290,113 +220,88 @@ exports.createActivity = async (req, res, next) => {
   }
 };
 
-exports.updateActivity = async (req, res, next) => {
+exports.updateGradeActivity = async (req, res, next) => {
   try {
-    const { classId, activityId } = req.params;
-    if (!isValidObjectId(classId) || !isValidObjectId(activityId)) {
-      const error = new Error('Identificadores inválidos.');
+    const activityId = toObjectId(req.params.id);
+    if (!activityId) {
+      const error = new Error('Atividade inválida.');
       error.status = 400;
       throw error;
     }
 
-    const classDoc = await ensureTeacherAccess(req, classId);
     const activity = await GradeActivity.findById(activityId);
-    if (!activity || String(activity.class) !== String(classId)) {
+    if (!activity || activity.active === false) {
       const error = new Error('Atividade não encontrada.');
       error.status = 404;
       throw error;
     }
 
-    const updates = {};
-    if (req.body.title !== undefined) {
-      const title = String(req.body.title || '').trim();
-      if (!title) {
-        const error = new Error('Informe o título da atividade.');
+    await ensureClassAccess(activity.classId, req);
+
+    let classId = activity.classId;
+    let year = activity.year;
+    let bimester = activity.bimester;
+    let label = activity.label;
+    let value = activity.value;
+    let order = activity.order;
+
+    if (req.body.classId !== undefined) {
+      const parsedClassId = toObjectId(req.body.classId);
+      if (!parsedClassId) {
+        const error = new Error('classId inválido.');
         error.status = 400;
         throw error;
       }
-      updates.title = title;
+      await ensureClassAccess(parsedClassId, req);
+      classId = parsedClassId;
+      activity.classId = parsedClassId;
     }
-    if (req.body.description !== undefined) {
-      updates.description = String(req.body.description || '').trim();
+
+    if (req.body.year !== undefined) {
+      year = parseYear(req.body.year);
+      activity.year = year;
     }
-    if (req.body.kind !== undefined) {
-      updates.kind = String(req.body.kind || '').trim().toUpperCase() || 'ATIVIDADE';
+
+    if (req.body.bimester !== undefined) {
+      bimester = parseBimester(req.body.bimester);
+      activity.bimester = bimester;
     }
-    if (req.body.dueDate !== undefined) {
-      const dueDate = parseDate(req.body.dueDate);
-      if (req.body.dueDate && !dueDate) {
-        const error = new Error('Data da atividade inválida.');
+
+    if (req.body.label !== undefined) {
+      const trimmed = typeof req.body.label === 'string' ? req.body.label.trim() : '';
+      if (!trimmed) {
+        const error = new Error('Descrição da atividade é obrigatória.');
         error.status = 400;
         throw error;
       }
-      updates.dueDate = dueDate;
+      label = trimmed;
+      activity.label = trimmed;
     }
+
+    if (req.body.value !== undefined) {
+      value = parseValue(req.body.value);
+      activity.value = value;
+    }
+
     if (req.body.order !== undefined) {
-      const order = parseNumber(req.body.order, { min: 0, fallback: 0 });
-      if (Number.isNaN(order)) {
-        const error = new Error('Ordem inválida.');
-        error.status = 400;
-        throw error;
-      }
-      updates.order = order;
+      order = parseOrder(req.body.order);
+      activity.order = order;
     }
 
-    let weightToApply;
-    if (req.body.weight !== undefined) {
-      const weight = parseNumber(req.body.weight, { min: 0, max: 10 });
-      if (Number.isNaN(weight) || weight <= 0) {
-        const error = new Error('Peso da atividade inválido.');
-        error.status = 400;
-        throw error;
-      }
-      weightToApply = weight;
-      updates.weight = weight;
-    }
+    await validateBimesterSum({
+      classId,
+      year,
+      bimester,
+      candidateValue: value,
+      excludeId: activityId,
+    });
 
-    if (req.body.maxScore !== undefined) {
-      const maxScore = parseNumber(req.body.maxScore, { min: 0, max: 10 });
-      if (Number.isNaN(maxScore)) {
-        const error = new Error('Valor máximo da atividade inválido.');
-        error.status = 400;
-        throw error;
-      }
-      if (weightToApply !== undefined && maxScore < weightToApply) {
-        const error = new Error('O valor máximo não pode ser menor que o peso.');
-        error.status = 400;
-        throw error;
-      }
-      updates.maxScore = maxScore;
-    }
-
-    if (weightToApply !== undefined) {
-      await assertWeightCap({ classId, year: activity.year, term: activity.term, weight: weightToApply, excludeId: activity._id });
-    }
-
-    Object.assign(activity, updates, { updatedBy: req.user?._id });
+    activity.updatedAt = new Date();
     await activity.save();
-
-    if (updates.title || updates.kind || updates.dueDate || updates.weight || updates.maxScore) {
-      const payload = {
-        ...(updates.title ? { 'activities.$[elem].activityTitle': updates.title } : {}),
-        ...(updates.kind ? { 'activities.$[elem].activityKind': updates.kind } : {}),
-        ...(updates.dueDate !== undefined ? { 'activities.$[elem].activityDate': updates.dueDate } : {}),
-        ...(updates.weight !== undefined ? { 'activities.$[elem].weight': updates.weight } : {}),
-        ...(updates.maxScore !== undefined ? { 'activities.$[elem].maxScore': updates.maxScore } : {}),
-      };
-      if (Object.keys(payload).length) {
-        await StudentGrade.updateMany(
-          { class: classId, year: activity.year, term: activity.term },
-          { $set: payload },
-          { arrayFilters: [{ 'elem.activity': activity._id }] }
-        );
-      }
-    }
 
     res.json({
       success: true,
-      message: 'Atividade atualizada com sucesso.',
-      data: sanitizeActivity(activity, classDoc),
+      data: sanitizeActivity(activity),
     });
   } catch (err) {
     if (!err.status) {
@@ -407,159 +312,150 @@ exports.updateActivity = async (req, res, next) => {
   }
 };
 
-exports.deleteActivity = async (req, res, next) => {
+exports.deleteGradeActivity = async (req, res, next) => {
   try {
-    const { classId, activityId } = req.params;
-    if (!isValidObjectId(classId) || !isValidObjectId(activityId)) {
-      const error = new Error('Identificadores inválidos.');
+    const activityId = toObjectId(req.params.id);
+    if (!activityId) {
+      const error = new Error('Atividade inválida.');
       error.status = 400;
       throw error;
     }
 
-    await ensureTeacherAccess(req, classId);
-
     const activity = await GradeActivity.findById(activityId);
-    if (!activity || String(activity.class) !== String(classId)) {
+    if (!activity || activity.active === false) {
       const error = new Error('Atividade não encontrada.');
       error.status = 404;
       throw error;
     }
 
-    await GradeActivity.deleteOne({ _id: activityId });
-    await StudentGrade.updateMany(
-      { class: classId, year: activity.year, term: activity.term },
-      {
-        $pull: {
-          activities: { activity: activity._id },
-        },
-      }
-    );
+    await ensureClassAccess(activity.classId, req);
 
-    const affectedGrades = await StudentGrade.find({ class: classId, year: activity.year, term: activity.term });
-    for (const grade of affectedGrades) {
-      grade.recalculateScore();
-      await grade.save();
-    }
+    activity.active = false;
+    activity.updatedAt = new Date();
+    await activity.save();
 
     res.json({
       success: true,
-      message: 'Atividade removida com sucesso.',
+      data: sanitizeActivity(activity),
     });
   } catch (err) {
     if (!err.status) {
       err.status = 500;
-      err.message = 'Erro ao remover atividade avaliativa.';
+      err.message = 'Erro ao excluir atividade avaliativa.';
     }
     next(err);
   }
 };
 
-exports.bulkUpsertScores = async (req, res, next) => {
+exports.bulkSetActivityGrades = async (req, res, next) => {
   try {
-    const { classId, activityId } = req.params;
-    if (!isValidObjectId(classId) || !isValidObjectId(activityId)) {
-      const error = new Error('Identificadores inválidos.');
+    const activityId = toObjectId(req.params.id);
+    if (!activityId) {
+      const error = new Error('Atividade inválida.');
       error.status = 400;
       throw error;
     }
 
-    await ensureTeacherAccess(req, classId);
-
     const activity = await GradeActivity.findById(activityId).lean();
-    if (!activity || String(activity.class) !== String(classId)) {
+    if (!activity || activity.active === false) {
       const error = new Error('Atividade não encontrada.');
       error.status = 404;
       throw error;
     }
 
-    const scoresInput = Array.isArray(req.body.scores) ? req.body.scores : [];
-    if (!scoresInput.length) {
-      const error = new Error('Informe as notas dos alunos.');
+    await ensureClassAccess(activity.classId, req);
+
+    const gradesPayload = Array.isArray(req.body?.grades) ? req.body.grades : null;
+    if (!gradesPayload || gradesPayload.length === 0) {
+      const error = new Error('grades deve conter ao menos um registro.');
       error.status = 400;
       throw error;
     }
 
-    const maxScore = Number(activity.maxScore ?? activity.weight ?? 0);
-    const studentIds = scoresInput
-      .map((entry) => String(entry.studentId || entry.student || ''))
-      .filter((value) => isValidObjectId(value));
-
-    if (!studentIds.length) {
-      const error = new Error('Nenhum aluno válido informado.');
-      error.status = 400;
-      throw error;
-    }
-
-    const validStudents = await Student.find({ _id: { $in: studentIds }, class: classId }).select('_id').lean();
-    const validSet = new Set(validStudents.map((doc) => String(doc._id)));
-
-    const invalid = studentIds.filter((id) => !validSet.has(id));
-    if (invalid.length) {
-      const error = new Error('Um ou mais alunos não pertencem à turma.');
-      error.status = 400;
-      throw error;
-    }
-
-    const updatedIds = [];
-    for (const entry of scoresInput) {
-      const studentId = String(entry.studentId || entry.student);
-      if (!validSet.has(studentId)) continue;
-
-      const rawScore = Number(entry.score);
-      if (!Number.isFinite(rawScore) || rawScore < 0) {
-        const error = new Error('Pontuação inválida informada.');
-        error.status = 400;
-        throw error;
+    const seen = new Map();
+    gradesPayload.forEach((entry) => {
+      const studentId = toObjectId(entry.studentId);
+      if (!studentId) return;
+      const points = Number(entry.points);
+      if (!Number.isFinite(points) || points < 0 || points > activity.value) {
+        return;
       }
-      const score = Math.min(rawScore, maxScore);
-
-      let grade = await StudentGrade.findOne({
-        class: classId,
-        student: studentId,
-        year: activity.year,
-        term: activity.term,
+      seen.set(String(studentId), {
+        studentId,
+        points: Number(points.toFixed(2)),
       });
+    });
 
-      if (!grade) {
-        grade = new StudentGrade({
-          class: classId,
-          student: studentId,
-          year: activity.year,
-          term: activity.term,
-          score: 0,
-          status: 'FREQUENTE',
-          activities: [],
-        });
-      }
-
-      grade.replaceActivityScore({
-        activity: activity._id,
-        activityTitle: activity.title,
-        activityKind: activity.kind || 'ATIVIDADE',
-        activityDate: activity.dueDate || null,
-        weight: activity.weight,
-        maxScore,
-        score,
-        recordedAt: new Date(),
-      });
-
-      await grade.save();
-      updatedIds.push(studentId);
+    if (seen.size === 0) {
+      const error = new Error('Nenhuma nota válida encontrada.');
+      error.status = 400;
+      throw error;
     }
 
-    const grades = await StudentGrade.find({
-      class: classId,
-      student: { $in: updatedIds },
-      year: activity.year,
-      term: activity.term,
+    const studentIds = Array.from(seen.values()).map((entry) => entry.studentId);
+    const allowedStudents = await Student.find({
+      _id: { $in: studentIds },
+      class: activity.classId,
     })
-      .populate('activities.activity')
-      .lean({ virtuals: true });
+      .select('_id')
+      .lean();
+    const allowed = new Set(allowedStudents.map((s) => String(s._id)));
+
+    const invalid = studentIds.filter((id) => !allowed.has(String(id)));
+    if (invalid.length > 0) {
+      const error = new Error('Alguns alunos não pertencem à turma informada.');
+      error.status = 400;
+      throw error;
+    }
+
+    const teacherId = getTeacherId(req);
+    const now = new Date();
+
+    const operations = Array.from(seen.values()).map(({ studentId, points }) => {
+      const update = {
+        classId: activity.classId,
+        studentId,
+        activityId,
+        points,
+        gradedAt: now,
+      };
+      if (teacherId) {
+        update.gradedBy = teacherId;
+      }
+      return {
+        updateOne: {
+          filter: { classId: activity.classId, studentId, activityId },
+          update: { $set: update },
+          upsert: true,
+        },
+      };
+    });
+
+    await StudentActivityGrade.bulkWrite(operations, { ordered: false });
+
+    const storedGrades = await StudentActivityGrade.find({
+      classId: activity.classId,
+      activityId,
+      studentId: { $in: studentIds },
+    })
+      .select('studentId points gradedAt')
+      .lean();
+
+    const payload = storedGrades.map((grade) => ({
+      studentId: String(grade.studentId),
+      points: Number(grade.points ?? 0),
+      gradedAt:
+        grade.gradedAt instanceof Date
+          ? grade.gradedAt.toISOString()
+          : grade.gradedAt || now.toISOString(),
+    }));
 
     res.json({
       success: true,
-      message: 'Notas registradas com sucesso.',
-      updated: grades.map((entry) => _sanitizeGradeForResponse(entry)),
+      data: {
+        activity: sanitizeActivity(activity),
+        grades: payload,
+      },
     });
   } catch (err) {
     if (!err.status) {

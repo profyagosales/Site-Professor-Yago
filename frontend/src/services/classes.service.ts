@@ -24,6 +24,7 @@ export type ClassSummary = {
   teachersCount: number;
   teacherIds?: string[];
   responsibleTeacherId?: string | null;
+  color?: string | null;
 };
 
 export type ClassStudent = {
@@ -145,6 +146,7 @@ export type ClassDetails = {
   activities: ClassActivity[];
   milestones: ClassMilestone[];
   notices: ClassNotice[];
+  color?: string | null;
 };
 
 export type ClassTeacherList = {
@@ -509,6 +511,7 @@ function toSchoolSummary(raw: any): SchoolClassSummary {
     teachersCount: Number(raw?.teachersCount ?? (Array.isArray(raw?.teachers) ? raw.teachers.length : 0)),
     teacherIds,
     responsibleTeacherId: responsibleTeacherId || undefined,
+    color: typeof raw?.color === 'string' ? raw.color : undefined,
   };
 }
 
@@ -555,6 +558,7 @@ export async function listClasses(): Promise<ClassSummary[]> {
       teachersCount: Number(item.teachersCount || 0),
       teacherIds,
       responsibleTeacherId: responsibleId || undefined,
+      color: typeof (item as any)?.color === 'string' ? String((item as any).color) : undefined,
     };
   });
 }
@@ -619,9 +623,10 @@ export async function getClassDetails(id: string): Promise<ClassDetails | null> 
     discipline: (cast.discipline as string | undefined) ?? (cast.subject as string | undefined),
     schedule: cast.schedule,
     studentsCount: Number(cast.studentsCount || students.length || 0),
-  teachersCount: Number(cast.teachersCount || teacherIdsFromPayload.length || teachers.length || 0),
-  teacherIds: teacherIdsFromPayload,
-  responsibleTeacherId: responsibleTeacherId || undefined,
+    teachersCount: Number(cast.teachersCount || teacherIdsFromPayload.length || teachers.length || 0),
+    teacherIds: teacherIdsFromPayload,
+    responsibleTeacherId: responsibleTeacherId || undefined,
+    color: typeof cast.color === 'string' ? cast.color : undefined,
     students: students.map((rawStudent) => formatStudentRecord(rawStudent)),
     teachers: teachers.map((rawTeacher) => formatTeacherRecord(rawTeacher)),
     activities: Array.isArray((cast as any).activities)

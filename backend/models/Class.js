@@ -58,6 +58,7 @@ const classSchema = new mongoose.Schema({
   series: { type: Number, required: true },
   letter: { type: String, required: true },
   discipline: { type: String, required: true },
+  color: { type: String, trim: true, default: null },
   schedule: [
     {
       slot: { type: Number, enum: [1, 2, 3], required: true },

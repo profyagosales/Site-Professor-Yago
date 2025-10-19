@@ -267,7 +267,7 @@ async function listContents(req, res, next) {
     } else {
       page = Math.floor(skip / limit) + 1;
     }
-    const direction = sort === 'asc' ? 1 : -1;
+    const direction = sort === 'desc' ? -1 : 1;
 
     const [items, total] = await Promise.all([
       Content.find(filters)
