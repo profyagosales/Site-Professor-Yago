@@ -78,6 +78,7 @@ export default function AnnouncementModal({
   onClose,
   onSaved,
   initialAnnouncement = null,
+  defaultClassIds = [],
 }) {
   const isEditMode = Boolean(initialAnnouncement?.id)
 
@@ -149,15 +150,18 @@ export default function AnnouncementModal({
         setEditorValue(DEFAULT_EDITOR_VALUE)
         setExistingAttachments([])
         setAttachments([])
-        setSelectedClasses([])
+        const preset = Array.isArray(defaultClassIds)
+          ? defaultClassIds.map((value) => String(value)).filter(Boolean)
+          : []
+        setSelectedClasses(preset)
         setEmailList('')
         setBccTeachers(false)
-        setTargetMode('class')
+        setTargetMode(preset.length ? 'class' : 'class')
         setSendMode('now')
         setScheduleAt('')
       }
     },
-    []
+    [defaultClassIds]
   )
 
   useEffect(() => {
