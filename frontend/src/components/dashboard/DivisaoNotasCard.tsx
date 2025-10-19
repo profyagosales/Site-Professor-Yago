@@ -45,6 +45,7 @@ export default function DivisaoNotasCard({ classOptions, className = '' }: Divis
   }, [schemes]);
 
   const totalPoints = activeScheme?.items?.reduce((sum, item) => sum + (Number.isFinite(item.points) ? Number(item.points) : 0), 0) ?? 0;
+  const totalMatches = Math.abs(totalPoints - 10) < 0.001;
 
   const loadSchemes = useCallback(async () => {
     if (!selectedClassId) {
@@ -159,10 +160,25 @@ export default function DivisaoNotasCard({ classOptions, className = '' }: Divis
                   </div>
                 ))}
               </div>
+              {activeScheme.items.length ? (
+                <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-600">
+                  {activeScheme.items.map((item) => (
+                    <span key={`legend-${item.label}-${item.order}`} className="flex items-center gap-2">
+                      <span
+                        className="h-2.5 w-2.5 rounded-full border border-white/80 shadow-sm"
+                        style={{ backgroundColor: item.color || '#f97316' }}
+                      />
+                      {item.label || 'Item'}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
               <div>
                 <div className="mb-1 flex justify-between text-xs text-slate-500">
                   <span>Total distribuído</span>
-                  <span>{totalPoints.toFixed(1)} / 10</span>
+                  <span className={totalMatches ? 'text-slate-500' : 'text-red-600'}>
+                    {totalPoints.toFixed(1)} / 10
+                  </span>
                 </div>
                 <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
                   <div

@@ -35,17 +35,6 @@ const WEEKDAY_CONFIG = [
   { id: 5, label: 'Sexta' },
 ]
 
-const DATE_BADGE_FORMATTER = new Intl.DateTimeFormat('pt-BR', {
-  day: '2-digit',
-  month: 'short',
-})
-
-const LONG_DATE_FORMATTER = new Intl.DateTimeFormat('pt-BR', {
-  weekday: 'short',
-  day: '2-digit',
-  month: 'long',
-})
-
 const DAY_NAME_TO_INDEX = {
   monday: 1,
   segunda: 1,
@@ -119,6 +108,16 @@ function isWithinRange(date, start, end) {
   return date.getTime() >= start.getTime() && date.getTime() <= end.getTime()
 }
 
+function formatAgendaHeader(date) {
+  if (!date) return ''
+  const weekday = new Intl.DateTimeFormat('pt-BR', { weekday: 'short' }).format(date).replace('.', '')
+  const capitalizedWeekday = weekday.charAt(0).toUpperCase() + weekday.slice(1)
+  const day = new Intl.DateTimeFormat('pt-BR', { day: '2-digit' }).format(date)
+  const month = new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(date).replace('.', '')
+  const year = date.getFullYear()
+  return `${capitalizedWeekday} • ${day} ${month} ${year}`
+}
+
 function DashboardProfessor(){
   const [user, setUser] = useState(null)
   const [classSummaries, setClassSummaries] = useState([])
@@ -130,6 +129,7 @@ function DashboardProfessor(){
   const [showEmail, setShowEmail] = useState(false)
   const [contentOpen, setContentOpen] = useState(false)
   const [announcementOpen, setAnnouncementOpen] = useState(false)
+  const [announcementDraft, setAnnouncementDraft] = useState(null)
   const [calendarScope, setCalendarScope] = useState('week')
   const [showAgendaModal, setShowAgendaModal] = useState(false)
   const { logout: logoutSession } = useAuth()
@@ -302,7 +302,11 @@ function DashboardProfessor(){
     await refreshCalendarEvents()
   }, [refreshCalendarEvents])
 
-  const reloadAnnouncements = reloadContents
+  const reloadAnnouncements = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('announcements:refresh'))
+    }
+  }, [])
 
   const classNameMap = useMemo(() => {
     const map = {}
@@ -471,53 +475,61 @@ function DashboardProfessor(){
 
   return (
     <div className="page-safe pt-4 space-y-6">
-      <section className="rounded-3xl bg-gradient-to-r from-orange-500 to-orange-400 text-white shadow-xl">
-        <div className="flex flex-col gap-6 px-6 py-4 md:py-6">
+      <section className="hero-compact rounded-3xl bg-gradient-to-r from-orange-500 to-orange-400 text-white shadow-xl">
+        <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               {resolvedAvatar ? (
                 <img
                   src={resolvedAvatar}
                   alt={user.name}
-                  className="h-16 w-16 rounded-2xl border border-white/50 object-cover shadow-lg"
+                  className="h-14 w-14 rounded-2xl border border-white/50 object-cover shadow-lg"
                 />
               ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/50 bg-white/20 text-2xl font-semibold uppercase">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/50 bg-white/20 text-xl font-semibold uppercase">
                   {user?.name ? user.name.slice(0, 1) : '?'}
                 </div>
               )}
               <div>
                 <p className="text-xs uppercase tracking-wide text-white/80">Bem-vindo de volta</p>
-                <h1 className="text-2xl font-semibold md:text-3xl">{user?.name || 'Professor'}</h1>
-                <p className="text-white/80">Painel do professor</p>
+                <h1 className="text-xl font-semibold md:text-2xl">{user?.name || 'Professor'}</h1>
+                <p className="text-white/80 text-sm">Painel do professor</p>
               </div>
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-white/20"
-              onClick={handleLogout}
-            >
-              Sair
-            </Button>
+            <div className="flex flex-col items-stretch gap-3 lg:items-end">
+              <div className="flex flex-wrap items-stretch justify-end gap-3">
+                <Button
+                  type="button"
+                  className="rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-white/20 focus-visible:ring-white/60"
+                  onClick={handleLogout}
+                >
+                  Sair
+                </Button>
+                <div className="flex gap-3">
+                  <div className="mini-stat-card">
+                    <p className="mini-stat-label">Turmas</p>
+                    <p className="mini-stat-value">{totalClasses}</p>
+                  </div>
+                  <div className="mini-stat-card">
+                    <p className="mini-stat-label">Total de alunos</p>
+                    <p className="mini-stat-value">{uniqueStudentsCount}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 md:max-w-xl">
-            <div className="rounded-2xl bg-white/15 px-4 py-3 shadow-sm">
-              <p className="text-xs uppercase tracking-wide text-white/70">Turmas</p>
-              <p className="text-2xl font-semibold text-white">{totalClasses}</p>
-            </div>
-            <div className="rounded-2xl bg-white/15 px-4 py-3 shadow-sm">
-              <p className="text-xs uppercase tracking-wide text-white/70">Total de alunos</p>
-              <p className="text-2xl font-semibold text-white">{uniqueStudentsCount}</p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="cta-row flex flex-wrap">
             <Button className="btn-primary" onClick={() => setShowEmail(true)}>
               Enviar e-mail
             </Button>
-            <Button className="btn-primary" onClick={() => setAnnouncementOpen(true)}>
+            <Button
+              className="btn-primary"
+              onClick={() => {
+                setAnnouncementDraft(null)
+                setAnnouncementOpen(true)
+              }}
+            >
               Novo aviso
             </Button>
             <Button className="btn-primary" onClick={() => setContentOpen(true)}>
@@ -527,20 +539,28 @@ function DashboardProfessor(){
         </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-16">
+      <div className="grid gap-6 lg:grid-cols-12">
         <DashboardCard
           title="Horário Semanal"
-          className="lg:col-span-10"
+          className="lg:col-span-8"
           contentClassName="flex-1"
         >
           <WeeklySchedule slots={SLOT_CONFIG} days={WEEKDAY_CONFIG} cells={scheduleMatrix} />
         </DashboardCard>
 
-        <AvisosCard className="lg:col-span-6" />
+        <AvisosCard
+          className="lg:col-span-4"
+          onEdit={(announcement) => {
+            setAnnouncementDraft(announcement)
+            setAnnouncementOpen(true)
+          }}
+        />
+      </div>
 
+      <div className="grid gap-6 lg:grid-cols-12">
         <DashboardCard
           title="Agenda"
-          className="lg:col-span-10"
+          className="lg:col-span-6"
           actions={
             <div className="flex items-center gap-2">
               <div className="flex rounded-full border border-slate-200 bg-slate-50 p-1">
@@ -568,17 +588,10 @@ function DashboardProfessor(){
           {insightsLoading ? (
             <div className="flex-1 rounded-xl bg-slate-100 animate-pulse" />
           ) : displayedAgendaGroups.length ? (
-            <div className="flex-1 space-y-4 overflow-y-auto pr-1">
+            <div className="card-scroll flex-1 space-y-4">
               {displayedAgendaGroups.map((group) => (
                 <div key={group.iso} className="rounded-2xl border border-slate-100 p-4">
-                  <div className="flex items-baseline gap-3">
-                    <p className="text-base font-semibold text-slate-900">
-                      {DATE_BADGE_FORMATTER.format(group.date)}
-                    </p>
-                    <span className="text-xs uppercase tracking-wide text-slate-500">
-                      {LONG_DATE_FORMATTER.format(group.date)}
-                    </span>
-                  </div>
+                  <p className="text-sm font-semibold text-slate-900">{formatAgendaHeader(group.date)}</p>
                   <ul className="mt-3 space-y-2">
                     {group.items.map((event) => (
                       <li
@@ -611,21 +624,21 @@ function DashboardProfessor(){
           )}
         </DashboardCard>
 
-        <ResumoConteudosCard
-          embedded
-          limit={5}
+        <DashboardCard
+          title="Atividades"
           className="lg:col-span-3"
-        />
+          contentClassName="flex-1"
+        >
+          <ResumoConteudosCard embedded limit={5} className="h-full" />
+        </DashboardCard>
 
         <DivisaoNotasCard
           classOptions={classOptions}
           className="lg:col-span-3"
         />
-
-        <div className="lg:col-span-16">
-          <MediaGeralBimestre classOptions={classOptions} />
-        </div>
       </div>
+
+      <MediaGeralBimestre classOptions={classOptions} />
       <Modal open={showAgendaModal} onClose={() => setShowAgendaModal(false)}>
         <div className="w-full max-w-3xl p-6">
           <div className="mb-4 flex items-center justify-between">
@@ -638,14 +651,7 @@ function DashboardProfessor(){
             {eventsByDay.length ? (
               eventsByDay.map((group) => (
                 <div key={group.iso} className="rounded-2xl border border-slate-100 p-4">
-                  <div className="flex items-baseline gap-3">
-                    <p className="text-base font-semibold text-slate-900">
-                      {DATE_BADGE_FORMATTER.format(group.date)}
-                    </p>
-                    <span className="text-xs uppercase tracking-wide text-slate-500">
-                      {LONG_DATE_FORMATTER.format(group.date)}
-                    </span>
-                  </div>
+                  <p className="text-sm font-semibold text-slate-900">{formatAgendaHeader(group.date)}</p>
                   <ul className="mt-3 space-y-2">
                     {group.items.map((event) => (
                       <li key={event.id} className="flex items-start gap-3 rounded-xl bg-slate-50 p-3">
@@ -671,7 +677,15 @@ function DashboardProfessor(){
 
       <SendEmailModal isOpen={showEmail} onClose={() => setShowEmail(false)} />
       <QuickContentModal open={contentOpen} onClose={() => setContentOpen(false)} onSaved={reloadContents} />
-      <AnnouncementModal open={announcementOpen} onClose={() => setAnnouncementOpen(false)} onSaved={reloadAnnouncements} />
+      <AnnouncementModal
+        open={announcementOpen}
+        onClose={() => {
+          setAnnouncementOpen(false)
+          setAnnouncementDraft(null)
+        }}
+        onSaved={reloadAnnouncements}
+        initialAnnouncement={announcementDraft}
+      />
 
       {/*
       <AgendaWeekWidget

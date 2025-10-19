@@ -41,4 +41,46 @@ html, body, #root { height: 100%; background: #F2F4F7; }
   .page-safe {
     @apply px-4 md:px-6 lg:px-10;
   }
+  .hero-compact {
+    @apply px-6 py-5 md:px-8 md:py-6;
+  }
+  .cta-row {
+    @apply flex flex-wrap items-center justify-center gap-3 md:gap-4;
+  }
+  .mini-stat-card {
+    @apply rounded-2xl bg-white/15 px-4 py-3 text-left shadow-sm text-white;
+  }
+  .mini-stat-label {
+    @apply text-xs uppercase tracking-wide text-white/70;
+  }
+  .mini-stat-value {
+    @apply text-xl font-semibold leading-tight text-white;
+  }
+  .modal-body-scroll {
+    @apply overflow-y-auto pr-1;
+  }
+  .rich-content {
+    @apply text-sm leading-relaxed text-slate-700;
+  }
+  .rich-content a {
+    @apply text-orange-600 underline-offset-4 hover:underline;
+  }
+  .rich-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    display: block;
+    margin: 8px 0;
+  }
+  .card-scroll {
+    @apply overflow-y-auto pr-2;
+    max-height: 16rem;
+  }
 }
+
+.ql-align-center { text-align: center; }
+.ql-align-right { text-align: right; }
+.ql-size-small { font-size: 0.875rem; }
+.ql-size-large { font-size: 1.25rem; }
+.ql-size-huge { font-size: 1.5rem; }
+.ql-font-monospace { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }

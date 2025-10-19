@@ -72,8 +72,7 @@ export default function DivisaoNotasModal({
   const [year, setYear] = useState<number>(defaultYear);
   const [bimester, setBimester] = useState<number>(1);
   const [items, setItems] = useState<ItemForm[]>([createEmptyItem(0)]);
-  const [showToStudents, setShowToStudents] = useState(false);
-  const [markAsVisible, setMarkAsVisible] = useState(false);
+  const [visibleBimester, setVisibleBimester] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [schemesCache, setSchemesCache] = useState<Record<string, GradeScheme[]>>({});
@@ -84,6 +83,8 @@ export default function DivisaoNotasModal({
     () => items.reduce((sum, item) => sum + (Number.isFinite(item.points) ? Number(item.points) : 0), 0),
     [items]
   );
+
+  const totalIsValid = Math.abs(totalPoints - MAX_TOTAL_POINTS) < 0.001;
 
   const loadSchemes = useCallback(async () => {
     if (!classId) return;
@@ -107,11 +108,30 @@ export default function DivisaoNotasModal({
   }, [open, classId, classOptions]);
 
   useEffect(() => {
+    setVisibleBimester(null);
+  }, [classId, year]);
+
+  useEffect(() => {
     if (!open || !classId) return;
     if (!schemesCache[cacheKey]) {
       void loadSchemes();
     }
   }, [open, classId, cacheKey, loadSchemes, schemesCache]);
+
+  useEffect(() => {
+    if (!open) return;
+    const schemes = schemesCache[cacheKey] ?? [];
+    const active = schemes.find((scheme) => scheme.showToStudents)?.bimester ?? null;
+    setVisibleBimester((current) => {
+      if (typeof current === 'number' && current >= 1 && current <= 4) {
+        return current;
+      }
+      if (active !== null) {
+        return active;
+      }
+      return schemes[0]?.bimester ?? 1;
+    });
+  }, [open, cacheKey, schemesCache]);
 
   useEffect(() => {
     if (!open) return;
@@ -122,12 +142,8 @@ export default function DivisaoNotasModal({
         ? current.items.map((item, index) => toItemForm(item, index)).sort((a, b) => a.order - b.order)
         : [createEmptyItem(0)];
       setItems(formItems);
-      setShowToStudents(Boolean(current.showToStudents));
-      setMarkAsVisible(Boolean(current.showToStudents));
     } else {
       setItems([createEmptyItem(0)]);
-      setShowToStudents(false);
-      setMarkAsVisible(false);
     }
   }, [open, bimester, cacheKey, schemesCache]);
 
@@ -164,15 +180,13 @@ export default function DivisaoNotasModal({
     setItems((prev) => prev.map((item) => (item.uid === uid ? { ...item, ...patch } : item)));
   };
 
-  const pointsExceeded = totalPoints > MAX_TOTAL_POINTS + 0.001;
-
   const handleSave = async () => {
     if (!classId) {
       toast.error('Selecione uma turma.');
       return;
     }
-    if (pointsExceeded) {
-      toast.error('Distribua no máximo 10 pontos.');
+    if (!totalIsValid) {
+      toast.error('A soma dos pontos deve ser exatamente 10.');
       return;
     }
 
@@ -192,16 +206,20 @@ export default function DivisaoNotasModal({
 
     setSaving(true);
     try {
+      const currentSchemes = schemesCache[cacheKey] ?? [];
+      const currentVisible = currentSchemes.find((scheme) => scheme.showToStudents)?.bimester ?? null;
+      const desiredVisible = visibleBimester ?? currentVisible ?? bimester;
+
       const scheme = await upsertScheme({
         classId,
         year,
         bimester,
         items: sanitizedItems,
-        showToStudents,
+        showToStudents: desiredVisible === bimester,
       });
 
-      if (markAsVisible) {
-        await setVisibleScheme({ classId, year, bimester });
+      if (desiredVisible !== currentVisible) {
+        await setVisibleScheme({ classId, year, bimester: desiredVisible });
       }
 
       setSchemesCache((prev) => {
@@ -213,16 +231,21 @@ export default function DivisaoNotasModal({
           bimester,
           items: sanitizedItems,
           totalPoints: sanitizedItems.reduce((sum, item) => sum + item.points, 0),
-          showToStudents: markAsVisible,
+          showToStudents: desiredVisible === bimester,
           createdAt: null,
           updatedAt: null,
         };
         const withoutCurrent = existing.filter((entry) => entry.bimester !== bimester);
         return {
           ...prev,
-          [cacheKey]: [...withoutCurrent, { ...updatedScheme, showToStudents: markAsVisible }],
+          [cacheKey]: [...withoutCurrent, updatedScheme].map((entry) => ({
+            ...entry,
+            showToStudents: entry.bimester === desiredVisible,
+          })),
         };
       });
+
+      setVisibleBimester(desiredVisible);
 
       toast.success('Divisão de notas salva.');
       onSaved?.();
@@ -386,46 +409,38 @@ export default function DivisaoNotasModal({
           )}
         </div>
 
+        <div className="mt-4">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Bimestre em exibição</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {[1, 2, 3, 4].map((option) => (
+              <button
+                key={`visible-${option}`}
+                type="button"
+                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                  visibleBimester === option ? 'bg-orange-500 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+                onClick={() => setVisibleBimester(option)}
+              >
+                {option}º
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm font-medium text-slate-600">
-            Total: <span className={pointsExceeded ? 'text-red-600' : 'text-slate-900'}>{totalPoints.toFixed(1)}</span> / {MAX_TOTAL_POINTS}
+            Total: <span className={totalIsValid ? 'text-slate-900' : 'text-red-600'}>{totalPoints.toFixed(1)}</span> / {MAX_TOTAL_POINTS}
           </div>
           <Button type="button" variant="outline" onClick={handleAddItem}>
             Adicionar item
           </Button>
         </div>
 
-        <div className="mt-6 space-y-3">
-          <label className="flex items-center gap-2 text-sm text-slate-600">
-            <input
-              type="checkbox"
-              checked={markAsVisible}
-              onChange={(event) => {
-                setMarkAsVisible(event.target.checked);
-                if (event.target.checked) {
-                  setShowToStudents(true);
-                }
-              }}
-            />
-            Definir este bimestre como visível para alunos
-          </label>
-          {!markAsVisible ? (
-            <label className="flex items-center gap-2 text-sm text-slate-600">
-              <input
-                type="checkbox"
-                checked={showToStudents}
-                onChange={(event) => setShowToStudents(event.target.checked)}
-              />
-              Permitir que alunos visualizem esta divisão
-            </label>
-          ) : null}
-        </div>
-
         <div className="mt-6 flex justify-end gap-3">
           <Button type="button" variant="ghost" onClick={handleClose} disabled={saving}>
             Cancelar
           </Button>
-          <Button type="button" onClick={handleSave} disabled={saving}>
+          <Button type="button" onClick={handleSave} disabled={saving || !totalIsValid}>
             {saving ? 'Salvando…' : 'Salvar'}
           </Button>
         </div>

@@ -1,17 +1,63 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent, type KeyboardEvent } from 'react';
 import DOMPurify from 'dompurify';
+import { toast } from 'react-toastify';
 import DashboardCard from '@/components/dashboard/DashboardCard';
 import { Button } from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
-import { listAnnouncements, normalizeAnnouncement } from '@/services/announcements';
+import {
+  deleteAnnouncement,
+  listAnnouncements,
+  normalizeAnnouncement,
+  type normalizeAnnouncement as NormalizeAnnouncementFn,
+} from '@/services/announcements';
 
 type Announcement = NonNullable<ReturnType<typeof normalizeAnnouncement>>;
 
 type Attachment = NonNullable<Announcement['attachments']>[number];
 
+const SANITIZE_CONFIG = {
+  ALLOWED_TAGS: [
+    'p',
+    'br',
+    'strong',
+    'b',
+    'em',
+    'i',
+    'u',
+    'mark',
+    'span',
+    'a',
+    'ul',
+    'ol',
+    'li',
+    'h1',
+    'h2',
+    'h3',
+    'h4',
+    'h5',
+    'h6',
+    'blockquote',
+    'img',
+    'div',
+  ],
+  ALLOWED_ATTR: ['style', 'class', 'href', 'target', 'rel', 'src', 'width', 'height', 'alt'],
+};
+
+let purifyConfigured = false;
+if (typeof window !== 'undefined' && !purifyConfigured) {
+  purifyConfigured = true;
+  DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+    if (node.tagName && node.tagName.toLowerCase() === 'a') {
+      node.setAttribute('target', '_blank');
+      node.setAttribute('rel', 'noopener noreferrer');
+    }
+  });
+}
+
 type AvisosCardProps = {
   className?: string;
   limit?: number;
+  onEdit?: (announcement: Announcement) => void;
 };
 
 const SLIDE_INTERVAL = 10000;
@@ -46,7 +92,10 @@ function computeFallbackHtml(message: string): string {
 }
 
 function sanitizeHtml(html: string): string {
-  return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+  return DOMPurify.sanitize(html, {
+    ...SANITIZE_CONFIG,
+    USE_PROFILES: { html: true },
+  });
 }
 
 function formatDateTime(iso: string | null | undefined): string {
@@ -84,17 +133,31 @@ export default function AvisosCard({ className = '', limit = 5 }: AvisosCardProp
   const [modalItems, setModalItems] = useState<Announcement[]>([]);
   const [modalHasMore, setModalHasMore] = useState(false);
   const [modalTotal, setModalTotal] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [processingIds, setProcessingIds] = useState<Set<string>>(() => new Set());
 
   const resetInterval = useCallback(() => {
     if (intervalRef.current !== undefined) {
       window.clearInterval(intervalRef.current);
+      intervalRef.current = undefined;
     }
     if (announcements.length > 1) {
       intervalRef.current = window.setInterval(() => {
         setActiveIndex((prev) => (prev + 1) % announcements.length);
       }, SLIDE_INTERVAL);
+      setIsPaused(false);
+    } else {
+      setIsPaused(true);
     }
   }, [announcements.length]);
+
+  const pauseCarousel = useCallback(() => {
+    if (intervalRef.current !== undefined) {
+      window.clearInterval(intervalRef.current);
+      intervalRef.current = undefined;
+    }
+    setIsPaused(true);
+  }, []);
 
   const fetchAnnouncements = useCallback(async () => {
     setLoading(true);
@@ -133,14 +196,13 @@ export default function AvisosCard({ className = '', limit = 5 }: AvisosCardProp
   useEffect(() => {
     resetInterval();
     return () => {
-      if (intervalRef.current !== undefined) {
-        window.clearInterval(intervalRef.current);
-      }
+      pauseCarousel();
     };
-  }, [resetInterval]);
+  }, [resetInterval, pauseCarousel]);
 
   const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
     if (event.touches.length > 0) {
+      pauseCarousel();
       touchStartRef.current = event.touches[0].clientX;
     }
   };
@@ -203,6 +265,94 @@ export default function AvisosCard({ className = '', limit = 5 }: AvisosCardProp
     void loadModalPage(modalPage);
   }, [modalOpen, modalPage, loadModalPage]);
 
+  const setProcessingFlag = useCallback((id: string, active: boolean) => {
+    setProcessingIds((prev) => {
+      const next = new Set(prev);
+      if (active) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleEdit = useCallback(
+    (announcement: Announcement) => {
+      pauseCarousel();
+      closeModal();
+      onEdit?.(announcement);
+    },
+    [pauseCarousel, closeModal, onEdit]
+  );
+
+  const handleDelete = useCallback(
+    async (announcement: Announcement) => {
+      if (!announcement?.id) return;
+      const confirmed = typeof window === 'undefined' ? true : window.confirm('Remover este aviso?');
+      if (!confirmed) return;
+      setProcessingFlag(announcement.id, true);
+      try {
+        await deleteAnnouncement(announcement.id);
+        toast.success('Aviso removido');
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('announcements:refresh'));
+        }
+        await fetchAnnouncements();
+        const remaining = modalItems.filter((item) => item.id !== announcement.id).length;
+        setModalItems((prev) => prev.filter((item) => item.id !== announcement.id));
+        if (remaining === 0 && modalPage > 1) {
+          setModalPage((prev) => Math.max(1, prev - 1));
+        }
+      } catch (err) {
+        console.error('[AvisosCard] Falha ao remover aviso', err);
+        toast.error('Não foi possível remover este aviso.');
+      } finally {
+        setProcessingFlag(announcement.id, false);
+        resetInterval();
+      }
+    },
+    [fetchAnnouncements, modalItems, modalPage, resetInterval, setProcessingFlag]
+  );
+
+  const handleNext = useCallback(() => {
+    if (!announcements.length) return;
+    pauseCarousel();
+    setActiveIndex((prev) => (prev + 1) % announcements.length);
+    resetInterval();
+  }, [announcements.length, pauseCarousel, resetInterval]);
+
+  const handlePrev = useCallback(() => {
+    if (!announcements.length) return;
+    pauseCarousel();
+    setActiveIndex((prev) => (prev - 1 + announcements.length) % announcements.length);
+    resetInterval();
+  }, [announcements.length, pauseCarousel, resetInterval]);
+
+  const togglePause = useCallback(() => {
+    if (isPaused) {
+      resetInterval();
+    } else {
+      pauseCarousel();
+    }
+  }, [isPaused, pauseCarousel, resetInterval]);
+
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === ' ' || event.key === 'Spacebar') {
+        event.preventDefault();
+        togglePause();
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        handleNext();
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        handlePrev();
+      }
+    },
+    [togglePause, handleNext, handlePrev]
+  );
+
   const handleModalNext = () => {
     if (modalHasMore) {
       setModalPage((current) => current + 1);
@@ -240,79 +390,131 @@ export default function AvisosCard({ className = '', limit = 5 }: AvisosCardProp
         ) : (
           <div
             className="flex h-full flex-col"
+            role="region"
+            aria-roledescription="carrossel"
+            aria-live="polite"
+            aria-label="Avisos recentes"
+            tabIndex={0}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
+            onMouseEnter={pauseCarousel}
+            onMouseLeave={resetInterval}
+            onFocus={pauseCarousel}
+            onBlur={resetInterval}
+            onKeyDown={handleKeyDown}
           >
-            <header className="space-y-2">
-              <p className="text-xs uppercase tracking-wide text-slate-500">
-                {formatDateTime(activeAnnouncement?.scheduleAt ?? activeAnnouncement?.createdAt) || 'Aviso'}
-              </p>
-              <h4 className="text-lg font-semibold text-slate-900">{activeAnnouncement?.subject}</h4>
-            </header>
-            <div
-              className="prose prose-sm mt-4 max-w-none flex-1 overflow-y-auto text-slate-700 [&>p]:mb-3 [&>p]:leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: announcementHtml }}
-            />
-            {activeAnnouncement?.attachments?.length ? (
-              <div className="mt-4 space-y-3">
-                {activeAnnouncement.attachments.map((attachment) => {
-                  if (!attachment || !attachment.url) return null;
-                  if (isImage(attachment)) {
-                    return (
-                      <div key={attachment.url} className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-                        <img
-                          src={attachment.url}
-                          alt={attachment.name ?? 'Imagem do aviso'}
-                          className="max-h-64 w-full object-contain"
-                          loading="lazy"
-                        />
-                      </div>
-                    );
-                  }
-                  if (isPdf(attachment)) {
+            <p className="sr-only" aria-live="polite">
+              {isPaused ? 'Carrossel pausado' : 'Carrossel em reprodução automática'}
+            </p>
+            <div id={activeAnnouncement ? `announcement-slide-${activeAnnouncement.id}` : undefined} className="flex flex-1 flex-col">
+              <header className="space-y-2">
+                <p className="text-xs uppercase tracking-wide text-slate-500">
+                  {formatDateTime(activeAnnouncement?.scheduleAt ?? activeAnnouncement?.createdAt) || 'Aviso'}
+                </p>
+                <h4 className="text-lg font-semibold text-slate-900">{activeAnnouncement?.subject}</h4>
+              </header>
+              <div
+                className="rich-content prose prose-sm mt-4 max-w-none flex-1 overflow-y-auto text-slate-700"
+                dangerouslySetInnerHTML={{ __html: announcementHtml }}
+              />
+              {activeAnnouncement?.attachments?.length ? (
+                <div className="mt-4 space-y-3">
+                  {activeAnnouncement.attachments.map((attachment) => {
+                    if (!attachment || !attachment.url) return null;
+                    if (isImage(attachment)) {
+                      return (
+                        <div key={attachment.url} className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                          <img
+                            src={attachment.url}
+                            alt={attachment.name ?? 'Imagem do aviso'}
+                            className="max-h-64 w-full object-contain"
+                            loading="lazy"
+                          />
+                        </div>
+                      );
+                    }
+                    if (isPdf(attachment)) {
+                      return (
+                        <a
+                          key={attachment.url}
+                          href={attachment.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+                        >
+                          📄 {attachment.name || 'Ver PDF'}
+                        </a>
+                      );
+                    }
                     return (
                       <a
                         key={attachment.url}
                         href={attachment.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+                        className="text-sm text-orange-600 underline"
                       >
-                        📄 {attachment.name || 'Ver PDF'}
+                        {attachment.name || 'Ver anexo'}
                       </a>
                     );
-                  }
-                  return (
-                    <a
-                      key={attachment.url}
-                      href={attachment.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sm text-orange-600 underline"
-                    >
-                      {attachment.name || 'Ver anexo'}
-                    </a>
-                  );
-                })}
-              </div>
-            ) : null}
-
+                  })}
+                </div>
+              ) : null}
+            </div>
             {announcements.length > 1 ? (
-              <div className="mt-6 flex items-center justify-center gap-2">
-                {announcements.map((item, index) => (
-                  <button
-                    key={item.id}
+              <div className="mt-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex items-center gap-2">
+                  <Button
                     type="button"
-                    aria-label={`Ir para aviso ${index + 1}`}
-                    onClick={() => {
-                      setActiveIndex(index);
-                      resetInterval();
-                    }}
-                    className={`h-2.5 rounded-full transition ${
-                      index === activeIndex ? 'w-6 bg-orange-500' : 'w-2 bg-slate-300 hover:bg-slate-400'
-                    }`}
-                  />
-                ))}
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600 hover:bg-slate-100"
+                    onClick={handlePrev}
+                    aria-label="Mostrar aviso anterior"
+                  >
+                    Anterior
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    aria-pressed={isPaused}
+                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600 hover:bg-slate-100"
+                    onClick={togglePause}
+                    aria-label={isPaused ? 'Retomar carrossel' : 'Pausar carrossel'}
+                  >
+                    {isPaused ? 'Retomar' : 'Pausar'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600 hover:bg-slate-100"
+                    onClick={handleNext}
+                    aria-label="Mostrar próximo aviso"
+                  >
+                    Próximo
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2" role="tablist" aria-label="Selecionar aviso">
+                  {announcements.map((item, index) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={index === activeIndex}
+                      aria-controls={`announcement-slide-${item.id}`}
+                      aria-label={`Ir para aviso ${index + 1}`}
+                      onClick={() => {
+                        setActiveIndex(index);
+                        resetInterval();
+                      }}
+                      className={`h-2.5 rounded-full transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 ${
+                        index === activeIndex ? 'w-6 bg-orange-500' : 'w-2 bg-slate-300 hover:bg-slate-400'
+                      }`}
+                    />
+                  ))}
+                </div>
               </div>
             ) : null}
           </div>
@@ -353,7 +555,7 @@ export default function AvisosCard({ className = '', limit = 5 }: AvisosCardProp
                       <h3 className="text-lg font-semibold text-slate-900">{announcement.subject}</h3>
                     </header>
                     <div
-                      className="prose prose-sm max-w-none text-slate-700 [&>p]:mb-3 [&>p]:leading-relaxed"
+                      className="rich-content prose prose-sm max-w-none text-slate-700"
                       dangerouslySetInnerHTML={{ __html: html }}
                     />
                     {announcement.attachments?.length ? (
@@ -387,6 +589,19 @@ export default function AvisosCard({ className = '', limit = 5 }: AvisosCardProp
                         })}
                       </div>
                     ) : null}
+                    <div className="mt-4 flex flex-wrap justify-end gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => handleEdit(announcement)}>
+                        Editar
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(announcement)}
+                        disabled={processingIds.has(announcement.id)}
+                      >
+                        {processingIds.has(announcement.id) ? 'Removendo…' : 'Excluir'}
+                      </Button>
+                    </div>
                   </article>
                 );
               })}

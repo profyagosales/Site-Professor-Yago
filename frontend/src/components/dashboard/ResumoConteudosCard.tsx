@@ -303,7 +303,7 @@ export default function ResumoConteudosCard({
       return <p className="text-sm text-slate-500">Nenhuma atividade cadastrada recentemente.</p>;
     }
     return (
-      <ul className="space-y-3 overflow-y-auto pr-1">
+      <ul className="space-y-3">
         {displayedItems.map((item) => (
           <li key={item.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between gap-3">
@@ -315,7 +315,9 @@ export default function ResumoConteudosCard({
                 {item.tipo}
               </span>
             </div>
-            <p className="mt-2 text-sm text-slate-600">{formatDate(item.data)}</p>
+            <p className="mt-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+              {formatDate(item.data)}
+            </p>
           </li>
         ))}
       </ul>
@@ -329,7 +331,7 @@ export default function ResumoConteudosCard({
           <h3 className="card-title text-slate-900">Próximas Atividades</h3>
         </div>
       )}
-      <div className="flex-1 overflow-y-auto">{content()}</div>
+      <div className="card-scroll flex-1">{content()}</div>
       {hasMore && (
         <div className="mt-4 flex justify-end">
           <Button variant="link" onClick={openModal}>

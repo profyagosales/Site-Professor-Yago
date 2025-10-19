@@ -8,19 +8,23 @@ import {
   Tooltip,
   Bar,
   Line,
+  PieChart,
+  Pie,
+  Cell,
 } from 'recharts';
 import { getGradesSummary, type GradeSummaryPoint } from '@/services/gradesSummary';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: 5 }, (_, index) => CURRENT_YEAR - index);
 const BIMESTERS: Array<1 | 2 | 3 | 4> = [1, 2, 3, 4];
+const PIE_COLORS = ['#fb923c', '#f97316', '#facc15', '#22c55e'];
 
 type ChartDatum = {
-  bim: number;
+  bimester: number;
   label: string;
   avg: number;
   median: number;
-  n: number;
+  count: number;
 };
 
 function computeMedian(values: number[]): number {
@@ -49,12 +53,6 @@ export default function MediaGeralBimestre({ classOptions = [] }: MediaGeralBime
   const [stats, setStats] = useState<GradeSummaryPoint[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!selectedClassId && classOptions.length) {
-      setSelectedClassId(classOptions[0].id);
-    }
-  }, [classOptions, selectedClassId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -108,6 +106,15 @@ export default function MediaGeralBimestre({ classOptions = [] }: MediaGeralBime
       }));
   }, [stats]);
 
+  const { pieData, totalCount } = useMemo(() => {
+    const total = chartData.reduce((sum, item) => sum + (Number.isFinite(item.count) ? item.count : 0), 0);
+    const data = chartData.map((item) => ({
+      name: item.label,
+      value: Number.isFinite(item.count) ? item.count : 0,
+    }));
+    return { pieData: data, totalCount: total };
+  }, [chartData]);
+
   const kpis = useMemo(() => {
     const averages = stats.map((entry) => entry.avg).filter((value) => Number.isFinite(value));
     const medians = stats.map((entry) => entry.median).filter((value) => Number.isFinite(value));
@@ -140,7 +147,7 @@ export default function MediaGeralBimestre({ classOptions = [] }: MediaGeralBime
   return (
     <div className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <h3 className="card-title text-slate-900">Média geral por bimestre</h3>
+        <h3 className="card-title text-slate-900">Médias</h3>
         <div className="flex flex-wrap items-center gap-3">
           <label className="text-sm text-slate-600">
             Ano
@@ -189,9 +196,9 @@ export default function MediaGeralBimestre({ classOptions = [] }: MediaGeralBime
       </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
-        <Kpi label="Média geral" value={kpis.media} />
-        <Kpi label="Mediana" value={kpis.mediana} />
-        <Kpi label="Avaliações consideradas" value={kpis.totalStudents} decimals={0} />
+        <Kpi label="Média geral" value={kpis.media} icon="📊" />
+        <Kpi label="Mediana" value={kpis.mediana} icon="📈" />
+        <Kpi label="Avaliações consideradas" value={kpis.totalStudents} decimals={0} icon="👥" />
       </div>
 
       <div className="mt-6 h-72 w-full">
@@ -228,15 +235,71 @@ export default function MediaGeralBimestre({ classOptions = [] }: MediaGeralBime
           </ResponsiveContainer>
         )}
       </div>
+
+      {!loading && !error && chartData.length > 0 && (
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Tooltip formatter={(value: number) => [`${value}`, 'Quantidade']} />
+              <Pie
+                data={pieData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                innerRadius={50}
+                outerRadius={80}
+                paddingAngle={4}
+              >
+                {pieData.map((entry, index) => (
+                  <Cell key={`pie-${entry.name}-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                ))}
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="flex flex-col justify-center gap-2 text-sm text-slate-600">
+            {totalCount > 0 ? (
+              pieData.map((item, index) => (
+                <div key={`pie-legend-${item.name}-${index}`} className="flex items-center gap-3">
+                  <span
+                    className="h-3 w-3 rounded-full"
+                    style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}
+                  />
+                  <span className="font-medium text-slate-800">{item.name}</span>
+                  <span className="text-xs text-slate-500">
+                    {item.value} avaliações
+                    {totalCount ? ` (${((item.value / totalCount) * 100).toFixed(1)}%)` : ''}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-slate-500">Nenhuma avaliação contabilizada no período.</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function Kpi({ label, value, decimals = 1 }: { label: string; value: number; decimals?: number }) {
+function Kpi({
+  label,
+  value,
+  decimals = 1,
+  icon,
+}: {
+  label: string;
+  value: number;
+  decimals?: number;
+  icon?: string;
+}) {
   const display = Number.isFinite(value) ? value.toFixed(decimals) : '—';
   return (
-    <div className="rounded-xl border border-slate-100 px-4 py-3">
-      <p className="text-xs uppercase tracking-wide text-slate-500">{label}</p>
+    <div className="rounded-xl border border-slate-100 px-4 py-3 shadow-sm">
+      <p className="flex items-center gap-2 text-xs uppercase tracking-wide text-slate-500">
+        {icon ? <span className="text-base leading-none">{icon}</span> : null}
+        <span>{label}</span>
+      </p>
       <p className="mt-1 text-2xl font-semibold text-slate-800">{display}</p>
     </div>
   );

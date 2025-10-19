@@ -258,11 +258,94 @@ export async function createAnnouncement({
   };
 }
 
+export async function updateAnnouncement(
+  id,
+  {
+    type = 'class',
+    value = [],
+    subject,
+    html,
+    message,
+    scheduleAt,
+    bccTeachers = false,
+    attachments = [],
+    keepAttachments = [],
+  } = {}
+) {
+  if (!id) {
+    throw new Error('ID do aviso é obrigatório para atualização.');
+  }
+
+  const formData = new FormData();
+  const normalizedType = type === 'email' ? 'email' : 'class';
+  formData.append('type', normalizedType);
+
+  toArray(value)
+    .map((entry) => (entry != null ? String(entry).trim() : ''))
+    .filter(Boolean)
+    .forEach((entry) => {
+      formData.append('value[]', entry);
+    });
+
+  if (typeof subject === 'string') {
+    formData.append('subject', subject.trim());
+  }
+  if (typeof html === 'string') {
+    formData.append('html', html);
+  }
+  if (typeof message === 'string' && message.trim()) {
+    formData.append('message', message.trim());
+  }
+  if (scheduleAt) {
+    formData.append('scheduleAt', scheduleAt);
+  }
+  if (bccTeachers) {
+    formData.append('bccTeachers', 'true');
+  }
+
+  toArray(keepAttachments)
+    .map((entry) => (entry != null ? String(entry).trim() : ''))
+    .filter(Boolean)
+    .forEach((entry) => {
+      formData.append('keepAttachments[]', entry);
+    });
+
+  toArray(attachments).forEach((file) => {
+    if (file instanceof File || (typeof Blob !== 'undefined' && file instanceof Blob)) {
+      formData.append('files', file);
+    }
+  });
+
+  const response = await api.put(`/announcements/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    meta: { noCache: true },
+  });
+
+  const base = response?.data ?? {};
+  const payload = base?.data ?? base;
+
+  return {
+    announcement: normalizeAnnouncement(payload),
+    mail: base?.mail ?? null,
+    raw: base,
+  };
+}
+
+export async function deleteAnnouncement(id) {
+  if (!id) {
+    throw new Error('ID do aviso é obrigatório para exclusão.');
+  }
+  await api.delete(`/announcements/${id}`, { meta: { noCache: true } });
+  return true;
+}
+
 export default {
   listAnnouncements,
   listAnnouncementsForStudent,
   getClassAnnouncements,
   createAnnouncement,
+  updateAnnouncement,
+  deleteAnnouncement,
   normalizeAnnouncement,
   uploadAnnouncementImage,
 };
