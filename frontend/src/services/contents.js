@@ -115,15 +115,37 @@ function normalizeContent(raw) {
 
 function parseListResponse(response) {
   const raw = response?.data ?? response ?? {};
-  const data = Array.isArray(raw?.data) ? raw.data : Array.isArray(raw) ? raw : [];
-  const items = data.map((entry) => normalizeContent(entry)).filter(Boolean);
-  const meta = raw?.meta || {};
+  const payload = raw?.data ?? raw;
+  const source = Array.isArray(payload?.items)
+    ? payload.items
+    : Array.isArray(payload)
+      ? payload
+      : Array.isArray(raw?.data)
+        ? raw.data
+        : [];
+  const items = source.map((entry) => normalizeContent(entry)).filter(Boolean);
+  const total = Number.isFinite(payload?.total) ? Number(payload.total) : items.length;
+  const limit = Number.isFinite(payload?.limit) ? Number(payload.limit) : items.length || 1;
+  const offset = Number.isFinite(payload?.offset)
+    ? Number(payload.offset)
+    : Number.isFinite(payload?.page)
+      ? (Number(payload.page) - 1) * limit
+      : 0;
+  const page = Number.isFinite(payload?.page)
+    ? Number(payload.page)
+    : Math.floor(offset / (limit || 1)) + 1;
+  const hasMore =
+    typeof payload?.hasMore === 'boolean'
+      ? payload.hasMore
+      : offset + items.length < total;
 
   return {
     items,
-    total: Number.isFinite(meta.total) ? Number(meta.total) : items.length,
-    limit: Number.isFinite(meta.limit) ? Number(meta.limit) : items.length,
-    offset: Number.isFinite(meta.offset) ? Number(meta.offset) : 0,
+    total,
+    limit,
+    offset,
+    page,
+    hasMore,
   };
 }
 
@@ -178,16 +200,12 @@ export async function quickCreateContent(payload) {
 }
 
 export async function updateContent(id, payload) {
-  const response = await api.put(
+  await api.put(
     `/contents/${id}`,
     serializeContentPayload(payload),
     { meta: { noCache: true } },
   );
-  const normalized = normalizeContent(pickData(response));
-  if (!normalized) {
-    return pickData(response);
-  }
-  return normalized;
+  return true;
 }
 
 export async function deleteContent(id) {

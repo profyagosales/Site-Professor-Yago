@@ -73,6 +73,13 @@ function formatIso(value: unknown): string {
   return new Date().toISOString();
 }
 
+export function joinApi(base: string, path: string) {
+  const cleanedBase = typeof base === 'string' ? base.trim() : '';
+  const cleanedPath = typeof path === 'string' ? path.replace(/^\/+/, '') : '';
+  const normalizedBase = cleanedBase.endsWith('/') ? cleanedBase : `${cleanedBase}/`;
+  return new URL(cleanedPath, normalizedBase).toString();
+}
+
 function toStudentEssaySummary(raw: any): StudentEssaySummary {
   const themeName =
     typeof raw?.customTheme === 'string' && raw.customTheme.trim()
@@ -205,10 +212,37 @@ export function normalizeApiOrigin(origin?: string): string {
   return base;
 }
 
-export function buildEssayFileUrl(essayId: string, token: string, origin?: string): string {
-  const u = new URL(`/essays/${essayId}/pdf`, normalizeApiOrigin(origin));
-  u.searchParams.set('file-token', token);
-  return u.toString();
+function resolveApiBase(explicit?: string) {
+  const fallbackOrigin =
+    typeof window !== 'undefined'
+      ? window.location.origin
+      : 'http://localhost';
+
+  const candidate =
+    (typeof explicit === 'string' && explicit.trim()) ||
+    (typeof api?.defaults?.baseURL === 'string' && api.defaults.baseURL) ||
+    '';
+
+  if (!candidate) {
+    return `${fallbackOrigin.replace(/\/+$/, '')}/api`;
+  }
+
+  if (/^https?:\/\//i.test(candidate)) {
+    return candidate;
+  }
+
+  const prefixed = candidate.startsWith('/') ? candidate : `/${candidate}`;
+  return `${fallbackOrigin.replace(/\/+$/, '')}${prefixed}`;
+}
+
+export function buildEssayPdfUrl(
+  essayId: string,
+  token: string,
+  options?: { baseUrl?: string }
+): string {
+  const base = resolveApiBase(options?.baseUrl);
+  const query = `essays/${essayId}/pdf?file-token=${encodeURIComponent(token)}`;
+  return joinApi(base, query);
 }
 
 /** -------- short token + PDF helpers -------- */
@@ -226,14 +260,15 @@ export async function prepareEssayFileToken(
   options?: { signal?: AbortSignal; apiOrigin?: string }
 ) {
   const token = await getFileToken(essayId, { signal: options?.signal });
-  return buildEssayFileUrl(essayId, token, options?.apiOrigin);
+  return buildEssayPdfUrl(essayId, token, { baseUrl: options?.apiOrigin });
 }
 
 export async function fetchEssayPdfUrl(
   essayId: string,
   options?: { signal?: AbortSignal; apiOrigin?: string }
 ): Promise<string> {
-  return prepareEssayFileToken(essayId, options);
+  const token = await getFileToken(essayId, { signal: options?.signal });
+  return buildEssayPdfUrl(essayId, token, { baseUrl: options?.apiOrigin });
 }
 
 /** -------- essays CRUD/list -------- */
@@ -532,7 +567,7 @@ export async function peekEssayFile(
   essayId: EssayId,
   options: { token: string; signal?: AbortSignal }
 ): Promise<{ url: string; contentType?: string; contentLength?: number }> {
-  const url = buildEssayFileUrl(essayId, options.token);
+  const url = buildEssayPdfUrl(essayId, options.token);
   const res = await api.head(`/essays/${essayId}/file`, {
     params: { 'file-token': options.token },
     signal: options.signal,

@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const Grade = require('../models/Grade');
 const Evaluation = require('../models/Evaluation');
 const Student = require('../models/Student');
@@ -39,8 +40,26 @@ function toMedian(values) {
 router.get('/summary', ensureTeacher, async (req, res, next) => {
   try {
     const currentYear = new Date().getFullYear();
-    const requestedYear = Number(req.query.year) || currentYear;
-    const bimesters = parseBimestersParam(req.query.b);
+    const requestedYear = Number.parseInt(req.query.year, 10) || currentYear;
+    const rawBimestersParam =
+      req.query.b ?? req.query.bimesters ?? req.query.bimester ?? req.query.bimestre;
+    const bimesters = parseBimestersParam(rawBimestersParam);
+
+    let classObjectId = null;
+    const rawClassId = Array.isArray(req.query.classId)
+      ? req.query.classId[0]
+      : typeof req.query.classId === 'string'
+        ? req.query.classId.trim()
+        : null;
+
+    if (rawClassId) {
+      if (!mongoose.Types.ObjectId.isValid(rawClassId)) {
+        const error = new Error('classId inválido.');
+        error.status = 400;
+        throw error;
+      }
+      classObjectId = new mongoose.Types.ObjectId(rawClassId);
+    }
 
     const pipeline = [
       {
@@ -66,6 +85,39 @@ router.get('/summary', ensureTeacher, async (req, res, next) => {
           bimester: { $in: bimesters },
         },
       },
+    ];
+
+    if (classObjectId) {
+      pipeline.push(
+        {
+          $lookup: {
+            from: 'students',
+            localField: 'student',
+            foreignField: '_id',
+            as: 'studentDoc',
+          },
+        },
+        {
+          $addFields: {
+            studentDoc: { $arrayElemAt: ['$studentDoc', 0] },
+            studentClassId: { $ifNull: ['$studentDoc.class', null] },
+          },
+        },
+        {
+          $match: {
+            studentClassId: classObjectId,
+          },
+        },
+        {
+          $project: {
+            studentDoc: 0,
+            studentClassId: 0,
+          },
+        }
+      );
+    }
+
+    pipeline.push(
       {
         $lookup: {
           from: 'evaluations',
@@ -141,8 +193,8 @@ router.get('/summary', ensureTeacher, async (req, res, next) => {
           avg: { $avg: '$scoreNumber' },
           count: { $sum: 1 },
         },
-      },
-    ];
+      }
+    );
 
     const aggregation = await Grade.aggregate(pipeline);
 
@@ -152,23 +204,36 @@ router.get('/summary', ensureTeacher, async (req, res, next) => {
       statsMap.set(entry._id, {
         avg: typeof entry.avg === 'number' ? Number(entry.avg.toFixed(2)) : 0,
         median: Number(toMedian(scores).toFixed(2)),
-        n: entry.count || 0,
+        count: entry.count || 0,
       });
     });
 
-    const stats = bimesters.map((bim) => {
-      const bucket = statsMap.get(bim);
+    const series = bimesters.map((bimester) => {
+      const bucket = statsMap.get(bimester);
       if (!bucket) {
-        return { bim, avg: 0, median: 0, n: 0 };
+        return { bimester, avg: 0, median: 0, count: 0 };
       }
-      return { bim, avg: bucket.avg, median: bucket.median, n: bucket.n };
+      return { bimester, avg: bucket.avg, median: bucket.median, count: bucket.count };
     });
+
+    const avgByBimester = {};
+    const medianByBimester = {};
+    const totalCount = series.reduce((acc, item) => {
+      avgByBimester[item.bimester] = item.avg;
+      medianByBimester[item.bimester] = item.median;
+      return acc + item.count;
+    }, 0);
 
     res.status(200).json({
       success: true,
-      year: requestedYear,
-      bimesters,
-      stats,
+      data: {
+        year: requestedYear,
+        bimesters,
+        series,
+        avgByBimester,
+        medianByBimester,
+        count: totalCount,
+      },
     });
   } catch (err) {
     if (!err.status) {

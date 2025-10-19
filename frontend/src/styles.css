@@ -32,4 +32,13 @@ html, body, #root { height: 100%; background: #F2F4F7; }
   .ys-card-subtitle {
     @apply text-sm text-muted-foreground;
   }
+  .btn-primary {
+    @apply bg-orange-500 text-white shadow-md hover:bg-orange-600 focus-visible:ring-2 focus-visible:ring-orange-300;
+  }
+  .card-title {
+    @apply text-lg font-semibold tracking-tight;
+  }
+  .page-safe {
+    @apply px-4 md:px-6 lg:px-10;
+  }
 }

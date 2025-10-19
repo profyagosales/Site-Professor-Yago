@@ -1,4 +1,7 @@
 const mongoose = require('mongoose');
+const { Readable } = require('stream');
+const { basename } = require('path');
+const cloudinary = require('cloudinary').v2;
 const Announcement = require('../models/Announcement');
 const Student = require('../models/Student');
 const Teacher = require('../models/Teacher');
@@ -57,6 +60,166 @@ function normalizeMessage(value) {
   return value.trim();
 }
 
+const ANNOUNCEMENT_UPLOAD_FOLDER =
+  (process.env.CLOUDINARY_ANNOUNCEMENTS_FOLDER && process.env.CLOUDINARY_ANNOUNCEMENTS_FOLDER.trim()) ||
+  'announcements';
+let cloudinaryConfigured = false;
+
+function ensureCloudinaryConfigured() {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+  if (!cloudName || !apiKey || !apiSecret) {
+    const error = new Error('Upload de anexos indisponível. Configure o Cloudinary antes de continuar.');
+    error.status = 400;
+    throw error;
+  }
+  if (!cloudinaryConfigured) {
+    cloudinary.config({
+      cloud_name: cloudName,
+      api_key: apiKey,
+      api_secret: apiSecret,
+    });
+    cloudinaryConfigured = true;
+  }
+}
+
+function bufferToStream(buffer) {
+  const stream = new Readable({
+    read() {
+      this.push(buffer);
+      this.push(null);
+    },
+  });
+  return stream;
+}
+
+async function uploadAnnouncementAttachments(files = [], teacherId) {
+  if (!files?.length) return [];
+  ensureCloudinaryConfigured();
+  const folderParts = [ANNOUNCEMENT_UPLOAD_FOLDER];
+  if (teacherId) {
+    folderParts.push(String(teacherId));
+  }
+  const folder = folderParts.join('/');
+  const uploads = files.map(
+    (file) =>
+      new Promise((resolve, reject) => {
+        const options = {
+          folder,
+          resource_type: 'auto',
+          use_filename: true,
+          unique_filename: true,
+          overwrite: false,
+        };
+        const stream = cloudinary.uploader.upload_stream(options, (err, result) => {
+          if (err) {
+            return reject(err);
+          }
+          if (!result?.secure_url) {
+            return reject(new Error('Falha ao salvar o anexo.'));
+          }
+          const mime = (file.mimetype || result.resource_type || '').toLowerCase() || null;
+          resolve({
+            url: result.secure_url,
+            publicId: result.public_id || null,
+            mime,
+            name: file.originalname || result.original_filename || basename(result.secure_url),
+            size: typeof result.bytes === 'number' ? result.bytes : file.size ?? null,
+          });
+        });
+        bufferToStream(file.buffer).pipe(stream);
+      })
+  );
+  return Promise.all(uploads);
+}
+
+function ensureStringArray(input) {
+  if (Array.isArray(input)) {
+    return input
+      .map((value) => {
+        if (typeof value === 'string') return value.trim();
+        if (value === undefined || value === null) return '';
+        return String(value).trim();
+      })
+      .filter(Boolean);
+  }
+  if (input === undefined || input === null) return [];
+  if (typeof input === 'string') {
+    const trimmed = input.trim();
+    if (!trimmed) return [];
+    if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        return ensureStringArray(parsed);
+      } catch {
+        // fallback to splitting by comma
+      }
+    }
+    if (trimmed.includes(',')) {
+      return trimmed
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
+    }
+    return [trimmed];
+  }
+  return [String(input).trim()].filter(Boolean);
+}
+
+function extractPlainTextFromHtml(html) {
+  if (!html || typeof html !== 'string') return '';
+  const normalized = html
+    .replace(/\r\n/g, '\n')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(div|p|li|h\d)>/gi, '\n')
+    .replace(/<\/?span[^>]*>/gi, ' ')
+    .replace(/&nbsp;/gi, ' ');
+
+  const withoutTags = normalized.replace(/<[^>]+>/g, ' ');
+
+  return withoutTags
+    .split('\n')
+    .map((line) => line.replace(/\s+/g, ' ').trim())
+    .filter((line) => line.length > 0)
+    .join('\n');
+}
+
+function collectTargetPayload(body) {
+  const candidates = [
+    body?.value,
+    body?.values,
+    body?.targets,
+    body?.targetValues,
+    body?.emails,
+    body?.classIds,
+    body?.ids,
+    body?.['value[]'],
+    body?.['values[]'],
+    body?.['targets[]'],
+    body?.['emails[]'],
+  ];
+
+  let chosen = candidates.find((candidate) => candidate !== undefined);
+  if (chosen === undefined && body?.target?.value !== undefined) {
+    chosen = body.target.value;
+  }
+
+  const value = ensureStringArray(chosen);
+  const type = body?.type === 'email' || body?.type === 'emails' ? 'email' : body?.target?.type === 'email' ? 'email' : 'class';
+
+  return { type, value };
+}
+
+function normalizeSubject(value) {
+  if (typeof value === 'string') return value.trim();
+  if (value === undefined || value === null) return '';
+  return String(value).trim();
+}
+
 function ensureTeacher(req) {
   const role = (req.user?.role || req.user?.profile || '').toString().toLowerCase();
   if (role !== 'teacher' && role !== 'admin') {
@@ -103,6 +266,32 @@ function sanitizeAnnouncement(doc) {
   return {
     id: String(json._id),
     message: json.message,
+    subject:
+      typeof json.subject === 'string' && json.subject.trim()
+        ? json.subject.trim()
+        : 'Aviso',
+    html: typeof json.html === 'string' ? json.html : '',
+    attachments: Array.isArray(json.attachments)
+      ? json.attachments
+          .map((item) => {
+            if (!item) return null;
+            const url = typeof item.url === 'string' ? item.url : null;
+            if (!url) return null;
+            return {
+              url,
+              publicId: item.publicId || item.public_id || null,
+              mime: typeof item.mime === 'string' ? item.mime : null,
+              name:
+                typeof item.name === 'string'
+                  ? item.name
+                  : typeof item.originalname === 'string'
+                    ? item.originalname
+                    : null,
+              size: typeof item.size === 'number' ? item.size : null,
+            };
+          })
+          .filter(Boolean)
+      : [],
     teacherId: json.teacher ? String(json.teacher) : undefined,
     classIds: Array.isArray(json.classIds) ? json.classIds.map((id) => String(id)) : [],
     extraEmails: Array.isArray(json.extraEmails) ? json.extraEmails : [],
@@ -196,13 +385,6 @@ function ensureEmails(values) {
 async function createAnnouncement(req, res, next) {
   try {
     const teacherId = ensureTeacher(req);
-    const message = normalizeMessage(req.body?.message);
-    if (!message) {
-      const error = new Error('Mensagem é obrigatória.');
-      error.status = 400;
-      throw error;
-    }
-
     const teacherExists = await Teacher.findById(teacherId).select('_id').lean();
     if (!teacherExists) {
       const error = new Error('Professor não encontrado.');
@@ -210,9 +392,41 @@ async function createAnnouncement(req, res, next) {
       throw error;
     }
 
-    const rawTarget = parseTarget(req.body?.target);
-    const includeTeachers = parseBoolean(req.body?.includeTeachers, false);
+    const subject = normalizeSubject(req.body?.subject);
+    if (!subject) {
+      const error = new Error('Assunto é obrigatório.');
+      error.status = 400;
+      throw error;
+    }
+
+    const normalizedMessage = normalizeMessage(req.body?.message);
+    let html = typeof req.body?.html === 'string' ? req.body.html.trim() : '';
+
+    if (!html && normalizedMessage) {
+      html = toHtml(normalizedMessage);
+    }
+
+    let message = normalizedMessage;
+    if (!message && html) {
+      message = extractPlainTextFromHtml(html);
+    }
+
+    if (!message) {
+      const error = new Error('Mensagem é obrigatória.');
+      error.status = 400;
+      throw error;
+    }
+
+    if (!html) {
+      const error = new Error('Conteúdo HTML é obrigatório.');
+      error.status = 400;
+      throw error;
+    }
+
+    const includeTeachers = parseBoolean(req.body?.bccTeachers ?? req.body?.includeTeachers, false);
     const scheduleAt = parseScheduleAt(req.body?.scheduleAt ?? req.body?.scheduledFor ?? null);
+    const targetPayload = collectTargetPayload(req.body || {});
+    const rawTarget = parseTarget(targetPayload);
 
     const now = new Date();
     const shouldSendNow = !scheduleAt || scheduleAt.getTime() <= now.getTime();
@@ -231,8 +445,10 @@ async function createAnnouncement(req, res, next) {
         throw error;
       }
       classIds = objectIds;
-      const { recipients: collectedRecipients, studentEmails, teacherEmails } =
-        await collectRecipientsForClasses(classIds, includeTeachers);
+      const { recipients: collectedRecipients, teacherEmails } = await collectRecipientsForClasses(
+        classIds,
+        includeTeachers
+      );
       recipients = collectedRecipients;
       extraEmails = includeTeachers ? teacherEmails : [];
     } else {
@@ -246,8 +462,32 @@ async function createAnnouncement(req, res, next) {
       extraEmails = emails;
     }
 
+    const allowedFieldNames = new Set(['files', 'attachments', 'file']);
+    const rawFiles = Array.isArray(req.files)
+      ? req.files
+      : req.files && typeof req.files === 'object'
+        ? Object.values(req.files).flat()
+        : [];
+    const filteredFiles = rawFiles.filter((file) => {
+      if (!file || typeof file !== 'object') return false;
+      if (!file.fieldname) return true;
+      return allowedFieldNames.has(file.fieldname);
+    });
+    let attachments = [];
+    try {
+      attachments = await uploadAnnouncementAttachments(filteredFiles, teacherId);
+    } catch (uploadError) {
+      console.error('[announcements] Falha ao processar anexos', uploadError);
+      const error = new Error(uploadError?.message || 'Não foi possível salvar os anexos.');
+      error.status = uploadError?.status || 400;
+      throw error;
+    }
+
     const announcement = await Announcement.create({
       message,
+      subject,
+      html,
+      attachments,
       teacher: teacherId,
       classIds,
       extraEmails,
@@ -260,21 +500,31 @@ async function createAnnouncement(req, res, next) {
     });
 
     const sanitized = sanitizeAnnouncement(announcement);
-    const meta = { emailSent: false };
+    let mailInfo;
 
     if (shouldSendNow && recipients.length) {
       try {
+        const attachmentsForEmail = attachments
+          .map((item, index) => {
+            if (!item?.url) return null;
+            return {
+              filename: item.name || item.publicId?.split('/').pop() || `anexo-${index + 1}`,
+              path: item.url,
+              contentType: item.mime || undefined,
+            };
+          })
+          .filter(Boolean);
         await sendMail({
           bcc: recipients,
-          subject: 'Aviso',
+          subject,
           text: message,
-          html: toHtml(message),
+          html,
+          attachments: attachmentsForEmail.length ? attachmentsForEmail : undefined,
         });
         announcement.emailStatus = 'sent';
         announcement.emailError = null;
         announcement.emailSentAt = new Date();
         await announcement.save();
-        meta.emailSent = true;
         sanitized.emailStatus = 'sent';
         sanitized.emailSentAt = announcement.emailSentAt.toISOString();
         sanitized.emailError = null;
@@ -283,35 +533,31 @@ async function createAnnouncement(req, res, next) {
         announcement.emailStatus = 'failed';
         announcement.emailError = err?.message || 'Falha ao enviar e-mail.';
         await announcement.save();
-        meta.emailSent = false;
-        meta.error = announcement.emailError;
         sanitized.emailStatus = 'failed';
         sanitized.emailError = announcement.emailError;
+        mailInfo = { sent: false, error: announcement.emailError };
       }
     } else if (!recipients.length) {
       announcement.emailStatus = 'failed';
       announcement.emailError = 'Nenhum destinatário encontrado.';
       await announcement.save();
-      meta.emailSent = false;
-      meta.error = announcement.emailError;
       sanitized.emailStatus = 'failed';
       sanitized.emailError = announcement.emailError;
+      mailInfo = { sent: false, error: announcement.emailError };
     } else {
       announcement.emailStatus = scheduleAt ? 'scheduled' : 'pending';
       announcement.emailError = null;
       await announcement.save();
       sanitized.emailStatus = announcement.emailStatus;
       sanitized.emailError = null;
-      if (scheduleAt) {
-        meta.scheduled = true;
-      }
     }
 
-    res.status(201).json({
-      success: true,
-      data: sanitized,
-      meta,
-    });
+    const responseData = { success: true, data: sanitized };
+    if (mailInfo) {
+      responseData.mail = mailInfo;
+    }
+
+    res.status(201).json(responseData);
   } catch (err) {
     if (!err.status) {
       err.status = 400;
@@ -346,15 +592,20 @@ async function listTeacherAnnouncements(req, res, next) {
         .skip(skip)
         .limit(limit)
         .lean(),
-      Announcement.countDocuments(baseQuery),
+      Announcement.countDocuments(query),
     ]);
 
-    res.json({
-      success: true,
-      data: items.map((item) => sanitizeAnnouncement(item)),
+    const payload = {
+      items: items.map((item) => sanitizeAnnouncement(item)),
       total,
       limit,
       skip,
+      hasMore: skip + items.length < total,
+    };
+
+    res.json({
+      success: true,
+      data: payload,
     });
   } catch (err) {
     if (!err.status) err.status = 400;
@@ -409,12 +660,116 @@ async function listStudentAnnouncements(req, res, next) {
       Announcement.countDocuments(query),
     ]);
 
-    res.json({
-      success: true,
-      data: items.map((item) => sanitizeAnnouncement(item)),
+    const payload = {
+      items: items.map((item) => sanitizeAnnouncement(item)),
       total,
       limit,
       skip,
+      hasMore: skip + items.length < total,
+    };
+
+    res.json({
+      success: true,
+      data: payload,
+    });
+  } catch (err) {
+    if (!err.status) err.status = 400;
+    next(err);
+  }
+}
+
+async function listAnnouncements(req, res, next) {
+  try {
+    const userTeacherId = ensureTeacher(req);
+    const role = (req.user?.role || req.user?.profile || '').toString().toLowerCase();
+    let teacherObjectId = toObjectId(userTeacherId);
+    if (!teacherObjectId) {
+      const error = new Error('Professor não encontrado.');
+      error.status = 404;
+      throw error;
+    }
+
+    if (role === 'admin' && req.query.teacherId) {
+      const override = toObjectId(req.query.teacherId);
+      if (override) {
+        teacherObjectId = override;
+      }
+    }
+
+    const includeScheduled = parseBoolean(req.query.includeScheduled, false);
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 10, 1), 100);
+    const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
+    const skip = (page - 1) * limit;
+    const now = new Date();
+    const visibility = includeScheduled
+      ? {}
+      : {
+          $or: [
+            { scheduledFor: { $lte: now } },
+            { scheduleAt: { $lte: now } },
+            { scheduledFor: { $exists: false } },
+          ],
+        };
+
+    const query = {
+      teacher: teacherObjectId,
+      ...visibility,
+    };
+
+    const [items, total] = await Promise.all([
+      Announcement.find(query)
+        .sort({ scheduledFor: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Announcement.countDocuments(query),
+    ]);
+
+    const payload = {
+      items: items.map((item) => sanitizeAnnouncement(item)),
+      total,
+      page,
+      limit,
+      skip,
+      hasMore: skip + items.length < total,
+    };
+
+    res.json({
+      success: true,
+      data: payload,
+    });
+  } catch (err) {
+    if (!err.status) err.status = 400;
+    next(err);
+  }
+}
+
+async function uploadAnnouncementAsset(req, res, next) {
+  try {
+    const teacherId = ensureTeacher(req);
+    const file = req.file;
+    if (!file) {
+      const error = new Error('Nenhum arquivo enviado.');
+      error.status = 400;
+      throw error;
+    }
+
+    const [attachment] = await uploadAnnouncementAttachments([file], teacherId);
+    if (!attachment) {
+      const error = new Error('Falha ao processar o anexo.');
+      error.status = 400;
+      throw error;
+    }
+
+    if (attachment.mime && !attachment.mime.startsWith('image/')) {
+      const error = new Error('Apenas imagens são permitidas para upload inline.');
+      error.status = 400;
+      throw error;
+    }
+
+    res.status(201).json({
+      success: true,
+      data: attachment,
     });
   } catch (err) {
     if (!err.status) err.status = 400;
@@ -426,4 +781,6 @@ module.exports = {
   createAnnouncement,
   listTeacherAnnouncements,
   listStudentAnnouncements,
+  listAnnouncements,
+  uploadAnnouncementAsset,
 };

@@ -9,7 +9,7 @@ import {
   Bar,
   Line,
 } from 'recharts';
-import { getGradesSummary, type GradeSummaryStat } from '@/services/gradesSummary';
+import { getGradesSummary, type GradeSummaryPoint } from '@/services/gradesSummary';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: 5 }, (_, index) => CURRENT_YEAR - index);
@@ -33,12 +33,28 @@ function computeMedian(values: number[]): number {
   return sorted[mid];
 }
 
-export default function MediaGeralBimestre() {
+type ClassOption = {
+  id: string;
+  label: string;
+};
+
+type MediaGeralBimestreProps = {
+  classOptions?: ClassOption[];
+};
+
+export default function MediaGeralBimestre({ classOptions = [] }: MediaGeralBimestreProps) {
   const [year, setYear] = useState<number>(YEARS[0]);
   const [selectedBimesters, setSelectedBimesters] = useState<number[]>([1, 2, 3, 4]);
-  const [stats, setStats] = useState<GradeSummaryStat[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState<string>('');
+  const [stats, setStats] = useState<GradeSummaryPoint[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedClassId && classOptions.length) {
+      setSelectedClassId(classOptions[0].id);
+    }
+  }, [classOptions, selectedClassId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,9 +68,13 @@ export default function MediaGeralBimestre() {
       setLoading(true);
       setError(null);
       try {
-        const response = await getGradesSummary({ year, bimesters: selectedBimesters });
+        const response = await getGradesSummary({
+          year,
+          bimesters: selectedBimesters,
+          classId: selectedClassId || undefined,
+        });
         if (cancelled) return;
-        setStats(response.stats || []);
+        setStats(response.series || []);
       } catch (err) {
         console.error('[MediaGeralBimestre] Falha ao carregar estatísticas', err);
         if (!cancelled) {
@@ -73,25 +93,28 @@ export default function MediaGeralBimestre() {
     return () => {
       cancelled = true;
     };
-  }, [year, selectedBimesters]);
+  }, [year, selectedBimesters, selectedClassId]);
 
   const chartData: ChartDatum[] = useMemo(() => {
     return stats
       .filter((entry) => Number.isFinite(entry.avg) || Number.isFinite(entry.median))
-      .sort((a, b) => a.bim - b.bim)
+      .sort((a, b) => a.bimester - b.bimester)
       .map((entry) => ({
-        bim: entry.bim,
-        label: `${entry.bim}º bim.`,
+        bimester: entry.bimester,
+        label: `${entry.bimester}º bim.`,
         avg: Number(entry.avg.toFixed(2)),
         median: Number(entry.median.toFixed(2)),
-        n: entry.n,
+        count: entry.count,
       }));
   }, [stats]);
 
   const kpis = useMemo(() => {
     const averages = stats.map((entry) => entry.avg).filter((value) => Number.isFinite(value));
     const medians = stats.map((entry) => entry.median).filter((value) => Number.isFinite(value));
-    const totalStudents = stats.reduce((sum, entry) => sum + (Number.isFinite(entry.n) ? entry.n : 0), 0);
+    const totalStudents = stats.reduce(
+      (sum, entry) => sum + (Number.isFinite(entry.count) ? entry.count : 0),
+      0
+    );
 
     const media = averages.length
       ? Number((averages.reduce((acc, value) => acc + value, 0) / averages.length).toFixed(2))
@@ -117,7 +140,7 @@ export default function MediaGeralBimestre() {
   return (
     <div className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <h3 className="ys-card-title text-slate-900">Média geral por bimestre</h3>
+        <h3 className="card-title text-slate-900">Média geral por bimestre</h3>
         <div className="flex flex-wrap items-center gap-3">
           <label className="text-sm text-slate-600">
             Ano
@@ -129,6 +152,22 @@ export default function MediaGeralBimestre() {
               {YEARS.map((optionYear) => (
                 <option key={optionYear} value={optionYear}>
                   {optionYear}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="text-sm text-slate-600">
+            Turma
+            <select
+              value={selectedClassId}
+              onChange={(event) => setSelectedClassId(event.target.value)}
+              className="ml-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
+            >
+              <option value="">Todas</option>
+              {classOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
                 </option>
               ))}
             </select>

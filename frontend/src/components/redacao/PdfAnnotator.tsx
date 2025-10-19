@@ -29,6 +29,7 @@ export type PdfAnnotatorProps = {
   essayId: string;
   palette: PaletteItem[];
   onChange?: (annos: AnnHighlight[]) => void;
+  onError?: (error: unknown) => void;
 };
 
 export default function PdfAnnotator({
@@ -36,6 +37,7 @@ export default function PdfAnnotator({
   essayId,
   palette,
   onChange,
+  onError,
 }: PdfAnnotatorProps) {
   /** --------- lazy import das libs --------- */
   const [RP, setRP] = useState<any>(null);
@@ -359,6 +361,10 @@ export default function PdfAnnotator({
             file={fileUrl}
             loading={<div className="p-4 text-muted-foreground">Carregando PDF…</div>}
             error={<div className="p-4 text-destructive">Falha ao carregar PDF</div>}
+            onLoadError={(err: Error) => {
+              console.error("Falha ao carregar PDF", err);
+              onError?.(err);
+            }}
             onLoadSuccess={({ numPages }: any) => {
               setNumPages(numPages);
               if (!pagesGateOpen) {

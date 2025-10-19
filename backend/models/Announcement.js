@@ -3,6 +3,20 @@ const mongoose = require('mongoose');
 const announcementSchema = new mongoose.Schema(
   {
     message: { type: String, required: true, trim: true },
+    subject: { type: String, required: true, trim: true },
+    html: { type: String, default: '' },
+    attachments: {
+      type: [
+        {
+          url: { type: String, required: true },
+          publicId: { type: String, default: null },
+          mime: { type: String, default: null },
+          name: { type: String, default: null },
+          size: { type: Number, default: null },
+        },
+      ],
+      default: [],
+    },
     teacher: { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher', required: true },
     classIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Class' }],
     extraEmails: [{ type: String }],
@@ -53,6 +67,9 @@ announcementSchema.pre('save', function syncSchedule(next) {
   }
   if (!Array.isArray(this.extraEmails)) {
     this.extraEmails = [];
+  }
+  if (!Array.isArray(this.attachments)) {
+    this.attachments = [];
   }
 
   next();

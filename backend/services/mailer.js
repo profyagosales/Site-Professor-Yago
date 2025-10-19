@@ -67,7 +67,7 @@ function normalizeRecipients(input) {
   return [String(input).trim()].filter(Boolean);
 }
 
-async function sendMail({ to, bcc, subject, text, html } = {}) {
+async function sendMail({ to, bcc, subject, text, html, attachments } = {}) {
   const toList = normalizeRecipients(to);
   const bccList = normalizeRecipients(bcc);
 
@@ -92,6 +92,10 @@ async function sendMail({ to, bcc, subject, text, html } = {}) {
     text,
     html,
   };
+
+  if (Array.isArray(attachments) && attachments.length) {
+    mailOptions.attachments = attachments;
+  }
 
   if (!mailOptions.to) {
     mailOptions.to = from;

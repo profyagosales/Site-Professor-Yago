@@ -62,9 +62,11 @@ export default function GradeWorkspace() {
     c1: string; c2: string; c3: string; c4: string; c5: string;
     NC: string; NL: string;
   }>(null);
-  const [fileUrl, setFileUrl] = useState<string | null>(null);
-  const [fileError, setFileError] = useState<string | null>(null);
-  const [fileErrorCode, setFileErrorCode] = useState<number | undefined>(undefined);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [pdfErrorCode, setPdfErrorCode] = useState<number | undefined>(undefined);
+  const [pdfStatus, setPdfStatus] = useState<'idle' | 'loading' | 'refreshing'>('idle');
+  const [pdfRetryCount, setPdfRetryCount] = useState(0);
   const [refreshTick, setRefreshTick] = useState(0);
   const navigateRef = useRef(navigate);
 
@@ -79,23 +81,39 @@ export default function GradeWorkspace() {
     || (typeof (essay as any)?.classId === 'string' ? (essay as any).classId : undefined);
   const studentInfo = (essay as any)?.student || (essay as any)?.studentId || null;
 
-  const refreshFileUrl = useCallback(() => setRefreshTick((tick) => tick + 1), []);
+  const refreshPdfUrl = useCallback(() => {
+    setPdfRetryCount(0);
+    setPdfStatus('loading');
+    setRefreshTick((tick) => tick + 1);
+  }, []);
+
+  const handlePdfLoadError = useCallback(() => {
+    if (!essayId) return;
+    if (pdfRetryCount >= 1 || pdfStatus === 'refreshing') return;
+    setPdfStatus('refreshing');
+    setPdfRetryCount((count) => count + 1);
+    setRefreshTick((tick) => tick + 1);
+  }, [essayId, pdfRetryCount, pdfStatus]);
 
   useEffect(() => {
     let aborted = false;
     const controller = new AbortController();
 
-    setFileError(null);
-    setFileErrorCode(undefined);
-
-    setFileUrl(null);
-
     if (!essayId) {
+      setPdfUrl(null);
+      setPdfError(null);
+      setPdfErrorCode(undefined);
+      setPdfStatus('idle');
       return () => {
         aborted = true;
         controller.abort();
       };
     }
+
+    setPdfError(null);
+    setPdfErrorCode(undefined);
+    setPdfUrl(null);
+    setPdfStatus((status) => (status === 'refreshing' ? 'refreshing' : 'loading'));
 
     (async () => {
       try {
@@ -103,7 +121,8 @@ export default function GradeWorkspace() {
         if (aborted) {
           return;
         }
-        setFileUrl(signedUrl);
+        setPdfUrl(signedUrl);
+        setPdfStatus('idle');
       } catch (e: any) {
         if (aborted || e?.name === 'AbortError') return;
 
@@ -114,7 +133,7 @@ export default function GradeWorkspace() {
             : undefined;
         let message = e?.message || 'Falha ao preparar o PDF.';
 
-        setFileErrorCode(typeof status === 'number' ? status : undefined);
+        setPdfErrorCode(typeof status === 'number' ? status : undefined);
 
         if (status === 401) {
           message = 'Sessão expirada. Faça login novamente.';
@@ -136,7 +155,8 @@ export default function GradeWorkspace() {
           toast.error(message);
         }
 
-        setFileError(message);
+        setPdfError(message);
+        setPdfStatus('idle');
       }
     })();
 
@@ -146,14 +166,18 @@ export default function GradeWorkspace() {
     };
   }, [essayId, refreshTick]);
 
+  useEffect(() => {
+    setPdfRetryCount(0);
+  }, [essayId]);
+
   const joinClassAndRefresh = useCallback(async () => {
     if (!classId) {
       throw new Error('Turma desta redação não encontrada.');
     }
     await joinClassAsTeacher(classId);
     toast.success('Você agora é professor desta turma.');
-    refreshFileUrl();
-  }, [classId, refreshFileUrl]);
+    refreshPdfUrl();
+  }, [classId, refreshPdfUrl]);
 
   // Debounce simples 600ms para autosave de anotações ricas
   function useDebounce<T extends (...a:any[])=>any>(fn:T, ms:number) {
@@ -391,7 +415,14 @@ export default function GradeWorkspace() {
   if (!essay) return null;
 
 
-  const isPdf = Boolean(fileUrl);
+  const isPdf = Boolean(pdfUrl);
+  const pdfStatusMessage = pdfError
+    ? pdfError
+    : pdfStatus === 'refreshing'
+      ? 'Gerando visualização…'
+      : pdfUrl
+        ? 'PDF pronto'
+        : 'Carregando PDF…';
   return (
     <div className="p-4 md:p-6 space-y-4">
       {import.meta.env.DEV && (
@@ -480,17 +511,17 @@ export default function GradeWorkspace() {
           {/* Mini toolbar do visualizador */}
           <div className="flex items-center justify-between px-3 py-2 border-b bg-white/60">
             <div className="text-xs text-ys-ink-2">
-              {fileError ? fileError : fileUrl ? 'PDF pronto' : 'Carregando PDF…'}
+              {pdfStatusMessage}
             </div>
-            {fileUrl && !fileError && (
-              <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-xs underline">Abrir original</a>
+            {pdfUrl && !pdfError && (
+              <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="text-xs underline">Abrir original</a>
             )}
           </div>
           {/* PDF inline obrigatório */}
-          {fileError ? (
+          {pdfError ? (
             <div className="p-4 space-y-2 text-sm text-red-600">
-              <p>{fileError}</p>
-              {fileErrorCode === 403 && classId && (
+              <p>{pdfError}</p>
+              {pdfErrorCode === 403 && classId && (
                 <button
                   onClick={() => joinClassAndRefresh().catch((err) => toast.error(err?.response?.data?.message || 'Falha ao entrar na turma'))}
                   className="rounded border border-orange-300 bg-orange-100 px-3 py-1 text-sm font-medium text-orange-800 hover:bg-orange-200"
@@ -499,16 +530,16 @@ export default function GradeWorkspace() {
                 </button>
               )}
               <button
-                onClick={refreshFileUrl}
+                onClick={refreshPdfUrl}
                 className="rounded border border-red-300 bg-white px-2 py-1 text-sm hover:bg-red-100"
               >
                 Tentar novamente
               </button>
             </div>
-          ) : fileUrl ? (
+          ) : pdfUrl ? (
             <Suspense fallback={<div className="p-4 text-sm text-ys-ink-2">Carregando visualizador…</div>}>
               <PdfAnnotatorLazy
-                fileUrl={fileUrl}
+                fileUrl={pdfUrl}
                 essayId={essayId}
                 palette={[
                   { key:'apresentacao', label:'Apresentação',          color:'#f97316', rgba:'rgba(249,115,22,0.60)' },
@@ -517,11 +548,14 @@ export default function GradeWorkspace() {
                   { key:'comentario',   label:'Comentário geral',      color:'#ef4444', rgba:'rgba(239,68,68,0.60)'  },
                   { key:'coesao',       label:'Coesão/coerência',      color:'#0ea5e9', rgba:'rgba(14,165,233,0.60)' },
                 ]}
+                onError={handlePdfLoadError}
                 onChange={(list: any)=> { setRichAnnos(list as any); debouncedSaveRich(list as any); }}
               />
             </Suspense>
           ) : (
-            <div className="p-4 text-sm text-ys-ink-2">Carregando PDF…</div>
+            <div className="p-4 text-sm text-ys-ink-2">
+              {pdfStatus === 'refreshing' ? 'Gerando visualização…' : 'Carregando PDF…'}
+            </div>
           )}
         </div>
         <div className="space-y-3">

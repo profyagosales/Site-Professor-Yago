@@ -38,8 +38,16 @@ export default function QuickContentModal({ open, onClose, onSaved }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
-      await quickCreateContent({ classId, term: Number(term), title, description, date, done })
-      toast.success('Conteúdo criado')
+      const payload = {
+        classId,
+        term: Number(term),
+        title: title.trim(),
+        description: description.trim() ? description.trim() : undefined,
+        date,
+        done,
+      }
+      await quickCreateContent(payload)
+      toast.success('Atividade criada')
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('contents:refresh'))
       }
@@ -47,14 +55,14 @@ export default function QuickContentModal({ open, onClose, onSaved }) {
       onSaved && onSaved()
       setClassId(''); setTerm(''); setTitle(''); setDescription(''); setDate(''); setDone(false)
     } catch(err){
-      toast.error('Erro ao criar conteúdo')
+      toast.error('Erro ao criar atividade')
     }
   }
 
   return (
     <Modal open={open} onClose={onClose}>
       <div className="p-6">
-        <h2 className="text-xl font-semibold text-slate-800">Adicionar conteúdo</h2>
+        <h2 className="text-xl font-semibold text-slate-800">Nova atividade</h2>
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
             <label className="mb-1 block text-sm font-semibold text-slate-700">Turma</label>

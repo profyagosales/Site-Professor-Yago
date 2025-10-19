@@ -129,11 +129,20 @@ exports.streamFile = async function streamFile(req, res, essayId) {
       return;
     }
     const ct = essay.originalMimeType || up.headers['content-type'] || 'application/pdf';
-    res.set({
-      'Accept-Ranges': 'bytes',
-      'Content-Type': ct,
-      'Content-Disposition': `inline; filename="${path.basename(fileUrl.split('?')[0])}"`,
-    });
+    const filename = path.basename(fileUrl.split('?')[0]) || 'redacao.pdf';
+    if (!res.getHeader('Accept-Ranges')) {
+      res.set('Accept-Ranges', 'bytes');
+    }
+    if (!res.getHeader('Content-Type')) {
+      res.set('Content-Type', ct);
+    }
+    const currentDisposition = res.getHeader('Content-Disposition');
+    if (!currentDisposition || /^inline$/i.test(String(currentDisposition))) {
+      res.set('Content-Disposition', `inline; filename="${filename}"`);
+    }
+    if (!res.getHeader('Cache-Control')) {
+      res.set('Cache-Control', 'private, max-age=60');
+    }
     if (up.headers['content-length']) res.set('Content-Length', up.headers['content-length']);
     if (up.headers['content-range']) res.set('Content-Range', up.headers['content-range']);
     res.status(range ? 206 : 200);

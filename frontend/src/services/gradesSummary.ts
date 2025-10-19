@@ -1,16 +1,19 @@
 import { api } from '@/services/api';
 
-export type GradeSummaryStat = {
-  bim: number;
+export type GradeSummaryPoint = {
+  bimester: number;
   avg: number;
   median: number;
-  n: number;
+  count: number;
 };
 
 export type GradeSummaryResponse = {
   year: number;
   bimesters: number[];
-  stats: GradeSummaryStat[];
+  series: GradeSummaryPoint[];
+  avgByBimester: Record<number, number>;
+  medianByBimester: Record<number, number>;
+  count: number;
 };
 
 function parseNumber(value: unknown, fallback = 0) {
@@ -18,32 +21,74 @@ function parseNumber(value: unknown, fallback = 0) {
   return Number.isFinite(numeric) ? numeric : fallback;
 }
 
-function normalizeStat(raw: any): GradeSummaryStat | null {
+function parseBimester(value: unknown) {
+  const numeric = parseNumber(value, NaN);
+  if (!Number.isInteger(numeric) || numeric < 1 || numeric > 4) return NaN;
+  return numeric;
+}
+
+function normalizePoint(raw: any): GradeSummaryPoint | null {
   if (!raw || typeof raw !== 'object') return null;
-  const bim = parseNumber(raw.bim ?? raw.bimester ?? raw.term, NaN);
-  if (!Number.isInteger(bim) || bim < 1 || bim > 4) return null;
+  const bimester = parseBimester(raw.bimester ?? raw.bim ?? raw.term);
+  if (!Number.isInteger(bimester)) return null;
   const avg = parseNumber(raw.avg ?? raw.average ?? raw.media, 0);
   const median = parseNumber(raw.median ?? raw.mediana, 0);
-  const n = Math.max(parseNumber(raw.n ?? raw.count ?? raw.total, 0), 0);
-  return { bim, avg, median, n };
+  const count = Math.max(parseNumber(raw.count ?? raw.n ?? raw.total, 0), 0);
+  return {
+    bimester,
+    avg,
+    median,
+    count,
+  };
+}
+
+function normalizeSeries(source: unknown): GradeSummaryPoint[] {
+  const rawList = Array.isArray(source)
+    ? source
+    : Array.isArray((source as any)?.series)
+      ? (source as any).series
+      : [];
+
+  return rawList
+    .map((entry) => normalizePoint(entry))
+    .filter(Boolean) as GradeSummaryPoint[];
+}
+
+function normalizeBimesters(source: unknown, fallback: number[]): number[] {
+  if (!Array.isArray(source)) return fallback;
+  const values = source
+    .map((entry) => parseBimester(entry))
+    .filter((value) => Number.isInteger(value)) as number[];
+  return values.length ? values : fallback;
 }
 
 export async function getGradesSummary({
   year,
   bimesters,
+  classId,
 }: {
   year: number;
   bimesters: number[];
+  classId?: string | null;
 }): Promise<GradeSummaryResponse> {
   const params: Record<string, string> = {};
   if (Number.isFinite(year)) {
     params.year = String(year);
   }
   if (Array.isArray(bimesters) && bimesters.length) {
-    const filtered = Array.from(new Set(bimesters.filter((value) => Number.isInteger(value) && value >= 1 && value <= 4)));
+    const filtered = Array.from(
+      new Set(
+        bimesters
+          .map((value) => parseBimester(value))
+          .filter((value) => Number.isInteger(value))
+      )
+    );
     if (filtered.length) {
-      params.b = filtered.join(',');
+      params.bimesters = filtered.join(',');
     }
+  }
+  if (classId && typeof classId === 'string' && classId.trim()) {
+    params.classId = classId.trim();
   }
 
   const response = await api.get('/grades/summary', {
@@ -51,28 +96,29 @@ export async function getGradesSummary({
     meta: { noCache: true },
   });
 
-  const payload = response?.data ?? {};
-  const statsSource = Array.isArray(payload.stats)
-    ? payload.stats
-    : Array.isArray(payload.data?.stats)
-      ? payload.data.stats
-      : [];
+  const base = response?.data ?? {};
+  const payload = base?.data ?? base;
 
-  const stats = statsSource
-    .map((entry) => normalizeStat(entry))
-    .filter(Boolean) as GradeSummaryStat[];
-
+  const series = normalizeSeries(payload);
   const normalizedYear = Number.isFinite(payload.year) ? Number(payload.year) : year;
-  const normalizedBimesters = Array.isArray(payload.bimesters)
-    ? payload.bimesters
-        .map((value: any) => Number(value))
-        .filter((value: number) => Number.isInteger(value) && value >= 1 && value <= 4)
-    : bimesters;
+  const normalizedBimesters = normalizeBimesters(payload.bimesters, bimesters);
+  const avgByBimester: Record<number, number> = {};
+  const medianByBimester: Record<number, number> = {};
+  let totalCount = 0;
+
+  series.forEach((point) => {
+    avgByBimester[point.bimester] = point.avg;
+    medianByBimester[point.bimester] = point.median;
+    totalCount += point.count;
+  });
 
   return {
     year: normalizedYear,
     bimesters: normalizedBimesters,
-    stats,
+    series,
+    avgByBimester,
+    medianByBimester,
+    count: totalCount,
   };
 }
 

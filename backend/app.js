@@ -29,6 +29,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const contentsRoutes = require('./routes/contents');
 const gradeActivitiesRoutes = require('./routes/gradeActivities');
 const themesRoutes = require('./routes/themes');
+const gradeSchemeRoutes = require('./routes/gradeScheme');
 const ensureTeacher = require('./middleware/ensureTeacher');
 const { corsOptions, preflightOptions } = require('./corsConfig');
 const fileTokenCompat = require('./middlewares/fileTokenCompat');
@@ -96,6 +97,7 @@ privateApiRouter.use('/aluno', alunosRoutes);
 privateApiRouter.use('/alunos', alunosRoutes);
 privateApiRouter.use('/classes', classesRoutes);
 privateApiRouter.use('/grades', gradesRoutes);
+privateApiRouter.use('/grade-scheme', gradeSchemeRoutes);
 privateApiRouter.use('/announcements', announcementsRoutes);
 privateApiRouter.use('/evaluations', evaluationRoutes);
 privateApiRouter.use('/teachers', teachersUpcomingRoutes);
@@ -149,6 +151,9 @@ app.get(
 );
 
 // Rota de compatibilidade para /essays (fora do prefixo /api)
+if (essaysRoutes?.publicRouter) {
+  app.use(essaysRoutes.publicRouter);
+}
 app.use('/essays', fileTokenCompat, essaysRoutes);
 
 // --- Manipuladores de 404, Servidor de Frontend e Erros (sem alterações) ---

@@ -204,7 +204,18 @@ async function listContents(req, res, next) {
     }
 
     const filters = { teacher: teacherId };
-    const { classId, bimester, done, from, to, limit: limitRaw, offset, sort } = req.query || {};
+    const {
+      classId,
+      bimester,
+      done,
+      status,
+      from,
+      to,
+      limit: limitRaw,
+      offset,
+      page: pageRaw,
+      sort,
+    } = req.query || {};
 
     if (classId) {
       await ensureTeacherAccess(req, classId);
@@ -216,11 +227,24 @@ async function listContents(req, res, next) {
       filters.bimester = parsedBimester;
     }
 
-    if (done !== undefined) {
-      const parsedDone = toBoolean(done, undefined);
-      if (parsedDone !== undefined) {
-        filters.done = parsedDone;
+    let doneFilter;
+    if (status !== undefined) {
+      const normalizedStatus = String(status).trim().toLowerCase();
+      if (['done', 'completed', 'concluido', 'concluida', 'concluída', 'finalizado'].includes(normalizedStatus)) {
+        doneFilter = true;
+      } else if (['pending', 'open', 'pendente', 'andamento', 'ativo', 'ativos'].includes(normalizedStatus)) {
+        doneFilter = false;
+      } else if (['all', 'todos', 'todas'].includes(normalizedStatus)) {
+        doneFilter = undefined;
       }
+    }
+
+    if (doneFilter === undefined && done !== undefined) {
+      doneFilter = toBoolean(done, undefined);
+    }
+
+    if (doneFilter !== undefined) {
+      filters.done = doneFilter;
     }
 
     const fromDate = parseQueryDate(from);
@@ -232,7 +256,17 @@ async function listContents(req, res, next) {
     }
 
     const limit = parseLimit(limitRaw, 50);
-    const skip = Math.max(Number(offset) || 0, 0);
+    const parsedOffset = Math.max(Number(offset) || 0, 0);
+    let page = Number.parseInt(pageRaw, 10);
+    if (!Number.isFinite(page) || page < 1) {
+      page = undefined;
+    }
+    let skip = parsedOffset;
+    if (page !== undefined) {
+      skip = (page - 1) * limit;
+    } else {
+      page = Math.floor(skip / limit) + 1;
+    }
     const direction = sort === 'asc' ? 1 : -1;
 
     const [items, total] = await Promise.all([
@@ -245,11 +279,19 @@ async function listContents(req, res, next) {
     ]);
 
     const classMap = await loadClassMapFromContents(items);
+    const sanitizedItems = items.map((item) => sanitizeContent(item, classMap));
+    const hasMore = skip + sanitizedItems.length < total;
 
     res.status(200).json({
       success: true,
-      data: items.map((item) => sanitizeContent(item, classMap)),
-      meta: { total, limit, offset: skip },
+      data: {
+        items: sanitizedItems,
+        total,
+        limit,
+        page,
+        offset: skip,
+        hasMore,
+      },
     });
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -331,12 +373,8 @@ async function updateContent(req, res, next) {
 
     await content.save();
 
-    const classMap = await loadClassMapFromContents([content]);
-    const sanitized = sanitizeContent(content, classMap);
-
     res.status(200).json({
       success: true,
-      data: sanitized,
     });
   } catch (err) {
     if (handleZodError(err, next)) return;
@@ -373,7 +411,6 @@ async function deleteContent(req, res, next) {
 
     res.status(200).json({
       success: true,
-      data: null,
     });
   } catch (err) {
     if (!err.status) {

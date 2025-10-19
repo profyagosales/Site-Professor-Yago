@@ -10,6 +10,9 @@ declare module 'axios' {
   }
 }
 
+const isEssayPdf = (url?: string) =>
+  !!url && /\/(?:api\/)?essays\/[^/]+\/pdf(?:\?|$)/i.test(url);
+
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (config.method?.toLowerCase() === 'get' && config.meta?.noCache) {
     const headers = (config.headers ?? {}) as Record<string, unknown>;
@@ -25,9 +28,7 @@ api.interceptors.response.use(
   (err: AxiosError) => {
     const status = err?.response?.status;
     const cfg = err?.config as (InternalAxiosRequestConfig & { meta?: any }) | undefined;
-    const url = typeof cfg?.url === 'string' ? cfg.url : '';
-    const isEssayPdf = /\/essays\/[^/]+\/pdf/i.test(url);
-    if (status === 401 && !cfg?.meta?.skipAuthRedirect && !isEssayPdf && typeof window !== 'undefined') {
+    if (status === 401 && !cfg?.meta?.skipAuthRedirect && !isEssayPdf(cfg?.url) && typeof window !== 'undefined') {
       try {
         const next = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
         window.location.assign(`/login-professor?next=${next}`);

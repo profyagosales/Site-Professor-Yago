@@ -15,8 +15,10 @@ export type ListContentsParams = {
   from?: string;
   to?: string;
   done?: boolean | string;
+  status?: string;
   limit?: number;
   offset?: number;
+  page?: number;
   sort?: 'asc' | 'desc';
 };
 
@@ -25,6 +27,8 @@ export type ContentsListResponse = {
   total: number;
   limit: number;
   offset: number;
+  page: number;
+  hasMore: boolean;
 };
 
 export type ContentUpsertPayload = {
@@ -61,7 +65,7 @@ export async function quickCreateContent(payload: QuickContentPayload): Promise<
   return quickCreateContentImpl(payload);
 }
 
-export async function updateContent(id: string, payload: Partial<ContentUpsertPayload>): Promise<ContentItem> {
+export async function updateContent(id: string, payload: Partial<ContentUpsertPayload>): Promise<boolean> {
   return updateContentImpl(id, payload);
 }
 
@@ -69,7 +73,7 @@ export async function deleteContent(id: string): Promise<boolean> {
   return deleteContentImpl(id);
 }
 
-export async function toggleContentStatus(contentId: string, done: boolean): Promise<ContentItem> {
+export async function toggleContentStatus(contentId: string, done: boolean): Promise<boolean> {
   return toggleContentStatusImpl(contentId, done);
 }
 

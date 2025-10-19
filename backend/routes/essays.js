@@ -32,6 +32,7 @@ const ensureTeacher = require('../middleware/ensureTeacher');
 const authFileOrTeacher = require('../middleware/authFileOrTeacher');
 
 const router = express.Router();
+const publicRouter = express.Router();
 
 const themeUpload = multer({
   storage: multer.memoryStorage(),
@@ -135,20 +136,29 @@ router.get(
 // URL assinada curta (opcional)
 router.get('/:id/file-signed', ensureValidId, authRequired, ensureTeacher, fileController.getSignedFileUrl);
 
-router.get(
-  '/:id/pdf',
+async function streamEssayPdf(req, res, next) {
+  try {
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': 'inline',
+      'Cache-Control': 'private, max-age=60',
+    });
+    await fileController.streamFile(req, res, req.params.id);
+  } catch (err) {
+    next(err);
+  }
+}
+
+const pdfMiddlewares = [
   ensureValidId,
   fileTokenCompat,
   authFileOrTeacher,
   fileController.authorizeFileAccess,
-  async (req, res, next) => {
-    try {
-      res.set('Cache-Control', 'private, max-age=60');
-      await fileController.streamFile(req, res, req.params.id);
-    } catch (err) {
-      next(err);
-    }
-  }
-);
+  streamEssayPdf,
+];
+
+router.get('/:id/pdf', ...pdfMiddlewares);
+publicRouter.get('/essays/:id/pdf', ...pdfMiddlewares);
 
 module.exports = router;
+module.exports.publicRouter = publicRouter;

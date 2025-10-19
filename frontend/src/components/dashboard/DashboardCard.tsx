@@ -27,7 +27,7 @@ export default function DashboardCard({
   return (
     <div className={containerClass}>
       <div className="flex items-start justify-between gap-3">
-        <h3 className="ys-card-title text-slate-900">{title}</h3>
+        <h3 className="card-title text-slate-900">{title}</h3>
         {actions ? <div className="flex shrink-0 gap-2">{actions}</div> : null}
       </div>
       <div className={contentClass}>{children}</div>

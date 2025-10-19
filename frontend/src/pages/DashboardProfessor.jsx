@@ -10,6 +10,9 @@ import { Button } from '@/components/ui/Button'
 import DashboardCard from '@/components/dashboard/DashboardCard'
 import MediaGeralBimestre from '@/components/dashboard/MediaGeralBimestre'
 import ResumoConteudosCard from '@/components/dashboard/ResumoConteudosCard'
+import WeeklySchedule from '@/components/dashboard/WeeklySchedule'
+import AvisosCard from '@/components/dashboard/AvisosCard'
+import DivisaoNotasCard from '@/components/dashboard/DivisaoNotasCard'
 import Modal from '@/components/ui/Modal'
 
 /*
@@ -116,17 +119,6 @@ function isWithinRange(date, start, end) {
   return date.getTime() >= start.getTime() && date.getTime() <= end.getTime()
 }
 
-function formatContentDate(iso) {
-  const parsed = parseDate(iso)
-  if (!parsed) return 'Data não disponível'
-  try {
-    return LONG_DATE_FORMATTER.format(parsed)
-  } catch (err) {
-    console.warn('[DashboardProfessor] Falha ao formatar data de conteúdo', iso, err)
-    return 'Data não disponível'
-  }
-}
-
 function DashboardProfessor(){
   const [user, setUser] = useState(null)
   const [classSummaries, setClassSummaries] = useState([])
@@ -139,10 +131,7 @@ function DashboardProfessor(){
   const [contentOpen, setContentOpen] = useState(false)
   const [announcementOpen, setAnnouncementOpen] = useState(false)
   const [calendarScope, setCalendarScope] = useState('week')
-  const [showHighlightsModal, setShowHighlightsModal] = useState(false)
   const [showAgendaModal, setShowAgendaModal] = useState(false)
-  const [showContentsModal, setShowContentsModal] = useState(false)
-  const [allSummaryItems, setAllSummaryItems] = useState([])
   const { logout: logoutSession } = useAuth()
 
   const classSummariesRef = useRef(classSummaries)
@@ -315,11 +304,6 @@ function DashboardProfessor(){
 
   const reloadAnnouncements = reloadContents
 
-  const openContentsModal = useCallback((items) => {
-    setAllSummaryItems(Array.isArray(items) ? items : [])
-    setShowContentsModal(true)
-  }, [])
-
   const classNameMap = useMemo(() => {
     const map = {}
     classSummaries.forEach((summary) => {
@@ -332,6 +316,17 @@ function DashboardProfessor(){
     })
     return map
   }, [classSummaries, classDetails])
+
+  const classOptions = useMemo(
+    () =>
+      classSummaries
+        .map((summary) => ({
+          id: coalesceId(summary),
+          label: formatClassLabel(summary),
+        }))
+        .filter((option) => option.id),
+    [classSummaries]
+  )
 
   const totalClasses = classSummaries.length
 
@@ -361,6 +356,17 @@ function DashboardProfessor(){
 
     const ensureArray = (value) => (Array.isArray(value) ? value : value ? [value] : [])
 
+    const addEntry = (key, classId, label) => {
+      if (!label) return
+      if (!cells[key]) cells[key] = []
+      const exists = cells[key].some((item) =>
+        classId ? item.classId === classId : item.label === label
+      )
+      if (!exists) {
+        cells[key].push({ classId: classId || null, label })
+      }
+    }
+
     schedule.forEach((entry) => {
       const slot = Number(entry?.slot ?? entry?.lesson ?? entry?.timeSlot)
       if (!SLOT_CONFIG.some((s) => s.id === slot)) return
@@ -373,10 +379,8 @@ function DashboardProfessor(){
         const key = `${slot}-${dayIndex}`
         const labelFromMap = entry?.classId ? classNameMap[entry.classId] : undefined
         const label = labelFromMap || entry?.label || entry?.className || entry?.discipline || '—'
-        if (!cells[key]) cells[key] = []
-        if (!cells[key].includes(label)) {
-          cells[key].push(label)
-        }
+        const entryClassId = entry?.classId ? String(entry.classId) : null
+        addEntry(key, entryClassId, label)
       })
     })
 
@@ -391,10 +395,7 @@ function DashboardProfessor(){
         const key = `${slot}-${dayIndex}`
         const label = classNameMap[classId]
         if (!label) return
-        if (!cells[key]) cells[key] = []
-        if (!cells[key].includes(label)) {
-          cells[key].push(label)
-        }
+        addEntry(key, classId, label)
       })
     })
 
@@ -463,193 +464,83 @@ function DashboardProfessor(){
 
   const resolvedAvatar = resolveAvatarUrl(user?.photoUrl || user?.photo || user?.avatarUrl)
 
-  const upcomingHighlights = useMemo(() => {
-    if (!aggregatedEvents.length) return []
-
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const horizon = new Date(today)
-    horizon.setDate(horizon.getDate() + 14)
-
-    return aggregatedEvents
-      .filter((event) => isWithinRange(event.date, today, horizon))
-      .map((event) => ({
-        id: event.id,
-        date: event.date,
-        title: event.title,
-        subtitle: event.label && event.label !== 'Turma' ? event.label : null,
-        badge: event.type,
-      }))
-      .sort((a, b) => a.date.getTime() - b.date.getTime())
-      .slice(0, 8)
-  }, [aggregatedEvents])
-
-  const displayedHighlights = useMemo(() => upcomingHighlights.slice(0, 5), [upcomingHighlights])
-  const hasMoreHighlights = upcomingHighlights.length > 5
   const displayedAgendaGroups = useMemo(() => eventsByDay.slice(0, 5), [eventsByDay])
   const hasMoreAgenda = eventsByDay.length > 5
 
-  if(!user) return <div className="pt-20 p-md"><p>Carregando...</p></div>
+  if(!user) return <div className="page-safe pt-20"><p>Carregando...</p></div>
 
   return (
-    <div className="pt-4 p-md space-y-6">
-      <section className="relative overflow-hidden rounded-3xl bg-[#FFA654] text-white shadow-xl">
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="absolute right-6 top-6 rounded-full bg-white/20 px-4 py-2 text-sm font-semibold text-white shadow-sm backdrop-blur-sm transition hover:bg-white/30"
-        >
-          Sair
-        </button>
-        <div className="relative flex flex-col gap-6 p-6 md:p-8 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-4">
-            {resolvedAvatar ? (
-              <img src={resolvedAvatar} alt={user.name} className="h-16 w-16 rounded-2xl border border-white/60 object-cover shadow-lg" />
-            ) : (
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/60 bg-white/20 text-2xl font-semibold uppercase">
-                {user?.name ? user.name.slice(0, 1) : '?'}
+    <div className="page-safe pt-4 space-y-6">
+      <section className="rounded-3xl bg-gradient-to-r from-orange-500 to-orange-400 text-white shadow-xl">
+        <div className="flex flex-col gap-6 px-6 py-4 md:py-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex items-center gap-4">
+              {resolvedAvatar ? (
+                <img
+                  src={resolvedAvatar}
+                  alt={user.name}
+                  className="h-16 w-16 rounded-2xl border border-white/50 object-cover shadow-lg"
+                />
+              ) : (
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/50 bg-white/20 text-2xl font-semibold uppercase">
+                  {user?.name ? user.name.slice(0, 1) : '?'}
+                </div>
+              )}
+              <div>
+                <p className="text-xs uppercase tracking-wide text-white/80">Bem-vindo de volta</p>
+                <h1 className="text-2xl font-semibold md:text-3xl">{user?.name || 'Professor'}</h1>
+                <p className="text-white/80">Painel do professor</p>
               </div>
-            )}
-            <div>
-              <p className="text-sm uppercase tracking-wide text-white/80">Bem-vindo de volta</p>
-              <h1 className="text-2xl font-semibold md:text-3xl">{user?.name || 'Professor'}</h1>
-              <p className="text-white/80">Painel do professor</p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-white/20"
+              onClick={handleLogout}
+            >
+              Sair
+            </Button>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 md:max-w-xl">
+            <div className="rounded-2xl bg-white/15 px-4 py-3 shadow-sm">
+              <p className="text-xs uppercase tracking-wide text-white/70">Turmas</p>
+              <p className="text-2xl font-semibold text-white">{totalClasses}</p>
+            </div>
+            <div className="rounded-2xl bg-white/15 px-4 py-3 shadow-sm">
+              <p className="text-xs uppercase tracking-wide text-white/70">Total de alunos</p>
+              <p className="text-2xl font-semibold text-white">{uniqueStudentsCount}</p>
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-2xl border border-white/60 bg-white/95 p-4 text-slate-900 shadow-sm">
-              <p className="text-sm font-semibold text-[#CC5A00]">Turmas</p>
-              <p className="text-2xl font-semibold text-slate-900">{totalClasses}</p>
-            </div>
-            <div className="rounded-2xl border border-white/60 bg-white/95 p-4 text-slate-900 shadow-sm">
-              <p className="text-sm font-semibold text-[#CC5A00]">Total de alunos</p>
-              <p className="text-2xl font-semibold text-slate-900">{uniqueStudentsCount}</p>
-            </div>
-          </div>
-        </div>
-        <div className="border-t border-white/20" />
-        <div className="flex flex-wrap items-center justify-center gap-3 px-6 pb-6 pt-4">
-            <Button className="rounded-full" onClick={() => setShowEmail(true)}>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button className="btn-primary" onClick={() => setShowEmail(true)}>
               Enviar e-mail
             </Button>
-            <Button className="rounded-full bg-[#222] text-white hover:bg-[#111]" onClick={() => setAnnouncementOpen(true)}>
+            <Button className="btn-primary" onClick={() => setAnnouncementOpen(true)}>
               Novo aviso
             </Button>
-            <Button
-              className="rounded-full border border-slate-200 text-slate-700 hover:border-[#FF8A00] hover:text-[#FF8A00]"
-              variant="ghost"
-              onClick={() => setContentOpen(true)}
-            >
-              Conteúdo rápido
+            <Button className="btn-primary" onClick={() => setContentOpen(true)}>
+              Atividades
             </Button>
+          </div>
         </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-12">
+      <div className="grid gap-6 lg:grid-cols-16">
         <DashboardCard
-          title="Quadro semanal"
-          className="lg:col-span-8"
-          contentClassName="flex-1 overflow-x-auto"
+          title="Horário Semanal"
+          className="lg:col-span-10"
+          contentClassName="flex-1"
         >
-          <div className="overflow-x-auto pb-2">
-            <div className="min-w-[720px]">
-              <div className="grid grid-cols-[140px_repeat(5,1fr)] items-stretch gap-2">
-                <div className="h-10" />
-                {WEEKDAY_CONFIG.map((day) => (
-                  <div
-                    key={day.id}
-                    className="flex min-h-[40px] items-center justify-center rounded-xl bg-[#FFF3E3] text-sm font-semibold text-[#FF8A00]"
-                  >
-                    {day.label}
-                  </div>
-                ))}
-                {SLOT_CONFIG.map((slot) => (
-                  <Fragment key={slot.id}>
-                    <div className="flex min-h-[88px] flex-col justify-center rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-700">
-                      <span className="whitespace-pre-line leading-5">{`${slot.label} horário
-${slot.time}`}</span>
-                    </div>
-                    {WEEKDAY_CONFIG.map((day) => {
-                      const key = `${slot.id}-${day.id}`
-                      const cellItems = scheduleMatrix[key] || []
-                      return (
-                        <div
-                          key={key}
-                          className="flex min-h-[88px] flex-col gap-1 rounded-xl border border-dashed border-slate-200 bg-white p-3 text-sm text-slate-600"
-                        >
-                          {cellItems.length === 0 && (
-                            <span className="my-auto text-center text-xs text-slate-400">—</span>
-                          )}
-                          {cellItems.slice(0, 2).map((label) => (
-                            <span
-                              key={label}
-                              className="truncate rounded-lg bg-[#FFF5EB] px-2 py-1 text-xs font-medium text-[#FF8A00]"
-                            >
-                              {label}
-                            </span>
-                          ))}
-                          {cellItems.length > 2 && (
-                            <span className="text-center text-xs text-slate-400">
-                              +{cellItems.length - 2}
-                            </span>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </Fragment>
-                ))}
-              </div>
-            </div>
-          </div>
+          <WeeklySchedule slots={SLOT_CONFIG} days={WEEKDAY_CONFIG} cells={scheduleMatrix} />
         </DashboardCard>
 
-        <DashboardCard
-          title="Destaques próximos"
-          className="lg:col-span-4"
-          contentClassName="flex-1 flex-col"
-        >
-          {insightsLoading ? (
-            <div className="flex-1 rounded-xl bg-slate-100 animate-pulse" />
-          ) : displayedHighlights.length ? (
-            <div className="flex-1 space-y-3 overflow-y-auto pr-1">
-              {displayedHighlights.map((item) => (
-                <div key={item.id} className="flex flex-col gap-1 rounded-2xl border border-slate-100 p-4">
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <span className="rounded-full bg-[#FFF3E3] px-3 py-1 font-semibold text-[#FF8A00]">
-                      {DATE_BADGE_FORMATTER.format(item.date)}
-                    </span>
-                    <span>{LONG_DATE_FORMATTER.format(item.date)}</span>
-                  </div>
-                  <p className="text-sm font-semibold text-slate-700">{item.title}</p>
-                  {item.subtitle && <p className="text-xs text-slate-500">{item.subtitle}</p>}
-                  <span
-                    className={`self-start rounded-full px-3 py-1 text-xs font-semibold ${
-                      item.badge === 'ATIVIDADE'
-                        ? 'bg-[#FFF3E3] text-[#FF8A00]'
-                        : 'bg-slate-200 text-slate-600'
-                    }`}
-                  >
-                    {item.badge}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-slate-500">Sem destaques nos próximos dias.</p>
-          )}
-          {!insightsLoading && hasMoreHighlights && (
-            <div className="mt-4 flex justify-end">
-              <Button variant="link" onClick={() => setShowHighlightsModal(true)}>
-                Ver todos
-              </Button>
-            </div>
-          )}
-        </DashboardCard>
+        <AvisosCard className="lg:col-span-6" />
 
         <DashboardCard
           title="Agenda"
-          className="lg:col-span-4"
+          className="lg:col-span-10"
           actions={
             <div className="flex items-center gap-2">
               <div className="flex rounded-full border border-slate-200 bg-slate-50 p-1">
@@ -677,32 +568,29 @@ ${slot.time}`}</span>
           {insightsLoading ? (
             <div className="flex-1 rounded-xl bg-slate-100 animate-pulse" />
           ) : displayedAgendaGroups.length ? (
-            <div className="flex-1 space-y-3 overflow-y-auto pr-1">
+            <div className="flex-1 space-y-4 overflow-y-auto pr-1">
               {displayedAgendaGroups.map((group) => (
-                <div key={group.iso} className="flex flex-col gap-2 rounded-2xl border border-slate-100 p-4">
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="rounded-full bg-[#FFF3E3] px-3 py-1 font-semibold text-[#FF8A00]">
+                <div key={group.iso} className="rounded-2xl border border-slate-100 p-4">
+                  <div className="flex items-baseline gap-3">
+                    <p className="text-base font-semibold text-slate-900">
                       {DATE_BADGE_FORMATTER.format(group.date)}
+                    </p>
+                    <span className="text-xs uppercase tracking-wide text-slate-500">
+                      {LONG_DATE_FORMATTER.format(group.date)}
                     </span>
-                    <span className="text-slate-500">{LONG_DATE_FORMATTER.format(group.date)}</span>
                   </div>
-                  <ul className="space-y-2">
+                  <ul className="mt-3 space-y-2">
                     {group.items.map((event) => (
                       <li
                         key={event.id}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 p-3"
+                        className="flex items-start gap-3 rounded-xl bg-slate-50 p-3"
                       >
-                        <div>
+                        <span className="mt-2 h-2 w-2 rounded-full bg-orange-500" />
+                        <div className="flex-1">
                           <p className="text-sm font-semibold text-slate-700">{event.title}</p>
                           {event.label && <p className="text-xs text-slate-500">{event.label}</p>}
                         </div>
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold shadow-sm ${
-                            event.type === 'ATIVIDADE'
-                              ? 'bg-[#FFF3E3] text-[#FF8A00]'
-                              : 'bg-slate-200 text-slate-600'
-                          }`}
-                        >
+                        <span className="mt-1 text-xs uppercase tracking-wide text-slate-400">
                           {event.type}
                         </span>
                       </li>
@@ -723,60 +611,25 @@ ${slot.time}`}</span>
           )}
         </DashboardCard>
 
-        <DashboardCard
-          title="Resumo de conteúdos"
-          className="lg:col-span-8"
-          contentClassName="flex-1"
-        >
-          <ResumoConteudosCard embedded onViewAll={openContentsModal} />
-        </DashboardCard>
+        <ResumoConteudosCard
+          embedded
+          limit={5}
+          className="lg:col-span-3"
+        />
 
-        <div className="lg:col-span-12">
-          <MediaGeralBimestre />
+        <DivisaoNotasCard
+          classOptions={classOptions}
+          className="lg:col-span-3"
+        />
+
+        <div className="lg:col-span-16">
+          <MediaGeralBimestre classOptions={classOptions} />
         </div>
       </div>
-      <Modal open={showHighlightsModal} onClose={() => setShowHighlightsModal(false)}>
-        <div className="w-full max-w-2xl p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="ys-card-title text-slate-900">Todos os destaques</h2>
-            <Button variant="ghost" onClick={() => setShowHighlightsModal(false)}>
-              Fechar
-            </Button>
-          </div>
-          <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
-            {upcomingHighlights.length ? (
-              upcomingHighlights.map((item) => (
-                <div key={item.id} className="flex flex-col gap-1 rounded-2xl border border-slate-100 p-4">
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <span className="rounded-full bg-[#FFF3E3] px-3 py-1 font-semibold text-[#FF8A00]">
-                      {DATE_BADGE_FORMATTER.format(item.date)}
-                    </span>
-                    <span>{LONG_DATE_FORMATTER.format(item.date)}</span>
-                  </div>
-                  <p className="text-sm font-semibold text-slate-700">{item.title}</p>
-                  {item.subtitle && <p className="text-xs text-slate-500">{item.subtitle}</p>}
-                  <span
-                    className={`self-start rounded-full px-3 py-1 text-xs font-semibold ${
-                      item.badge === 'ATIVIDADE'
-                        ? 'bg-[#FFF3E3] text-[#FF8A00]'
-                        : 'bg-slate-200 text-slate-600'
-                    }`}
-                  >
-                    {item.badge}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-slate-500">Nenhum destaque disponível.</p>
-            )}
-          </div>
-        </div>
-      </Modal>
-
       <Modal open={showAgendaModal} onClose={() => setShowAgendaModal(false)}>
         <div className="w-full max-w-3xl p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="ys-card-title text-slate-900">Agenda completa</h2>
+            <h2 className="card-title text-slate-900">Agenda completa</h2>
             <Button variant="ghost" onClick={() => setShowAgendaModal(false)}>
               Fechar
             </Button>
@@ -784,30 +637,24 @@ ${slot.time}`}</span>
           <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
             {eventsByDay.length ? (
               eventsByDay.map((group) => (
-                <div key={group.iso} className="flex flex-col gap-2 rounded-2xl border border-slate-100 p-4">
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="rounded-full bg-[#FFF3E3] px-3 py-1 font-semibold text-[#FF8A00]">
+                <div key={group.iso} className="rounded-2xl border border-slate-100 p-4">
+                  <div className="flex items-baseline gap-3">
+                    <p className="text-base font-semibold text-slate-900">
                       {DATE_BADGE_FORMATTER.format(group.date)}
+                    </p>
+                    <span className="text-xs uppercase tracking-wide text-slate-500">
+                      {LONG_DATE_FORMATTER.format(group.date)}
                     </span>
-                    <span className="text-slate-500">{LONG_DATE_FORMATTER.format(group.date)}</span>
                   </div>
-                  <ul className="space-y-2">
+                  <ul className="mt-3 space-y-2">
                     {group.items.map((event) => (
-                      <li
-                        key={event.id}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 p-3"
-                      >
-                        <div>
+                      <li key={event.id} className="flex items-start gap-3 rounded-xl bg-slate-50 p-3">
+                        <span className="mt-2 h-2 w-2 rounded-full bg-orange-500" />
+                        <div className="flex-1">
                           <p className="text-sm font-semibold text-slate-700">{event.title}</p>
                           {event.label && <p className="text-xs text-slate-500">{event.label}</p>}
                         </div>
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold shadow-sm ${
-                            event.type === 'ATIVIDADE'
-                              ? 'bg-[#FFF3E3] text-[#FF8A00]'
-                              : 'bg-slate-200 text-slate-600'
-                          }`}
-                        >
+                        <span className="mt-1 text-xs uppercase tracking-wide text-slate-400">
                           {event.type}
                         </span>
                       </li>
@@ -817,36 +664,6 @@ ${slot.time}`}</span>
               ))
             ) : (
               <p className="text-sm text-slate-500">Nenhum evento disponível.</p>
-            )}
-          </div>
-        </div>
-      </Modal>
-
-      <Modal open={showContentsModal} onClose={() => setShowContentsModal(false)}>
-        <div className="w-full max-w-3xl p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="ys-card-title text-slate-900">Conteúdos recentes</h2>
-            <Button variant="ghost" onClick={() => setShowContentsModal(false)}>
-              Fechar
-            </Button>
-          </div>
-          <div className="max-h-[60vh] divide-y divide-slate-200 overflow-y-auto pr-1">
-            {allSummaryItems.length ? (
-              allSummaryItems.map((item) => (
-                <div key={item.id} className="flex items-start gap-3 py-3">
-                  <span className="mt-1 rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
-                    {item.tipo || 'CONTEUDO'}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="font-medium text-slate-800">{item.titulo}</p>
-                    <p className="text-sm text-slate-500">
-                      {item.turmaNome} • {formatContentDate(item.data)}
-                    </p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="py-3 text-sm text-slate-500">Nenhum conteúdo disponível.</p>
             )}
           </div>
         </div>
