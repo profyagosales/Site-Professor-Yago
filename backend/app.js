@@ -30,6 +30,7 @@ const contentsRoutes = require('./routes/contents');
 const gradeActivitiesRoutes = require('./routes/gradeActivities');
 const themesRoutes = require('./routes/themes');
 const gradeSchemeRoutes = require('./routes/gradeScheme');
+const studentHomeRoutes = require('./routes/studentHome');
 const ensureTeacher = require('./middleware/ensureTeacher');
 const { corsOptions, preflightOptions } = require('./corsConfig');
 const fileTokenCompat = require('./middlewares/fileTokenCompat');
@@ -93,12 +94,16 @@ publicApiRouter.get('/', (_req, res) => res.json({ success: true, message: 'API 
 privateApiRouter.use('/dashboard', dashboardRoutes);
 privateApiRouter.use('/email', emailRoutes);
 privateApiRouter.use('/students', studentsUpcomingRoutes);
+privateApiRouter.use('/student', studentHomeRoutes);
 privateApiRouter.use('/aluno', alunosRoutes);
 privateApiRouter.use('/alunos', alunosRoutes);
 privateApiRouter.use('/classes', classesRoutes);
 privateApiRouter.use('/grades', gradesRoutes);
 if (gradesRoutes.tableRouter) {
   privateApiRouter.use('/', gradesRoutes.tableRouter);
+}
+if (gradesRoutes.classesRouter) {
+  privateApiRouter.use('/', gradesRoutes.classesRouter);
 }
 privateApiRouter.use('/grade-scheme', gradeSchemeRoutes);
 privateApiRouter.use('/announcements', announcementsRoutes);

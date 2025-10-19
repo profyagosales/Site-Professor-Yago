@@ -110,6 +110,67 @@ function ensureAgenda(payload: any | null) {
   return { conteudos: [], avaliacoes: [] };
 }
 
+type StudentHomeQuery = {
+  classId?: string | null;
+  year?: number | string | null;
+  term?: number | string | null;
+};
+
+export const getHome = async (params?: StudentHomeQuery) => {
+  const normalized: Record<string, string | number> = {};
+  if (params?.classId) normalized.classId = params.classId;
+  if (params?.year !== undefined && params.year !== null && params.year !== '') {
+    normalized.year = typeof params.year === 'string' ? params.year : params.year;
+  }
+  if (params?.term !== undefined && params.term !== null && params.term !== '') {
+    normalized.term = typeof params.term === 'string' ? params.term : params.term;
+  }
+  const response = await api.get('/student/home', { params: normalized });
+  return response.data;
+};
+
+type MyGradesParams = {
+  classId?: string | null;
+  year?: number | string | null;
+};
+
+export const getMyGrades = async (params?: MyGradesParams) => {
+  const normalized: Record<string, string | number> = {};
+  if (params?.classId) normalized.classId = params.classId;
+  if (params?.year !== undefined && params.year !== null && params.year !== '') {
+    normalized.year = typeof params.year === 'string' ? params.year : params.year;
+  }
+  const response = await api.get('/grades/me', { params: normalized });
+  return response.data;
+};
+
+type AnnouncementsQuery = {
+  classId?: string;
+  limit?: number;
+  skip?: number;
+};
+
+export const getAnnouncements = async (params?: AnnouncementsQuery) => {
+  const response = await api.get('/announcements', { params });
+  return response.data;
+};
+
+export const getThemes = async (type: 'PAS' | 'ENEM', options?: { active?: 0 | 1 | '0' | '1' | boolean }) => {
+  const activeParam =
+    options?.active === undefined
+      ? 1
+      : typeof options.active === 'boolean'
+        ? options.active ? 1 : 0
+        : options.active;
+  const response = await api.get('/essays/themes', {
+    params: {
+      type,
+      active: activeParam,
+    },
+  });
+  return response.data;
+};
+
 export const getStudentProfile = async () =>
   withFallback(
     () => requestOrNull<any>(api.get('/students/me')),
@@ -307,6 +368,10 @@ export const listStudentAnswerSheets = async (studentId: string) =>
   requestArrayOrEmpty(api.get(`/students/${studentId}/answersheets`));
 
 export default {
+  getHome,
+  getMyGrades,
+  getAnnouncements,
+  getThemes,
   getStudentProfile,
   getStudentAgenda,
   listStudentUpcomingContents,

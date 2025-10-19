@@ -1,562 +1,841 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
+import DOMPurify from 'dompurify';
+import { toast } from 'react-toastify';
 import { Card, CardBody, CardTitle, CardSub } from '@/components/ui/Card';
-import { Tabs } from '@/components/ui/Tabs';
-import { getStudentAgenda, getStudentGrades, listStudentAnnouncements } from '@/services/student';
+import Modal from '@/components/ui/Modal';
+import { getHome } from '@/services/student';
+import { getClassColorPair } from '@/lib/colors';
 import type { StudentLayoutContextValue } from '@/layouts/StudentLayout';
 
-const BIMESTERS = [1, 2, 3, 4] as const;
-const DATE_SHORT = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' });
-const DATE_LONG = new Intl.DateTimeFormat('pt-BR', { weekday: 'short', day: '2-digit', month: 'long' });
-
-type AgendaContent = {
+type StudentHomeAnnouncement = {
   id: string;
-  titulo: string;
-  data: string | null;
-  descricao?: string | null;
+  title?: string | null;
+  html?: string | null;
+  message?: string | null;
+  attachments?: Array<{ url: string; mime?: string | null; name?: string | null }>;
+  createdAt?: string | null;
+  audience?: 'ALUNOS' | 'PROFESSORES' | 'AMBOS';
 };
 
-type AgendaEvaluation = {
+type StudentHomeAgendaItem = {
   id: string;
-  titulo: string;
-  data: string | null;
-  valor: number | null;
+  kind: 'ATIVIDADE' | 'DATA';
+  title: string;
+  dateISO: string | null;
+  tags?: string[];
 };
 
-type AgendaData = {
-  conteudos: AgendaContent[];
-  avaliacoes: AgendaEvaluation[];
-};
-
-type Announcement = {
+type StudentHomeActivity = {
   id: string;
-  mensagem: string;
-  data: string | null;
-  origem?: string | null;
+  title: string;
+  dateISO: string | null;
+  term: number | null;
+  tag: string;
+  status?: string | null;
 };
 
-type GradeActivity = {
-  atividade: string;
-  nota: number | null;
-  valor: number | null;
-  data: string | null;
+type StudentHomeGradePlan = {
+  year: number;
+  term: number;
+  activities: Array<{ id: string; name: string; points: number }>;
 };
 
-type GradeSummary = {
-  atividades: GradeActivity[];
-  agregados: {
-    mediaAtividades: number | null;
-    pontuacaoAcumulada: number;
-    totalAtividades: number;
-    resumoPorBimestre: Array<{
-      bimester: number;
-      pontuacao: number;
-      media: number | null;
-    }>;
-  };
+type StudentHomeStats = {
+  byTerm: Record<string, { avg: number; median: number; n: number }>;
+  byActivity: Record<string, Array<{ activityId: string; avg: number; n?: number }>>;
 };
 
-function currentBimester(): number {
-  const month = new Date().getMonth();
-  const estimate = Math.floor(month / 2) + 1;
-  if (estimate < 1) return 1;
-  if (estimate > 4) return 4;
-  return estimate;
+type StudentHomeData = {
+  class: {
+    id: string;
+    name: string | null;
+    color: string | null;
+    year: number | null;
+    schedule: Array<{ slot: number; days: number[]; subject?: string | null }>;
+  } | null;
+  announcements: StudentHomeAnnouncement[];
+  agenda: StudentHomeAgendaItem[];
+  atividades: StudentHomeActivity[];
+  gradePlan: StudentHomeGradePlan | null;
+  gradeStats: StudentHomeStats;
+};
+
+type StudentHomeResponse = {
+  success: boolean;
+  data: StudentHomeData;
+};
+
+const WEEK_DAYS = [
+  { id: 1, label: 'Segunda', short: 'Seg.' },
+  { id: 2, label: 'Terça', short: 'Ter.' },
+  { id: 3, label: 'Quarta', short: 'Qua.' },
+  { id: 4, label: 'Quinta', short: 'Qui.' },
+  { id: 5, label: 'Sexta', short: 'Sex.' },
+] as const;
+
+const SLOT_CONFIG = [
+  { id: 1, label: '1º', time: '07:15 – 08:45' },
+  { id: 2, label: '2º', time: '09:00 – 10:30' },
+  { id: 3, label: '3º', time: '10:45 – 12:15' },
+] as const;
+
+const DATE_LONG = new Intl.DateTimeFormat('pt-BR', {
+  weekday: 'short',
+  day: '2-digit',
+  month: 'long',
+});
+
+const DATE_SHORT = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit',
+  month: 'short',
+});
+
+const TIME_RELATIVE = new Intl.RelativeTimeFormat('pt-BR', { numeric: 'auto' });
+
+const STATUS_LABELS: Record<string, { label: string; className: string }> = {
+  CONCLUIDA: { label: 'Concluída', className: 'bg-emerald-100 text-emerald-700' },
+  ATRASADA: { label: 'Atrasada', className: 'bg-rose-100 text-rose-700' },
+  PENDENTE: { label: 'Pendente', className: 'bg-amber-100 text-amber-700' },
+};
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
-function sortByDateAsc<T extends { data: string | null }>(items: T[]): T[] {
-  return [...items].sort((a, b) => {
-    const da = a.data ? new Date(a.data).getTime() : Number.POSITIVE_INFINITY;
-    const db = b.data ? new Date(b.data).getTime() : Number.POSITIVE_INFINITY;
-    return da - db;
-  });
-}
-
-function sortByDateDesc<T extends { data: string | null }>(items: T[]): T[] {
-  return [...items].sort((a, b) => {
-    const da = a.data ? new Date(a.data).getTime() : 0;
-    const db = b.data ? new Date(b.data).getTime() : 0;
-    return db - da;
-  });
-}
-
-function formatDate(value?: string | null, fallback = '—'): string {
-  if (!value) return fallback;
+function formatDateLong(value: string | null | undefined) {
+  if (!isNonEmptyString(value)) return 'Data não informada';
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return fallback;
-  return DATE_SHORT.format(date);
-}
-
-function formatLongDate(value?: string | null, fallback = '—'): string {
-  if (!value) return fallback;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return fallback;
+  if (Number.isNaN(date.getTime())) return 'Data não informada';
   return DATE_LONG.format(date);
 }
 
-function ensureId(value: unknown, index: number, prefix: string): string {
-  if (typeof value === 'string' && value) return value;
-  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
-  if (value && typeof value === 'object') {
-    const raw = value as Record<string, unknown>;
-    const idCandidate = raw.id ?? raw._id ?? raw.uuid;
-    if (typeof idCandidate === 'string' || typeof idCandidate === 'number') {
-      return String(idCandidate);
-    }
-  }
-  return `${prefix}-${index}`;
+function formatDateShort(value: string | null | undefined) {
+  if (!isNonEmptyString(value)) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return DATE_SHORT.format(date);
 }
 
-function normalizeAgenda(input: unknown): AgendaData {
-  const raw = (input as any) ?? {};
-  const conteudos = Array.isArray(raw.conteudos)
-    ? raw.conteudos.map((item: any, index: number) => {
-        const entry = item ?? {};
-        return {
-          id: ensureId(entry, index, 'conteudo'),
-          titulo: entry?.titulo ?? entry?.title ?? `Conteúdo ${index + 1}`,
-          data: entry?.data ?? null,
-          descricao: entry?.descricao ?? entry?.description ?? null,
-        };
-      })
-    : [];
-  const avaliacoes = Array.isArray(raw.avaliacoes)
-    ? raw.avaliacoes.map((item: any, index: number) => {
-        const entry = item ?? {};
-        const valor = entry?.valor ?? entry?.value;
-        return {
-          id: ensureId(entry, index, 'avaliacao'),
-          titulo: entry?.titulo ?? entry?.name ?? `Avaliação ${index + 1}`,
-          data: entry?.data ?? null,
-          valor: typeof valor === 'number' ? valor : null,
-        };
-      })
-    : [];
-  return {
-    conteudos: sortByDateAsc(conteudos),
-    avaliacoes: sortByDateAsc(avaliacoes),
-  };
+function formatRelative(value: string | null | undefined) {
+  if (!isNonEmptyString(value)) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const diff = date.getTime() - Date.now();
+  const days = Math.round(diff / (1000 * 60 * 60 * 24));
+  if (days === 0) return 'Hoje';
+  return TIME_RELATIVE.format(days, 'day');
 }
 
-function normalizeAnnouncements(input: unknown): Announcement[] {
-  const base = Array.isArray(input) ? input : Array.isArray((input as any)?.avisos) ? (input as any).avisos : [];
-  const mapped = base
-    .map((item: any, index: number) => {
-      const entry = item ?? {};
-      return {
-        id: ensureId(entry, index, 'aviso'),
-        mensagem: entry?.mensagem ?? entry?.message ?? '',
-        data: entry?.data ?? entry?.createdAt ?? null,
-        origem: entry?.origem ?? null,
-      };
-    })
-    .filter((item: Announcement) => item.mensagem);
-  return sortByDateDesc(mapped);
+function sanitizeHtml(html: string | null | undefined) {
+  if (!isNonEmptyString(html)) return { __html: '' };
+  return { __html: DOMPurify.sanitize(html) };
 }
 
-function normalizeGrades(input: unknown): GradeSummary {
-  const fallback: GradeSummary = {
-    atividades: [],
-    agregados: {
-      mediaAtividades: null,
-      pontuacaoAcumulada: 0,
-      totalAtividades: 0,
-      resumoPorBimestre: [],
-    },
-  };
-
-  if (!input || typeof input !== 'object') return fallback;
-  const asAny = input as any;
-  const atividadesRaw = Array.isArray(asAny.atividades) ? asAny.atividades : [];
-  const agregadosRaw = asAny.agregados ?? {};
-
-  const atividades = atividadesRaw.map((item: any) => ({
-    atividade: item?.atividade ?? item?.name ?? 'Atividade',
-    nota: typeof item?.nota === 'number' ? item.nota : null,
-    valor: typeof item?.valor === 'number' ? item.valor : null,
-    data: item?.data ?? null,
-  }));
-
-  return {
-    atividades,
-    agregados: {
-      mediaAtividades:
-        typeof agregadosRaw.mediaAtividades === 'number' ? agregadosRaw.mediaAtividades : null,
-      pontuacaoAcumulada:
-        typeof agregadosRaw.pontuacaoAcumulada === 'number' ? agregadosRaw.pontuacaoAcumulada : 0,
-      totalAtividades:
-        typeof agregadosRaw.totalAtividades === 'number'
-          ? agregadosRaw.totalAtividades
-          : atividades.filter((activity: GradeActivity) => activity.nota !== null).length,
-      resumoPorBimestre: Array.isArray(agregadosRaw.resumoPorBimestre)
-        ? agregadosRaw.resumoPorBimestre.map((item: any) => ({
-            bimester: Number(item?.bimester ?? item?.bimestre ?? 0),
-            pontuacao: typeof item?.pontuacao === 'number' ? item.pontuacao : 0,
-            media: typeof item?.media === 'number' ? item.media : null,
-          }))
-        : [],
-    },
-  };
+function groupScheduleEntries(entries: Array<{ slot: number; days: number[] }>) {
+  const grouped = new Map<string, boolean>();
+  entries.forEach((entry) => {
+    if (!entry || !Number.isInteger(entry.slot) || !Array.isArray(entry.days)) return;
+    entry.days.forEach((day) => {
+      if (!Number.isInteger(day)) return;
+      grouped.set(`${entry.slot}-${day}`, true);
+    });
+  });
+  return grouped;
 }
 
-function EmptyState({ message }: { message: string }) {
-  return (
-    <p className="rounded-xl border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">
-      {message}
-    </p>
-  );
-}
-
-function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-2 text-2xl font-bold text-slate-800">{value}</p>
-      {hint && <p className="mt-1 text-xs text-slate-500">{hint}</p>}
-    </div>
-  );
+function sumPoints(activities: StudentHomeGradePlan['activities'] | undefined) {
+  if (!activities?.length) return 0;
+  return activities.reduce((acc, activity) => acc + Number(activity.points ?? 0), 0);
 }
 
 export default function ResumoAlunoPage() {
-  const { profile, loading: layoutLoading } = useOutletContext<StudentLayoutContextValue>();
-  const studentId = profile?.id ?? null;
+  const { profile } = useOutletContext<StudentLayoutContextValue>();
 
-  const [agenda, setAgenda] = useState<AgendaData>({ conteudos: [], avaliacoes: [] });
-  const [agendaLoading, setAgendaLoading] = useState(false);
-  const [agendaError, setAgendaError] = useState(false);
+  const [home, setHome] = useState<StudentHomeData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [termLoading, setTermLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedTerm, setSelectedTerm] = useState<number>(1);
+  const [announcementIndex, setAnnouncementIndex] = useState(0);
+  const [announcementsPaused, setAnnouncementsPaused] = useState(false);
+  const [announcementsModalOpen, setAnnouncementsModalOpen] = useState(false);
+  const [agendaModalOpen, setAgendaModalOpen] = useState(false);
+  const [activitiesModalOpen, setActivitiesModalOpen] = useState(false);
 
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [announcementsLoading, setAnnouncementsLoading] = useState(false);
-  const [announcementsError, setAnnouncementsError] = useState(false);
-
-  const [term, setTerm] = useState<number>(currentBimester());
-  const [grades, setGrades] = useState<GradeSummary | null>(null);
-  const [gradesLoading, setGradesLoading] = useState(false);
-  const [gradesError, setGradesError] = useState(false);
-
-  useEffect(() => {
-    if (!studentId) return;
-    let cancelled = false;
-    setAgendaLoading(true);
-    setAnnouncementsLoading(true);
-    setAgendaError(false);
-    setAnnouncementsError(false);
-
-    const load = async () => {
-      try {
-        const [agendaResponse, announcementsResponse] = await Promise.all([
-          getStudentAgenda(studentId),
-          listStudentAnnouncements(studentId, { limit: 6 }),
-        ]);
-
-        if (cancelled) return;
-        setAgenda(normalizeAgenda(agendaResponse));
-        setAnnouncements(normalizeAnnouncements(announcementsResponse));
-      } catch (error) {
-        console.error('[ResumoAluno] Falha ao carregar agenda ou avisos', error);
-        if (!cancelled) {
-          setAgendaError(true);
-          setAnnouncementsError(true);
-        }
-      } finally {
-        if (!cancelled) {
-          setAgendaLoading(false);
-          setAnnouncementsLoading(false);
-        }
-      }
-    };
-
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [studentId]);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    if (!studentId) return;
-    let cancelled = false;
-    setGradesLoading(true);
-    setGradesError(false);
-
-    const loadGrades = async () => {
-      try {
-        const response = await getStudentGrades(studentId, term);
-        if (cancelled) return;
-        setGrades(normalizeGrades(response));
-      } catch (error) {
-        console.error('[ResumoAluno] Falha ao carregar notas', error);
-        if (!cancelled) {
-          setGradesError(true);
-        }
-      } finally {
-        if (!cancelled) {
-          setGradesLoading(false);
-        }
-      }
-    };
-
-    void loadGrades();
+    mountedRef.current = true;
     return () => {
-      cancelled = true;
+      mountedRef.current = false;
     };
-  }, [studentId, term]);
+  }, []);
 
-  const proximasAvaliacoes = useMemo(
-    () => sortByDateAsc(agenda.avaliacoes).slice(0, 4),
-    [agenda.avaliacoes],
+  const loadHome = useCallback(
+    async (options?: { term?: number; notify?: boolean }) => {
+      const term = options?.term;
+      const notify = options?.notify ?? !term;
+
+      if (term !== undefined) {
+        setTermLoading(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
+
+      try {
+        const response = (await getHome(
+          term !== undefined ? { term } : undefined,
+        )) as StudentHomeResponse;
+        if (!mountedRef.current) return;
+
+        if (response?.success) {
+          setHome(response.data);
+          const nextTerm = response.data?.gradePlan?.term ?? term ?? selectedTerm;
+          if (Number.isFinite(nextTerm)) {
+            setSelectedTerm(Number(nextTerm));
+          }
+          if (notify) {
+            toast.success('Carregado');
+          }
+        } else {
+          setHome(response?.data ?? null);
+          if (notify) {
+            toast.info('Nada por aqui ainda');
+          }
+        }
+      } catch (err) {
+        console.error('[aluno/resumo] Falha ao carregar dados', err);
+        if (!mountedRef.current) return;
+        setError('Erro ao carregar dados.');
+        toast.error('Erro ao carregar dados');
+      } finally {
+        if (!mountedRef.current) return;
+        setLoading(false);
+        setTermLoading(false);
+      }
+    },
+    [selectedTerm],
   );
 
-  const proximosConteudos = useMemo(
-    () => sortByDateAsc(agenda.conteudos).slice(0, 4),
-    [agenda.conteudos],
+  useEffect(() => {
+    void loadHome({ notify: true });
+  }, [loadHome]);
+
+  useEffect(() => {
+    if (!home?.announcements?.length) return;
+    setAnnouncementIndex(0);
+  }, [home?.announcements]);
+
+  useEffect(() => {
+    if (!home?.announcements?.length) return;
+    if (announcementsPaused) return;
+    const id = window.setInterval(() => {
+      setAnnouncementIndex((prev) =>
+        home.announcements.length ? (prev + 1) % home.announcements.length : 0,
+      );
+    }, 10_000);
+    return () => window.clearInterval(id);
+  }, [home?.announcements, announcementsPaused]);
+
+  const scheduleMatrix = useMemo(() => {
+    const scheduleEntries = home?.class?.schedule ?? [];
+    return groupScheduleEntries(scheduleEntries);
+  }, [home?.class?.schedule]);
+
+  const classColor = useMemo(() => {
+    if (!home?.class) return { background: '#f97316', textColor: '#0f172a' };
+    return getClassColorPair(home.class.id || home.class.name || '');
+  }, [home?.class]);
+
+  const announcements = home?.announcements ?? [];
+  const agendaItems = home?.agenda ?? [];
+  const activities = home?.atividades ?? [];
+
+  const currentAnnouncement =
+    announcements.length > 0 ? announcements[announcementIndex % announcements.length] : null;
+
+  const gradePlan = home?.gradePlan ?? null;
+  const gradeStats = home?.gradeStats ?? { byTerm: {}, byActivity: {} };
+  const termStats = gradeStats.byTerm?.[String(selectedTerm)] ?? { avg: 0, median: 0, n: 0 };
+  const activitiesForTerm = gradePlan?.term === selectedTerm ? gradePlan.activities : [];
+  const totalPoints = sumPoints(activitiesForTerm);
+  const progressPercent = Math.min(100, Math.round((totalPoints / 10) * 100));
+
+  const byActivity = gradeStats.byActivity?.[String(selectedTerm)] ?? [];
+
+  const handleTermChange = useCallback(
+    (term: number) => {
+      if (term === selectedTerm) return;
+      setSelectedTerm(term);
+      void loadHome({ term, notify: false });
+    },
+    [loadHome, selectedTerm],
   );
 
-  const proximaAvaliacao = proximasAvaliacoes[0] ?? null;
-  const atividades = grades?.atividades ?? [];
-  const atividadesTabela = useMemo(() => atividades.slice(0, 5), [atividades]);
-  const agregados = grades?.agregados;
-
-  const resumoPorBimestre = useMemo(() => {
-    if (!agregados) return [];
-    return [...(agregados.resumoPorBimestre ?? [])]
-      .filter((item) => Number.isFinite(item.bimester) && item.pontuacao !== undefined)
-      .sort((a, b) => a.bimester - b.bimester);
-  }, [agregados]);
-
-  const mediaAtividades = agregados?.mediaAtividades ?? null;
-  const pontuacaoAcumulada = agregados?.pontuacaoAcumulada ?? 0;
-  const totalAtividades = agregados?.totalAtividades ?? 0;
-
-  if (!studentId) {
+  if (loading) {
     return (
-      <div className="py-20 text-center text-sm text-slate-500">
-        {layoutLoading ? 'Carregando dados do aluno…' : 'Não foi possível carregar seu perfil.'}
+      <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
+        Carregando dashboard do aluno…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center text-sm text-rose-700 shadow-sm">
+        {error}
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <section className="grid gap-6 xl:grid-cols-2">
-        <Card className="h-full">
-          <CardBody className="space-y-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div className="space-y-6">
+      <div className="grid grid-cols-12 gap-6">
+        <Card className="col-span-12 lg:col-span-7">
+          <CardBody className="space-y-4">
+            <div className="flex items-start justify-between gap-4">
               <div>
-                <CardTitle>Minhas notas</CardTitle>
-                <CardSub>Resumo por bimestre</CardSub>
+                <CardTitle>Horário semanal</CardTitle>
+                <CardSub>Blocos em que sua turma tem aula registrada</CardSub>
               </div>
-              <Tabs
-                items={BIMESTERS.map((value) => ({
-                  key: String(value),
-                  label: `${value}º bim.`,
-                  isActive: term === value,
-                  onClick: () => setTerm(value),
-                }))}
-              />
+              {home?.class?.name && (
+                <span className="inline-flex items-center rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-600">
+                  {home.class.name}
+                </span>
+              )}
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-[560px] table-fixed border-collapse">
+                <thead>
+                  <tr>
+                    <th className="w-28 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Horário
+                    </th>
+                    {WEEK_DAYS.map((day) => (
+                      <th
+                        key={day.id}
+                        className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
+                      >
+                        {day.short}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {SLOT_CONFIG.map((slot) => (
+                    <tr key={slot.id} className="border-t border-slate-100">
+                      <td className="px-3 py-3 align-top text-sm text-slate-600">
+                        <div className="font-semibold text-slate-700">{slot.label} horário</div>
+                        <div className="text-xs text-slate-500">{slot.time}</div>
+                      </td>
+                      {WEEK_DAYS.map((day) => {
+                        const key = `${slot.id}-${day.id}`;
+                        const hasClass = scheduleMatrix.get(key);
+                        return (
+                          <td key={day.id} className="px-3 py-3">
+                            <div
+                              className={[
+                                'flex min-h-[72px] items-center justify-center rounded-xl border text-sm font-medium transition',
+                                hasClass
+                                  ? 'border-transparent shadow-sm'
+                                  : 'border-dashed border-slate-200 text-slate-400',
+                              ].join(' ')}
+                              style={
+                                hasClass
+                                  ? {
+                                      background: classColor.background,
+                                      color: classColor.textColor,
+                                    }
+                                  : undefined
+                              }
+                            >
+                              {hasClass ? home?.class?.name ?? 'Aula' : '—'}
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardBody>
+        </Card>
+
+        <Card className="col-span-12 lg:col-span-5">
+          <CardBody className="space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle>Avisos</CardTitle>
+                <CardSub>Comunicados recentes para sua turma</CardSub>
+              </div>
+              {announcements.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setAnnouncementsModalOpen(true)}
+                  className="text-sm font-semibold text-orange-600 transition hover:text-orange-500"
+                >
+                  Ver todos
+                </button>
+              )}
             </div>
 
-            {gradesLoading ? (
-              <div className="rounded-2xl border border-slate-200 bg-white py-14 text-center text-sm text-slate-500">
-                Carregando notas…
+            {announcements.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">
+                Nada por aqui ainda
               </div>
-            ) : gradesError ? (
-              <EmptyState message="Não foi possível carregar as notas desse bimestre." />
+            ) : currentAnnouncement ? (
+              <div
+                className="relative rounded-xl border border-slate-200 bg-white/70 p-4 shadow-sm"
+                onMouseEnter={() => setAnnouncementsPaused(true)}
+                onMouseLeave={() => setAnnouncementsPaused(false)}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h4 className="text-base font-semibold text-slate-800">
+                      {currentAnnouncement.title ?? 'Aviso'}
+                    </h4>
+                    <p className="mt-1 text-xs uppercase tracking-wide text-slate-500">
+                      {formatRelative(currentAnnouncement.createdAt)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="rounded-full border border-slate-200 bg-white p-1 text-slate-500 transition hover:border-slate-300 hover:text-slate-700"
+                      onClick={() =>
+                        setAnnouncementIndex((prev) =>
+                          (prev - 1 + announcements.length) % announcements.length,
+                        )
+                      }
+                      aria-label="Anterior"
+                    >
+                      ‹
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-full border border-slate-200 bg-white p-1 text-slate-500 transition hover:border-slate-300 hover:text-slate-700"
+                      onClick={() =>
+                        setAnnouncementIndex((prev) => (prev + 1) % announcements.length)
+                      }
+                      aria-label="Próximo"
+                    >
+                      ›
+                    </button>
+                  </div>
+                </div>
+                <div
+                  className="prose prose-sm mt-3 max-w-none text-slate-700"
+                  dangerouslySetInnerHTML={sanitizeHtml(
+                    currentAnnouncement.html || currentAnnouncement.message || '',
+                  )}
+                />
+                {currentAnnouncement.attachments?.length ? (
+                  <div className="mt-3 space-y-2">
+                    {currentAnnouncement.attachments.map((attachment, index) => {
+                      if (!attachment.url) return null;
+                      const mime = (attachment.mime || '').toLowerCase();
+                      if (mime.startsWith('image/')) {
+                        return (
+                          <div key={`${attachment.url}-${index}`} className="overflow-hidden rounded-lg border border-slate-200">
+                            <img
+                              src={attachment.url}
+                              alt={attachment.name ?? 'Imagem do aviso'}
+                              className="max-h-48 w-full object-cover"
+                            />
+                          </div>
+                        );
+                      }
+                      return (
+                        <a
+                          key={`${attachment.url}-${index}`}
+                          href={attachment.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-orange-300 hover:text-orange-600"
+                        >
+                          {attachment.name ?? 'Abrir anexo'}
+                        </a>
+                      );
+                    })}
+                  </div>
+                ) : null}
+                <div className="mt-4 text-xs uppercase tracking-wide text-slate-400">
+                  {announcementIndex + 1} / {announcements.length}
+                </div>
+              </div>
+            ) : null}
+          </CardBody>
+        </Card>
+
+        <Card className="col-span-12 md:col-span-6">
+          <CardBody className="space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle>Agenda</CardTitle>
+                <CardSub>Conteúdos, atividades e datas importantes</CardSub>
+              </div>
+              {agendaItems.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setAgendaModalOpen(true)}
+                  className="text-sm font-semibold text-orange-600 transition hover:text-orange-500"
+                >
+                  Ver todos
+                </button>
+              )}
+            </div>
+            {agendaItems.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">
+                Nada por aqui ainda
+              </div>
             ) : (
+              <div className="space-y-3">
+                {agendaItems.slice(0, 5).map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                  >
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      {item.kind === 'ATIVIDADE' ? 'Atividade' : 'Data'}
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-slate-800">{item.title}</div>
+                    <div className="mt-1 text-xs text-slate-500">{formatDateLong(item.dateISO)}</div>
+                    {item.tags?.length ? (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {item.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardBody>
+        </Card>
+
+        <Card className="col-span-12 md:col-span-6">
+          <CardBody className="space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle>Próximas atividades</CardTitle>
+                <CardSub>Conteúdos e avaliações das próximas semanas</CardSub>
+              </div>
+              {activities.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setActivitiesModalOpen(true)}
+                  className="text-sm font-semibold text-orange-600 transition hover:text-orange-500"
+                >
+                  Ver todos
+                </button>
+              )}
+            </div>
+            {activities.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">
+                Nada por aqui ainda
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {activities.slice(0, 5).map((activity) => {
+                  const status = activity.status ? STATUS_LABELS[activity.status] : null;
+                  return (
+                    <div
+                      key={activity.id}
+                      className="flex items-start justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                    >
+                      <div>
+                        <div className="text-sm font-semibold text-slate-800">{activity.title}</div>
+                        <div className="mt-1 text-xs text-slate-500">
+                          {formatDateLong(activity.dateISO)}
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        {status ? (
+                          <span
+                            className={`rounded-full px-3 py-0.5 text-xs font-semibold ${status.className}`}
+                          >
+                            {status.label}
+                          </span>
+                        ) : null}
+                        {activity.term ? (
+                          <span className="text-xs text-slate-500">
+                            {activity.term}º bimestre
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardBody>
+        </Card>
+
+        <Card className="col-span-12">
+          <CardBody className="space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <CardTitle>Divisão de notas (visual)</CardTitle>
+                <CardSub>Plano de atividades avaliativas por bimestre</CardSub>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {[1, 2, 3, 4].map((term) => (
+                  <button
+                    key={term}
+                    type="button"
+                    onClick={() => handleTermChange(term)}
+                    className={[
+                      'rounded-full px-3 py-1 text-sm font-semibold transition',
+                      selectedTerm === term
+                        ? 'bg-orange-500 text-white shadow-sm'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                    ].join(' ')}
+                    disabled={termLoading && selectedTerm === term}
+                  >
+                    {term}º bim.
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {termLoading && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                Carregando plano deste bimestre…
+              </div>
+            )}
+
+            {!termLoading && !gradePlan?.activities.length ? (
+              <div className="rounded-xl border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-500">
+                Seu professor ainda não cadastrou a divisão de notas deste bimestre.
+              </div>
+            ) : null}
+
+            {!termLoading && gradePlan?.activities.length ? (
               <>
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <StatCard
-                    label="Pontuação do bimestre"
-                    value={pontuacaoAcumulada.toFixed(1)}
-                    hint="Soma das notas lançadas"
-                  />
-                  <StatCard
-                    label="Média das atividades"
-                    value={mediaAtividades !== null ? mediaAtividades.toFixed(1) : '—'}
-                    hint="Calculada nas avaliações registradas"
-                  />
-                  <StatCard
-                    label="Atividades avaliadas"
-                    value={String(totalAtividades)}
-                    hint="Notas publicadas neste período"
-                  />
+                <div>
+                  <div className="flex items-center justify-between text-sm font-semibold text-slate-700">
+                    <span>Total de pontos cadastrados</span>
+                    <span>
+                      {totalPoints.toFixed(1)} / 10
+                    </span>
+                  </div>
+                  <div className="mt-2 h-3 rounded-full bg-slate-200">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-orange-400 to-orange-500 transition-all"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
                 </div>
 
-                <div className="overflow-hidden rounded-2xl border border-slate-200">
+                <div className="overflow-hidden rounded-xl border border-slate-200">
                   <table className="min-w-full divide-y divide-slate-200 text-sm">
                     <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                       <tr>
                         <th className="px-4 py-3">Atividade</th>
-                        <th className="px-4 py-3 text-right">Nota</th>
-                        <th className="px-4 py-3 text-right">Valor</th>
-                        <th className="px-4 py-3 text-right">Data</th>
+                        <th className="px-4 py-3 text-right">Pontos</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {atividadesTabela.length ? (
-                        atividadesTabela.map((activity, index) => (
-                          <tr key={`${activity.atividade}-${index}`}>
-                            <td className="px-4 py-3 font-medium text-slate-700">{activity.atividade}</td>
-                            <td className="px-4 py-3 text-right text-slate-700">
-                              {typeof activity.nota === 'number' ? activity.nota.toFixed(1) : '—'}
-                            </td>
-                            <td className="px-4 py-3 text-right text-slate-500">
-                              {typeof activity.valor === 'number' ? activity.valor.toFixed(1) : '—'}
-                            </td>
-                            <td className="px-4 py-3 text-right text-slate-500">{formatDate(activity.data)}</td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={4} className="px-4 py-6 text-center text-sm text-slate-500">
-                            Nenhuma nota lançada para o bimestre selecionado.
+                      {gradePlan.activities.map((activity) => (
+                        <tr key={activity.id}>
+                          <td className="px-4 py-3 font-medium text-slate-700">{activity.name}</td>
+                          <td className="px-4 py-3 text-right text-slate-700">
+                            {Number(activity.points ?? 0).toFixed(1)}
                           </td>
                         </tr>
-                      )}
+                      ))}
                     </tbody>
                   </table>
                 </div>
 
-                <div className="rounded-2xl border border-slate-200 bg-white/60 px-4 py-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pontuação por bimestre</p>
-                  {resumoPorBimestre.length ? (
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                      {resumoPorBimestre.map((item) => (
-                        <div
-                          key={item.bimester}
-                          className="flex items-center justify-between rounded-xl bg-white px-4 py-3 shadow-sm"
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Média da turma
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-slate-800">
+                      {termStats.avg.toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Mediana
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-slate-800">
+                      {termStats.median.toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Lançamentos
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-slate-800">{termStats.n}</p>
+                  </div>
+                </div>
+
+                {byActivity.length ? (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm shadow-inner">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Média por atividade
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {byActivity.map((item) => (
+                        <span
+                          key={item.activityId}
+                          className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm"
                         >
-                          <div>
-                            <p className="text-sm font-semibold text-slate-700">{item.bimester}º bimestre</p>
-                            <p className="text-xs text-slate-500">
-                              {item.media !== null ? `Média ${item.media.toFixed(1)}` : 'Sem média registrada'}
-                            </p>
-                          </div>
-                          <span className="text-sm font-semibold text-orange-500">
-                            {item.pontuacao.toFixed(1)} pts
-                          </span>
-                        </div>
+                          {item.avg.toFixed(2)}
+                        </span>
                       ))}
                     </div>
-                  ) : (
-                    <p className="mt-3 text-xs text-slate-500">
-                      Os bimestres aparecerão aqui assim que houver notas registradas.
-                    </p>
-                  )}
-                </div>
+                  </div>
+                ) : null}
               </>
-            )}
+            ) : null}
           </CardBody>
         </Card>
+      </div>
 
-        <Card className="h-full">
-          <CardBody className="space-y-6">
-            <div>
-              <CardTitle>Próximas avaliações</CardTitle>
-              <CardSub>Fique de olho nas provas agendadas para a sua turma</CardSub>
-            </div>
-
-            {agendaLoading ? (
-              <div className="py-10 text-center text-sm text-slate-500">Carregando agenda…</div>
-            ) : agendaError ? (
-              <EmptyState message="Não foi possível carregar as avaliações." />
-            ) : proximasAvaliacoes.length ? (
-              <div className="space-y-4">
-                {proximasAvaliacoes.map((evaluation) => (
-                  <div
-                    key={evaluation.id}
-                    className="flex items-start justify-between rounded-2xl border border-slate-200 px-4 py-3"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800">{evaluation.titulo}</p>
-                      <p className="text-xs text-slate-500">{formatLongDate(evaluation.data)}</p>
-                    </div>
-                    <span className="text-xs font-semibold text-orange-500">
-                      {typeof evaluation.valor === 'number' ? `${evaluation.valor.toFixed(1)} pts` : 'Sem valor'}
+      <Modal open={announcementsModalOpen} onClose={() => setAnnouncementsModalOpen(false)}>
+        <div className="max-h-[70vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6">
+          <h2 className="text-lg font-semibold text-slate-800">Todos os avisos da turma</h2>
+          <p className="text-sm text-slate-500">Os comunicados ficam disponíveis por ordem de publicação.</p>
+          <div className="mt-4 space-y-4">
+            {announcements.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">
+                Nada por aqui ainda
+              </div>
+            ) : (
+              announcements.map((announcement) => (
+                <div key={announcement.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-base font-semibold text-slate-800">
+                      {announcement.title ?? 'Aviso'}
+                    </h3>
+                    <span className="text-xs text-slate-500">
+                      {formatDateLong(announcement.createdAt)}
                     </span>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyState message="Nenhuma avaliação nas próximas semanas." />
-            )}
-
-            {proximaAvaliacao && (
-              <div className="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4">
-                <p className="text-xs font-semibold text-orange-600">Próxima avaliação</p>
-                <p className="mt-1 text-lg font-semibold text-orange-700">{proximaAvaliacao.titulo}</p>
-                <p className="text-sm text-orange-700/90">{formatLongDate(proximaAvaliacao.data)}</p>
-                {typeof proximaAvaliacao.valor === 'number' && (
-                  <p className="text-xs text-orange-700/80">
-                    Vale {proximaAvaliacao.valor.toFixed(1)} pontos
-                  </p>
-                )}
-              </div>
-            )}
-          </CardBody>
-        </Card>
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-2">
-        <Card className="h-full">
-          <CardBody className="space-y-6">
-            <div>
-              <CardTitle>Próximos conteúdos</CardTitle>
-              <CardSub>Confira o que será trabalhado nas próximas aulas</CardSub>
-            </div>
-
-            {agendaLoading ? (
-              <div className="py-10 text-center text-sm text-slate-500">Carregando agenda…</div>
-            ) : agendaError ? (
-              <EmptyState message="Não foi possível carregar os próximos conteúdos." />
-            ) : proximosConteudos.length ? (
-              <div className="space-y-3">
-                {proximosConteudos.map((content) => (
-                  <div key={content.id} className="rounded-2xl border border-slate-200 px-4 py-3">
-                    <p className="text-sm font-medium text-slate-800">{content.titulo}</p>
-                    <p className="text-xs text-slate-500">{formatLongDate(content.data)}</p>
-                    {content.descricao && (
-                      <p className="mt-2 text-xs text-slate-500">{content.descricao}</p>
+                  <div
+                    className="prose prose-sm mt-2 max-w-none text-slate-700"
+                    dangerouslySetInnerHTML={sanitizeHtml(
+                      announcement.html || announcement.message || '',
                     )}
-                  </div>
-                ))}
+                  />
+                  {announcement.attachments?.length ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {announcement.attachments.map((attachment, index) => (
+                        <a
+                          key={`${attachment.url}-${index}`}
+                          href={attachment.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-orange-300 hover:text-orange-600"
+                        >
+                          {attachment.name ?? 'Abrir anexo'}
+                        </a>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={agendaModalOpen} onClose={() => setAgendaModalOpen(false)}>
+        <div className="max-h-[70vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6">
+          <h2 className="text-lg font-semibold text-slate-800">Agenda completa</h2>
+          <p className="text-sm text-slate-500">
+            Consulte conteúdos, atividades e datas importantes cadastradas na turma.
+          </p>
+          <div className="mt-4 space-y-3">
+            {agendaItems.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">
+                Nada por aqui ainda
               </div>
             ) : (
-              <EmptyState message="Os próximos conteúdos aparecerão aqui assim que forem publicados." />
-            )}
-          </CardBody>
-        </Card>
-
-        <Card className="h-full">
-          <CardBody className="space-y-6">
-            <div>
-              <CardTitle>Avisos recentes</CardTitle>
-              <CardSub>Mensagens importantes da sua turma</CardSub>
-            </div>
-
-            {announcementsLoading ? (
-              <div className="py-10 text-center text-sm text-slate-500">Carregando avisos…</div>
-            ) : announcementsError ? (
-              <EmptyState message="Não foi possível carregar os avisos." />
-            ) : announcements.length ? (
-              <div className="space-y-4">
-                {announcements.map((announcement) => (
-                  <div key={announcement.id} className="rounded-2xl border border-slate-200 px-4 py-3">
-                    <p className="text-sm font-medium text-slate-800">{announcement.mensagem}</p>
-                    <p className="mt-1 text-xs text-slate-500">{formatLongDate(announcement.data)}</p>
-                    {announcement.origem && (
-                      <p className="text-xs text-slate-400">
-                        Fonte: {announcement.origem === 'class' ? 'Turma' : 'Professor'}
-                      </p>
-                    )}
+              agendaItems.map((item) => (
+                <div key={item.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      {item.kind === 'ATIVIDADE' ? 'Atividade' : 'Data'}
+                    </div>
+                    <div className="text-xs text-slate-500">{formatDateLong(item.dateISO)}</div>
                   </div>
-                ))}
+                  <div className="mt-1 text-sm font-semibold text-slate-800">{item.title}</div>
+                  {item.tags?.length ? (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {item.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={activitiesModalOpen} onClose={() => setActivitiesModalOpen(false)}>
+        <div className="max-h-[70vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6">
+          <h2 className="text-lg font-semibold text-slate-800">Próximas atividades</h2>
+          <p className="text-sm text-slate-500">Lista completa das atividades previstas para os próximos dias.</p>
+          <div className="mt-4 space-y-3">
+            {activities.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">
+                Nada por aqui ainda
               </div>
             ) : (
-              <EmptyState message="Você verá seus avisos importantes aqui." />
+              activities.map((activity) => {
+                const status = activity.status ? STATUS_LABELS[activity.status] : null;
+                return (
+                  <div key={activity.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-slate-800">{activity.title}</div>
+                        <div className="mt-1 text-xs text-slate-500">
+                          {formatDateLong(activity.dateISO)}
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        {status ? (
+                          <span
+                            className={`rounded-full px-3 py-0.5 text-xs font-semibold ${status.className}`}
+                          >
+                            {status.label}
+                          </span>
+                        ) : null}
+                        {activity.term ? (
+                          <span className="text-xs text-slate-500">
+                            {activity.term}º bimestre
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
             )}
-          </CardBody>
-        </Card>
-      </section>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

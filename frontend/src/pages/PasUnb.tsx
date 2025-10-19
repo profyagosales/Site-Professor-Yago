@@ -1,15 +1,35 @@
-import { Card, CardBody } from '@/components/ui/Card';
+import { useNavigate } from 'react-router-dom';
+import { Card, CardBody, CardTitle, CardSub } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 
 export default function PasUnbPage() {
+  const navigate = useNavigate();
+
   return (
-    <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-      <Card className="border-none bg-gradient-to-br from-[#00c4cc] to-[#3e9d5a] text-white shadow-xl rounded-3xl">
-        <CardBody className="p-10 sm:p-12">
-          <h2 className="text-2xl font-semibold sm:text-3xl">
-            Informações, conteúdos e dicas sobre o PAS/UnB em breve.
-          </h2>
+    <div className="space-y-4">
+      <nav className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+        Início / PAS/UnB
+      </nav>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold text-slate-800">PAS/UnB</h1>
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+          Voltar
+        </Button>
+      </div>
+
+      <Card>
+        <CardBody className="space-y-3">
+          <CardTitle>PAS/UnB</CardTitle>
+          <CardSub>
+            Reunimos nesta área materiais, avisos e novidades sobre o Programa de Avaliação Seriada da UnB.
+          </CardSub>
+          <p className="text-sm text-slate-600">
+            Em breve você encontrará cronogramas, conteúdos de revisão, simulados e orientações específicas
+            para cada etapa do PAS. Enquanto isso, continue acompanhando o resumo da sua turma para não
+            perder nenhum aviso importante.
+          </p>
         </CardBody>
       </Card>
-    </section>
+    </div>
   );
 }

@@ -4,9 +4,13 @@ const Grade = require('../models/Grade');
 const Evaluation = require('../models/Evaluation');
 const Student = require('../models/Student');
 const Class = require('../models/Class');
+const GradePlan = require('../models/GradePlan');
+const Score = require('../models/Score');
 const pdfReport = require('../utils/pdfReport');
 const authRequired = require('../middleware/auth');
 const ensureTeacher = require('../middleware/ensureTeacher');
+const ensureStudent = require('../middleware/ensureStudent');
+const { resolveClassAccess } = require('../services/acl');
 const {
   getGradesTable,
   exportGradesTablePdf,
@@ -16,11 +20,450 @@ const router = express.Router();
 
 router.use(authRequired);
 
+router.get('/me', ensureStudent, async (req, res, next) => {
+  try {
+    const studentId = toObjectId(req.auth?.sub || req.auth?.userId || req.user?._id || req.user?.id);
+    if (!studentId) {
+      const error = new Error('Aluno não identificado.');
+      error.status = 403;
+      throw error;
+    }
+
+    let classId = toObjectId(req.query?.classId ?? req.auth?.classId);
+    if (!classId) {
+      const student = await Student.findById(studentId).select('class').lean();
+      classId = toObjectId(student?.class);
+    }
+
+    if (!classId) {
+      return res.json({
+        success: true,
+        data: {
+          gradePlan: null,
+          scores: [],
+          totals: { 1: 0, 2: 0, 3: 0, 4: 0 },
+          totalYear: 0,
+        },
+      });
+    }
+
+    await ensureStudentBelongsToClass(studentId, classId);
+
+    const year = parseYearParam(req.query?.year);
+    const [plan, scores] = await Promise.all([
+      GradePlan.findOne({ classId, year }).lean(),
+      Score.find({ classId, studentId, year }).lean(),
+    ]);
+
+    const sanitizedScores = scores.map((doc) => ({
+      term: doc.term,
+      activityId: String(doc.activityId),
+      score: Number(doc.score ?? 0),
+    }));
+
+    const totals = { 1: 0, 2: 0, 3: 0, 4: 0 };
+    sanitizedScores.forEach((entry) => {
+      const key = String(entry.term);
+      const current = totals[key] ?? 0;
+      totals[key] = Number((current + entry.score).toFixed(2));
+    });
+    const totalYear = Number(
+      Object.values(totals).reduce((acc, value) => acc + value, 0).toFixed(2)
+    );
+
+    res.json({
+      success: true,
+      data: {
+        gradePlan: sanitizeGradePlanDoc(plan),
+        scores: sanitizedScores,
+        totals,
+        totalYear,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 const tableRouter = express.Router();
 tableRouter.use(authRequired);
 tableRouter.use(ensureTeacher);
 tableRouter.get('/classes/:classId/grades/table', getGradesTable);
 tableRouter.get('/classes/:classId/grades/export/pdf', exportGradesTablePdf);
+
+const classesRouter = express.Router();
+classesRouter.use(authRequired);
+
+classesRouter.post('/classes/:classId/grade-plan', ensureTeacher, async (req, res, next) => {
+  try {
+    const classId = toObjectId(req.params.classId);
+    if (!classId) {
+      const error = new Error('classId inválido.');
+      error.status = 400;
+      throw error;
+    }
+
+    await ensureTeacherClassAccess(req, classId);
+
+    const year = parseYearParam(req.body?.year ?? req.query?.year);
+    let plan = null;
+
+    if (req.body?.term !== undefined) {
+      const term = parseTermParam(req.body.term);
+      const activities = normalizeTermActivities(req.body?.activities ?? req.body?.terms ?? []);
+      plan = await GradePlan.findOneAndUpdate(
+        { classId, year },
+        {
+          $set: { [`terms.${term}`]: activities },
+          $setOnInsert: { classId, year },
+        },
+        { upsert: true, new: true, runValidators: true }
+      );
+    } else if (req.body?.terms !== undefined) {
+      const normalized = normalizeTermsPayload(req.body.terms);
+      plan = await GradePlan.findOneAndUpdate(
+        { classId, year },
+        {
+          $set: { terms: normalized },
+          $setOnInsert: { classId, year },
+        },
+        { upsert: true, new: true, runValidators: true }
+      );
+    } else {
+      const error = new Error('Informe os termos do plano de notas.');
+      error.status = 400;
+      throw error;
+    }
+
+    res.json({ success: true, data: sanitizeGradePlanDoc(plan) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+classesRouter.get('/classes/:classId/grade-plan', async (req, res, next) => {
+  try {
+    const classId = toObjectId(req.params.classId);
+    if (!classId) {
+      const error = new Error('classId inválido.');
+      error.status = 400;
+      throw error;
+    }
+
+    const year = parseYearParam(req.query?.year);
+    const role = (req.auth?.role || req.user?.role || '').toString().toLowerCase();
+
+    if (role === 'student') {
+      const studentId = toObjectId(req.auth?.sub || req.auth?.userId || req.user?._id || req.user?.id);
+      if (!studentId) {
+        const error = new Error('Aluno não identificado.');
+        error.status = 403;
+        throw error;
+      }
+      await ensureStudentBelongsToClass(studentId, classId);
+    } else {
+      await ensureTeacherClassAccess(req, classId);
+    }
+
+    const plan = await GradePlan.findOne({ classId, year }).lean();
+    res.json({ success: true, data: sanitizeGradePlanDoc(plan) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+classesRouter.post('/classes/:classId/grade-plan/:term/activities', ensureTeacher, async (req, res, next) => {
+  try {
+    const classId = toObjectId(req.params.classId);
+    if (!classId) {
+      const error = new Error('classId inválido.');
+      error.status = 400;
+      throw error;
+    }
+
+    const term = parseTermParam(req.params.term);
+    const year = parseYearParam(req.body?.year ?? req.query?.year);
+    await ensureTeacherClassAccess(req, classId);
+
+    const nameSource = req.body?.name ?? req.body?.title;
+    const name = typeof nameSource === 'string' ? nameSource.trim() : '';
+    if (!name) {
+      const error = new Error('Nome da atividade é obrigatório.');
+      error.status = 400;
+      throw error;
+    }
+    const points = clampScore(req.body?.points ?? req.body?.value ?? 0);
+
+    const activity = {
+      _id: new mongoose.Types.ObjectId(),
+      name,
+      points,
+    };
+
+    const plan = await GradePlan.findOneAndUpdate(
+      { classId, year },
+      {
+        $push: { [`terms.${term}`]: activity },
+        $setOnInsert: { classId, year },
+      },
+      { upsert: true, new: true, runValidators: true }
+    );
+
+    res.json({
+      success: true,
+      data: {
+        activity: { id: String(activity._id), name, points },
+        plan: sanitizeGradePlanDoc(plan),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+classesRouter.patch('/classes/:classId/grade-plan/:term/activities/:activityId', ensureTeacher, async (req, res, next) => {
+  try {
+    const classId = toObjectId(req.params.classId);
+    const activityId = toObjectId(req.params.activityId);
+    if (!classId || !activityId) {
+      const error = new Error('IDs inválidos.');
+      error.status = 400;
+      throw error;
+    }
+
+    const term = parseTermParam(req.params.term);
+    const year = parseYearParam(req.body?.year ?? req.query?.year);
+    await ensureTeacherClassAccess(req, classId);
+
+    const updates = {};
+    if (req.body?.name !== undefined || req.body?.title !== undefined) {
+      const nameSource = req.body?.name ?? req.body?.title;
+      const name = typeof nameSource === 'string' ? nameSource.trim() : '';
+      if (!name) {
+        const error = new Error('Nome da atividade é obrigatório.');
+        error.status = 400;
+        throw error;
+      }
+      updates[`terms.${term}.$.name`] = name;
+    }
+    if (req.body?.points !== undefined || req.body?.value !== undefined) {
+      updates[`terms.${term}.$.points`] = clampScore(req.body?.points ?? req.body?.value ?? 0);
+    }
+
+    if (!Object.keys(updates).length) {
+      const error = new Error('Nenhuma alteração informada.');
+      error.status = 400;
+      throw error;
+    }
+
+    const plan = await GradePlan.findOneAndUpdate(
+      { classId, year, [`terms.${term}._id`]: activityId },
+      { $set: updates },
+      { new: true }
+    );
+
+    if (!plan) {
+      const error = new Error('Plano ou atividade não encontrado.');
+      error.status = 404;
+      throw error;
+    }
+
+    const termKey = String(term);
+    const termActivities = Array.isArray(plan?.terms?.[termKey]) ? plan.terms[termKey] : [];
+    const updated = termActivities.find((activity) => String(activity._id) === String(activityId));
+
+    res.json({
+      success: true,
+      data: {
+        activity: updated
+          ? { id: String(updated._id), name: updated.name, points: Number(updated.points ?? 0) }
+          : null,
+        plan: sanitizeGradePlanDoc(plan),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+classesRouter.delete('/classes/:classId/grade-plan/:term/activities/:activityId', ensureTeacher, async (req, res, next) => {
+  try {
+    const classId = toObjectId(req.params.classId);
+    const activityId = toObjectId(req.params.activityId);
+    if (!classId || !activityId) {
+      const error = new Error('IDs inválidos.');
+      error.status = 400;
+      throw error;
+    }
+
+    const term = parseTermParam(req.params.term);
+    const year = parseYearParam(req.query?.year ?? req.body?.year);
+    await ensureTeacherClassAccess(req, classId);
+
+    const plan = await GradePlan.findOneAndUpdate(
+      { classId, year },
+      { $pull: { [`terms.${term}`]: { _id: activityId } } },
+      { new: true }
+    );
+
+    if (!plan) {
+      const error = new Error('Plano não encontrado.');
+      error.status = 404;
+      throw error;
+    }
+
+    res.json({
+      success: true,
+      data: sanitizeGradePlanDoc(plan),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+classesRouter.post('/classes/:classId/scores/:term/:activityId', ensureTeacher, async (req, res, next) => {
+  try {
+    const classId = toObjectId(req.params.classId);
+    const activityId = toObjectId(req.params.activityId);
+    if (!classId || !activityId) {
+      const error = new Error('IDs inválidos.');
+      error.status = 400;
+      throw error;
+    }
+
+    const term = parseTermParam(req.params.term);
+    const year = parseYearParam(req.body?.year ?? req.query?.year);
+    await ensureTeacherClassAccess(req, classId);
+
+    const plan = await GradePlan.findOne({ classId, year }).lean();
+    if (!plan) {
+      const error = new Error('Plano de notas não encontrado.');
+      error.status = 404;
+      throw error;
+    }
+
+    const termActivities = Array.isArray(plan?.terms?.[String(term)]) ? plan.terms[String(term)] : [];
+    const existsInPlan = termActivities.some((activity) => String(activity._id) === String(activityId));
+    if (!existsInPlan) {
+      const error = new Error('Atividade não encontrada no plano informado.');
+      error.status = 404;
+      throw error;
+    }
+
+    const payload = Array.isArray(req.body)
+      ? req.body
+      : Array.isArray(req.body?.scores)
+        ? req.body.scores
+        : [];
+
+    if (!payload.length) {
+      return res.json({
+        success: true,
+        data: { activityId: String(activityId), term, year, scores: [] },
+      });
+    }
+
+    const studentIds = payload
+      .map((entry) => toObjectId(entry?.studentId))
+      .filter(Boolean);
+
+    if (!studentIds.length) {
+      const error = new Error('Nenhum aluno válido informado.');
+      error.status = 400;
+      throw error;
+    }
+
+    const students = await Student.find({ _id: { $in: studentIds }, class: classId })
+      .select('_id')
+      .lean();
+    const allowedIds = new Set(students.map((student) => String(student._id)));
+
+    const bulkOps = [];
+    const affectedStudentIds = new Set();
+
+    payload.forEach((entry) => {
+      const studentId = toObjectId(entry?.studentId);
+      if (!studentId || !allowedIds.has(String(studentId))) {
+        return;
+      }
+      const value = clampScore(entry?.score ?? entry?.value ?? 0);
+      bulkOps.push({
+        updateOne: {
+          filter: { classId, studentId, year, term, activityId },
+          update: { $set: { score: value } },
+          upsert: true,
+        },
+      });
+      affectedStudentIds.add(String(studentId));
+    });
+
+    if (bulkOps.length) {
+      await Score.bulkWrite(bulkOps, { ordered: false });
+    }
+
+    const updatedScores = await Score.find({
+      classId,
+      year,
+      term,
+      activityId,
+      studentId: { $in: Array.from(affectedStudentIds).map((id) => new mongoose.Types.ObjectId(id)) },
+    })
+      .select('studentId score term activityId')
+      .lean();
+
+    const scores = updatedScores.map((doc) => ({
+      studentId: String(doc.studentId),
+      term: doc.term,
+      activityId: String(doc.activityId),
+      score: Number(doc.score ?? 0),
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        activityId: String(activityId),
+        term,
+        year,
+        scores,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+classesRouter.get('/classes/:classId/grades/summary', ensureTeacher, async (req, res, next) => {
+  try {
+    const classId = toObjectId(req.params.classId);
+    if (!classId) {
+      const error = new Error('classId inválido.');
+      error.status = 400;
+      throw error;
+    }
+
+    const year = parseYearParam(req.query?.year);
+    await ensureTeacherClassAccess(req, classId);
+
+    const [plan, scores] = await Promise.all([
+      GradePlan.findOne({ classId, year }).lean(),
+      Score.find({ classId, year }).lean(),
+    ]);
+
+    const stats = computeStatsFromScores(scores);
+
+    res.json({
+      success: true,
+      data: {
+        classId: String(classId),
+        year,
+        gradePlan: sanitizeGradePlanDoc(plan),
+        stats,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 function parseBimestersParam(raw) {
   if (raw === undefined || raw === null) return [1, 2, 3, 4];
@@ -45,6 +488,181 @@ function toMedian(values) {
     return (sorted[mid - 1] + sorted[mid]) / 2;
   }
   return sorted[mid];
+}
+
+function toObjectId(value) {
+  if (!value) return null;
+  if (value instanceof mongoose.Types.ObjectId) return value;
+  if (typeof value === 'string' && mongoose.Types.ObjectId.isValid(value)) {
+    return new mongoose.Types.ObjectId(value);
+  }
+  if (typeof value === 'object' && value._id) {
+    return toObjectId(value._id);
+  }
+  return null;
+}
+
+function parseYearParam(raw, fallback = new Date().getFullYear()) {
+  if (raw === undefined || raw === null || raw === '') return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed < 2000 || parsed > 3000) {
+    const error = new Error('Ano inválido.');
+    error.status = 400;
+    throw error;
+  }
+  return parsed;
+}
+
+function parseTermParam(raw) {
+  if (raw === undefined || raw === null || raw === '') {
+    const month = new Date().getMonth();
+    return Math.min(4, Math.max(1, Math.floor(month / 3) + 1));
+  }
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 4) {
+    const error = new Error('Bimestre inválido.');
+    error.status = 400;
+    throw error;
+  }
+  return parsed;
+}
+
+function clampScore(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) return 0;
+  if (number > 10) return Number(number.toFixed(2));
+  return Number(number.toFixed(2));
+}
+
+function normalizeTermActivities(rawList) {
+  if (!Array.isArray(rawList)) return [];
+  return rawList
+    .map((entry) => {
+      const nameSource = entry?.name ?? entry?.title;
+      const name = typeof nameSource === 'string' ? nameSource.trim() : '';
+      if (!name) return null;
+      const pointsSource = entry?.points ?? entry?.value ?? 0;
+      const points = clampScore(pointsSource);
+      const rawId = entry?.id ?? entry?._id ?? null;
+      const activityId = toObjectId(rawId) || new mongoose.Types.ObjectId();
+      return {
+        _id: activityId,
+        name,
+        points,
+      };
+    })
+    .filter(Boolean);
+}
+
+function normalizeTermsPayload(rawTerms) {
+  const terms = {};
+  [1, 2, 3, 4].forEach((term) => {
+    const key = String(term);
+    const source =
+      (rawTerms && (rawTerms[key] || rawTerms[term])) ||
+      (Array.isArray(rawTerms) && rawTerms[term - 1]) ||
+      [];
+    terms[key] = normalizeTermActivities(source);
+  });
+  return terms;
+}
+
+function sanitizeGradePlanDoc(plan) {
+  if (!plan) return null;
+  const terms = {};
+  [1, 2, 3, 4].forEach((term) => {
+    const key = String(term);
+    const list = Array.isArray(plan?.terms?.[key]) ? plan.terms[key] : [];
+    terms[key] = list.map((activity) => ({
+      id: String(activity._id),
+      name: activity.name,
+      points: Number(activity.points ?? 0),
+    }));
+  });
+  return {
+    id: String(plan._id),
+    classId: String(plan.classId),
+    year: plan.year,
+    terms,
+    updatedAt: plan.updatedAt || null,
+  };
+}
+
+function computeStatsFromScores(scores) {
+  const buckets = {
+    1: [],
+    2: [],
+    3: [],
+    4: [],
+  };
+  const activityBuckets = {
+    1: new Map(),
+    2: new Map(),
+    3: new Map(),
+    4: new Map(),
+  };
+
+  scores.forEach((score) => {
+    const term = Number(score.term);
+    if (!buckets[term]) return;
+    const value = Number(score.score ?? 0);
+    if (!Number.isFinite(value)) return;
+    buckets[term].push(value);
+    const activityId = String(score.activityId);
+    const byActivity = activityBuckets[term];
+    const current = byActivity.get(activityId) || [];
+    current.push(value);
+    byActivity.set(activityId, current);
+  });
+
+  const byTerm = {};
+  Object.entries(buckets).forEach(([termKey, values]) => {
+    if (!values.length) {
+      byTerm[termKey] = { avg: 0, median: 0, n: 0 };
+      return;
+    }
+    const sum = values.reduce((acc, value) => acc + value, 0);
+    const avg = Number((sum / values.length).toFixed(2));
+    const med = Number(toMedian(values).toFixed(2));
+    byTerm[termKey] = { avg, median: med, n: values.length };
+  });
+
+  const byActivity = {};
+  Object.entries(activityBuckets).forEach(([termKey, map]) => {
+    const items = [];
+    map.forEach((values, activityId) => {
+      if (!values.length) return;
+      const avg = Number((values.reduce((acc, value) => acc + value, 0) / values.length).toFixed(2));
+      items.push({ activityId, avg, n: values.length });
+    });
+    byActivity[termKey] = items;
+  });
+
+  return { byTerm, byActivity };
+}
+
+async function ensureTeacherClassAccess(req, classId) {
+  const access = await resolveClassAccess(classId, req.user);
+  if (!access.ok) {
+    const error = new Error('Acesso restrito aos professores da turma.');
+    error.status = access.reason === 'class-not-found' ? 404 : 403;
+    throw error;
+  }
+  return access.classRef;
+}
+
+async function ensureStudentBelongsToClass(studentId, classId) {
+  if (!studentId || !classId) {
+    const error = new Error('Aluno ou turma inválidos.');
+    error.status = 400;
+    throw error;
+  }
+  const exists = await Student.exists({ _id: studentId, class: classId });
+  if (!exists) {
+    const error = new Error('Aluno não pertence a esta turma.');
+    error.status = 403;
+    throw error;
+  }
 }
 
 router.get('/summary', ensureTeacher, async (req, res, next) => {
@@ -431,3 +1049,4 @@ router.post('/', async (req, res, next) => {
 
 module.exports = router;
 module.exports.tableRouter = tableRouter;
+module.exports.classesRouter = classesRouter;

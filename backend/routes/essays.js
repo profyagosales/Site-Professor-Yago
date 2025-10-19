@@ -29,6 +29,7 @@ const {
 const fileController = require('../controllers/fileController');
 const fileTokenCompat = require('../middlewares/fileTokenCompat'); // único compat
 const ensureTeacher = require('../middleware/ensureTeacher');
+const ensureStudent = require('../middleware/ensureStudent');
 const authFileOrTeacher = require('../middleware/authFileOrTeacher');
 
 const router = express.Router();
@@ -66,8 +67,22 @@ function ensureValidId(req, res, next) {
   next();
 }
 
+function handleThemesRequest(req, res, next) {
+  const role = (req.auth?.role || req.user?.role || '').toString().toLowerCase();
+  if (role === 'student') {
+    return ensureStudent(req, res, () => {
+      req.query = {
+        ...req.query,
+        active: 'true',
+      };
+      return getThemes(req, res);
+    });
+  }
+  return ensureTeacher(req, res, () => getThemes(req, res));
+}
+
 /** --------- Themes --------- */
-router.get('/themes', authRequired, ensureTeacher, getThemes);
+router.get('/themes', authRequired, handleThemesRequest);
 router.post('/themes', authRequired, ensureTeacher, optionalThemeUpload, createTheme);
 router.patch('/themes/:id', authRequired, ensureTeacher, optionalThemeUpload, updateTheme);
 router.delete('/themes/:id', authRequired, ensureTeacher, deleteTheme);

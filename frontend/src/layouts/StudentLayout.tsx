@@ -9,6 +9,7 @@ export type StudentLayoutProfile = {
   email: string | null;
   number: string | null;
   phone: string | null;
+  photoUrl: string | null;
   classId: string | null;
   className: string | null;
   classYear: number | null;
@@ -28,11 +29,6 @@ export type StudentHighlights = {
   nextEvaluationDate: string | null;
   nextEvaluationTitle: string | null;
 };
-
-const HERO_DATE_FORMAT = new Intl.DateTimeFormat('pt-BR', {
-  day: '2-digit',
-  month: 'long',
-});
 
 function deriveClassName(turma: any): string | null {
   if (!turma) return null;
@@ -70,6 +66,12 @@ function normalizeProfile(raw: any): StudentLayoutProfile | null {
     id: String(id),
     name: source.nome ?? source.name ?? raw.nome ?? raw.name ?? null,
     email: source.email ?? raw.email ?? null,
+    photoUrl:
+      source.photoUrl ??
+      source.photo ??
+      raw.photoUrl ??
+      raw.photo ??
+      null,
     number:
       source.numero != null
         ? String(source.numero)
@@ -93,6 +95,17 @@ const STUDENT_TABS = [
   { label: 'Redações', to: '/aluno/redacoes' },
   { label: 'PAS/UnB', to: '/pas', variant: 'pas' as const },
 ];
+
+function deriveInitials(value: string | null | undefined): string {
+  if (!value) return 'AL';
+  const parts = value.trim().split(/\s+/).slice(0, 2);
+  if (!parts.length) return 'AL';
+  return parts
+    .map((chunk) => chunk[0]?.toUpperCase() ?? '')
+    .filter(Boolean)
+    .join('')
+    .slice(0, 2) || 'AL';
+}
 
 export default function StudentLayout() {
   const { logout, user: sessionUser } = useAuth();
@@ -220,27 +233,8 @@ export default function StudentLayout() {
   const rollNumber = profile?.number ?? '—';
   const email = profile?.email ?? '—';
   const phone = profile?.phone ?? '—';
-  const totalScoreLabel = metrics.loading
-    ? '—'
-    : metrics.totalScore !== null
-      ? metrics.totalScore.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-      : '—';
-
-  let nextEvaluationHint = 'Nenhuma avaliação nas próximas semanas.';
-  if (metrics.loading) {
-    nextEvaluationHint = 'Carregando próximas avaliações…';
-  } else if ((metrics.upcomingCount ?? 0) > 0 && metrics.nextEvaluationDate) {
-    const date = new Date(metrics.nextEvaluationDate);
-    if (!Number.isNaN(date.getTime())) {
-      nextEvaluationHint = `${HERO_DATE_FORMAT.format(date)}${metrics.nextEvaluationTitle ? ` • ${metrics.nextEvaluationTitle}` : ''}`;
-    } else if (metrics.nextEvaluationTitle) {
-      nextEvaluationHint = metrics.nextEvaluationTitle;
-    }
-  }
-
-  const upcomingCountLabel = metrics.loading
-    ? '—'
-    : String(metrics.upcomingCount ?? 0);
+  const avatarUrl = profile?.photoUrl ?? (sessionUser?.photoUrl as string | undefined) ?? null;
+  const avatarInitials = deriveInitials(profile?.name ?? sessionUser?.name ?? null);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -254,12 +248,27 @@ export default function StudentLayout() {
                 className="h-14 w-14 rounded-2xl border border-white/30 bg-white/10 p-2 shadow-lg"
               />
             </div>
-            <div className="flex flex-1 flex-col items-center text-center text-white md:items-start md:text-left">
-              <p className="text-sm uppercase tracking-wide text-white/80">OLÁ</p>
-              <h1 className="text-2xl font-semibold md:text-3xl">{studentName}</h1>
-              <p className="text-sm text-white/90">
-                {classLabel} • Nº {rollNumber} • {email} • {phone}
-              </p>
+            <div className="flex flex-1 flex-col items-center gap-4 text-center text-white md:flex-row md:items-center md:text-left">
+              <div className="relative h-16 w-16 overflow-hidden rounded-2xl border border-white/30 bg-white/10 shadow-lg">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={studentName}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-lg font-semibold uppercase tracking-wide text-white/90">
+                    {avatarInitials}
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col items-center md:items-start">
+                <p className="text-sm uppercase tracking-wide text-white/80">OLÁ</p>
+                <h1 className="text-2xl font-semibold md:text-3xl">{studentName}</h1>
+                <p className="text-sm text-white/90">
+                  {classLabel} • Nº {rollNumber} • {email} • {phone}
+                </p>
+              </div>
             </div>
             <button
               type="button"
@@ -298,19 +307,6 @@ export default function StudentLayout() {
               )
             )}
           </nav>
-
-          <div className="grid gap-4 pt-2 sm:grid-cols-2">
-            <div className="rounded-2xl border border-white/20 bg-white/10 px-5 py-4 shadow-inner shadow-white/5 backdrop-blur">
-              <p className="text-xs font-semibold uppercase tracking-wide text-white/80">Pontuação total</p>
-              <p className="mt-2 text-3xl font-semibold text-white">{totalScoreLabel}</p>
-              <p className="text-xs text-white/80">Soma das suas notas no ano atual</p>
-            </div>
-            <div className="rounded-2xl border border-white/20 bg-white/10 px-5 py-4 shadow-inner shadow-white/5 backdrop-blur">
-              <p className="text-xs font-semibold uppercase tracking-wide text-white/80">Próximas avaliações</p>
-              <p className="mt-2 text-3xl font-semibold text-white">{upcomingCountLabel}</p>
-              <p className="text-xs text-white/80">{nextEvaluationHint}</p>
-            </div>
-          </div>
         </div>
       </section>
 

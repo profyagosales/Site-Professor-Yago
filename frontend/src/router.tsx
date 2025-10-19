@@ -66,7 +66,6 @@ export const router = createBrowserRouter([
           // Página principal do professor: Resumo
           { path: '/professor', element: <Navigate to="/professor/resumo" replace /> },
           { path: '/professor/resumo', element: <TeacherGuard><DashboardProfessor /></TeacherGuard> },
-          { path: '/pas', element: <PasUnbPage /> },
           { path: '/professor/pas-unb', element: <Navigate to="/pas" replace /> },
           // Compat: rotas antigas/curtas
           { path: '/dashboard', element: <Navigate to="/professor/resumo" replace /> },
@@ -111,6 +110,7 @@ export const router = createBrowserRouter([
               { path: '/aluno/dashboard', element: <Navigate to="/aluno/resumo" replace /> },
               { path: '/aluno/redacoes', element: <AlunoRedacoes /> },
               { path: '/aluno/notas', element: <AlunoNotas /> },
+              { path: '/pas', element: <PasUnbPage /> },
               { path: '/aluno/pas-unb', element: <Navigate to="/pas" replace /> },
             ],
           },
