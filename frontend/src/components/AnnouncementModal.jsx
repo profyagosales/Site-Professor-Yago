@@ -179,11 +179,14 @@ export default function AnnouncementModal({
     applyInitialData(initialAnnouncement)
   }, [open, initialAnnouncement, applyInitialData])
 
-  const closeIfAllowed = useCallback(() => {
-    if (submitting) return
-    onClose()
-    applyInitialData(null)
-  }, [applyInitialData, onClose, submitting])
+  const closeIfAllowed = useCallback(
+    (force = false) => {
+      if (submitting && !force) return
+      onClose()
+      applyInitialData(null)
+    },
+    [applyInitialData, onClose, submitting]
+  )
 
   const handleAttachmentChange = (event) => {
     const files = Array.from(event.target.files || []).filter((file) => file.type === 'application/pdf')
@@ -235,6 +238,11 @@ export default function AnnouncementModal({
       ? 'Atualizar'
       : 'Salvar'
 
+  const handleEditorChange = useCallback((content, _delta, _source, editor) => {
+    const html = typeof editor?.getHTML === 'function' ? editor.getHTML() : content
+    setEditorValue(html)
+  }, [])
+
   const handleSubmit = async (event) => {
     event.preventDefault()
     if (!canSubmit || submitting) return
@@ -264,8 +272,10 @@ export default function AnnouncementModal({
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('announcements:refresh'))
       }
-      onSaved?.()
-      closeIfAllowed()
+      if (typeof onSaved === 'function') {
+        await onSaved()
+      }
+      closeIfAllowed(true)
     } catch (err) {
       console.error('[AnnouncementModal] Falha ao salvar aviso', err)
       toast.error('Erro ao salvar aviso')
@@ -283,12 +293,12 @@ export default function AnnouncementModal({
           <h2 className="text-xl font-semibold text-slate-900">{isEditMode ? 'Editar aviso' : 'Novo aviso'}</h2>
         </header>
         <form onSubmit={handleSubmit} className="flex flex-1 flex-col">
-          <div className="flex-1 overflow-y-auto pr-2" style={{ maxHeight: '70vh' }}>
+          <div className="modal-body-scroll flex-1 pr-2">
             <div className="space-y-5">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Assunto</label>
-              <input
-                type="text"
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Assunto</label>
+                <input
+                  type="text"
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
                 value={subject}
                 onChange={(event) => setSubject(event.target.value)}
@@ -304,7 +314,7 @@ export default function AnnouncementModal({
                 modules={quillModules}
                 formats={formats}
                 value={editorValue}
-                onChange={setEditorValue}
+                onChange={handleEditorChange}
               />
             </div>
 
