@@ -10,6 +10,12 @@ import {
   type GradeScheme,
   type GradeSchemeItem,
 } from '@/services/gradeScheme';
+import {
+  GRADE_ITEM_TYPE_MAP,
+  GRADE_ITEM_TYPE_OPTIONS,
+  resolveGradeItemType,
+  type GradeItemType,
+} from '@/constants/gradeScheme';
 
 type ClassOption = {
   id: string;
@@ -29,6 +35,7 @@ type ItemForm = {
   uid: string;
   label: string;
   points: number;
+  type: GradeItemType;
   color: string;
   order: number;
 };
@@ -38,14 +45,14 @@ const CURRENT_YEAR = new Date().getFullYear();
 const YEAR_OPTIONS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR + 1];
 
 function toItemForm(item: GradeSchemeItem, index: number): ItemForm {
+  const resolvedType = resolveGradeItemType(item.type);
+  const typeConfig = GRADE_ITEM_TYPE_MAP[resolvedType];
   return {
     uid: nanoid(),
     label: item.label ?? '',
     points: Number.isFinite(item.points) ? Number(item.points) : 0,
-    color:
-      typeof item.color === 'string' && item.color.trim()
-        ? item.color.trim()
-        : '#2563eb',
+    type: resolvedType,
+    color: typeof item.color === 'string' && item.color.trim() ? item.color.trim() : typeConfig.color,
     order: Number.isFinite(item.order) ? Number(item.order) : index,
   };
 }
@@ -55,7 +62,8 @@ function createEmptyItem(order: number): ItemForm {
     uid: nanoid(),
     label: '',
     points: 1,
-    color: '#2563eb',
+    type: 'PROVA',
+    color: GRADE_ITEM_TYPE_MAP.PROVA.color,
     order,
   };
 }
@@ -92,6 +100,22 @@ export default function DivisaoNotasModal({
     try {
       const schemes = await listSchemes({ classId, year });
       setSchemesCache((prev) => ({ ...prev, [cacheKey]: schemes }));
+      const active = schemes.find((scheme) => scheme.showToStudents)?.bimester ?? null;
+      setVisibleBimester((current) => {
+        if (typeof current === 'number' && current >= 1 && current <= 4) {
+          return current;
+        }
+        if (active !== null) {
+          return active;
+        }
+        return schemes[0]?.bimester ?? 1;
+      });
+      setBimester((current) => {
+        if (schemes.some((scheme) => scheme.bimester === current)) {
+          return current;
+        }
+        return active ?? schemes[0]?.bimester ?? 1;
+      });
     } catch (err) {
       console.error('[DivisaoNotasModal] Falha ao carregar esquemas', err);
       toast.error('Não foi possível carregar a divisão de notas.');
@@ -117,21 +141,6 @@ export default function DivisaoNotasModal({
       void loadSchemes();
     }
   }, [open, classId, cacheKey, loadSchemes, schemesCache]);
-
-  useEffect(() => {
-    if (!open) return;
-    const schemes = schemesCache[cacheKey] ?? [];
-    const active = schemes.find((scheme) => scheme.showToStudents)?.bimester ?? null;
-    setVisibleBimester((current) => {
-      if (typeof current === 'number' && current >= 1 && current <= 4) {
-        return current;
-      }
-      if (active !== null) {
-        return active;
-      }
-      return schemes[0]?.bimester ?? 1;
-    });
-  }, [open, cacheKey, schemesCache]);
 
   useEffect(() => {
     if (!open) return;
@@ -194,6 +203,7 @@ export default function DivisaoNotasModal({
       .map((item, index) => ({
         label: item.label.trim(),
         points: Number.isFinite(item.points) ? Number(item.points) : 0,
+        type: item.type,
         color: item.color,
         order: index,
       }))
@@ -219,7 +229,12 @@ export default function DivisaoNotasModal({
       });
 
       if (desiredVisible !== currentVisible) {
-        await setVisibleScheme({ classId, year, bimester: desiredVisible });
+        try {
+          await setVisibleScheme({ classId, year, bimester: desiredVisible });
+        } catch (err) {
+          console.error('[DivisaoNotasModal] Falha ao atualizar bimestre visível', err);
+          toast.error('Não foi possível atualizar o bimestre em exibição.');
+        }
       }
 
       setSchemesCache((prev) => {
@@ -242,8 +257,8 @@ export default function DivisaoNotasModal({
             ...entry,
             showToStudents: entry.bimester === desiredVisible,
           })),
-        };
-      });
+      };
+    });
 
       setVisibleBimester(desiredVisible);
 
@@ -306,22 +321,32 @@ export default function DivisaoNotasModal({
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          {[1, 2, 3, 4].map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => setBimester(option)}
-              className={`rounded-full px-3 py-1 text-sm font-semibold transition ${
-                bimester === option
-                  ? 'bg-orange-500 text-white shadow-sm'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {option}º bim.
-            </button>
-          ))}
-        </div>
+        <fieldset className="mt-4">
+          <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Bimestre para edição
+          </legend>
+          <div className="flex flex-wrap items-center gap-2">
+            {[1, 2, 3, 4].map((option) => (
+              <label
+                key={`edit-bim-${option}`}
+                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium transition ${
+                  bimester === option
+                    ? 'border-orange-400 bg-orange-50 text-orange-600'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="bimester"
+                  className="h-3 w-3 accent-orange-500"
+                  checked={bimester === option}
+                  onChange={() => setBimester(option)}
+                />
+                {option}º bim.
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
         <div className="mt-6 space-y-3">
           {loading ? (
@@ -334,7 +359,7 @@ export default function DivisaoNotasModal({
             items.map((item, index) => (
               <div
                 key={item.uid}
-                className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[minmax(0,1fr)_110px_90px_auto]"
+                className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[minmax(0,1fr)_110px_150px_auto]"
               >
                 <div>
                   <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -366,14 +391,23 @@ export default function DivisaoNotasModal({
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Cor
+                    Tipo
                   </label>
-                  <input
-                    type="color"
-                    value={item.color}
-                    onChange={(event) => handleItemChange(item.uid, { color: event.target.value })}
-                    className="h-[42px] w-full rounded-xl border border-slate-200 bg-white p-1"
-                  />
+                  <select
+                    value={item.type}
+                    onChange={(event) => {
+                      const nextType = resolveGradeItemType(event.target.value);
+                      const config = GRADE_ITEM_TYPE_MAP[nextType];
+                      handleItemChange(item.uid, { type: nextType, color: config.color });
+                    }}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
+                  >
+                    {GRADE_ITEM_TYPE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="flex items-end justify-end gap-2">
                   <Button
@@ -409,32 +443,54 @@ export default function DivisaoNotasModal({
           )}
         </div>
 
-        <div className="mt-4">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Bimestre em exibição</p>
+        <fieldset className="mt-4">
+          <legend className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Bimestre em exibição
+          </legend>
           <div className="mt-2 flex flex-wrap gap-2">
             {[1, 2, 3, 4].map((option) => (
-              <button
+              <label
                 key={`visible-${option}`}
-                type="button"
-                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                  visibleBimester === option ? 'bg-orange-500 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                  visibleBimester === option
+                    ? 'border-orange-400 bg-orange-50 text-orange-600'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                 }`}
-                onClick={() => setVisibleBimester(option)}
               >
+                <input
+                  type="radio"
+                  name="visible-bimester"
+                  className="h-3 w-3 accent-orange-500"
+                  checked={visibleBimester === option}
+                  onChange={() => setVisibleBimester(option)}
+                />
                 {option}º
-              </button>
+              </label>
             ))}
           </div>
-        </div>
+        </fieldset>
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="text-sm font-medium text-slate-600">
-            Total: <span className={totalIsValid ? 'text-slate-900' : 'text-red-600'}>{totalPoints.toFixed(1)}</span> / {MAX_TOTAL_POINTS}
+          <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
+            <span>Total distribuído</span>
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                totalIsValid ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+              }`}
+            >
+              {totalPoints.toFixed(1)} / {MAX_TOTAL_POINTS.toFixed(1)}
+            </span>
           </div>
           <Button type="button" variant="outline" onClick={handleAddItem}>
             Adicionar item
           </Button>
         </div>
+
+        {!totalIsValid && (
+          <p className="mt-1 text-xs text-rose-600">
+            Ajuste os pontos para que a soma seja exatamente 10.
+          </p>
+        )}
 
         <div className="mt-6 flex justify-end gap-3">
           <Button type="button" variant="ghost" onClick={handleClose} disabled={saving}>

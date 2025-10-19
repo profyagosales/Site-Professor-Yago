@@ -12,6 +12,8 @@ type SummaryItem = {
   id: string;
   titulo: string;
   turmaNome: string;
+  disciplinaNome: string | null;
+  descricao: string | null;
   tipo: ConteudoTipo;
   data: string;
 };
@@ -67,6 +69,20 @@ function normalizeSummaryItems(source: unknown): SummaryItem[] {
         : typeof raw.className === 'string'
           ? raw.className
           : null;
+      const disciplinaNome = typeof raw.disciplinaNome === 'string'
+        ? raw.disciplinaNome
+        : typeof raw.disciplina === 'string'
+          ? raw.disciplina
+          : typeof raw.discipline === 'string'
+            ? raw.discipline
+            : null;
+      const descricao = typeof raw.descricao === 'string'
+        ? raw.descricao
+        : typeof raw.description === 'string'
+          ? raw.description
+          : typeof raw.resumo === 'string'
+            ? raw.resumo
+            : null;
       const data = typeof raw.data === 'string' ? raw.data : typeof raw.date === 'string' ? raw.date : null;
 
       if (!id || !titulo || !turmaNome || !data) {
@@ -77,6 +93,8 @@ function normalizeSummaryItems(source: unknown): SummaryItem[] {
         id,
         titulo,
         turmaNome,
+        disciplinaNome,
+        descricao,
         data,
         tipo: normalizeTipo(raw.tipo ?? raw.type),
       } satisfies SummaryItem;
@@ -196,11 +214,16 @@ export default function ResumoConteudosCard({
   const displayedItems = useMemo(() => summaryItems.slice(0, limit), [summaryItems, limit]);
   const hasMore = summaryItems.length > limit;
 
-  const containerClass = embedded
-    ? ['flex h-full flex-col', className].filter(Boolean).join(' ')
-    : ['flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm', className]
-        .filter(Boolean)
-        .join(' ');
+  const gridTemplate = embedded ? 'grid-rows-[1fr,auto]' : 'grid-rows-[auto,1fr,auto]';
+  const containerClass = [
+    'grid h-full min-h-[26rem] grid-auto-rows-min gap-4',
+    gridTemplate,
+    embedded
+      ? className
+      : ['rounded-2xl border border-slate-200 bg-white p-5 shadow-sm', className].filter(Boolean).join(' '),
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   const loadModalPage = async (page: number) => {
     setModalLoading(true);
@@ -309,18 +332,23 @@ export default function ResumoConteudosCard({
       return <p className="text-sm text-slate-500">Nenhuma atividade cadastrada recentemente.</p>;
     }
     return (
-      <div
-        className="max-h-64 overflow-y-auto pr-2"
-        role="region"
-        aria-label="Próximas atividades agendadas"
-      >
-        <ul className="space-y-3">
+      <div className="min-h-0">
+        <ul
+          className="grid max-h-64 gap-3 overflow-y-auto pr-2"
+          role="region"
+          aria-label="Próximas atividades agendadas"
+        >
           {displayedItems.map((item) => (
             <li key={item.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate font-semibold text-slate-800">{item.titulo}</p>
-                  <p className="text-xs text-slate-500">{item.turmaNome}</p>
+                <div className="min-w-0 space-y-1">
+                  <p className="truncate text-sm font-semibold text-slate-800">{item.titulo}</p>
+                  <p className="truncate text-xs text-slate-500">
+                    {[item.turmaNome, item.disciplinaNome].filter(Boolean).join(' • ')}
+                  </p>
+                  {item.descricao ? (
+                    <p className="truncate text-xs text-slate-600">{item.descricao}</p>
+                  ) : null}
                 </div>
                 <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700">
                   {item.tipo}
@@ -339,13 +367,13 @@ export default function ResumoConteudosCard({
   return (
     <div className={containerClass}>
       {!embedded && (
-        <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <h3 className="card-title text-slate-900">Próximas Atividades</h3>
         </div>
       )}
-      <div className="flex-1">{content()}</div>
+      <div className="min-h-0">{content()}</div>
       {hasMore && (
-        <div className="mt-4 flex justify-end">
+        <div className="flex justify-end">
           <Button variant="link" onClick={openModal}>
             Ver todos
           </Button>

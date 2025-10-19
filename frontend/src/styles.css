@@ -42,7 +42,7 @@ html, body, #root { height: 100%; background: #F2F4F7; }
     @apply px-4 md:px-6 lg:px-10;
   }
   .hero-compact {
-    @apply px-6 py-5 md:px-8 md:py-6;
+    @apply px-6 py-3 md:px-8 md:py-4;
   }
   .cta-row {
     @apply flex flex-wrap items-center justify-center gap-3 md:gap-4;

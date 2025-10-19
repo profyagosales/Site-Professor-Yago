@@ -4,6 +4,7 @@ const gradeSchemeItemSchema = new mongoose.Schema(
   {
     label: { type: String, required: true, trim: true },
     points: { type: Number, required: true, min: 0 },
+    type: { type: String, default: 'OUTROS', trim: true },
     color: { type: String, default: null, trim: true },
     order: { type: Number, default: 0 },
   },
@@ -35,6 +36,10 @@ gradeSchemeSchema.pre('validate', function computeTotalPoints(next) {
       const normalized = {
         label: typeof entry.label === 'string' ? entry.label.trim() : '',
         points: Number.isFinite(entry.points) ? entry.points : Number(entry.points) || 0,
+        type:
+          typeof entry.type === 'string' && entry.type.trim()
+            ? entry.type.trim().toUpperCase()
+            : 'OUTROS',
         color: typeof entry.color === 'string' && entry.color.trim() ? entry.color.trim() : null,
         order:
           typeof entry.order === 'number'

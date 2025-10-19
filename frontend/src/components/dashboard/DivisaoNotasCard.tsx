@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import DashboardCard from '@/components/dashboard/DashboardCard';
 import { Button } from '@/components/ui/Button';
 import { listSchemes, type GradeScheme } from '@/services/gradeScheme';
+import { GRADE_ITEM_TYPE_MAP, resolveGradeItemType } from '@/constants/gradeScheme';
 import DivisaoNotasModal from '@/components/dashboard/DivisaoNotasModal';
 
 type ClassOption = {
@@ -46,6 +47,21 @@ export default function DivisaoNotasCard({ classOptions, className = '' }: Divis
 
   const totalPoints = activeScheme?.items?.reduce((sum, item) => sum + (Number.isFinite(item.points) ? Number(item.points) : 0), 0) ?? 0;
   const totalMatches = Math.abs(totalPoints - 10) < 0.001;
+
+  const typeLegend = useMemo(() => {
+    if (!activeScheme?.items?.length) return [] as Array<{ type: string; label: string; color: string }>;
+    const seen = new Set<string>();
+    return activeScheme.items.reduce<Array<{ type: string; label: string; color: string }>>((acc, item) => {
+      const resolvedType = resolveGradeItemType(item.type);
+      if (seen.has(resolvedType)) {
+        return acc;
+      }
+      seen.add(resolvedType);
+      const config = GRADE_ITEM_TYPE_MAP[resolvedType];
+      acc.push({ type: resolvedType, label: config.label, color: config.color });
+      return acc;
+    }, []);
+  }, [activeScheme?.items]);
 
   const loadSchemes = useCallback(async () => {
     if (!selectedClassId) {
@@ -137,38 +153,45 @@ export default function DivisaoNotasCard({ classOptions, className = '' }: Divis
             </p>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-center justify-between text-sm text-slate-600">
-                <span>
-                  Bimestre ativo:{' '}
-                  <span className="font-semibold text-slate-900">{activeScheme.bimester}º</span>
-                </span>
+              <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+                <div className="flex items-center gap-2">
+                  <span>Bimestre em exibição</span>
+                  <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-600">
+                    {activeScheme.bimester}º
+                  </span>
+                </div>
                 <span className="text-xs uppercase tracking-wide text-slate-500">
                   Visível para alunos: {activeScheme.showToStudents ? 'Sim' : 'Não'}
                 </span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {activeScheme.items.map((item) => (
-                  <div
-                    key={`${item.label}-${item.order}`}
-                    className="rounded-full px-4 py-2 text-sm font-medium shadow-sm"
-                    style={{
-                      backgroundColor: item.color || '#f97316',
-                      color: getContrastColor(item.color),
-                    }}
-                  >
-                    {item.label || 'Item'} • {Number(item.points).toFixed(1)} pts
-                  </div>
-                ))}
+                {activeScheme.items.map((item) => {
+                  const resolvedType = resolveGradeItemType(item.type);
+                  const config = GRADE_ITEM_TYPE_MAP[resolvedType];
+                  const badgeColor = item.color || config.color;
+                  return (
+                    <div
+                      key={`${item.label}-${item.order}`}
+                      className="rounded-full px-4 py-2 text-sm font-medium shadow-sm"
+                      style={{
+                        backgroundColor: badgeColor,
+                        color: getContrastColor(badgeColor),
+                      }}
+                    >
+                      {item.label || 'Item'} • {Number(item.points).toFixed(1)} pts
+                    </div>
+                  );
+                })}
               </div>
-              {activeScheme.items.length ? (
+              {typeLegend.length ? (
                 <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-600">
-                  {activeScheme.items.map((item) => (
-                    <span key={`legend-${item.label}-${item.order}`} className="flex items-center gap-2">
+                  {typeLegend.map((entry) => (
+                    <span key={`legend-${entry.type}`} className="flex items-center gap-2">
                       <span
                         className="h-2.5 w-2.5 rounded-full border border-white/80 shadow-sm"
-                        style={{ backgroundColor: item.color || '#f97316' }}
+                        style={{ backgroundColor: entry.color }}
                       />
-                      {item.label || 'Item'}
+                      {entry.label}
                     </span>
                   ))}
                 </div>

@@ -1,23 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
-import {
-  ResponsiveContainer,
-  ComposedChart,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Bar,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-} from 'recharts';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { getGradesSummary, type GradeSummaryPoint } from '@/services/gradesSummary';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: 5 }, (_, index) => CURRENT_YEAR - index);
 const BIMESTERS: Array<1 | 2 | 3 | 4> = [1, 2, 3, 4];
-const PIE_COLORS = ['#fb923c', '#f97316', '#facc15', '#22c55e'];
+
+const AverageBimesterChart = lazy(() => import('./charts/AverageBimesterChart'));
+const BimesterDonutChart = lazy(() => import('./charts/BimesterDonutChart'));
 
 type ChartDatum = {
   bimester: number;
@@ -49,7 +38,7 @@ type MediaGeralBimestreProps = {
 export default function MediaGeralBimestre({ classOptions = [] }: MediaGeralBimestreProps) {
   const [year, setYear] = useState<number>(YEARS[0]);
   const [selectedBimesters, setSelectedBimesters] = useState<number[]>([1, 2, 3, 4]);
-  const [selectedClassId, setSelectedClassId] = useState<string>('');
+  const [selectedClassId, setSelectedClassId] = useState<string>(classOptions[0]?.id ?? '');
   const [stats, setStats] = useState<GradeSummaryPoint[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -93,9 +82,16 @@ export default function MediaGeralBimestre({ classOptions = [] }: MediaGeralBime
     };
   }, [year, selectedBimesters, selectedClassId]);
 
+  const filteredStats = useMemo(
+    () =>
+      stats.filter((entry) =>
+        Number.isFinite(entry.avg) && Number.isFinite(entry.median) && Number(entry.count) > 0
+      ),
+    [stats]
+  );
+
   const chartData: ChartDatum[] = useMemo(() => {
-    return stats
-      .filter((entry) => Number.isFinite(entry.avg) || Number.isFinite(entry.median))
+    return filteredStats
       .sort((a, b) => a.bimester - b.bimester)
       .map((entry) => ({
         bimester: entry.bimester,
@@ -104,7 +100,7 @@ export default function MediaGeralBimestre({ classOptions = [] }: MediaGeralBime
         median: Number(entry.median.toFixed(2)),
         count: entry.count,
       }));
-  }, [stats]);
+  }, [filteredStats]);
 
   const { pieData, totalCount } = useMemo(() => {
     const total = chartData.reduce((sum, item) => sum + (Number.isFinite(item.count) ? item.count : 0), 0);
@@ -116,9 +112,13 @@ export default function MediaGeralBimestre({ classOptions = [] }: MediaGeralBime
   }, [chartData]);
 
   const kpis = useMemo(() => {
-    const averages = stats.map((entry) => entry.avg).filter((value) => Number.isFinite(value));
-    const medians = stats.map((entry) => entry.median).filter((value) => Number.isFinite(value));
-    const totalStudents = stats.reduce(
+    if (!filteredStats.length) {
+      return { media: 0, mediana: 0, totalStudents: 0 };
+    }
+
+    const averages = filteredStats.map((entry) => entry.avg).filter((value) => Number.isFinite(value));
+    const medians = filteredStats.map((entry) => entry.median).filter((value) => Number.isFinite(value));
+    const totalStudents = filteredStats.reduce(
       (sum, entry) => sum + (Number.isFinite(entry.count) ? entry.count : 0),
       0
     );
@@ -133,7 +133,7 @@ export default function MediaGeralBimestre({ classOptions = [] }: MediaGeralBime
       mediana,
       totalStudents,
     };
-  }, [stats]);
+  }, [filteredStats]);
 
   const handleToggleBimester = (bimester: number, checked: boolean) => {
     setSelectedBimesters((current) => {
@@ -201,7 +201,7 @@ export default function MediaGeralBimestre({ classOptions = [] }: MediaGeralBime
         <Kpi label="Avaliações consideradas" value={kpis.totalStudents} decimals={0} icon="👥" />
       </div>
 
-      <div className="mt-6 h-72 w-full">
+      <div className="mt-6 min-h-[18rem] w-full">
         {loading ? (
           <div className="h-full w-full animate-pulse rounded-xl bg-slate-100" />
         ) : error ? (
@@ -215,69 +215,20 @@ export default function MediaGeralBimestre({ classOptions = [] }: MediaGeralBime
               : 'Sem dados para os filtros selecionados.'}
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chartData} margin={{ top: 10, right: 16, bottom: 0, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="label" />
-              <YAxis domain={[0, 10]} allowDecimals width={36} />
-              <Tooltip
-                formatter={(value: string | number, name) => {
-                  if (typeof value === 'number' && Number.isFinite(value)) {
-                    return [value.toFixed(1), name === 'avg' ? 'Média' : name === 'median' ? 'Mediana' : name];
-                  }
-                  return [value, name];
-                }}
-                labelFormatter={(label) => String(label)}
-              />
-              <Bar dataKey="avg" name="Média" fill="#fb923c" radius={[6, 6, 0, 0]} />
-              <Line type="monotone" dataKey="median" name="Mediana" stroke="#1f2937" strokeWidth={2} dot={{ r: 3 }} />
-            </ComposedChart>
-          </ResponsiveContainer>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Suspense fallback={<div className="h-[300px] w-full animate-pulse rounded-xl bg-slate-100" />}>
+              <div className="h-[300px] rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+                <AverageBimesterChart data={chartData} />
+              </div>
+            </Suspense>
+            <Suspense fallback={<div className="h-[300px] w-full animate-pulse rounded-xl bg-slate-100" />}>
+              <div className="h-[300px] rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+                <BimesterDonutChart data={pieData} total={totalCount} />
+              </div>
+            </Suspense>
+          </div>
         )}
       </div>
-
-      {!loading && !error && chartData.length > 0 && (
-        <div className="mt-6 grid gap-4 lg:grid-cols-2">
-          <ResponsiveContainer width="100%" height={220}>
-            <PieChart>
-              <Tooltip formatter={(value: number) => [`${value}`, 'Quantidade']} />
-              <Pie
-                data={pieData}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                innerRadius={50}
-                outerRadius={80}
-                paddingAngle={4}
-              >
-                {pieData.map((entry, index) => (
-                  <Cell key={`pie-${entry.name}-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                ))}
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="flex flex-col justify-center gap-2 text-sm text-slate-600">
-            {totalCount > 0 ? (
-              pieData.map((item, index) => (
-                <div key={`pie-legend-${item.name}-${index}`} className="flex items-center gap-3">
-                  <span
-                    className="h-3 w-3 rounded-full"
-                    style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}
-                  />
-                  <span className="font-medium text-slate-800">{item.name}</span>
-                  <span className="text-xs text-slate-500">
-                    {item.value} avaliações
-                    {totalCount ? ` (${((item.value / totalCount) * 100).toFixed(1)}%)` : ''}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-slate-500">Nenhuma avaliação contabilizada no período.</p>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

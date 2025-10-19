@@ -3,6 +3,7 @@ import { api } from '@/services/api';
 export type GradeSchemeItem = {
   label: string;
   points: number;
+  type: string | null;
   color: string | null;
   order: number;
 };
@@ -26,10 +27,15 @@ function normalizeItem(raw: any, fallbackOrder = 0): GradeSchemeItem {
     typeof raw?.color === 'string' && raw.color.trim()
       ? raw.color.trim()
       : null;
+  const type =
+    typeof raw?.type === 'string' && raw.type.trim()
+      ? raw.type.trim().toUpperCase()
+      : null;
   const order = Number.isFinite(raw?.order) ? Number(raw.order) : fallbackOrder;
   return {
     label,
     points,
+    type,
     color,
     order,
   };

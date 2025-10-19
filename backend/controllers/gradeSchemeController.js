@@ -53,6 +53,10 @@ function normalizeItems(items) {
             ? Number.parseFloat(String(entry.points).replace(',', '.'))
             : 0;
       const points = Number.isFinite(rawPoints) && rawPoints > 0 ? rawPoints : 0;
+      const type =
+        typeof entry.type === 'string' && entry.type.trim()
+          ? entry.type.trim().toUpperCase()
+          : 'OUTROS';
       const color =
         typeof entry.color === 'string' && entry.color.trim() ? entry.color.trim() : null;
       const rawOrder =
@@ -65,6 +69,7 @@ function normalizeItems(items) {
       return {
         label,
         points,
+        type,
         color,
         order: rawOrder,
       };
@@ -103,6 +108,10 @@ function sanitizeScheme(doc) {
     .map((item, index) => ({
       label: typeof item.label === 'string' ? item.label : '',
       points: Number.isFinite(item.points) ? Number(item.points) : 0,
+      type:
+        typeof item.type === 'string' && item.type.trim()
+          ? item.type.trim().toUpperCase()
+          : 'OUTROS',
       color:
         typeof item.color === 'string' && item.color.trim() ? item.color.trim() : null,
       order:

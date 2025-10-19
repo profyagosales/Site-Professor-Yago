@@ -546,8 +546,8 @@ function DashboardProfessor(){
   return (
     <div className="page-safe pt-4 space-y-6">
       <section className="hero-compact rounded-3xl bg-gradient-to-r from-orange-500 to-orange-400 text-white shadow-xl">
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex items-center gap-3">
               {resolvedAvatar ? (
                 <img
@@ -589,7 +589,7 @@ function DashboardProfessor(){
             </div>
           </div>
 
-          <div className="cta-row flex flex-wrap">
+          <div className="cta-row w-full">
             <Button className="btn-primary" onClick={() => setShowEmail(true)}>
               Enviar e-mail
             </Button>
