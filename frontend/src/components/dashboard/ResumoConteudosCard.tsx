@@ -1,21 +1,24 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Modal from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/services/api';
-import { listContents, updateContent, deleteContent } from '@/services/contents';
+import { listContents } from '@/services/contents';
 import type { ContentItem } from '@/types/school';
 import { toast } from 'react-toastify';
+import EditAgendaModal from '@/components/dashboard/EditAgendaModal';
 
-type ConteudoTipo = 'ATIVIDADE' | 'CONTEUDO' | 'DATA';
+type AgendaItemType = 'ATIVIDADE' | 'CONTEUDO' | 'DATA';
 
 type SummaryItem = {
   id: string;
-  titulo: string;
-  turmaNome: string;
-  disciplinaNome: string | null;
-  descricao: string | null;
-  tipo: ConteudoTipo;
-  data: string;
+  title: string;
+  classId: string | null;
+  className: string | null;
+  disciplineName: string | null;
+  description: string | null;
+  type: AgendaItemType;
+  date: string;
+  source?: string | null;
 };
 
 type ApiPayload = {
@@ -29,28 +32,20 @@ type ResumoConteudosCardProps = {
   className?: string;
 };
 
-type EditFormState = {
-  title: string;
-  description: string;
-  date: string;
-  bimester: string;
-  done: boolean;
-};
-
 const MODAL_PAGE_SIZE = 6;
 const WEEKDAY_FORMATTER = new Intl.DateTimeFormat('pt-BR', { weekday: 'short' });
 const DAY_FORMATTER = new Intl.DateTimeFormat('pt-BR', { day: '2-digit' });
 const MONTH_FORMATTER = new Intl.DateTimeFormat('pt-BR', { month: 'short' });
 
-const TYPE_LABELS: Record<ConteudoTipo, string> = {
+const TYPE_LABELS: Record<AgendaItemType, string> = {
   ATIVIDADE: 'Atividades',
   CONTEUDO: 'Conteúdos',
   DATA: 'Datas',
 };
 
-type FilterOption = 'ALL' | ConteudoTipo;
+type FilterOption = 'ALL' | AgendaItemType;
 
-function normalizeTipo(value: unknown): ConteudoTipo {
+function normalizeAgendaType(value: unknown): AgendaItemType {
   const normalized = typeof value === 'string' ? value.trim().toUpperCase() : '';
   if (normalized === 'ATIVIDADE' || normalized === 'CONTEUDO' || normalized === 'DATA') {
     return normalized;
@@ -71,40 +66,50 @@ function normalizeSummaryItems(source: unknown): SummaryItem[] {
 
       const raw = entry as Record<string, unknown>;
       const id = typeof raw.id === 'string' ? raw.id : typeof raw._id === 'string' ? raw._id : null;
-      const titulo = typeof raw.titulo === 'string' ? raw.titulo : typeof raw.title === 'string' ? raw.title : null;
-      const turmaNome = typeof raw.turmaNome === 'string'
+      const title = typeof raw.titulo === 'string' ? raw.titulo : typeof raw.title === 'string' ? raw.title : null;
+      const classId =
+        typeof raw.turmaId === 'string'
+          ? raw.turmaId
+          : typeof raw.classId === 'string'
+            ? raw.classId
+            : typeof raw.class_id === 'string'
+              ? raw.class_id
+              : null;
+      const className = typeof raw.turmaNome === 'string'
         ? raw.turmaNome
         : typeof raw.className === 'string'
           ? raw.className
           : null;
-      const disciplinaNome = typeof raw.disciplinaNome === 'string'
+      const disciplineName = typeof raw.disciplinaNome === 'string'
         ? raw.disciplinaNome
         : typeof raw.disciplina === 'string'
           ? raw.disciplina
           : typeof raw.discipline === 'string'
             ? raw.discipline
             : null;
-      const descricao = typeof raw.descricao === 'string'
+      const description = typeof raw.descricao === 'string'
         ? raw.descricao
         : typeof raw.description === 'string'
           ? raw.description
           : typeof raw.resumo === 'string'
             ? raw.resumo
             : null;
-      const data = typeof raw.data === 'string' ? raw.data : typeof raw.date === 'string' ? raw.date : null;
+      const dateValue = typeof raw.data === 'string' ? raw.data : typeof raw.date === 'string' ? raw.date : null;
 
-      if (!id || !titulo || !turmaNome || !data) {
+      if (!id || !title || !dateValue) {
         return null;
       }
 
       return {
         id,
-        titulo,
-        turmaNome,
-        disciplinaNome,
-        descricao,
-        data,
-        tipo: normalizeTipo(raw.tipo ?? raw.type),
+        title,
+        classId,
+        className,
+        disciplineName,
+        description,
+        date: dateValue,
+        type: normalizeAgendaType(raw.tipo ?? raw.type),
+        source: typeof raw.source === 'string' ? raw.source : null,
       } satisfies SummaryItem;
     })
     .filter(Boolean) as SummaryItem[];
@@ -160,12 +165,7 @@ export default function ResumoConteudosCard({
   const [modalHasMore, setModalHasMore] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
 
-  const [editTarget, setEditTarget] = useState<ContentItem | null>(null);
-  const [editForm, setEditForm] = useState<EditFormState | null>(null);
-  const [editSaving, setEditSaving] = useState(false);
-
-  const [deleteTarget, setDeleteTarget] = useState<ContentItem | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [agendaModalOpen, setAgendaModalOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterOption>('ALL');
 
   useEffect(() => {
@@ -224,7 +224,7 @@ export default function ResumoConteudosCard({
     if (activeFilter === 'ALL') {
       return;
     }
-    const hasItemsForFilter = summaryItems.some((item) => item.tipo === activeFilter);
+    const hasItemsForFilter = summaryItems.some((item) => item.type === activeFilter);
     if (!hasItemsForFilter) {
       setActiveFilter('ALL');
     }
@@ -234,7 +234,7 @@ export default function ResumoConteudosCard({
     if (activeFilter === 'ALL') {
       return summaryItems;
     }
-    return summaryItems.filter((item) => item.tipo === activeFilter);
+    return summaryItems.filter((item) => item.type === activeFilter);
   }, [summaryItems, activeFilter]);
 
   const displayedItems = useMemo(() => filteredItems.slice(0, limit), [filteredItems, limit]);
@@ -252,10 +252,10 @@ export default function ResumoConteudosCard({
   const typeCounts = useMemo(() => {
     return summaryItems.reduce(
       (acc, item) => {
-        acc[item.tipo] = (acc[item.tipo] ?? 0) + 1;
+        acc[item.type] = (acc[item.type] ?? 0) + 1;
         return acc;
       },
-      { ATIVIDADE: 0, CONTEUDO: 0, DATA: 0 } as Record<ConteudoTipo, number>
+      { ATIVIDADE: 0, CONTEUDO: 0, DATA: 0 } as Record<AgendaItemType, number>
     );
   }, [summaryItems]);
 
@@ -273,7 +273,7 @@ export default function ResumoConteudosCard({
       >
         Todos
       </button>
-      {(Object.keys(TYPE_LABELS) as ConteudoTipo[]).map((type) => {
+      {(Object.keys(TYPE_LABELS) as AgendaItemType[]).map((type) => {
         const count = typeCounts[type] ?? 0;
         return (
           <button
@@ -325,71 +325,16 @@ export default function ResumoConteudosCard({
   };
 
   const closeModal = () => {
-    if (editSaving || deleting) return;
     setModalOpen(false);
     setModalItems([]);
   };
 
-  const openEditModal = (item: ContentItem) => {
-    setEditTarget(item);
-    setEditForm({
-      title: item.title,
-      description: item.description ?? '',
-      date: item.date.slice(0, 10),
-      bimester: String(item.bimester),
-      done: Boolean(item.done),
-    });
+  const handleOpenAgendaModal = () => {
+    setAgendaModalOpen(true);
   };
 
-  const closeEditModal = () => {
-    if (editSaving) return;
-    setEditTarget(null);
-    setEditForm(null);
-  };
-
-  const handleEditSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!editTarget || !editForm) return;
-    setEditSaving(true);
-    try {
-      await updateContent(editTarget.id, {
-        title: editForm.title.trim(),
-        description: editForm.description.trim() ? editForm.description.trim() : undefined,
-        date: editForm.date,
-        bimester: Number(editForm.bimester),
-        done: editForm.done,
-      });
-      toast.success('Atividade atualizada');
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('contents:refresh'));
-      }
-      closeEditModal();
-      void loadModalPage(modalPage);
-    } catch (err) {
-      console.error('[ResumoConteudosCard] Falha ao atualizar atividade', err);
-      toast.error('Não foi possível atualizar a atividade.');
-    } finally {
-      setEditSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    try {
-      await deleteContent(deleteTarget.id);
-      toast.success('Atividade removida');
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('contents:refresh'));
-      }
-      setDeleteTarget(null);
-      void loadModalPage(modalPage > 1 && !modalHasMore ? modalPage - 1 : modalPage);
-    } catch (err) {
-      console.error('[ResumoConteudosCard] Falha ao remover atividade', err);
-      toast.error('Não foi possível remover a atividade.');
-    } finally {
-      setDeleting(false);
-    }
+  const handleAgendaUpdated = () => {
+    setRefreshToken((token) => token + 1);
   };
 
   const content = () => {
@@ -417,20 +362,20 @@ export default function ResumoConteudosCard({
             <li key={item.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0 space-y-1">
-                  <p className="truncate text-sm font-semibold text-slate-800">{item.titulo}</p>
+                  <p className="truncate text-sm font-semibold text-slate-800">{item.title}</p>
                   <p className="truncate text-xs text-slate-500">
-                    {[item.turmaNome, item.disciplinaNome].filter(Boolean).join(' • ')}
+                    {[item.className, item.disciplineName].filter(Boolean).join(' • ')}
                   </p>
-                  {item.descricao ? (
-                    <p className="truncate text-xs text-slate-600">{item.descricao}</p>
+                  {item.description ? (
+                    <p className="truncate text-xs text-slate-600">{item.description}</p>
                   ) : null}
                 </div>
                 <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700">
-                  {TYPE_LABELS[item.tipo]}
+                  {TYPE_LABELS[item.type]}
                 </span>
               </div>
               <p className="mt-2 text-xs font-medium uppercase tracking-wide text-slate-500">
-                {formatAgendaDate(item.data)}
+                {formatAgendaDate(item.date)}
               </p>
             </li>
           ))}
@@ -441,11 +386,20 @@ export default function ResumoConteudosCard({
 
   return (
     <div className={containerClass}>
-      {!embedded && (
-        <div className="flex items-center justify-between">
-          <h3 className="card-title text-slate-900">Próximas Atividades</h3>
-        </div>
-      )}
+      <div className="flex items-center justify-between gap-3">
+        <h3 className={!embedded ? 'card-title text-slate-900' : 'text-sm font-semibold text-slate-900'}>
+          {embedded ? 'Agenda' : 'Próximas Atividades'}
+        </h3>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleOpenAgendaModal}
+          disabled={loading && summaryItems.length === 0}
+        >
+          Editar
+        </Button>
+      </div>
       {renderTypeFilters()}
       <div className="min-h-0 flex-1">{content()}</div>
       {hasMore && (
@@ -527,91 +481,12 @@ export default function ResumoConteudosCard({
         </div>
       </Modal>
 
-      <Modal open={Boolean(editTarget)} onClose={closeEditModal}>
-        <div className="w-full max-w-lg p-6">
-          <h3 className="card-title mb-4 text-slate-900">Editar atividade</h3>
-          {editForm ? (
-            <form className="space-y-4" onSubmit={handleEditSubmit}>
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-slate-700">Título</label>
-                <input
-                  type="text"
-                  value={editForm.title}
-                  onChange={(event) => setEditForm((prev) => prev ? { ...prev, title: event.target.value } : prev)}
-                  required
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-slate-700">Descrição</label>
-                <textarea
-                  value={editForm.description}
-                  onChange={(event) => setEditForm((prev) => prev ? { ...prev, description: event.target.value } : prev)}
-                  rows={3}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-slate-700">Data</label>
-                  <input
-                    type="date"
-                    value={editForm.date}
-                    onChange={(event) => setEditForm((prev) => prev ? { ...prev, date: event.target.value } : prev)}
-                    required
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-slate-700">Bimestre</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="4"
-                    value={editForm.bimester}
-                    onChange={(event) => setEditForm((prev) => prev ? { ...prev, bimester: event.target.value } : prev)}
-                    required
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                  />
-                </div>
-              </div>
-              <label className="flex items-center gap-2 text-sm text-slate-600">
-                <input
-                  type="checkbox"
-                  checked={editForm.done}
-                  onChange={(event) => setEditForm((prev) => prev ? { ...prev, done: event.target.checked } : prev)}
-                />
-                Concluída
-              </label>
-              <div className="mt-6 flex justify-end gap-3">
-                <Button type="button" variant="ghost" onClick={closeEditModal} disabled={editSaving}>
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={editSaving}>
-                  {editSaving ? 'Salvando…' : 'Salvar'}
-                </Button>
-              </div>
-            </form>
-          ) : null}
-        </div>
-      </Modal>
-
-      <Modal open={Boolean(deleteTarget)} onClose={() => (deleting ? null : setDeleteTarget(null))}>
-        <div className="w-full max-w-md p-6">
-          <h3 className="card-title mb-2 text-slate-900">Remover atividade</h3>
-          <p className="text-sm text-slate-600">
-            Tem certeza de que deseja remover "{deleteTarget?.title}"?
-          </p>
-          <div className="mt-6 flex justify-end gap-3">
-            <Button type="button" variant="ghost" onClick={() => setDeleteTarget(null)} disabled={deleting}>
-              Cancelar
-            </Button>
-            <Button type="button" className="btn-primary" onClick={handleDelete} disabled={deleting}>
-              {deleting ? 'Removendo…' : 'Remover'}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      <EditAgendaModal
+        isOpen={agendaModalOpen}
+        onOpenChange={setAgendaModalOpen}
+        items={filteredItems}
+        onUpdated={handleAgendaUpdated}
+      />
     </div>
   );
 }
