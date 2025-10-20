@@ -29,6 +29,20 @@
   --c-text-soft:#334155;
   --c-muted:#6B7280;
 
+  /* AGENDA */
+  --agenda-cell-h:128px;
+  --agenda-cell-h-sm:110px;
+  --agenda-cell-h-mobile:96px;
+  --agenda-gap:14px;
+
+  --agenda-atividades:#ff8a3d;
+  --agenda-conteudos:#6d5ae6;
+  --agenda-datas:#2ec5b6;
+
+  --agenda-atividades-bg:color-mix(in srgb, var(--agenda-atividades) 12%, #fff);
+  --agenda-conteudos-bg:color-mix(in srgb, var(--agenda-conteudos) 12%, #fff);
+  --agenda-datas-bg:color-mix(in srgb, var(--agenda-datas) 12%, #fff);
+
   /* STATES */
   --c-success:#22C55E;
   --c-warning:#F59E0B;
@@ -85,6 +99,18 @@
 @media (min-width: 1536px){
   :root{
     --h-stack:400px;
+  }
+}
+
+@media (max-width: 1280px){
+  :root{
+    --agenda-cell-h:var(--agenda-cell-h-sm);
+  }
+}
+
+@media (max-width: 1024px){
+  :root{
+    --agenda-cell-h:var(--agenda-cell-h-mobile);
   }
 }
 
