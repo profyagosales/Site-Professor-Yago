@@ -555,50 +555,48 @@ function DashboardProfessor(){
   return (
     <div className="page-safe pt-4 space-y-6">
       <section className="hero-compact rounded-3xl bg-gradient-to-r from-orange-500 to-orange-400 text-white shadow-xl">
-        <div className="flex flex-col gap-5">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex items-center gap-3">
-              {resolvedAvatar ? (
-                <img
-                  src={resolvedAvatar}
-                  alt={user.name}
-                  className="h-14 w-14 rounded-2xl border border-white/50 object-cover shadow-lg"
-                />
-              ) : (
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/50 bg-white/20 text-xl font-semibold uppercase">
-                  {user?.name ? user.name.slice(0, 1) : '?'}
-                </div>
-              )}
-              <div>
-                <p className="text-xs uppercase tracking-wide text-white/80">Bem-vindo de volta</p>
-                <h1 className="text-xl font-semibold md:text-2xl">{user?.name || 'Professor'}</h1>
-                <p className="text-white/80 text-sm">Painel do professor</p>
+        <div className="hero-grid">
+          <Button
+            type="button"
+            className="hero-exit rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-white/20 focus-visible:ring-white/60"
+            onClick={handleLogout}
+          >
+            Sair
+          </Button>
+
+          <div className="hero-left">
+            {resolvedAvatar ? (
+              <img
+                src={resolvedAvatar}
+                alt={user.name}
+                className="h-16 w-16 rounded-2xl border border-white/50 object-cover shadow-lg"
+              />
+            ) : (
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/50 bg-white/20 text-2xl font-semibold uppercase">
+                {user?.name ? user.name.slice(0, 1) : '?'}
               </div>
+            )}
+            <div className="space-y-1">
+              <p className="text-xs uppercase tracking-wide text-white/80">Bem-vindo de volta</p>
+              <h1 className="text-2xl font-semibold md:text-3xl">{user?.name || 'Professor'}</h1>
+              <p className="text-sm text-white/80">Painel do professor</p>
             </div>
-            <div className="flex flex-col items-stretch gap-3 lg:items-end">
-              <div className="flex flex-wrap items-stretch justify-end gap-3">
-                <Button
-                  type="button"
-                  className="rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-white/20 focus-visible:ring-white/60"
-                  onClick={handleLogout}
-                >
-                  Sair
-                </Button>
-                <div className="flex gap-3">
-                  <div className="mini-stat-card">
-                    <p className="mini-stat-label">Turmas</p>
-                    <p className="mini-stat-value">{totalClasses}</p>
-                  </div>
-                  <div className="mini-stat-card">
-                    <p className="mini-stat-label">Total de alunos</p>
-                    <p className="mini-stat-value">{uniqueStudentsCount}</p>
-                  </div>
-                </div>
+          </div>
+
+          <div className="hero-right-top">
+            <div className="flex gap-3">
+              <div className="mini-stat-card">
+                <p className="mini-stat-label">Turmas</p>
+                <p className="mini-stat-value">{totalClasses}</p>
+              </div>
+              <div className="mini-stat-card">
+                <p className="mini-stat-label">Total de alunos</p>
+                <p className="mini-stat-value">{uniqueStudentsCount}</p>
               </div>
             </div>
           </div>
 
-          <div className="cta-row w-full">
+          <div className="hero-right-ctas">
             <Button className="btn-primary" onClick={() => setShowEmail(true)}>
               Enviar e-mail
             </Button>
@@ -618,17 +616,17 @@ function DashboardProfessor(){
         </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-12">
+      <div className="grid gap-6 lg:grid-cols-2">
         <DashboardCard
           title="Horário Semanal"
-          className="lg:col-span-8"
-          contentClassName="flex-1"
+          className="card schedule-card"
+          contentClassName="card-body"
         >
           <WeeklySchedule slots={SLOT_CONFIG} days={WEEKDAY_CONFIG} cells={scheduleMatrix} />
         </DashboardCard>
 
         <AvisosCard
-          className="lg:col-span-4"
+          className="card h-[420px]"
           onEdit={(announcement) => {
             setAnnouncementDraft(announcement)
             setAnnouncementOpen(true)
@@ -640,10 +638,10 @@ function DashboardProfessor(){
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-12">
+      <div className="grid gap-6 lg:grid-cols-3 items-stretch">
         <DashboardCard
           title="Agenda"
-          className="lg:col-span-6"
+          className="card h-[380px]"
           actions={
             <div className="flex items-center gap-2">
               <div className="flex rounded-full border border-slate-200 bg-slate-50 p-1">
@@ -668,12 +666,12 @@ function DashboardProfessor(){
               </div>
             </div>
           }
-          contentClassName="flex-1 flex-col"
+          contentClassName="card-body flex-col"
         >
           {insightsLoading ? (
             <div className="flex-1 rounded-xl bg-slate-100 animate-pulse" />
           ) : displayedAgendaGroups.length ? (
-            <div className="card-scroll flex-1 space-y-4">
+            <div className="flex-1 space-y-4">
               {displayedAgendaGroups.map((group) => (
                 <div key={group.iso} className="rounded-2xl border border-slate-100 p-4">
                   <p className="text-sm font-semibold text-slate-900">{formatAgendaHeader(group.date)}</p>
@@ -711,15 +709,15 @@ function DashboardProfessor(){
 
         <DashboardCard
           title="Atividades"
-          className="lg:col-span-3"
-          contentClassName="flex-1"
+          className="card h-[380px]"
+          contentClassName="card-body"
         >
           <ResumoConteudosCard embedded limit={5} className="h-full" />
         </DashboardCard>
 
         <DivisaoNotasCard
           classOptions={classOptions}
-          className="lg:col-span-3"
+          className="card h-[380px]"
           onEdit={handleEditGradeScheme}
           editOpen={divisaoNotasOpen}
           onEditOpenChange={handleDivisaoNotasOpenChange}

@@ -287,18 +287,17 @@ export default function AnnouncementModal({
   const quillModules = useMemo(() => modules(handleImageUpload), [handleImageUpload])
 
   return (
-    <Modal open={open} onClose={closeIfAllowed} className="max-w-3xl">
-      <div className="flex max-h-[80vh] flex-col">
+    <Modal open={open} onClose={closeIfAllowed} className="max-w-3xl overflow-hidden">
+      <div className="flex max-h-[85vh] flex-col overflow-hidden">
         <header className="mb-4">
           <h2 className="text-xl font-semibold text-slate-900">{isEditMode ? 'Editar aviso' : 'Novo aviso'}</h2>
         </header>
         <form onSubmit={handleSubmit} className="flex flex-1 flex-col">
-          <div className="modal-body-scroll flex-1 pr-2">
-            <div className="space-y-5">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Assunto</label>
-                <input
-                  type="text"
+          <div className="modal-body min-h-0 space-y-5 pr-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Assunto</label>
+              <input
+                type="text"
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
                 value={subject}
                 onChange={(event) => setSubject(event.target.value)}
@@ -397,7 +396,7 @@ export default function AnnouncementModal({
                   <label className="mb-1 block text-sm font-medium text-slate-700">Turmas</label>
                   <select
                     multiple
-                    className="h-36 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
+                    className="h-36 max-h-40 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400 overflow-auto"
                     value={selectedClasses}
                     onChange={(event) =>
                       setSelectedClasses(Array.from(event.target.selectedOptions).map((option) => option.value))
@@ -471,10 +470,9 @@ export default function AnnouncementModal({
                 />
               </div>
             )}
-            </div>
           </div>
 
-          <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
+          <div className="modal-footer mt-6 flex justify-end gap-3 border-t border-slate-100">
             <Button type="button" variant="ghost" onClick={closeIfAllowed} disabled={submitting}>
               Cancelar
             </Button>

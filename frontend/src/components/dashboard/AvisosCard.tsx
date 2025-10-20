@@ -335,20 +335,6 @@ export default function AvisosCard({
     [fetchAnnouncements, modalItems, modalPage, resetInterval, setProcessingFlag]
   );
 
-  const handleNext = useCallback(() => {
-    if (!announcements.length) return;
-    pauseCarousel();
-    setActiveIndex((prev) => (prev + 1) % announcements.length);
-    resetInterval();
-  }, [announcements.length, pauseCarousel, resetInterval]);
-
-  const handlePrev = useCallback(() => {
-    if (!announcements.length) return;
-    pauseCarousel();
-    setActiveIndex((prev) => (prev - 1 + announcements.length) % announcements.length);
-    resetInterval();
-  }, [announcements.length, pauseCarousel, resetInterval]);
-
   const togglePause = useCallback(() => {
     if (isPaused) {
       resetInterval();
@@ -364,13 +350,15 @@ export default function AvisosCard({
         togglePause();
       } else if (event.key === 'ArrowRight') {
         event.preventDefault();
-        handleNext();
+        setActiveIndex((prev) => (prev + 1) % announcements.length);
+        resetInterval();
       } else if (event.key === 'ArrowLeft') {
         event.preventDefault();
-        handlePrev();
+        setActiveIndex((prev) => (prev - 1 + announcements.length) % announcements.length);
+        resetInterval();
       }
     },
-    [togglePause, handleNext, handlePrev]
+    [announcements.length, togglePause, resetInterval]
   );
 
   const handleModalNext = () => {
@@ -385,6 +373,14 @@ export default function AvisosCard({
 
   const rawCarouselId = useId();
   const carouselId = `announcement-carousel-${rawCarouselId.replace(/[^a-zA-Z0-9-]/g, '')}`;
+
+  const handleSelectIndex = useCallback(
+    (index: number) => {
+      setActiveIndex(index);
+      resetInterval();
+    },
+    [resetInterval]
+  );
 
   return (
     <>
@@ -403,7 +399,7 @@ export default function AvisosCard({
             </Button>
           </div>
         }
-        contentClassName="flex-1"
+        contentClassName="card-body"
       >
         {loading ? (
           <div className="flex h-full items-center justify-center">
@@ -419,7 +415,7 @@ export default function AvisosCard({
           </div>
         ) : (
           <div
-            className="flex h-full flex-col"
+            className="aria-carousel flex h-full flex-col"
             role="region"
             aria-roledescription="carrossel"
             aria-live="polite"
@@ -445,7 +441,7 @@ export default function AvisosCard({
                 <h4 className="text-lg font-semibold text-slate-900">{activeAnnouncement?.subject}</h4>
               </header>
               <div
-                className="announcement-content rich-content prose prose-sm mt-4 max-w-none flex-1 overflow-y-auto text-slate-700"
+                className="avisos-body rich-content prose prose-sm mt-4 max-w-none text-slate-700"
                 dangerouslySetInnerHTML={{ __html: announcementHtml }}
               />
               {activeAnnouncement?.attachments?.length ? (
@@ -494,62 +490,20 @@ export default function AvisosCard({
               ) : null}
             </div>
             {announcements.length > 1 ? (
-              <div className="mt-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex items-center gap-2">
-                  <Button
+              <div className="mt-4 flex justify-center gap-2" role="tablist" aria-label="Selecionar aviso">
+                {announcements.map((item, index) => (
+                  <button
+                    key={item.id ?? `announcement-${index}`}
                     type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600 hover:bg-slate-100"
-                    onClick={handlePrev}
-                    aria-label="Mostrar aviso anterior"
-                    aria-controls={carouselId}
-                  >
-                    Anterior
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    aria-pressed={isPaused}
-                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600 hover:bg-slate-100"
-                    onClick={togglePause}
-                    aria-label={isPaused ? 'Retomar carrossel' : 'Pausar carrossel'}
-                    aria-controls={carouselId}
-                  >
-                    {isPaused ? 'Retomar' : 'Pausar'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600 hover:bg-slate-100"
-                    onClick={handleNext}
-                    aria-label="Mostrar próximo aviso"
-                    aria-controls={carouselId}
-                  >
-                    Próximo
-                  </Button>
-                </div>
-                <div className="flex items-center gap-2" role="tablist" aria-label="Selecionar aviso">
-                  {announcements.map((item, index) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={index === activeIndex}
-                      aria-controls={`announcement-slide-${item.id}`}
-                      aria-label={`Ir para aviso ${index + 1}`}
-                      onClick={() => {
-                        setActiveIndex(index);
-                        resetInterval();
-                      }}
-                      className={`h-2.5 rounded-full transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A00] ${
-                        index === activeIndex ? 'w-6 bg-orange-500' : 'w-2 bg-slate-300 hover:bg-slate-400'
-                      }`}
-                    />
-                  ))}
-                </div>
+                    role="tab"
+                    aria-pressed={index === activeIndex}
+                    aria-label={`Ir para aviso ${index + 1}`}
+                    onClick={() => handleSelectIndex(index)}
+                    className={`h-2.5 w-2.5 rounded-full transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A00] ${
+                      index === activeIndex ? 'bg-orange-500' : 'bg-slate-300 hover:bg-slate-400'
+                    }`}
+                  />
+                ))}
               </div>
             ) : null}
           </div>

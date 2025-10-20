@@ -55,7 +55,7 @@ html, body, #root { height: 100%; background: #F2F4F7; }
     @apply px-4 md:px-6 lg:px-10;
   }
   .hero-compact {
-    @apply px-6 py-3 md:px-8 md:py-4;
+    @apply px-6 py-5 md:px-8 md:py-6;
   }
   .cta-row {
     @apply flex flex-wrap items-center justify-center gap-3 md:gap-4;
@@ -139,6 +139,136 @@ html, body, #root { height: 100%; background: #F2F4F7; }
   .card-scroll {
     @apply overflow-y-auto pr-2;
     max-height: 16rem;
+  }
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  grid-template-rows: auto auto;
+  gap: 16px;
+  position: relative;
+}
+
+.hero-left {
+  grid-row: 1 / span 2;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.hero-right-top {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  align-items: center;
+}
+
+.hero-right-ctas {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.hero-exit {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+}
+
+.schedule-card {
+  height: 420px;
+}
+
+.schedule-grid {
+  grid-auto-rows: minmax(46px, 1fr);
+}
+
+.schedule-cell {
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.schedule-empty {
+  opacity: 0.5;
+}
+
+.schedule-grid .schedule-cell {
+  padding: 6px 8px;
+  font-size: 14px;
+}
+
+.avisos-body {
+  height: 360px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.avisos-body img {
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.avisos-body p,
+.avisos-body ul {
+  margin: 0 0 8px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.card-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.modal-body {
+  max-height: calc(85vh - 72px);
+  overflow: auto;
+}
+
+.modal-footer {
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  padding-top: 12px;
+}
+
+[role="button"],
+button,
+a {
+  outline-offset: 2px;
+}
+
+.aria-carousel {
+  position: relative;
+}
+
+@media (max-width: 767px) {
+  .hero-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-left {
+    grid-row: auto;
+    flex-direction: row;
+  }
+
+  .hero-right-top {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .hero-right-ctas {
+    flex-wrap: wrap;
   }
 }
 
