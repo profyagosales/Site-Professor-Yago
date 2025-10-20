@@ -65,31 +65,44 @@ export default function DivisaoNotasCard({ ano, classId, onEdit, refreshToken = 
     onEdit(scheme ?? DEFAULT_SCHEME(classId, ano));
   };
 
-  const bodyContent = (() => {
-    if (!classId) {
-      return <p className="text-sm text-slate-500">Cadastre uma turma para configurar a divisão de notas.</p>;
-    }
-    if (loading) {
-      return <p className="text-sm text-slate-500">Carregando divisão de notas…</p>;
-    }
-    if (errorMessage) {
-      return <p className="text-sm text-rose-600">{errorMessage}</p>;
-    }
-    if (!itens.length) {
-      return (
-        <p className="text-sm text-slate-500">
-          Nenhum item cadastrado para este bimestre. Clique em <strong>Editar</strong> para começar.
-        </p>
-      );
-    }
+  let bodyContent: JSX.Element;
 
-    return (
-      <div className="overflow-x-auto">
-        <table className="grade-scheme-table">
-          <thead>
+  if (!classId) {
+    bodyContent = (
+      <div className="flex h-full items-center justify-center px-4 text-center text-sm text-slate-500">
+        Cadastre uma turma para configurar a divisão de notas.
+      </div>
+    );
+  } else if (loading) {
+    bodyContent = (
+      <div className="flex h-full items-center justify-center px-4 text-sm text-slate-500">
+        Carregando divisão de notas…
+      </div>
+    );
+  } else if (errorMessage) {
+    bodyContent = (
+      <div className="flex h-full items-center justify-center px-4 text-center text-sm text-rose-600">
+        {errorMessage}
+      </div>
+    );
+  } else if (!itens.length) {
+    bodyContent = (
+      <div className="flex h-full items-center justify-center px-4 text-center text-sm text-slate-500">
+        Nenhum item cadastrado para este bimestre. Clique em <strong>Editar</strong> para começar.
+      </div>
+    );
+  } else {
+    bodyContent = (
+      <div className="pb-2">
+        <table className="grade-scheme-table w-full text-sm">
+          <thead className="sticky top-0 z-10 bg-white/90 backdrop-blur">
             <tr>
-              <th className="text-left">Item</th>
-              <th className="text-right">Pontos</th>
+              <th className="py-2 px-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Item
+              </th>
+              <th className="py-2 px-4 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Pontos
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -100,36 +113,40 @@ export default function DivisaoNotasCard({ ano, classId, onEdit, refreshToken = 
         </table>
       </div>
     );
-  })();
+  }
 
   return (
-    <div className="card">
-      <div className="card-header flex flex-wrap items-center justify-between gap-3">
-        <h3 className="card-title">Divisão de notas</h3>
-        <div className="flex flex-wrap items-center gap-2">
-          {BIMESTERS.map((bim) => (
-            <button
-              key={bim}
-              className="bimestre-pill"
-              type="button"
-              aria-pressed={selectedBimester === bim}
-              onClick={() => setSelectedBimester(bim)}
-            >
-              {bim}º
-            </button>
-          ))}
+    <section className="card h-[520px] flex flex-col lg:h-[560px] 2xl:h-[600px]">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-1 flex-wrap items-center gap-3">
+          <h3 className="card-title">Divisão de notas</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            {BIMESTERS.map((bim) => (
+              <button
+                key={bim}
+                className="bimestre-pill"
+                type="button"
+                aria-pressed={selectedBimester === bim}
+                onClick={() => setSelectedBimester(bim)}
+              >
+                {bim}º
+              </button>
+            ))}
+          </div>
         </div>
         <button className="btn btn-light" type="button" onClick={handleEdit} disabled={!classId}>
           Editar
         </button>
-      </div>
+      </header>
 
-      <div className="card-body space-y-3">{bodyContent}</div>
+      <div className="flex-none h-2" />
 
-      <div className="card-footer text-xs text-slate-400">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1">{bodyContent}</div>
+
+      <footer className="flex-none pt-3 text-xs text-slate-400">
         * A divisão fica visível para os alunos nos boletins e relatórios.
-      </div>
-    </div>
+      </footer>
+    </section>
   );
 }
 
@@ -142,7 +159,7 @@ function SchemeRow({ item }: { item: GradeSchemeItem }) {
 
   return (
     <tr style={{ backgroundColor: tint }}>
-      <td>
+      <td className="py-3 px-4">
         <div className="flex items-center justify-between gap-3">
           <span className="font-medium text-slate-800">{name || 'Sem nome'}</span>
           <span
@@ -153,7 +170,7 @@ function SchemeRow({ item }: { item: GradeSchemeItem }) {
           </span>
         </div>
       </td>
-      <td className="text-right">
+      <td className="py-3 px-4 text-right">
         <span className="font-semibold text-slate-900">{points} pts</span>
       </td>
     </tr>

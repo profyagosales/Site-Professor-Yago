@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useId, type TouchEvent, type KeyboardEvent } from 'react';
 import DOMPurify from 'dompurify';
 import { toast } from 'react-toastify';
-import DashboardCard from '@/components/dashboard/DashboardCard';
 import { Button } from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import {
@@ -205,8 +204,9 @@ export default function AvisosCard({
   onEdit = noop,
   onCreate = noop,
 }: AvisosCardProps) {
-  const cardClassName = ['avisos-card', className].filter(Boolean).join(' ');
-  const cardContentClassName = 'avisos-card-content';
+  const containerClassName = ['card h-[560px] flex flex-col lg:h-[600px] 2xl:h-[640px]', className]
+    .filter(Boolean)
+    .join(' ');
   const hasEditAction = onEdit !== noop;
   const hasCreateAction = onCreate !== noop;
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -460,12 +460,10 @@ export default function AvisosCard({
 
   return (
     <>
-      <DashboardCard
-        title="Avisos"
-        className={cardClassName}
-        contentClassName={cardContentClassName}
-        action={
-          <div className="flex gap-2">
+      <section className={containerClassName}>
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-lg font-semibold text-slate-900">Avisos</h3>
+          <div className="flex flex-wrap items-center gap-2">
             {hasCreateAction ? (
               <Button type="button" size="sm" variant="ghost" onClick={onCreate}>
                 Registrar aviso
@@ -480,91 +478,95 @@ export default function AvisosCard({
               Ver todos
             </Button>
           </div>
-        }
-      >
-        {loading ? (
-          <div className="flex h-full items-center justify-center">
-            <div className="h-24 w-full max-w-sm animate-pulse rounded-xl bg-slate-100" />
-          </div>
-        ) : error ? (
-          <div className="flex h-full items-center justify-center text-center text-sm text-slate-500">
-            {error}
-          </div>
-        ) : announcements.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-sm text-slate-500">
-            Nenhum aviso encontrado.
-          </div>
-        ) : (
-          <div
-            className="aria-carousel flex h-full flex-col overflow-hidden"
-            role="region"
-            aria-roledescription="carrossel"
-            aria-live="polite"
-            aria-label="Avisos recentes"
-            id={carouselId}
-            tabIndex={0}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-            onMouseEnter={pauseCarousel}
-            onMouseLeave={resetInterval}
-            onFocus={pauseCarousel}
-            onBlur={resetInterval}
-            onKeyDown={handleKeyDown}
-          >
-            <p className="sr-only" aria-live="polite">
-              {isPaused ? 'Carrossel pausado' : 'Carrossel em reprodução automática'}
-            </p>
+        </header>
+
+        <div className="flex-none h-2" />
+
+        <div className="flex-1 min-h-0 overflow-hidden">
+          {loading ? (
+            <div className="flex h-full items-center justify-center">
+              <div className="h-24 w-full max-w-sm animate-pulse rounded-xl bg-slate-100" />
+            </div>
+          ) : error ? (
+            <div className="flex h-full items-center justify-center px-4 text-center text-sm text-slate-500">
+              {error}
+            </div>
+          ) : announcements.length === 0 ? (
+            <div className="flex h-full items-center justify-center px-4 text-sm text-slate-500">
+              Nenhum aviso encontrado.
+            </div>
+          ) : (
             <div
-              id={
-                activeAnnouncement
-                  ? `announcement-slide-${getAnnouncementId(activeAnnouncement) ?? 'current'}`
-                  : undefined
-              }
-              className="flex flex-1 flex-col overflow-hidden"
+              className="aria-carousel relative flex h-full flex-1 min-h-0 flex-col overflow-hidden"
+              role="region"
+              aria-roledescription="carrossel"
+              aria-live="polite"
+              aria-label="Avisos recentes"
+              id={carouselId}
+              tabIndex={0}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              onMouseEnter={pauseCarousel}
+              onMouseLeave={resetInterval}
+              onFocus={pauseCarousel}
+              onBlur={resetInterval}
+              onKeyDown={handleKeyDown}
             >
-              <header className="space-y-2">
-                <p className="text-xs uppercase tracking-wide text-slate-500">
-                  {formatDateTime(activeAnnouncement?.scheduleAt ?? activeAnnouncement?.createdAt) || 'Aviso'}
-                </p>
-                <h4 className="text-lg font-semibold text-slate-900">{activeAnnouncement?.subject}</h4>
-              </header>
-              <div className="avisos-body">
+              <p className="sr-only" aria-live="polite">
+                {isPaused ? 'Carrossel pausado' : 'Carrossel em reprodução automática'}
+              </p>
+              <div
+                id={
+                  activeAnnouncement
+                    ? `announcement-slide-${getAnnouncementId(activeAnnouncement) ?? 'current'}`
+                    : undefined
+                }
+                className="flex flex-1 min-h-0 flex-col"
+              >
+                <header className="flex-none space-y-2">
+                  <p className="text-xs uppercase tracking-wide text-slate-500">
+                    {formatDateTime(activeAnnouncement?.scheduleAt ?? activeAnnouncement?.createdAt) || 'Aviso'}
+                  </p>
+                  <h4 className="text-lg font-semibold text-slate-900">{activeAnnouncement?.subject}</h4>
+                </header>
                 <div
-                  className="avisos-content fixed-height space-y-4"
+                  className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1"
                   role="region"
                   aria-label="Avisos da turma"
                 >
-                  <div
-                    className="rich-content prose prose-sm max-w-none text-slate-700"
-                    dangerouslySetInnerHTML={{ __html: announcementHtml }}
-                  />
-                  <AttachmentList attachments={activeAnnouncement?.attachments} />
+                  <div className="space-y-4 pb-2">
+                    <div
+                      className="rich-content prose prose-sm max-w-none text-slate-700 prose-headings:mt-4 prose-p:mb-3 last:mb-0"
+                      dangerouslySetInnerHTML={{ __html: announcementHtml }}
+                    />
+                    <AttachmentList attachments={activeAnnouncement?.attachments} />
+                  </div>
                 </div>
               </div>
+              {announcements.length > 1 ? (
+                <div className="mt-4 flex justify-center gap-2" role="tablist" aria-label="Selecionar aviso">
+                  {announcements.map((item, index) => {
+                    const itemId = getAnnouncementId(item);
+                    return (
+                      <button
+                        key={itemId ?? `announcement-${index}`}
+                        type="button"
+                        role="tab"
+                        aria-pressed={index === activeIndex}
+                        aria-label={`Ir para aviso ${index + 1}`}
+                        onClick={() => handleSelectIndex(index)}
+                        className={`h-2.5 w-2.5 rounded-full transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A00] ${
+                          index === activeIndex ? 'bg-orange-500' : 'bg-slate-300 hover:bg-slate-400'
+                        }`}
+                      />
+                    );
+                  })}
+                </div>
+              ) : null}
             </div>
-            {announcements.length > 1 ? (
-              <div className="mt-4 flex justify-center gap-2" role="tablist" aria-label="Selecionar aviso">
-                {announcements.map((item, index) => {
-                  const itemId = getAnnouncementId(item);
-                  return (
-                  <button
-                    key={itemId ?? `announcement-${index}`}
-                    type="button"
-                    role="tab"
-                    aria-pressed={index === activeIndex}
-                    aria-label={`Ir para aviso ${index + 1}`}
-                    onClick={() => handleSelectIndex(index)}
-                    className={`h-2.5 w-2.5 rounded-full transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A00] ${
-                      index === activeIndex ? 'bg-orange-500' : 'bg-slate-300 hover:bg-slate-400'
-                    }`}
-                  />
-                  );
-                })}
-              </div>
-            ) : null}
-          </div>
-        )}
-      </DashboardCard>
+          )}
+        </div>
+      </section>
 
       <Modal open={modalOpen} onClose={closeModal}>
         <div className="w-full max-w-3xl p-6">

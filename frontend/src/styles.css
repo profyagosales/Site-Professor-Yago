@@ -141,6 +141,19 @@ a:focus-visible,
   height: 100%;
 }
 
+.card .overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
+}
+
+.card .overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 9999px;
+}
+
+.card .overflow-y-auto:hover::-webkit-scrollbar-thumb {
+  background: #c0c4cc;
+}
+
 .card-header {
   display: flex;
   align-items: center;
@@ -607,55 +620,6 @@ html, body, #root { height: 100%; background: #F2F4F7; }
   border-radius: 9999px;
 }
 
-.avisos-card {
-  display: flex;
-  flex-direction: column;
-  height: 420px;
-  min-width: 0;
-}
-
-@media (max-width: 1024px) {
-  .avisos-card {
-    height: auto;
-    min-height: 22rem;
-  }
-}
-
-.avisos-card-content {
-  display: flex;
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.avisos-body {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.avisos-content.fixed-height {
-  max-height: 420px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 6px;
-  overscroll-behavior: contain;
-  word-break: break-word;
-}
-
-.avisos-content.fixed-height img {
-  display: block;
-  max-width: 100%;
-  height: auto;
-  object-fit: contain;
-  border-radius: 10px;
-}
-
-.avisos-content.fixed-height p {
-  margin: 10px 0;
-  line-height: 1.45;
-}
-
 .announcement-image-wrapper {
   max-height: 280px;
 }
@@ -670,11 +634,6 @@ html, body, #root { height: 100%; background: #F2F4F7; }
 
 .announcement-attachments {
   overflow: hidden;
-}
-
-.avisos-body p,
-.avisos-body ul {
-  margin: 0 0 8px;
 }
 
 .announcement-modal-list {
