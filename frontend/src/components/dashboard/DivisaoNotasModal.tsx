@@ -48,9 +48,25 @@ export default function DivisaoNotasModal({ ano, initial, isOpen, onClose, onSav
   const itens = useMemo(() => localScheme.itensPorBimestre[active] ?? [], [localScheme, active]);
 
   const totals = useMemo(() => computeTotals(localScheme), [localScheme]);
+  const hasAllNames = useMemo(
+    () =>
+      BIMESTRES.every((b) =>
+        (localScheme.itensPorBimestre[b] ?? []).every(
+          (item) => Boolean(item.nome) && item.nome.trim().length > 0,
+        ),
+      ),
+    [localScheme],
+  );
   const isValid = useMemo(
-    () => BIMESTRES.every((b) => Number.isFinite(totals[b]) && Math.abs(totals[b] - 10) < 1e-4),
-    [totals],
+    () =>
+      BIMESTRES.every((b) => {
+        const itensDoBimestre = localScheme.itensPorBimestre[b] ?? [];
+        if (!itensDoBimestre.length) {
+          return true;
+        }
+        return Number.isFinite(totals[b]) && Math.abs(totals[b] - 10) < 1e-4;
+      }),
+    [localScheme, totals],
   );
 
   const updateItems = (b: Bimestre, recipe: (items: GradeItem[]) => GradeItem[]) => {
@@ -99,10 +115,29 @@ export default function DivisaoNotasModal({ ano, initial, isOpen, onClose, onSav
   };
 
   const handleSave = async () => {
-    if (!isValid) return;
+    if (!hasAllNames) {
+      toast.error('Preencha o nome de todos os itens.');
+      return;
+    }
+
+    if (!isValid) {
+      toast.error('Ajuste os pontos para que cada bimestre com itens some exatamente 10.');
+      return;
+    }
     try {
       setSaving(true);
-      await saveGradeScheme(localScheme);
+      const itensPorBimestre = BIMESTRES.reduce((acc, bimestre) => {
+        acc[bimestre] = (localScheme.itensPorBimestre[bimestre] ?? []).map((item) => ({
+          ...item,
+          nome: item.nome?.trim() ?? '',
+        }));
+        return acc;
+      }, { 1: [], 2: [], 3: [], 4: [] } as GradeScheme['itensPorBimestre']);
+      const trimmed: GradeScheme = {
+        ...localScheme,
+        itensPorBimestre,
+      };
+      await saveGradeScheme(trimmed);
       onSaved?.(); // refetch no card
       onClose();
     } catch (e: any) {
@@ -126,7 +161,7 @@ export default function DivisaoNotasModal({ ano, initial, isOpen, onClose, onSav
           </button>
         </header>
 
-        <div className="modal-body">
+        <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
           <div className="mb-3">
             <span className="text-sm text-foreground/70 mr-2">Bimestre para edição</span>
             <div className="flex flex-wrap gap-2">
@@ -155,11 +190,19 @@ export default function DivisaoNotasModal({ ano, initial, isOpen, onClose, onSav
           <div className="grid grid-cols-4 gap-3 mt-4 text-sm">
             {BIMESTRES.map((b) => {
               const total = totals[b];
-              const ok = Math.abs(total - 10) < 0.0001;
+              const itensDoBimestre = localScheme.itensPorBimestre[b] ?? [];
+              const hasItems = itensDoBimestre.length > 0;
+              const ok = hasItems && Math.abs(total - 10) < 0.0001;
+              let variant = 'bg-rose-50 text-rose-700';
+              if (!hasItems) {
+                variant = 'bg-slate-100 text-slate-600';
+              } else if (ok) {
+                variant = 'bg-green-50 text-green-700';
+              }
               return (
                 <div
                   key={b}
-                  className={`rounded px-3 py-2 text-sm ${ok ? 'bg-green-50 text-green-700' : 'bg-rose-50 text-rose-700'}`}
+                  className={`rounded px-3 py-2 text-sm ${variant}`}
                 >
                   {b}º: {total.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} / 10,0
                 </div>
@@ -172,7 +215,12 @@ export default function DivisaoNotasModal({ ano, initial, isOpen, onClose, onSav
           <button className="btn btn-ghost" onClick={onClose} type="button">
             Cancelar
           </button>
-          <button className="btn btn-primary" disabled={!isValid || saving} onClick={handleSave} type="button">
+          <button
+            className="btn btn-primary"
+            disabled={!isValid || !hasAllNames || saving}
+            onClick={handleSave}
+            type="button"
+          >
             {saving ? 'Salvando...' : 'Salvar'}
           </button>
         </footer>
@@ -253,6 +301,7 @@ function ItemRow({
           className="input w-full"
           value={item.nome}
           onChange={(event) => onPatch({ nome: event.target.value })}
+          required
           placeholder="Ex.: Prova 1, Trabalho, Projeto..."
         />
       </div>
