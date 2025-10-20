@@ -968,6 +968,7 @@ export default function AgendaCalendarCard({
           </div>
         ) : null}
       </div>
-    </section>
+    </div>
+  </section>
   );
 }
