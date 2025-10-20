@@ -109,7 +109,7 @@ function buildPayload(item: AgendaEditorItem): AgendaItemPayload {
 export default function AgendaEditorModal({ open, onClose, initialItems, onSaved }: AgendaEditorModalProps) {
   const [items, setItems] = useState<AgendaEditorItem[]>([]);
   const [errors, setErrors] = useState<Record<string, DraftError>>({});
-  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [loadingClasses, setLoadingClasses] = useState(false);
   const [classOptions, setClassOptions] = useState<ClassOption[]>([]);
   const [focusedId, setFocusedId] = useState<string | null>(null);
@@ -120,7 +120,7 @@ export default function AgendaEditorModal({ open, onClose, initialItems, onSaved
     }
     setItems(normalizeInitialItems(initialItems));
     setErrors({});
-    setSaving(false);
+    setLoading(false);
   }, [open, initialItems]);
 
   useEffect(() => {
@@ -219,7 +219,7 @@ export default function AgendaEditorModal({ open, onClose, initialItems, onSaved
   };
 
   const handleDelete = async (item: AgendaEditorItem) => {
-    if (saving) return;
+    if (loading) return;
     const question = item.title ? `Remover "${item.title}" da agenda?` : 'Remover item da agenda?';
     if (typeof window !== 'undefined' && !window.confirm(question)) {
       return;
@@ -235,9 +235,10 @@ export default function AgendaEditorModal({ open, onClose, initialItems, onSaved
       return;
     }
 
+    setLoading(true);
     try {
       await deleteAgendaItem(item.id);
-      toast.success('Item removido.');
+      toast.success('Item da agenda excluído.');
       setItems((prev) => prev.filter((entry) => entry.id !== item.id));
       setErrors((prev) => {
         const next = { ...prev };
@@ -247,12 +248,20 @@ export default function AgendaEditorModal({ open, onClose, initialItems, onSaved
       onSaved?.();
     } catch (err) {
       console.error('[AgendaEditorModal] Falha ao excluir item', err);
-      toast.error('Não foi possível excluir o item da agenda.');
+      const isRouteMissing =
+        (err instanceof Error && err.message === 'API route not found') ||
+        ((err as any)?.message === 'API route not found');
+      const message = isRouteMissing
+        ? 'Rota da API de Agenda não encontrada. Verifique o backend.'
+        : 'Não foi possível excluir o item da agenda.';
+      toast.error(message);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleSave = async () => {
-    if (saving) {
+    if (loading) {
       return;
     }
 
@@ -279,7 +288,7 @@ export default function AgendaEditorModal({ open, onClose, initialItems, onSaved
       return;
     }
 
-    setSaving(true);
+    setLoading(true);
     try {
       await Promise.all([
         ...creations.map((item) => createAgendaItem(buildPayload(item))),
@@ -291,9 +300,15 @@ export default function AgendaEditorModal({ open, onClose, initialItems, onSaved
       onClose();
     } catch (err) {
       console.error('[AgendaEditorModal] Falha ao salvar agenda', err);
-      toast.error('Não foi possível salvar as alterações.');
+      const isRouteMissing =
+        (err instanceof Error && err.message === 'API route not found') ||
+        ((err as any)?.message === 'API route not found');
+      const message = isRouteMissing
+        ? 'Rota da API de Agenda não encontrada. Verifique o backend.'
+        : 'Não foi possível salvar a agenda.';
+      toast.error(message);
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   };
 
@@ -306,7 +321,7 @@ export default function AgendaEditorModal({ open, onClose, initialItems, onSaved
   }, [classOptions]);
 
   return (
-    <Modal open={open} onClose={saving ? () => {} : onClose} className="max-w-4xl">
+    <Modal open={open} onClose={loading ? () => {} : onClose} className="max-w-4xl">
       <div className="flex max-h-[70vh] flex-col">
         <header className="sticky top-0 z-10 border-b border-slate-200 bg-white px-6 py-4">
           <div className="flex items-center justify-between gap-3">
@@ -314,7 +329,7 @@ export default function AgendaEditorModal({ open, onClose, initialItems, onSaved
               <h2 className="text-lg font-semibold text-slate-900">Editar agenda</h2>
               <p className="text-sm text-slate-500">Gerencie títulos, datas, turmas e tipos das atividades agendadas.</p>
             </div>
-            <Button type="button" variant="ghost" size="sm" onClick={handleAddItem} disabled={saving}>
+            <Button type="button" variant="ghost" size="sm" onClick={handleAddItem} disabled={loading}>
               <FiPlus className="h-4 w-4" aria-hidden />
               Adicionar item
             </Button>
@@ -351,7 +366,7 @@ export default function AgendaEditorModal({ open, onClose, initialItems, onSaved
                             variant="ghost"
                             size="sm"
                             onClick={() => void handleDelete(item)}
-                            disabled={saving}
+                            disabled={loading}
                           >
                             <FiTrash2 className="h-4 w-4" aria-hidden />
                             Excluir
@@ -466,11 +481,11 @@ export default function AgendaEditorModal({ open, onClose, initialItems, onSaved
 
         <footer className="sticky bottom-0 border-t border-slate-200 bg-white px-6 py-4">
           <div className="flex items-center justify-end gap-3">
-            <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
+            <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
               Cancelar
             </Button>
-            <Button type="button" onClick={handleSave} disabled={saving}>
-              {saving ? 'Salvando…' : 'Salvar'}
+            <Button type="button" onClick={handleSave} disabled={loading}>
+              {loading ? 'Salvando…' : 'Salvar'}
             </Button>
           </div>
         </footer>

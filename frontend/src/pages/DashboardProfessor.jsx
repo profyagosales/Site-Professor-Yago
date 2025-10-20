@@ -36,6 +36,9 @@ const WEEKDAY_CONFIG = [
   { id: 5, label: 'Sexta' },
 ]
 
+// REMOVE or keep gated for future use
+const SHOW_LEFT_AGENDA = false
+
 const DAY_NAME_TO_INDEX = {
   monday: 1,
   segunda: 1,
@@ -671,82 +674,84 @@ function DashboardProfessor(){
           />
         </div>
 
-        <div className="tile agenda-panel">
-          <DashboardCard
-            title="Agenda"
-            className="h-full min-h-[24rem]"
-            actions={
-              <div className="flex items-center gap-2">
-                <div className="flex rounded-full border border-slate-200 bg-slate-50 p-1">
-                  <button
-                    type="button"
-                    className={`rounded-full px-3 py-1 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A00] ${
-                      calendarScope === 'week' ? 'bg-white text-[#FF8A00] shadow-sm' : 'text-slate-500'
-                    }`}
-                    aria-pressed={calendarScope === 'week'}
-                    onClick={() => setCalendarScope('week')}
-                  >
-                    Semana
-                  </button>
-                  <button
-                    type="button"
-                    className={`rounded-full px-3 py-1 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A00] ${
-                      calendarScope === 'month' ? 'bg-white text-[#FF8A00] shadow-sm' : 'text-slate-500'
-                    }`}
-                    aria-pressed={calendarScope === 'month'}
-                    onClick={() => setCalendarScope('month')}
-                  >
-                    Mês
-                  </button>
-                </div>
-              </div>
-            }
-            contentClassName="overflow-hidden"
-          >
-            {insightsLoading ? (
-              <div className="flex-1 animate-pulse rounded-2xl bg-slate-100" />
-            ) : agendaSections.length ? (
-              <div className="flex-1 space-y-4 overflow-y-auto pr-1">
-                {agendaSections.map((section) => (
-                  <div key={section.key} className="rounded-2xl border border-slate-100 p-4">
-                    <header className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-slate-900">{section.label}</p>
-                      <span className="text-xs uppercase tracking-wide text-slate-400">
-                        {section.events.length} evento{section.events.length !== 1 ? 's' : ''}
-                      </span>
-                    </header>
-                    <ul className="mt-3 space-y-2">
-                      {section.events.map((event) => (
-                        <li
-                          key={event.id}
-                          className="flex items-start gap-3 rounded-xl bg-slate-50 p-3"
-                        >
-                          <span className="mt-2 h-2 w-2 rounded-full bg-orange-500" />
-                          <div className="flex-1">
-                            <p className="text-sm font-semibold text-slate-700">{event.title}</p>
-                            {event.label && <p className="text-xs text-slate-500">{event.label}</p>}
-                          </div>
-                          <span className="mt-1 text-xs uppercase tracking-wide text-slate-400">
-                            {event.type}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
+        {SHOW_LEFT_AGENDA && (
+          <div className="tile agenda-panel">
+            <DashboardCard
+              title="Agenda"
+              className="h-full min-h-[24rem]"
+              actions={
+                <div className="flex items-center gap-2">
+                  <div className="flex rounded-full border border-slate-200 bg-slate-50 p-1">
+                    <button
+                      type="button"
+                      className={`rounded-full px-3 py-1 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A00] ${
+                        calendarScope === 'week' ? 'bg-white text-[#FF8A00] shadow-sm' : 'text-slate-500'
+                      }`}
+                      aria-pressed={calendarScope === 'week'}
+                      onClick={() => setCalendarScope('week')}
+                    >
+                      Semana
+                    </button>
+                    <button
+                      type="button"
+                      className={`rounded-full px-3 py-1 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A00] ${
+                        calendarScope === 'month' ? 'bg-white text-[#FF8A00] shadow-sm' : 'text-slate-500'
+                      }`}
+                      aria-pressed={calendarScope === 'month'}
+                      onClick={() => setCalendarScope('month')}
+                    >
+                      Mês
+                    </button>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-slate-500">Nenhum evento para este período.</p>
-            )}
-            {!insightsLoading && hasMoreAgenda && (
-              <div className="mt-4 flex justify-end">
-                <Button variant="link" onClick={() => setShowAgendaModal(true)}>
-                  Ver todos
-                </Button>
-              </div>
-            )}
-          </DashboardCard>
-        </div>
+                </div>
+              }
+              contentClassName="overflow-hidden"
+            >
+              {insightsLoading ? (
+                <div className="flex-1 animate-pulse rounded-2xl bg-slate-100" />
+              ) : agendaSections.length ? (
+                <div className="flex-1 space-y-4 overflow-y-auto pr-1">
+                  {agendaSections.map((section) => (
+                    <div key={section.key} className="rounded-2xl border border-slate-100 p-4">
+                      <header className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-slate-900">{section.label}</p>
+                        <span className="text-xs uppercase tracking-wide text-slate-400">
+                          {section.events.length} evento{section.events.length !== 1 ? 's' : ''}
+                        </span>
+                      </header>
+                      <ul className="mt-3 space-y-2">
+                        {section.events.map((event) => (
+                          <li
+                            key={event.id}
+                            className="flex items-start gap-3 rounded-xl bg-slate-50 p-3"
+                          >
+                            <span className="mt-2 h-2 w-2 rounded-full bg-orange-500" />
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold text-slate-700">{event.title}</p>
+                              {event.label && <p className="text-xs text-slate-500">{event.label}</p>}
+                            </div>
+                            <span className="mt-1 text-xs uppercase tracking-wide text-slate-400">
+                              {event.type}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">Nenhum evento para este período.</p>
+              )}
+              {!insightsLoading && hasMoreAgenda && (
+                <div className="mt-4 flex justify-end">
+                  <Button variant="link" onClick={() => setShowAgendaModal(true)}>
+                    Ver todos
+                  </Button>
+                </div>
+              )}
+            </DashboardCard>
+          </div>
+        )}
 
         <div className="tile atividades-panel">
           <div className="flex h-full flex-col gap-6">
@@ -771,41 +776,43 @@ function DashboardProfessor(){
           <MediaGeralBimestre classOptions={classOptions} />
         </div>
       </section>
-      <Modal open={showAgendaModal} onClose={() => setShowAgendaModal(false)}>
-        <div className="w-full max-w-3xl p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="card-title text-slate-900">Agenda completa</h2>
-            <Button variant="ghost" onClick={() => setShowAgendaModal(false)}>
-              Fechar
-            </Button>
+      {SHOW_LEFT_AGENDA && (
+        <Modal open={showAgendaModal} onClose={() => setShowAgendaModal(false)}>
+          <div className="w-full max-w-3xl p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="card-title text-slate-900">Agenda completa</h2>
+              <Button variant="ghost" onClick={() => setShowAgendaModal(false)}>
+                Fechar
+              </Button>
+            </div>
+            <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+              {eventsByDay.length ? (
+                eventsByDay.map((group) => (
+                  <div key={group.iso} className="rounded-2xl border border-slate-100 p-4">
+                    <p className="text-sm font-semibold text-slate-900">{formatAgendaHeader(group.date)}</p>
+                    <ul className="mt-3 space-y-2">
+                      {group.items.map((event) => (
+                        <li key={event.id} className="flex items-start gap-3 rounded-xl bg-slate-50 p-3">
+                          <span className="mt-2 h-2 w-2 rounded-full bg-orange-500" />
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-slate-700">{event.title}</p>
+                            {event.label && <p className="text-xs text-slate-500">{event.label}</p>}
+                          </div>
+                          <span className="mt-1 text-xs uppercase tracking-wide text-slate-400">
+                            {event.type}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-slate-500">Nenhum evento disponível.</p>
+              )}
+            </div>
           </div>
-          <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
-            {eventsByDay.length ? (
-              eventsByDay.map((group) => (
-                <div key={group.iso} className="rounded-2xl border border-slate-100 p-4">
-                  <p className="text-sm font-semibold text-slate-900">{formatAgendaHeader(group.date)}</p>
-                  <ul className="mt-3 space-y-2">
-                    {group.items.map((event) => (
-                      <li key={event.id} className="flex items-start gap-3 rounded-xl bg-slate-50 p-3">
-                        <span className="mt-2 h-2 w-2 rounded-full bg-orange-500" />
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold text-slate-700">{event.title}</p>
-                          {event.label && <p className="text-xs text-slate-500">{event.label}</p>}
-                        </div>
-                        <span className="mt-1 text-xs uppercase tracking-wide text-slate-400">
-                          {event.type}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-slate-500">Nenhum evento disponível.</p>
-            )}
-          </div>
-        </div>
-      </Modal>
+        </Modal>
+      )}
 
       <DivisaoNotasModal
         ano={gradeSchemeYear}

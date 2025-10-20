@@ -28,6 +28,8 @@ type AgendaSummaryResponse = {
   items?: unknown;
 };
 
+const AGENDA_ROUTE_CANDIDATES = ['/agenda', '/agendas', '/professor/agenda'] as const;
+
 function normalizeAgendaType(value: unknown): AgendaItemType {
   const normalized = typeof value === 'string' ? value.trim().toUpperCase() : '';
   if (normalized === 'ATIVIDADE' || normalized === 'CONTEUDO' || normalized === 'DATA') {
@@ -85,43 +87,97 @@ function normalizeAgendaItems(source: unknown): AgendaListItem[] {
 }
 
 export async function listAgenda(params: { limit?: number } = {}): Promise<AgendaListItem[]> {
-  const { data } = await api.get<AgendaSummaryResponse>('/professor/conteudos-resumo', {
-    params,
-    meta: { noCache: true },
-  });
+  try {
+    const { data } = await api.get<AgendaSummaryResponse>('/professor/conteudos-resumo', {
+      params,
+      meta: { noCache: true },
+    });
 
-  if (!data) {
-    return [];
+    if (!data) {
+      return [];
+    }
+
+    if (Array.isArray((data as any).items)) {
+      return normalizeAgendaItems((data as any).items);
+    }
+
+    if (Array.isArray((data as any).data?.items)) {
+      return normalizeAgendaItems((data as any).data?.items);
+    }
+
+    if (Array.isArray((data as any).data)) {
+      return normalizeAgendaItems((data as any).data);
+    }
+  } catch (err: any) {
+    if (err?.response?.status !== 404) {
+      throw err;
+    }
   }
 
-  if (Array.isArray((data as any).items)) {
-    return normalizeAgendaItems((data as any).items);
+  for (const base of AGENDA_ROUTE_CANDIDATES) {
+    try {
+      const { data } = await api.get(base, { params, meta: { noCache: true } });
+      const payload: unknown = Array.isArray((data as any)?.items)
+        ? (data as any).items
+        : Array.isArray((data as any)?.data?.items)
+          ? (data as any).data.items
+          : Array.isArray((data as any)?.data)
+            ? (data as any).data
+            : data;
+      return normalizeAgendaItems(payload);
+    } catch (err: any) {
+      if (err?.response?.status !== 404) {
+        throw err;
+      }
+    }
   }
 
-  if (Array.isArray((data as any).data?.items)) {
-    return normalizeAgendaItems((data as any).data?.items);
-  }
-
-  if (Array.isArray((data as any).data)) {
-    return normalizeAgendaItems((data as any).data);
-  }
-
-  return [];
+  throw new Error('API route not found');
 }
 
 export async function createAgendaItem(payload: AgendaItemPayload) {
-  const { data } = await api.post('/agenda', payload, { meta: { noCache: true } });
-  return data;
+  for (const base of AGENDA_ROUTE_CANDIDATES) {
+    try {
+      const { data } = await api.post(base, payload, { meta: { noCache: true } });
+      return data;
+    } catch (err: any) {
+      if (err?.response?.status !== 404) {
+        throw err;
+      }
+    }
+  }
+
+  throw new Error('API route not found');
 }
 
 export async function updateAgendaItem(id: string, payload: AgendaUpdatePayload) {
-  const { data } = await api.put(`/agenda/${id}`, payload, { meta: { noCache: true } });
-  return data;
+  for (const base of AGENDA_ROUTE_CANDIDATES) {
+    try {
+      const { data } = await api.put(`${base}/${id}`, payload, { meta: { noCache: true } });
+      return data;
+    } catch (err: any) {
+      if (err?.response?.status !== 404) {
+        throw err;
+      }
+    }
+  }
+
+  throw new Error('API route not found');
 }
 
 export async function deleteAgendaItem(id: string) {
-  await api.delete(`/agenda/${id}`, { meta: { noCache: true } });
-  return true;
+  for (const base of AGENDA_ROUTE_CANDIDATES) {
+    try {
+      await api.delete(`${base}/${id}`, { meta: { noCache: true } });
+      return;
+    } catch (err: any) {
+      if (err?.response?.status !== 404) {
+        throw err;
+      }
+    }
+  }
+
+  throw new Error('API route not found');
 }
 
 export default {
