@@ -355,18 +355,16 @@ const CalendarDayTile = memo(function CalendarDayTile({
     onCreateForDay(day);
   }, [day, onCreateForDay]);
 
-  const containerClassName = dimmed
-    ? 'relative flex flex-col rounded-2xl border border-gray-200/70 bg-white shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-shadow duration-150 hover:shadow-[0_6px_18px_rgba(15,23,42,0.06)] opacity-60'
-    : 'relative flex flex-col rounded-2xl border border-gray-200/70 bg-white shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-shadow duration-150 hover:shadow-[0_6px_18px_rgba(15,23,42,0.06)] opacity-100';
-
-  const badgeClassName = isToday
-    ? 'ml-auto text-[12px] font-semibold rounded-full px-2 py-0.5 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200'
-    : 'ml-auto text-[12px] font-semibold rounded-full px-2 py-0.5 bg-gray-50 text-gray-400';
-
   return (
     <div
       ref={refCallback}
-      className={containerClassName}
+      className={[
+        'relative flex flex-col rounded-2xl border border-gray-200/70 bg-white shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-shadow duration-150',
+        'hover:shadow-[0_6px_18px_rgba(15,23,42,0.06)]',
+        dimmed ? 'opacity-60' : 'opacity-100',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       style={{ minHeight: 'var(--agenda-cell-h)' }}
     >
       <button
@@ -376,7 +374,12 @@ const CalendarDayTile = memo(function CalendarDayTile({
         className="flex items-center gap-2 p-2 text-left transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <span className="text-[11px] uppercase tracking-wide text-gray-500">{weekday}</span>
-        <span className={badgeClassName}>
+        <span
+          className=[
+            'ml-auto text-[12px] font-semibold rounded-full px-2 py-0.5',
+            isToday ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200' : 'bg-gray-50 text-gray-400',
+          ].join(' ')}
+        >
           {dayNumber}
         </span>
         {isToday ? (
@@ -514,10 +517,6 @@ function AgendaItemButton({
       </Popover.Portal>
     </Popover.Root>
   );
-}
-
-function mergeClasses(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(' ');
 }
 
 
@@ -856,17 +855,15 @@ export default function AgendaCalendarCard({
           <div className="rounded-full bg-slate-100 p-1">
             {(['mes', 'semana'] as ViewMode[]).map((mode) => {
               const active = viewMode === mode;
-              const buttonClassName = mergeClasses(
-                'rounded-full px-3 py-1 text-xs font-semibold transition-colors',
-                active ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:bg-white',
-              );
-
               return (
                 <button
                   key={mode}
                   type="button"
                   onClick={() => handleToggleView(mode)}
-                  className={buttonClassName}
+                  className={[
+                    'rounded-full px-3 py-1 text-xs font-semibold transition-colors',
+                    active ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:bg-white',
+                  ].join(' ')}
                   aria-pressed={active}
                 >
                   {mode === 'mes' ? 'MÊS' : 'SEMANA'}
@@ -878,19 +875,17 @@ export default function AgendaCalendarCard({
           <div className="flex flex-wrap items-center gap-1">
             {FILTER_OPTIONS.map((option) => {
               const active = activeFilter === option;
-              const buttonClassName = mergeClasses(
-                'rounded-full px-3 py-1 text-xs font-semibold transition-colors',
-                active
-                  ? 'bg-slate-900 text-white shadow-[0_6px_18px_rgba(15,23,42,0.18)]'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-              );
-
               return (
                 <button
                   key={option}
                   type="button"
                   onClick={() => setActiveFilter(option)}
-                  className={buttonClassName}
+                  className={[
+                    'rounded-full px-3 py-1 text-xs font-semibold transition-colors',
+                    active
+                      ? 'bg-slate-900 text-white shadow-[0_6px_18px_rgba(15,23,42,0.18)]'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                  ].join(' ')}
                   aria-pressed={active}
                 >
                   {FILTER_LABELS[option]}
