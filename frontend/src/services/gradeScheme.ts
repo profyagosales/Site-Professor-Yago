@@ -1,4 +1,5 @@
 import { api } from '@/services/api';
+import { GradeSchemeByBimester, GradeSchemeForProfessor } from '@/types/gradeScheme';
 
 export type GradeSchemeItem = {
   name: string;
@@ -146,10 +147,37 @@ export async function setVisibleScheme(payload: { classId: string; year: number;
   return normalizeScheme(data);
 }
 
+export async function getSchemeForProfessor(teacherId: string): Promise<GradeSchemeForProfessor | null> {
+  const response = await fetch(`/api/grade-scheme/professor/${teacherId}`);
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error('Falha ao carregar divisão de notas');
+  }
+  return (await response.json()) as GradeSchemeForProfessor;
+}
+
+export async function saveSchemeForProfessor(
+  teacherId: string,
+  scheme: GradeSchemeByBimester,
+): Promise<void> {
+  const response = await fetch(`/api/grade-scheme/professor/${teacherId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ teacherId, scheme }),
+  });
+  if (!response.ok) {
+    throw new Error('Falha ao salvar divisão de notas');
+  }
+}
+
 export default {
   listSchemes,
   getScheme,
   upsertScheme,
   setVisibleScheme,
   normalizeScheme,
+  getSchemeForProfessor,
+  saveSchemeForProfessor,
 };
