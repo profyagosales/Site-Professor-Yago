@@ -28,7 +28,7 @@ type AgendaSummaryResponse = {
   items?: unknown;
 };
 
-const AGENDA_ROUTE_CANDIDATES = ['/agenda', '/agendas', '/professor/agenda'] as const;
+const AGENDA_BASE_ROUTE = '/professor/agenda';
 
 function normalizeAgendaType(value: unknown): AgendaItemType {
   const normalized = typeof value === 'string' ? value.trim().toUpperCase() : '';
@@ -60,7 +60,14 @@ function normalizeAgendaItems(source: unknown): AgendaListItem[] {
             : typeof raw.resumo === 'string'
               ? raw.resumo
               : null;
-      const dateValue = typeof raw.data === 'string' ? raw.data : typeof raw.date === 'string' ? raw.date : null;
+      const dateValue =
+        typeof raw.dataIso === 'string'
+          ? raw.dataIso
+          : typeof raw.data === 'string'
+            ? raw.data
+            : typeof raw.date === 'string'
+              ? raw.date
+              : null;
       const classId = typeof raw.turmaId === 'string' ? raw.turmaId : typeof raw.classId === 'string' ? raw.classId : null;
       const className =
         typeof raw.turmaNome === 'string'
@@ -86,98 +93,81 @@ function normalizeAgendaItems(source: unknown): AgendaListItem[] {
     .filter(Boolean) as AgendaListItem[];
 }
 
-export async function listAgenda(params: { limit?: number } = {}): Promise<AgendaListItem[]> {
-  try {
-    const { data } = await api.get<AgendaSummaryResponse>('/professor/conteudos-resumo', {
-      params,
-      meta: { noCache: true },
-    });
+export type AgendaQueryParams = {
+  from?: string;
+  to?: string;
+  tipo?: 'all' | 'atividade' | 'conteudo' | 'data';
+  limit?: number;
+};
 
-    if (!data) {
-      return [];
-    }
+function buildRequestBody(payload: Partial<AgendaItemPayload>): Record<string, unknown> {
+  const body: Record<string, unknown> = {};
 
-    if (Array.isArray((data as any).items)) {
-      return normalizeAgendaItems((data as any).items);
-    }
-
-    if (Array.isArray((data as any).data?.items)) {
-      return normalizeAgendaItems((data as any).data?.items);
-    }
-
-    if (Array.isArray((data as any).data)) {
-      return normalizeAgendaItems((data as any).data);
-    }
-  } catch (err: any) {
-    if (err?.response?.status !== 404) {
-      throw err;
-    }
+  if (Object.prototype.hasOwnProperty.call(payload, 'title')) {
+    body.titulo = payload.title;
+    body.title = payload.title;
   }
 
-  for (const base of AGENDA_ROUTE_CANDIDATES) {
-    try {
-      const { data } = await api.get(base, { params, meta: { noCache: true } });
-      const payload: unknown = Array.isArray((data as any)?.items)
-        ? (data as any).items
-        : Array.isArray((data as any)?.data?.items)
-          ? (data as any).data.items
-          : Array.isArray((data as any)?.data)
-            ? (data as any).data
-            : data;
-      return normalizeAgendaItems(payload);
-    } catch (err: any) {
-      if (err?.response?.status !== 404) {
-        throw err;
-      }
-    }
+  if (Object.prototype.hasOwnProperty.call(payload, 'description')) {
+    body.descricao = payload.description;
+    body.description = payload.description;
   }
 
-  throw new Error('API route not found');
+  if (Object.prototype.hasOwnProperty.call(payload, 'date')) {
+    body.data = payload.date;
+    body.date = payload.date;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(payload, 'classId')) {
+    body.turmaId = payload.classId;
+    body.classId = payload.classId;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(payload, 'type')) {
+    body.tipo = payload.type;
+    body.type = payload.type;
+  }
+
+  return body;
+}
+
+export async function listAgenda(params: AgendaQueryParams = {}): Promise<AgendaListItem[]> {
+  const query: Record<string, string | number> = {};
+  if (params.from) query.from = params.from;
+  if (params.to) query.to = params.to;
+  if (params.tipo) query.tipo = params.tipo;
+  if (typeof params.limit === 'number') query.limit = params.limit;
+
+  const { data } = await api.get<AgendaSummaryResponse>(AGENDA_BASE_ROUTE, {
+    params: query,
+    meta: { noCache: true },
+  });
+
+  if (!data) {
+    return [];
+  }
+
+  if (Array.isArray((data as any).data)) {
+    return normalizeAgendaItems((data as any).data);
+  }
+
+  return normalizeAgendaItems(data);
 }
 
 export async function createAgendaItem(payload: AgendaItemPayload) {
-  for (const base of AGENDA_ROUTE_CANDIDATES) {
-    try {
-      const { data } = await api.post(base, payload, { meta: { noCache: true } });
-      return data;
-    } catch (err: any) {
-      if (err?.response?.status !== 404) {
-        throw err;
-      }
-    }
-  }
-
-  throw new Error('API route not found');
+  const requestBody = buildRequestBody(payload);
+  const { data } = await api.post(AGENDA_BASE_ROUTE, requestBody, { meta: { noCache: true } });
+  return data;
 }
 
 export async function updateAgendaItem(id: string, payload: AgendaUpdatePayload) {
-  for (const base of AGENDA_ROUTE_CANDIDATES) {
-    try {
-      const { data } = await api.put(`${base}/${id}`, payload, { meta: { noCache: true } });
-      return data;
-    } catch (err: any) {
-      if (err?.response?.status !== 404) {
-        throw err;
-      }
-    }
-  }
-
-  throw new Error('API route not found');
+  const requestBody = buildRequestBody(payload);
+  const { data } = await api.put(`${AGENDA_BASE_ROUTE}/${id}`, requestBody, { meta: { noCache: true } });
+  return data;
 }
 
 export async function deleteAgendaItem(id: string) {
-  for (const base of AGENDA_ROUTE_CANDIDATES) {
-    try {
-      await api.delete(`${base}/${id}`, { meta: { noCache: true } });
-      return;
-    } catch (err: any) {
-      if (err?.response?.status !== 404) {
-        throw err;
-      }
-    }
-  }
-
-  throw new Error('API route not found');
+  await api.delete(`${AGENDA_BASE_ROUTE}/${id}`, { meta: { noCache: true } });
 }
 
 export default {

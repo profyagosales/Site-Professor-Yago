@@ -1,20 +1,19 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'react-toastify'
 import SendEmailModal from '@/components/SendEmailModal'
-import QuickContentModal from '@/components/QuickContentModal'
 import AnnouncementModal from '@/components/AnnouncementModal'
 import { getCurrentUser } from '@/services/auth'
-import { listMyClasses, mergeCalendars, getClassDetails } from '@/services/classes.service'
+import { listMyClasses, getClassDetails } from '@/services/classes.service'
 import { Button } from '@/components/ui/Button'
 import DashboardCard from '@/components/dashboard/DashboardCard'
 import MediaGeralBimestre from '@/components/dashboard/MediaGeralBimestre'
-import AgendaCard from '@/components/dashboard/AgendaCard'
-import AtividadesCard from '@/components/dashboard/AtividadesCard'
+import AgendaCalendarCard from '@/components/dashboard/AgendaCalendarCard'
 import WeeklySchedule from '@/components/dashboard/WeeklySchedule'
 import AvisosCard from '@/components/dashboard/AvisosCard'
 import DivisaoNotasCard from '@/components/dashboard/DivisaoNotasCard'
 import DivisaoNotasModal from '@/components/dashboard/DivisaoNotasModal'
-import Modal from '@/components/ui/Modal'
+import AgendaEditorModal from '@/components/dashboard/AgendaEditorModal'
+import { listAgenda } from '@/services/agenda'
 
 /*
 // Snippet opcional para habilitar o widget da agenda semanal
@@ -36,8 +35,8 @@ const WEEKDAY_CONFIG = [
   { id: 5, label: 'Sexta' },
 ]
 
-// REMOVE or keep gated for future use
-const SHOW_LEFT_AGENDA = false
+const AGENDA_YEAR_START = '2025-01-01'
+const AGENDA_YEAR_END = '2025-12-31'
 
 const DAY_NAME_TO_INDEX = {
   monday: 1,
@@ -100,45 +99,25 @@ function formatClassLabel(summary = {}, detail = {}) {
   return parts.filter(Boolean).join(' • ') || fallback
 }
 
-function parseDate(value) {
-  if (!value) return null
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return null
-  return parsed
-}
-
-function isWithinRange(date, start, end) {
-  if (!date) return false
-  return date.getTime() >= start.getTime() && date.getTime() <= end.getTime()
-}
-
-function formatAgendaHeader(date) {
-  if (!date) return ''
-  const weekday = new Intl.DateTimeFormat('pt-BR', { weekday: 'short' }).format(date).replace('.', '')
-  const capitalizedWeekday = weekday.charAt(0).toUpperCase() + weekday.slice(1)
-  const day = new Intl.DateTimeFormat('pt-BR', { day: '2-digit' }).format(date)
-  const month = new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(date).replace('.', '')
-  const year = date.getFullYear()
-  return `${capitalizedWeekday} • ${day} ${month} ${year}`
-}
-
 function DashboardProfessor(){
   const [user, setUser] = useState(null)
   const [classSummaries, setClassSummaries] = useState([])
   const [classDetails, setClassDetails] = useState({})
-  const [calendarEvents, setCalendarEvents] = useState([])
   const [schedule, setSchedule] = useState([])
   const [loading, setLoading] = useState(true)
   const [insightsLoading, setInsightsLoading] = useState(true)
   const [showEmail, setShowEmail] = useState(false)
-  const [contentOpen, setContentOpen] = useState(false)
   const [announcementOpen, setAnnouncementOpen] = useState(false)
   const [announcementDraft, setAnnouncementDraft] = useState(null)
-  const [calendarScope, setCalendarScope] = useState('week')
-  const [showAgendaModal, setShowAgendaModal] = useState(false)
   const [divisaoNotasOpen, setDivisaoNotasOpen] = useState(false)
   const [gradeSchemeDraft, setGradeSchemeDraft] = useState(/** @type {import('@/services/gradeScheme').GradeScheme | null} */(null))
   const [gradeSchemeRefreshKey, setGradeSchemeRefreshKey] = useState(0)
+  const [agendaEditorOpen, setAgendaEditorOpen] = useState(false)
+  const [agendaEditorItems, setAgendaEditorItems] = useState([])
+  const [agendaEditorLoading, setAgendaEditorLoading] = useState(false)
+  const [agendaEditorFocusId, setAgendaEditorFocusId] = useState(null)
+  const [agendaEditorPresetDate, setAgendaEditorPresetDate] = useState(null)
+  const [agendaRefreshKey, setAgendaRefreshKey] = useState(0)
   const classSummariesRef = useRef(classSummaries)
   const classDetailsRef = useRef(classDetails)
   const teacherId = user?.id ?? ''
@@ -154,6 +133,37 @@ function DashboardProfessor(){
     setGradeSchemeDraft(null)
   }, [])
 
+  const handleOpenAgendaEditor = useCallback(
+    async (options = {}) => {
+      if (agendaEditorLoading) {
+        return
+      }
+
+      setAgendaEditorLoading(true)
+
+      try {
+        const agendaItems = await listAgenda({ from: AGENDA_YEAR_START, to: AGENDA_YEAR_END, tipo: 'all' })
+        setAgendaEditorItems(Array.isArray(agendaItems) ? agendaItems : [])
+        setAgendaEditorFocusId(options?.focusId ?? null)
+        setAgendaEditorPresetDate(options?.presetDate ?? null)
+        setAgendaEditorOpen(true)
+      } catch (error) {
+        console.error('[DashboardProfessor] Falha ao carregar agenda completa', error)
+        toast.error('Não foi possível carregar a agenda.')
+      } finally {
+        setAgendaEditorLoading(false)
+      }
+    },
+    [agendaEditorLoading]
+  )
+
+  const handleCloseAgendaEditor = useCallback(() => {
+    setAgendaEditorOpen(false)
+    setAgendaEditorFocusId(null)
+    setAgendaEditorPresetDate(null)
+    setAgendaEditorItems([])
+  }, [])
+
   useEffect(() => {
     classSummariesRef.current = classSummaries
   }, [classSummaries])
@@ -161,56 +171,6 @@ function DashboardProfessor(){
   useEffect(() => {
     classDetailsRef.current = classDetails
   }, [classDetails])
-
-  const refreshCalendarEvents = useCallback(
-    async (classListOverride, classNameMapOverride, options = {}) => {
-      const sourceClasses = Array.isArray(classListOverride) && classListOverride.length
-        ? classListOverride
-        : Array.isArray(classSummariesRef.current) ? classSummariesRef.current : []
-      if (!sourceClasses.length) {
-        setCalendarEvents([])
-        return
-      }
-
-      const baseNames = classNameMapOverride ?? sourceClasses.reduce((acc, cls) => {
-        const key = coalesceId(cls)
-        if (!key) return acc
-        acc[key] = formatClassLabel(cls)
-        return acc
-      }, {})
-
-      const classNames = { ...baseNames }
-      const detailEntries = classDetailsRef.current && typeof classDetailsRef.current === 'object'
-        ? classDetailsRef.current
-        : {}
-      const fallbackSummaries = Array.isArray(classSummariesRef.current) ? classSummariesRef.current : []
-      Object.entries(detailEntries).forEach(([classId, detail]) => {
-        const summary = sourceClasses.find((cls) => coalesceId(cls) === classId)
-          || fallbackSummaries.find((cls) => coalesceId(cls) === classId)
-        const label = formatClassLabel(summary, detail)
-        if (label) classNames[classId] = label
-      })
-
-      try {
-        const merged = await mergeCalendars(
-          sourceClasses.map((cls) => coalesceId(cls)).filter(Boolean),
-          { classNames }
-        )
-        const isAborted = typeof options?.isAborted === 'function' ? options.isAborted : () => false
-        if (isAborted()) return
-        setCalendarEvents(merged)
-      } catch (err) {
-        console.error('Erro ao consolidar a agenda das turmas', err)
-        if (!options?.silenceToast) {
-          toast.error('Não foi possível carregar a agenda das turmas')
-        }
-        if (!(typeof options?.isAborted === 'function' && options.isAborted())) {
-          setCalendarEvents([])
-        }
-      }
-    },
-    []
-  )
 
   useEffect(() => {
     let abort = false
@@ -273,8 +233,6 @@ function DashboardProfessor(){
         setClassSummaries(teacherClasses)
         setSchedule(aggregatedSchedule)
         setLoading(false)
-        await refreshCalendarEvents(teacherClasses, classNameMap, { isAborted: () => abort, silenceToast: true })
-        if (abort) return
 
         if (!teacherClasses.length) {
           setClassDetails({})
@@ -316,11 +274,7 @@ function DashboardProfessor(){
       }
     })()
     return () => { abort = true }
-  }, [refreshCalendarEvents])
-
-  const reloadContents = useCallback(async () => {
-    await refreshCalendarEvents()
-  }, [refreshCalendarEvents])
+  }, [])
 
   const reloadAnnouncements = useCallback(() => {
     if (typeof window !== 'undefined') {
@@ -494,102 +448,7 @@ function DashboardProfessor(){
     return cells
   }, [schedule, classDetails, classNameMap, classSummaryMap])
 
-  const aggregatedEvents = useMemo(() => {
-    if (!calendarEvents.length) return []
-
-    const events = []
-    calendarEvents.forEach((event) => {
-      const when = event?.date instanceof Date ? event.date : parseDate(event?.dateISO)
-      if (!when) return
-      const label = event.className || classNameMap[event.classId] || 'Turma'
-      const title = event.title || (event.type === 'ATIVIDADE' ? 'Atividade' : 'Data importante')
-      events.push({
-        id: event.id,
-        date: when,
-        classId: event.classId,
-        label,
-        title,
-        type: event.type,
-      })
-    })
-
-    return events.sort((a, b) => a.date.getTime() - b.date.getTime())
-  }, [calendarEvents, classNameMap])
-
-  const filteredEvents = useMemo(() => {
-    if (!aggregatedEvents.length) return []
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const futureEvents = aggregatedEvents.filter((event) => event.date.getTime() >= today.getTime())
-
-    if (calendarScope === 'month') {
-      const currentMonth = today.getMonth()
-      const currentYear = today.getFullYear()
-      return futureEvents.filter((event) =>
-        event.date.getMonth() === currentMonth && event.date.getFullYear() === currentYear
-      )
-    }
-
-    const endOfWeek = new Date(today)
-    endOfWeek.setDate(endOfWeek.getDate() + 7)
-    return futureEvents.filter((event) => event.date.getTime() <= endOfWeek.getTime())
-  }, [aggregatedEvents, calendarScope])
-
-  const eventsByDay = useMemo(() => {
-    const groups = new Map()
-    filteredEvents.forEach((event) => {
-      const key = event.date.toISOString().slice(0, 10)
-      if (!groups.has(key)) {
-        groups.set(key, [])
-      }
-      groups.get(key).push(event)
-    })
-
-    return Array.from(groups.entries())
-      .map(([iso, items]) => ({
-        iso,
-        date: parseDate(iso),
-        items: items.sort((a, b) => a.date.getTime() - b.date.getTime()),
-      }))
-      .sort((a, b) => (a.date?.getTime() ?? 0) - (b.date?.getTime() ?? 0))
-  }, [filteredEvents])
-
   const resolvedAvatar = resolveAvatarUrl(user?.photoUrl || user?.photo || user?.avatarUrl)
-
-  const displayedAgendaGroups = useMemo(() => eventsByDay.slice(0, 5), [eventsByDay])
-  const hasMoreAgenda = eventsByDay.length > 5
-
-  const agendaSections = useMemo(() => {
-    const sections = []
-    const labelIndexMap = new Map()
-    const toTimestamp = (entry) => {
-      if (!entry || !entry.date) return 0
-      const value = entry.date instanceof Date ? entry.date : new Date(entry.date)
-      return Number.isNaN(value.getTime()) ? 0 : value.getTime()
-    }
-
-    displayedAgendaGroups.forEach((group) => {
-      const label = formatAgendaHeader(group.date)
-      if (!label) return
-
-      if (labelIndexMap.has(label)) {
-        const sectionIndex = labelIndexMap.get(label)
-        const existing = sections[sectionIndex]
-        existing.events = existing.events
-          .concat(group.items)
-          .sort((a, b) => toTimestamp(a) - toTimestamp(b))
-      } else {
-        labelIndexMap.set(label, sections.length)
-        sections.push({
-          key: group.iso || `${label}-${sections.length}`,
-          label,
-          events: [...group.items].sort((a, b) => toTimestamp(a) - toTimestamp(b)),
-        })
-      }
-    })
-
-    return sections
-  }, [displayedAgendaGroups])
 
   if(!user) return <div className="page-safe pt-20"><p>Carregando...</p></div>
 
@@ -629,8 +488,8 @@ function DashboardProfessor(){
             >
               Novo aviso
             </Button>
-            <Button className="cta-compact" onClick={() => setContentOpen(true)}>
-              Atividades
+            <Button className="cta-compact" onClick={() => handleOpenAgendaEditor()} disabled={agendaEditorLoading}>
+              Agenda
             </Button>
           </div>
         </div>
@@ -680,134 +539,20 @@ function DashboardProfessor(){
           />
         </div>
 
-        {SHOW_LEFT_AGENDA && (
-          <div className="tile agenda-panel">
-            <DashboardCard
-              title="Agenda"
-              className="h-full min-h-[24rem]"
-              action={
-                <div className="flex items-center gap-2">
-                  <div className="flex rounded-full border border-slate-200 bg-slate-50 p-1">
-                    <button
-                      type="button"
-                      className={`rounded-full px-3 py-1 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A00] ${
-                        calendarScope === 'week' ? 'bg-white text-[#FF8A00] shadow-sm' : 'text-slate-500'
-                      }`}
-                      aria-pressed={calendarScope === 'week'}
-                      onClick={() => setCalendarScope('week')}
-                    >
-                      Semana
-                    </button>
-                    <button
-                      type="button"
-                      className={`rounded-full px-3 py-1 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A00] ${
-                        calendarScope === 'month' ? 'bg-white text-[#FF8A00] shadow-sm' : 'text-slate-500'
-                      }`}
-                      aria-pressed={calendarScope === 'month'}
-                      onClick={() => setCalendarScope('month')}
-                    >
-                      Mês
-                    </button>
-                  </div>
-                </div>
-              }
-              contentClassName="overflow-hidden"
-            >
-              {insightsLoading ? (
-                <div className="flex-1 animate-pulse rounded-2xl bg-slate-100" />
-              ) : agendaSections.length ? (
-                <div className="flex-1 space-y-4 overflow-y-auto pr-1">
-                  {agendaSections.map((section) => (
-                    <div key={section.key} className="rounded-2xl border border-slate-100 p-4">
-                      <header className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-slate-900">{section.label}</p>
-                        <span className="text-xs uppercase tracking-wide text-slate-400">
-                          {section.events.length} evento{section.events.length !== 1 ? 's' : ''}
-                        </span>
-                      </header>
-                      <ul className="mt-3 space-y-2">
-                        {section.events.map((event) => (
-                          <li
-                            key={event.id}
-                            className="flex items-start gap-3 rounded-xl bg-slate-50 p-3"
-                          >
-                            <span className="mt-2 h-2 w-2 rounded-full bg-orange-500" />
-                            <div className="flex-1">
-                              <p className="text-sm font-semibold text-slate-700">{event.title}</p>
-                              {event.label && <p className="text-xs text-slate-500">{event.label}</p>}
-                            </div>
-                            <span className="mt-1 text-xs uppercase tracking-wide text-slate-400">
-                              {event.type}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-500">Nenhum evento para este período.</p>
-              )}
-              {!insightsLoading && hasMoreAgenda && (
-                <div className="mt-4 flex justify-end">
-                  <Button variant="link" onClick={() => setShowAgendaModal(true)}>
-                    Ver todos
-                  </Button>
-                </div>
-              )}
-            </DashboardCard>
-          </div>
-        )}
-
         <div className="tile atividades-panel">
-          <section className="dashboard-two-col">
-            <AgendaCard className="min-h-[24rem] flex-1" contentClassName="overflow-hidden" limit={5} />
-            <AtividadesCard className="min-h-[24rem] flex-1" limit={5} />
-          </section>
+          <AgendaCalendarCard
+            className="min-h-[26rem]"
+            contentClassName="flex-1"
+            refreshToken={agendaRefreshKey}
+            onOpenEditor={handleOpenAgendaEditor}
+            editorLoading={agendaEditorLoading}
+          />
         </div>
 
         <div className="tile charts">
           <MediaGeralBimestre classOptions={classOptions} />
         </div>
       </section>
-      {SHOW_LEFT_AGENDA && (
-        <Modal open={showAgendaModal} onClose={() => setShowAgendaModal(false)}>
-          <div className="w-full max-w-3xl p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="card-title text-slate-900">Agenda completa</h2>
-              <Button variant="ghost" onClick={() => setShowAgendaModal(false)}>
-                Fechar
-              </Button>
-            </div>
-            <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
-              {eventsByDay.length ? (
-                eventsByDay.map((group) => (
-                  <div key={group.iso} className="rounded-2xl border border-slate-100 p-4">
-                    <p className="text-sm font-semibold text-slate-900">{formatAgendaHeader(group.date)}</p>
-                    <ul className="mt-3 space-y-2">
-                      {group.items.map((event) => (
-                        <li key={event.id} className="flex items-start gap-3 rounded-xl bg-slate-50 p-3">
-                          <span className="mt-2 h-2 w-2 rounded-full bg-orange-500" />
-                          <div className="flex-1">
-                            <p className="text-sm font-semibold text-slate-700">{event.title}</p>
-                            {event.label && <p className="text-xs text-slate-500">{event.label}</p>}
-                          </div>
-                          <span className="mt-1 text-xs uppercase tracking-wide text-slate-400">
-                            {event.type}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-slate-500">Nenhum evento disponível.</p>
-              )}
-            </div>
-          </div>
-        </Modal>
-      )}
-
       <DivisaoNotasModal
         ano={gradeSchemeYear}
         classId={primaryClassId || null}
@@ -818,8 +563,17 @@ function DashboardProfessor(){
           setGradeSchemeRefreshKey((prev) => prev + 1)
         }}
       />
+      <AgendaEditorModal
+        open={agendaEditorOpen}
+        onClose={handleCloseAgendaEditor}
+        initialItems={agendaEditorItems}
+        initialNewItemDate={agendaEditorPresetDate}
+        focusItemId={agendaEditorFocusId}
+        onSaved={() => {
+          setAgendaRefreshKey((prev) => prev + 1)
+        }}
+      />
       <SendEmailModal isOpen={showEmail} onClose={() => setShowEmail(false)} />
-      <QuickContentModal open={contentOpen} onClose={() => setContentOpen(false)} onSaved={reloadContents} />
       <AnnouncementModal
         open={announcementOpen}
         onClose={() => {

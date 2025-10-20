@@ -28,6 +28,8 @@ type AgendaEditorModalProps = {
   onClose: () => void;
   initialItems: AgendaEditorItem[];
   onSaved?: () => void;
+  initialNewItemDate?: string | null;
+  focusItemId?: string | null;
 };
 
 type ClassOption = {
@@ -45,6 +47,10 @@ const TYPE_OPTIONS: Array<{ value: AgendaItemType; label: string }> = [
   { value: 'CONTEUDO', label: 'Conteúdo' },
   { value: 'DATA', label: 'Data' },
 ];
+
+const YEAR = 2025;
+const MIN_DATE = '2025-01-01';
+const MAX_DATE = '2025-12-31';
 
 function coerceString(value: unknown): string {
   return typeof value === 'string' ? value : '';
@@ -81,6 +87,14 @@ function toDateInputValue(value: string): string {
   }
 }
 
+function isDateInYearRange(value: string): boolean {
+  if (!value) return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+  return value >= MIN_DATE && value <= MAX_DATE && Number(value.slice(0, 4)) === YEAR;
+}
+
 function normalizeInitialItems(items: AgendaEditorItem[] | undefined | null): AgendaEditorItem[] {
   if (!Array.isArray(items)) {
     return [];
@@ -106,7 +120,14 @@ function buildPayload(item: AgendaEditorItem): AgendaItemPayload {
   };
 }
 
-export default function AgendaEditorModal({ open, onClose, initialItems, onSaved }: AgendaEditorModalProps) {
+export default function AgendaEditorModal({
+  open,
+  onClose,
+  initialItems,
+  onSaved,
+  initialNewItemDate,
+  focusItemId,
+}: AgendaEditorModalProps) {
   const [items, setItems] = useState<AgendaEditorItem[]>([]);
   const [errors, setErrors] = useState<Record<string, DraftError>>({});
   const [loading, setLoading] = useState(false);
@@ -118,10 +139,34 @@ export default function AgendaEditorModal({ open, onClose, initialItems, onSaved
     if (!open) {
       return;
     }
-    setItems(normalizeInitialItems(initialItems));
+    const normalized = normalizeInitialItems(initialItems);
+    const sanitizedDate = typeof initialNewItemDate === 'string' ? toDateInputValue(initialNewItemDate) : '';
+    let nextItems = normalized;
+    let nextFocus: string | null = focusItemId ?? null;
+
+    if (sanitizedDate) {
+      const newId = `new-${Date.now()}`;
+      nextItems = [
+        ...normalized,
+        {
+          id: newId,
+          title: '',
+          description: '',
+          date: sanitizedDate,
+          classId: '',
+          className: '',
+          type: 'ATIVIDADE',
+          isNew: true,
+        },
+      ];
+      nextFocus = newId;
+    }
+
+    setItems(nextItems);
     setErrors({});
     setLoading(false);
-  }, [open, initialItems]);
+    setFocusedId(nextFocus);
+  }, [open, initialItems, initialNewItemDate, focusItemId]);
 
   useEffect(() => {
     if (!open) {
@@ -167,6 +212,8 @@ export default function AgendaEditorModal({ open, onClose, initialItems, onSaved
     }
     if (!item.date) {
       itemErrors.date = 'Informe a data';
+    } else if (!isDateInYearRange(item.date)) {
+      itemErrors.date = 'Use uma data dentro de 2025';
     }
     return itemErrors;
   };

@@ -22,6 +22,7 @@ const alunosRoutes = require('./routes/alunos');
 const gerencialRoutes = require('./routes/gerencial');
 const gerencialTeachersRoutes = gerencialRoutes.teachersRouter;
 const agendaRoutes = require('./routes/agenda');
+const professorAgendaRoutes = require('./routes/professorAgenda');
 const telemetryRoutes = require('./routes/telemetry');
 const pdfHealthRoutes = require('./routes/pdfHealth');
 const sessionRoutes = require('./routes/session');
@@ -115,6 +116,7 @@ privateApiRouter.use('/contents', contentsRoutes);
 privateApiRouter.use('/themes', themesRoutes);
 privateApiRouter.use('/notifications', notificationRoutes);
 privateApiRouter.use('/essays', essaysRoutes);
+privateApiRouter.use('/professor/agenda', professorAgendaRoutes);
 privateApiRouter.use('/', gradeActivitiesRoutes);
 
 if (gerencialTeachersRoutes) {
