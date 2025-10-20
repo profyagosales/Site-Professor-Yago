@@ -506,60 +506,52 @@ function DashboardProfessor(){
         </div>
       </section>
 
-      <section className="dash-grid">
-        <div className="tile schedule">
-          <DashboardCard
-            title="Horário Semanal"
-            className="schedule-card"
-            contentClassName="schedule-card-body"
-          >
-            <WeeklySchedule slots={SLOT_CONFIG} days={WEEKDAY_CONFIG} cells={scheduleMatrix} />
-          </DashboardCard>
-        </div>
+      <section className="mx-auto w-full max-w-[1600px]">
+        <div className="grid grid-cols-12 gap-6">
+          <div className="col-span-12 xl:col-span-8">
+            <DashboardCard
+              title="Horário Semanal"
+              className="schedule-card"
+              contentClassName="schedule-card-body"
+            >
+              <WeeklySchedule slots={SLOT_CONFIG} days={WEEKDAY_CONFIG} cells={scheduleMatrix} />
+            </DashboardCard>
+          </div>
 
-        <div className="tile notices">
-          <AvisosCard
-            onEdit={(announcement) => {
-              setAnnouncementDraft(announcement)
-              setAnnouncementOpen(true)
-            }}
-            onCreate={() => {
-              setAnnouncementDraft(null)
-              setAnnouncementOpen(true)
-            }}
-          />
-        </div>
+          <div className="col-span-12 xl:col-span-4">
+            <AvisosCard
+              onEdit={(announcement) => {
+                setAnnouncementDraft(announcement)
+                setAnnouncementOpen(true)
+              }}
+              onCreate={() => {
+                setAnnouncementDraft(null)
+                setAnnouncementOpen(true)
+              }}
+            />
+          </div>
 
-        <div className="tile grades">
-          <DivisaoNotasCard
-            ano={gradeSchemeYear}
-            classId={primaryClassId || null}
-            onEdit={handleOpenGradeScheme}
-            refreshToken={gradeSchemeRefreshKey}
-          />
-        </div>
+          <div className="col-span-12">
+            <DivisaoNotasCard
+              ano={gradeSchemeYear}
+              classId={primaryClassId || null}
+              onEdit={handleOpenGradeScheme}
+              refreshToken={gradeSchemeRefreshKey}
+            />
+          </div>
 
-        <div className="tile atividades-panel">
-          <AgendaCalendarCard
-            className="min-h-[26rem]"
-            contentClassName="flex-1"
-            refreshToken={agendaRefreshKey}
-            onOpenEditor={handleOpenAgendaEditor}
-            editorLoading={agendaEditorLoading}
-          />
-        </div>
+          <div className="col-span-full">
+            <AgendaCalendarCard
+              refreshToken={agendaRefreshKey}
+              onOpenEditor={handleOpenAgendaEditor}
+              editorLoading={agendaEditorLoading}
+            />
+          </div>
 
-        <div className="tile radar">
-          <RadarCard role="teacher" />
+          <div className="col-span-12">
+            <RadarCard role="teacher" />
+          </div>
         </div>
-      </section>
-      <section className="mt-6 grid grid-cols-12 gap-6">
-        <AgendaCalendarCard
-          className="col-span-12"
-          refreshToken={agendaRefreshKey}
-          onOpenEditor={handleOpenAgendaEditor}
-          editorLoading={agendaEditorLoading}
-        />
       </section>
       <DivisaoNotasModal
         ano={gradeSchemeYear}

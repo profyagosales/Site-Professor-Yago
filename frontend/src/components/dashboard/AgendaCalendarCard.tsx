@@ -219,7 +219,7 @@ const CalendarGrid = memo(function CalendarGrid({
 }) {
   if (viewMode === 'month') {
     return (
-      <div className="grid grid-cols-7 gap-3 pb-6">
+      <div className="grid grid-cols-7 grid-rows-6 gap-3">
         {calendarWeeks.map((week) =>
           week.map((day) => (
             <CalendarDayTile
@@ -241,7 +241,7 @@ const CalendarGrid = memo(function CalendarGrid({
 
   return (
     <div className="overflow-x-auto">
-      <div className="grid grid-flow-col auto-cols-[140px] gap-2 pb-6 lg:auto-cols-auto lg:grid-cols-7 lg:gap-3">
+      <div className="grid grid-flow-col auto-cols-[minmax(140px,1fr)] gap-3 lg:auto-cols-auto lg:grid-cols-7">
         {weekDays.map((day) => (
           <CalendarDayTile
             key={day.key}
@@ -292,8 +292,6 @@ const CalendarDayTile = memo(function CalendarDayTile({
   const weekday = getWeekdayLabel(day).toUpperCase();
   const dayNumber = DAY_FORMATTER.format(day.date);
   const hasEvents = events.length > 0;
-  const dots = events.slice(0, 4);
-  const overflow = events.length - dots.length;
   const disabled = !day.isWithinYear || editorLoading;
   const isSelected = selectedDayKey === day.key;
 
@@ -301,11 +299,11 @@ const CalendarDayTile = memo(function CalendarDayTile({
     <div
       ref={refCallback}
       className={[
-        'flex min-h-[var(--tile-min-h-sm)] lg:min-h-[var(--tile-min-h-lg)] flex-col rounded-2xl border border-border bg-surface p-2 text-left transition duration-fast',
-        'hover:-translate-y-[1px] hover:bg-surface2 hover:shadow-soft',
+        'flex h-24 flex-col rounded-2xl border border-slate-200 bg-white p-2 text-left transition-colors duration-150 md:h-28 lg:h-32 xl:h-36',
+        'hover:border-slate-300',
         horizontal ? 'snap-start min-w-[140px]' : '',
         dimmed ? 'opacity-60' : '',
-        isSelected ? 'ring-2 ring-brand' : '',
+        isSelected ? 'ring-2 ring-slate-400' : '',
       ]
         .filter(Boolean)
         .join(' ')}
@@ -314,38 +312,60 @@ const CalendarDayTile = memo(function CalendarDayTile({
         type="button"
         disabled={disabled}
         onClick={() => onDayClick(day)}
-        className="flex w-full items-center justify-between rounded-xl px-2 py-1 text-[11px] font-medium text-textSoft transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200 disabled:cursor-not-allowed disabled:opacity-[var(--op-disabled)]"
+        className="flex w-full items-center justify-between rounded-xl px-2 py-1 text-left text-[11px] font-medium text-slate-500 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
       >
-        <span className="uppercase tracking-wide">{weekday}</span>
+        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+          {weekday}
+        </span>
         <span
           className={[
-            'ml-auto inline-flex min-w-[2.25rem] items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-semibold',
-            isToday ? 'bg-brand-100 text-brand-700' : 'bg-surface2 text-textSoft',
+            'inline-flex min-w-[2.25rem] justify-center rounded-full px-2 py-0.5 text-[11px] font-semibold',
+            isToday ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600',
           ].join(' ')}
         >
           {dayNumber}
         </span>
       </button>
-      {hasEvents ? (
-        <div className="mt-2 flex flex-wrap items-center gap-1">
-          {dots.map((item) => (
-            <span
-              key={item.id}
-              className={`h-2.5 w-2.5 rounded-full ${TYPE_TO_DOT_CLASS[item.type]}`}
-              title={item.title}
-            />
-          ))}
-          {overflow > 0 ? (
-            <span className="ml-1 text-[11px] font-semibold text-textSoft">+{overflow}</span>
-          ) : null}
-        </div>
-      ) : null}
+      <div className="mt-2 flex-1 space-y-1 overflow-auto">
+        {hasEvents
+          ? events.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-600 shadow-[0_1px_0_rgba(15,23,42,0.04)]"
+              >
+                <span className={`h-2 w-2 rounded-full ${TYPE_TO_DOT_CLASS[item.type]}`} />
+                <span className="line-clamp-2 leading-snug">{item.title}</span>
+              </div>
+            ))
+          : null}
+      </div>
     </div>
   );
 });
 
 CalendarDayTile.displayName = 'CalendarDayTile';
 CalendarGrid.displayName = 'CalendarGrid';
+
+function EmptyStateCompact({ onAdd, disabled = false }: { onAdd: () => void; disabled?: boolean }) {
+  return (
+    <div className="flex items-center justify-between rounded-xl border border-dashed border-slate-300 bg-white px-3 py-2">
+      <p className="flex items-center gap-2 text-sm text-slate-500">
+        <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+        Sem itens no período.
+      </p>
+      <button
+        type="button"
+        onClick={onAdd}
+        disabled={disabled}
+        className="rounded-lg border border-slate-300 px-2.5 py-1 text-sm text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        + Adicionar
+      </button>
+    </div>
+  );
+}
 
 function useOutsideClick(ref: React.RefObject<HTMLDivElement>, handler: () => void) {
   useEffect(() => {
@@ -386,8 +406,8 @@ export default function AgendaCalendarCard({
   const todayKey = useMemo(() => toDateKey(setUtcMidnight(new Date())), []);
 
   const cardClassName = [
-    'w-full max-w-none rounded-3xl border border-border bg-surface shadow-card',
-    'flex h-full min-h-[28rem] flex-col',
+    'w-full max-w-none rounded-3xl border border-slate-100 bg-white shadow-[0_8px_30px_rgba(0,0,0,0.04)]',
+    'p-6 h-[540px] md:h-[560px] xl:h-[600px] flex flex-col',
     className,
   ]
     .filter(Boolean)
@@ -704,201 +724,201 @@ export default function AgendaCalendarCard({
 
   return (
     <section className={cardClassName}>
-      <header className="flex items-center justify-between gap-3 border-b border-border px-5 pb-4 pt-5">
-        <h3 className="text-[15px] font-semibold text-text">Agenda</h3>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 rounded-full border border-border bg-surface2 p-1">
-            {(['month', 'week'] as ViewMode[]).map((mode) => {
-              const active = viewMode === mode;
-              return (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => handleToggleView(mode)}
-                  className={[
-                    'h-8 rounded-full px-3 text-[13px] font-medium transition duration-fast',
-                    active ? 'bg-white text-text shadow-soft' : 'text-textSoft hover:bg-white/80',
-                  ].join(' ')}
-                  aria-pressed={active}
-                >
-                  {mode === 'month' ? 'Mês' : 'Semana'}
-                </button>
-              );
-            })}
+      <header className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <h2 className="text-[18px] font-semibold text-slate-900">Agenda</h2>
+            <span className="text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-full">Todos</span>
           </div>
-          <div className="hidden items-center gap-1 md:flex">
-            {FILTER_OPTIONS.map((option) => {
-              const active = activeFilter === option;
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => {
-                    setActiveFilter(option);
-                    setPopover(null);
-                  }}
-                  className={[
-                    'h-8 rounded-full px-3 text-[13px] font-medium transition duration-fast',
-                    active
-                      ? 'border border-border bg-white text-text shadow-soft'
-                      : 'border border-transparent text-textSoft hover:bg-white/80',
-                  ].join(' ')}
-                  aria-pressed={active}
-                >
-                  {FILTER_LABELS[option]}
-                </button>
-              );
-            })}
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="inline-flex rounded-full bg-slate-100 p-1">
+              {(['month', 'week'] as ViewMode[]).map((mode) => {
+                const active = viewMode === mode;
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => handleToggleView(mode)}
+                    className={[
+                      'px-3 py-1 text-xs rounded-full transition',
+                      active
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-600 hover:bg-white',
+                    ].join(' ')}
+                    aria-pressed={active}
+                  >
+                    {mode === 'month' ? 'MÊS' : 'SEMANA'}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="hidden items-center gap-1 xl:flex">
+              {FILTER_OPTIONS.map((option) => {
+                const active = activeFilter === option;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => {
+                      setActiveFilter(option);
+                      setPopover(null);
+                    }}
+                    className={[
+                      'rounded-full border px-3 py-1 text-xs font-medium transition',
+                      active
+                        ? 'border-slate-300 bg-white text-slate-900 shadow-sm'
+                        : 'border-transparent text-slate-600 hover:bg-white',
+                    ].join(' ')}
+                    aria-pressed={active}
+                  >
+                    {FILTER_LABELS[option]}
+                  </button>
+                );
+              })}
+            </div>
+            <div
+              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600"
+              role="group"
+              tabIndex={0}
+              onKeyDown={handleNavKey}
+            >
+              <button
+                type="button"
+                onClick={handlePrevPeriod}
+                disabled={!canGoPrev || loading}
+                aria-label={viewMode === 'month' ? 'Mês anterior' : 'Semana anterior'}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                ‹
+              </button>
+              <span className="min-w-[140px] text-center text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+                {period.label}
+              </span>
+              <button
+                type="button"
+                onClick={handleNextPeriod}
+                disabled={!canGoNext || loading}
+                aria-label={viewMode === 'month' ? 'Próximo mês' : 'Próxima semana'}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                ›
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => onOpenEditor?.()}
+              disabled={editorLoading}
+              className="h-8 rounded-xl border border-slate-200 px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Editar
+            </button>
+            <button
+              type="button"
+              onClick={handleQuickAdd}
+              disabled={editorLoading}
+              className="h-8 rounded-xl bg-slate-900 px-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              + Novo
+            </button>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => onOpenEditor?.()}
-            disabled={editorLoading}
-          >
-            Editar
-          </Button>
-          <Button
-            type="button"
-            variant="primary"
-            size="sm"
-            onClick={handleQuickAdd}
-            disabled={editorLoading}
-            className="!px-4"
-          >
-            + Adicionar
-          </Button>
         </div>
+        <nav className="flex flex-wrap items-center gap-1 xl:hidden">
+          {FILTER_OPTIONS.map((option) => {
+            const active = activeFilter === option;
+            return (
+              <button
+                key={option}
+                type="button"
+                onClick={() => {
+                  setActiveFilter(option);
+                  setPopover(null);
+                }}
+                className={[
+                  'rounded-full border px-3 py-1 text-xs font-medium transition',
+                  active
+                    ? 'border-slate-300 bg-white text-slate-900 shadow-sm'
+                    : 'border-transparent text-slate-600 hover:bg-white',
+                ].join(' ')}
+                aria-pressed={active}
+              >
+                {FILTER_LABELS[option]}
+              </button>
+            );
+          })}
+        </nav>
       </header>
 
-      <div className="px-5 pt-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <nav className="flex items-center gap-1 md:hidden">
-            {FILTER_OPTIONS.map((option) => {
-              const active = activeFilter === option;
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => {
-                    setActiveFilter(option);
+      <div className="mt-4 flex-1 min-h-0 overflow-hidden">
+        <div
+          ref={containerRef}
+          className="relative h-full overflow-auto overscroll-contain rounded-2xl border border-slate-100 bg-slate-50/40 p-3"
+        >
+          <div className="space-y-3">
+            {isEmpty && !loading ? (
+              <EmptyStateCompact onAdd={handleQuickAdd} disabled={editorLoading} />
+            ) : null}
+
+            {loading && hasFetched ? (
+              viewMode === 'month' ? (
+                <div className="grid grid-cols-7 grid-rows-6 gap-3">
+                  {Array.from({ length: 42 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="h-24 rounded-2xl border border-slate-200 bg-white/70 opacity-80 animate-pulse md:h-28 lg:h-32 xl:h-36"
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-flow-col auto-cols-[minmax(140px,1fr)] gap-3 lg:grid-cols-7">
+                  {Array.from({ length: 7 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="h-24 rounded-2xl border border-slate-200 bg-white/70 opacity-80 animate-pulse md:h-28 lg:h-32 xl:h-36"
+                    />
+                  ))}
+                </div>
+              )
+            ) : (
+              <CalendarGrid
+                viewMode={viewMode}
+                calendarWeeks={calendarWeeks}
+                weekDays={weekDays}
+                itemsByDate={itemsByDate}
+                registerDayNode={(key, node) => {
+                  registerDayNode(key, node);
+                  if (popover?.dayKey === key && !node) {
                     setPopover(null);
-                  }}
-                  className={[
-                    'h-8 rounded-full px-3 text-[13px] font-medium transition duration-fast',
-                    active
-                      ? 'border border-border bg-white text-text shadow-soft'
-                      : 'border border-transparent text-textSoft hover:bg-white/80',
-                  ].join(' ')}
-                  aria-pressed={active}
-                >
-                  {FILTER_LABELS[option]}
-                </button>
-              );
-            })}
-          </nav>
-          <div
-            className="flex items-center gap-2 rounded-2xl border border-border bg-surface px-3 py-1.5 text-sm font-medium text-text"
-            role="group"
-            tabIndex={0}
-            onKeyDown={handleNavKey}
-          >
-            <button
-              type="button"
-              onClick={handlePrevPeriod}
-              disabled={!canGoPrev || loading}
-              aria-label={viewMode === 'month' ? 'Mês anterior' : 'Semana anterior'}
-              className="flex h-8 w-8 items-center justify-center rounded-full transition duration-fast hover:bg-surface2 disabled:cursor-not-allowed disabled:opacity-[var(--op-disabled)]"
-            >
-              ‹
-            </button>
-            <span className="min-w-[140px] text-center text-xs font-semibold uppercase tracking-wide text-textSoft">
-              {period.label}
-            </span>
-            <button
-              type="button"
-              onClick={handleNextPeriod}
-              disabled={!canGoNext || loading}
-              aria-label={viewMode === 'month' ? 'Próximo mês' : 'Próxima semana'}
-              className="flex h-8 w-8 items-center justify-center rounded-full transition duration-fast hover:bg-surface2 disabled:cursor-not-allowed disabled:opacity-[var(--op-disabled)]"
-            >
-              ›
-            </button>
+                  }
+                }}
+                onDayClick={handleDayClick}
+                selectedDayKey={popover?.dayKey ?? null}
+                editorLoading={editorLoading}
+                todayKey={todayKey}
+              />
+            )}
           </div>
-        </div>
-      </div>
 
-      <div ref={containerRef} className="relative mt-4 h-[600px] flex-1 overflow-auto overscroll-contain px-5 pb-5">
-        {isEmpty && !loading ? (
-          <div className="absolute left-8 top-6 flex items-center gap-2 text-sm text-textSoft opacity-70" data-empty>
-            <span role="img" aria-label="Sem itens">
-              🌤️
-            </span>
-            <span>Sem itens no período selecionado</span>
-          </div>
-        ) : null}
-
-        {loading && hasFetched ? (
-          viewMode === 'month' ? (
-            <div className="grid grid-cols-7 gap-3">
-              {Array.from({ length: 42 }).map((_, index) => (
-                <div
-                  key={index}
-                  className="min-h-[var(--tile-min-h-lg)] rounded-2xl border border-border bg-surface2 opacity-80 animate-pulse"
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-flow-col auto-cols-[140px] gap-2 lg:auto-cols-auto lg:grid-cols-7 lg:gap-3">
-              {Array.from({ length: 7 }).map((_, index) => (
-                <div
-                  key={index}
-                  className="min-h-[var(--tile-min-h-sm)] rounded-2xl border border-border bg-surface2 opacity-80 animate-pulse"
-                />
-              ))}
-            </div>
-          )
-        ) : (
-          <CalendarGrid
-            viewMode={viewMode}
-            calendarWeeks={calendarWeeks}
-            weekDays={weekDays}
-            itemsByDate={itemsByDate}
-            registerDayNode={(key, node) => {
-              registerDayNode(key, node);
-              if (popover?.dayKey === key && !node) {
-                setPopover(null);
-              }
-            }}
-            onDayClick={handleDayClick}
-            selectedDayKey={popover?.dayKey ?? null}
-            editorLoading={editorLoading}
-            todayKey={todayKey}
-          />
-        )}
-
-        {popover ? (
-          <div
-            ref={popoverRef}
-            className="pointer-events-auto absolute z-[var(--z-pop)] max-w-[320px] rounded-3xl border border-border bg-surface p-4 shadow-elev"
-            style={{
-              top: popover.top,
-              left: popover.left,
-              transform: 'translate(-50%, 0)',
-            }}
-          >
-            <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-textSoft">
-              <FiCalendar className="h-4 w-4 text-data" />
-              {popover.dayKey}
-            </div>
-            {popoverItems.length ? (
-              <ul className="flex flex-col gap-3">
-                {popoverItems.map((item) => {
-                  const timeLabel = formatTime(item.date);
-                  return (
-                    <li key={item.id} className="rounded-2xl border border-border bg-surface2 p-3 shadow-soft">
-                      <div className="flex items-start gap-3">
+          {popover ? (
+            <div
+              ref={popoverRef}
+              className="pointer-events-auto absolute z-[var(--z-pop)] max-w-[320px] rounded-3xl border border-border bg-surface p-4 shadow-elev"
+              style={{
+                top: popover.top,
+                left: popover.left,
+                transform: 'translate(-50%, 0)',
+              }}
+            >
+              <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-textSoft">
+                <FiCalendar className="h-4 w-4 text-data" />
+                {popover.dayKey}
+              </div>
+              {popoverItems.length ? (
+                <ul className="flex flex-col gap-3">
+                  {popoverItems.map((item) => {
+                    const timeLabel = formatTime(item.date);
+                    return (
+                      <li key={item.id} className="rounded-2xl border border-border bg-surface2 p-3 shadow-soft">
+                        <div className="flex items-start gap-3">
                         <div className="mt-0.5 shrink-0 rounded-full bg-surface p-2 shadow-soft">{TYPE_ICON_MAP[item.type]}</div>
                         <div className="min-w-0 flex-1 space-y-1">
                           <p
