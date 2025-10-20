@@ -6,7 +6,7 @@ import { getCurrentUser } from '@/services/auth'
 import { listMyClasses, getClassDetails } from '@/services/classes.service'
 import { Button } from '@/components/ui/Button'
 import DashboardCard from '@/components/dashboard/DashboardCard'
-import MediaGeralBimestre from '@/components/dashboard/MediaGeralBimestre'
+import RadarCard from '@/components/dashboard/radar/RadarCard'
 import AgendaCalendarCard from '@/components/dashboard/AgendaCalendarCard'
 import WeeklySchedule from '@/components/dashboard/WeeklySchedule'
 import AvisosCard from '@/components/dashboard/AvisosCard'
@@ -549,8 +549,8 @@ function DashboardProfessor(){
           />
         </div>
 
-        <div className="tile charts">
-          <MediaGeralBimestre classOptions={classOptions} />
+        <div className="tile radar">
+          <RadarCard role="teacher" />
         </div>
       </section>
       <DivisaoNotasModal
