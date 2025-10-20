@@ -7,7 +7,7 @@ import { listMyClasses, getClassDetails } from '@/services/classes.service'
 import { Button } from '@/components/ui/Button'
 import RadarCard from '@/components/dashboard/radar/RadarCard'
 import AgendaCalendarCard from '@/components/dashboard/AgendaCalendarCard'
-import WeeklySchedule from '@/components/dashboard/WeeklySchedule'
+import WeeklySchedule, { WeeklyScheduleTabs } from '@/components/dashboard/WeeklySchedule'
 import AvisosCard from '@/components/dashboard/AvisosCard'
 import DivisaoNotasCard from '@/components/dashboard/DivisaoNotasCard'
 import DivisaoNotasModal from '@/components/dashboard/DivisaoNotasModal'
@@ -509,12 +509,13 @@ function DashboardProfessor(){
         <div className="grid grid-cols-1 gap-[var(--dash-gap)] lg:grid-cols-2 [--grid-h:calc(var(--h-stack)*2+var(--dash-gap))]">
           <div className="h-[var(--h-stack)]">
             <div className="card h-full">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-semibold text-slate-900">Horário semanal</h2>
-              </div>
-              <div className="mt-3 flex-1 min-h-0">
-                <WeeklySchedule slots={SLOT_CONFIG} days={WEEKDAY_CONFIG} cells={scheduleMatrix} />
-              </div>
+              <header className="px-6 pt-6 pb-2">
+                <h2 className="text-3xl font-semibold text-slate-900">Horário semanal</h2>
+              </header>
+              <nav className="px-6 mb-2">
+                <WeeklyScheduleTabs days={WEEKDAY_CONFIG} className="gap-2" size="sm" />
+              </nav>
+              <WeeklySchedule slots={SLOT_CONFIG} days={WEEKDAY_CONFIG} cells={scheduleMatrix} />
             </div>
           </div>
 
