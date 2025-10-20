@@ -92,7 +92,9 @@ export default function DivisaoNotasCard({
     return schemes.sort((a, b) => a.bimester - b.bimester)[0] ?? null;
   }, [schemes]);
 
-  const totalPoints = activeScheme?.items?.reduce((sum, item) => sum + (Number.isFinite(item.points) ? Number(item.points) : 0), 0) ?? 0;
+  const totalPointsSum =
+    activeScheme?.items?.reduce((sum, item) => sum + (Number.isFinite(item.points) ? Number(item.points) : 0), 0) ?? 0;
+  const totalPoints = Number(totalPointsSum.toFixed(1));
   const totalMatches = Math.abs(totalPoints - 10) < 0.001;
 
   const typeLegend = useMemo(() => {
@@ -230,16 +232,17 @@ export default function DivisaoNotasCard({
                   const resolvedType = resolveGradeItemType(item.type);
                   const config = GRADE_ITEM_TYPE_MAP[resolvedType];
                   const badgeColor = item.color || config.color;
+                  const displayName = item.name || item.label || 'Item';
                   return (
                     <div
-                      key={`${item.label}-${item.order}`}
+                      key={`${displayName}-${item.order}`}
                       className="rounded-full px-4 py-2 text-sm font-medium shadow-sm"
                       style={{
                         backgroundColor: badgeColor,
                         color: getContrastColor(badgeColor),
                       }}
                     >
-                      {item.label || 'Item'} • {Number(item.points).toFixed(1)} pts
+                      {displayName} • {Number(item.points).toFixed(1)} pts
                     </div>
                   );
                 })}

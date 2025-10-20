@@ -2,10 +2,11 @@ const mongoose = require('mongoose');
 
 const gradeSchemeItemSchema = new mongoose.Schema(
   {
+    name: { type: String, trim: true },
     label: { type: String, required: true, trim: true },
     points: { type: Number, required: true, min: 0 },
-    type: { type: String, default: 'OUTROS', trim: true },
-    color: { type: String, default: null, trim: true },
+    type: { type: String, default: 'PROVA', trim: true },
+    color: { type: String, default: '#EB7A28', trim: true },
     order: { type: Number, default: 0 },
   },
   { _id: false }
@@ -33,14 +34,19 @@ gradeSchemeSchema.pre('validate', function computeTotalPoints(next) {
   this.items = this.items
     .map((item, index) => {
       const entry = item || {};
+      const rawName = typeof entry.name === 'string' ? entry.name.trim() : '';
+      const rawLabel = typeof entry.label === 'string' ? entry.label.trim() : '';
+      const name = rawName || rawLabel;
+      const label = rawLabel || name;
       const normalized = {
-        label: typeof entry.label === 'string' ? entry.label.trim() : '',
+        name,
+        label,
         points: Number.isFinite(entry.points) ? entry.points : Number(entry.points) || 0,
         type:
           typeof entry.type === 'string' && entry.type.trim()
             ? entry.type.trim().toUpperCase()
-            : 'OUTROS',
-        color: typeof entry.color === 'string' && entry.color.trim() ? entry.color.trim() : null,
+            : 'PROVA',
+        color: typeof entry.color === 'string' && entry.color.trim() ? entry.color.trim() : '#EB7A28',
         order:
           typeof entry.order === 'number'
             ? entry.order
@@ -51,6 +57,12 @@ gradeSchemeSchema.pre('validate', function computeTotalPoints(next) {
       if (normalized.points < 0) {
         normalized.points = 0;
       }
+      if (!normalized.label && normalized.name) {
+        normalized.label = normalized.name;
+      }
+      if (!normalized.name && normalized.label) {
+        normalized.name = normalized.label;
+      }
       return normalized;
     })
     .sort((a, b) => a.order - b.order);
@@ -60,11 +72,11 @@ gradeSchemeSchema.pre('validate', function computeTotalPoints(next) {
     return Number.isFinite(value) ? sum + value : sum;
   }, 0);
 
-  const roundedTotal = Number(total.toFixed(2));
+  const roundedTotal = Number(total.toFixed(1));
   this.totalPoints = roundedTotal;
 
-  if (roundedTotal > 10 + Number.EPSILON) {
-    const error = new Error('Total de pontos deve ser no máximo 10.');
+  if (Math.abs(roundedTotal - 10) > 0.001) {
+    const error = new Error('Total de pontos deve ser exatamente 10.');
     error.status = 400;
     return next(error);
   }

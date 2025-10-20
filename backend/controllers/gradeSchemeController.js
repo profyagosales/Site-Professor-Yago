@@ -45,7 +45,10 @@ function normalizeItems(items) {
   return items
     .map((item, index) => {
       const entry = item || {};
-      const label = typeof entry.label === 'string' ? entry.label.trim() : '';
+      const rawName = typeof entry.name === 'string' ? entry.name.trim() : '';
+      const labelFromPayload = typeof entry.label === 'string' ? entry.label.trim() : '';
+      const name = rawName || labelFromPayload;
+      const label = labelFromPayload || name;
       const rawPoints =
         typeof entry.points === 'number'
           ? entry.points
@@ -56,9 +59,9 @@ function normalizeItems(items) {
       const type =
         typeof entry.type === 'string' && entry.type.trim()
           ? entry.type.trim().toUpperCase()
-          : 'OUTROS';
+          : 'PROVA';
       const color =
-        typeof entry.color === 'string' && entry.color.trim() ? entry.color.trim() : null;
+        typeof entry.color === 'string' && entry.color.trim() ? entry.color.trim() : '#EB7A28';
       const rawOrder =
         typeof entry.order === 'number'
           ? entry.order
@@ -67,6 +70,7 @@ function normalizeItems(items) {
             : index;
 
       return {
+        name,
         label,
         points,
         type,
@@ -74,7 +78,7 @@ function normalizeItems(items) {
         order: rawOrder,
       };
     })
-    .filter((entry) => entry.label || entry.points > 0)
+    .filter((entry) => entry.name || entry.points > 0)
     .sort((a, b) => a.order - b.order)
     .map((entry, index) => ({
       ...entry,
@@ -91,9 +95,9 @@ function calculateTotalPoints(items) {
 
 function assertTotalPoints(items) {
   const total = calculateTotalPoints(items);
-  const rounded = Number(total.toFixed(2));
-  if (rounded > MAX_TOTAL_POINTS + Number.EPSILON) {
-    const error = new Error(`Total de pontos deve ser no máximo ${MAX_TOTAL_POINTS}.`);
+  const rounded = Number(total.toFixed(1));
+  if (Math.abs(rounded - MAX_TOTAL_POINTS) > 0.001) {
+    const error = new Error(`Total de pontos deve ser exatamente ${MAX_TOTAL_POINTS}.`);
     error.status = 400;
     throw error;
   }
@@ -106,14 +110,15 @@ function sanitizeScheme(doc) {
   const items = Array.isArray(json.items) ? [...json.items] : [];
   const orderedItems = items
     .map((item, index) => ({
+      name: typeof item.name === 'string' ? item.name : typeof item.label === 'string' ? item.label : '',
       label: typeof item.label === 'string' ? item.label : '',
       points: Number.isFinite(item.points) ? Number(item.points) : 0,
       type:
         typeof item.type === 'string' && item.type.trim()
           ? item.type.trim().toUpperCase()
-          : 'OUTROS',
+          : 'PROVA',
       color:
-        typeof item.color === 'string' && item.color.trim() ? item.color.trim() : null,
+        typeof item.color === 'string' && item.color.trim() ? item.color.trim() : '#EB7A28',
       order:
         typeof item.order === 'number'
           ? item.order
@@ -121,7 +126,12 @@ function sanitizeScheme(doc) {
             ? Number(item.order)
             : index,
     }))
-    .sort((a, b) => a.order - b.order);
+    .sort((a, b) => a.order - b.order)
+    .map((item) => ({
+      ...item,
+      label: item.label || item.name || '',
+      name: item.name || item.label || '',
+    }));
 
   return {
     id: String(json._id),

@@ -1,6 +1,7 @@
 import { api } from '@/services/api';
 
 export type GradeSchemeItem = {
+  name: string;
   label: string;
   points: number;
   type: string | null;
@@ -21,7 +22,9 @@ export type GradeScheme = {
 };
 
 function normalizeItem(raw: any, fallbackOrder = 0): GradeSchemeItem {
+  const rawName = typeof raw?.name === 'string' ? raw.name.trim() : '';
   const label = typeof raw?.label === 'string' ? raw.label.trim() : '';
+  const name = rawName || label;
   const points = Number.isFinite(raw?.points) ? Number(raw.points) : Number.parseFloat(String(raw?.points ?? 0)) || 0;
   const color =
     typeof raw?.color === 'string' && raw.color.trim()
@@ -33,7 +36,8 @@ function normalizeItem(raw: any, fallbackOrder = 0): GradeSchemeItem {
       : null;
   const order = Number.isFinite(raw?.order) ? Number(raw.order) : fallbackOrder;
   return {
-    label,
+    name,
+    label: label || name,
     points,
     type,
     color,

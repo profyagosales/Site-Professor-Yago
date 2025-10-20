@@ -33,7 +33,7 @@ type DivisaoNotasModalProps = {
 
 type ItemForm = {
   uid: string;
-  label: string;
+  name: string;
   points: number;
   rawPoints: string;
   type: GradeItemType;
@@ -99,7 +99,11 @@ function toItemForm(item: GradeSchemeItem, index: number): ItemForm {
   const safePoints = Number.isFinite(item.points) ? Number(item.points) : 0;
   return {
     uid: nanoid(),
-    label: item.label ?? '',
+    name: (typeof item.name === 'string' && item.name.trim())
+      ? item.name.trim()
+      : typeof item.label === 'string' && item.label.trim()
+        ? item.label.trim()
+        : '',
     points: Number.isFinite(item.points) ? parsePointsInput(String(safePoints)) : 0,
     rawPoints: Number.isFinite(item.points) ? formatPointsString(String(safePoints)) : '',
     type: resolvedType,
@@ -111,7 +115,7 @@ function toItemForm(item: GradeSchemeItem, index: number): ItemForm {
 function createEmptyItem(order: number): ItemForm {
   return {
     uid: nanoid(),
-    label: '',
+    name: '',
     points: 1,
     rawPoints: '1',
     type: 'PROVA',
@@ -148,7 +152,7 @@ export default function DivisaoNotasModal({
   const cacheKey = useMemo(() => buildCacheKey(classId || '', year), [classId, year]);
 
   const totalPoints = useMemo(
-    () => editItems.reduce((sum, item) => sum + (Number.isFinite(item.points) ? item.points : 0), 0),
+    () => Number(editItems.reduce((sum, item) => sum + (Number.isFinite(item.points) ? item.points : 0), 0).toFixed(1)),
     [editItems]
   );
 
@@ -369,6 +373,10 @@ export default function DivisaoNotasModal({
           return item;
         }
         const next: ItemForm = { ...item, ...patch };
+        if (patch.name !== undefined) {
+          const trimmed = typeof patch.name === 'string' ? patch.name : '';
+          next.name = trimmed;
+        }
         if (patch.rawPoints !== undefined) {
           next.rawPoints = patch.rawPoints;
           next.points = parsePointsInput(patch.rawPoints);
@@ -410,15 +418,19 @@ export default function DivisaoNotasModal({
     const sanitizedItems = editItems
       .map((item, index) => {
         const normalizedPoints = parsePointsInput(item.rawPoints);
+        const trimmedName = item.name.trim();
+        const safeName = trimmedName || `Item ${index + 1}`;
+        const resolvedType = item.type || 'PROVA';
         return {
-          label: item.label.trim(),
+          name: safeName,
+          label: safeName,
           points: normalizedPoints,
-          type: item.type,
-          color: item.color,
+          type: resolvedType,
+          color: item.color || GRADE_ITEM_TYPE_MAP[resolvedType]?.color || '#EB7A28',
           order: index,
         };
       })
-      .filter((item) => item.label || item.points > 0);
+      .filter((item) => item.name || item.points > 0);
 
     if (!sanitizedItems.length) {
       toast.error('Adicione ao menos um item com pontos.');
@@ -577,14 +589,14 @@ export default function DivisaoNotasModal({
                 >
                   <div>
                     <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Item {index + 1}
+                      Nome do item {index + 1}
                     </label>
                     <input
                       ref={index === 0 ? firstItemRef : undefined}
                       type="text"
-                      value={item.label}
-                      onChange={(event) => handleItemChange(item.uid, { label: event.target.value })}
-                      placeholder="Descrição"
+                      value={item.name}
+                      onChange={(event) => handleItemChange(item.uid, { name: event.target.value })}
+                      placeholder="Nome da atividade"
                       className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
                     />
                   </div>
