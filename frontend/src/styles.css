@@ -207,6 +207,56 @@ html, body, #root { height: 100%; background: #F2F4F7; }
   min-width: 160px;
 }
 
+.dash-grid {
+  display: grid;
+  gap: var(--space-6);
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    "schedule notices"
+    "grades   notices"
+    "agenda   contents"
+    "charts   charts";
+  grid-auto-rows: minmax(320px, auto);
+  align-items: stretch;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tile > * {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.schedule { grid-area: schedule; }
+.grades { grid-area: grades; }
+.notices { grid-area: notices; display: flex; }
+.agenda { grid-area: agenda; }
+.contents { grid-area: contents; }
+.charts { grid-area: charts; }
+
+.notices > * {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+@media (max-width: 1024px) {
+  .dash-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "schedule"
+      "grades"
+      "notices"
+      "agenda"
+      "contents"
+      "charts";
+    grid-auto-rows: auto;
+  }
+}
+
 .hero-right-top {
   grid-area: rightTop;
   display: flex;

@@ -620,8 +620,8 @@ function DashboardProfessor(){
         </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,50%)_minmax(0,1fr)] lg:items-start">
-        <div className="lg:max-w-full">
+      <section className="dash-grid">
+        <div className="tile schedule">
           <DashboardCard
             title="Horário Semanal"
             className="card schedule-card"
@@ -631,24 +631,35 @@ function DashboardProfessor(){
           </DashboardCard>
         </div>
 
-        <AvisosCard
-          className="card avisos-card"
-          onEdit={(announcement) => {
-            setAnnouncementDraft(announcement)
-            setAnnouncementOpen(true)
-          }}
-          onCreate={() => {
-            setAnnouncementDraft(null)
-            setAnnouncementOpen(true)
-          }}
-        />
-      </div>
+        <div className="tile grades">
+          <DivisaoNotasCard
+            classOptions={classOptions}
+            className="h-full"
+            onEdit={handleEditGradeScheme}
+            editOpen={divisaoNotasOpen}
+            onEditOpenChange={handleDivisaoNotasOpenChange}
+          />
+        </div>
 
-      <div className="dashboard-equal-grid">
-        <DashboardCard
-          title="Agenda"
-          className="h-full"
-          actions={
+        <div className="tile notices">
+          <AvisosCard
+            className="card avisos-card"
+            onEdit={(announcement) => {
+              setAnnouncementDraft(announcement)
+              setAnnouncementOpen(true)
+            }}
+            onCreate={() => {
+              setAnnouncementDraft(null)
+              setAnnouncementOpen(true)
+            }}
+          />
+        </div>
+
+        <div className="tile agenda">
+          <DashboardCard
+            title="Agenda"
+            className="h-full"
+            actions={
             <div className="flex items-center gap-2">
               <div className="flex rounded-full border border-slate-200 bg-slate-50 p-1">
                 <button
@@ -714,25 +725,22 @@ function DashboardProfessor(){
             </div>
           )}
         </DashboardCard>
+        </div>
 
-        <DashboardCard
-          title="Atividades"
-          className="h-full"
-          contentClassName="flex flex-1 flex-col overflow-hidden"
-        >
-          <ResumoConteudosCard embedded limit={5} className="h-full min-h-0" />
-        </DashboardCard>
+        <div className="tile contents">
+          <DashboardCard
+            title="Atividades"
+            className="h-full"
+            contentClassName="flex flex-1 flex-col overflow-hidden"
+          >
+            <ResumoConteudosCard embedded limit={5} className="h-full min-h-0" />
+          </DashboardCard>
+        </div>
 
-        <DivisaoNotasCard
-          classOptions={classOptions}
-          className="h-full"
-          onEdit={handleEditGradeScheme}
-          editOpen={divisaoNotasOpen}
-          onEditOpenChange={handleDivisaoNotasOpenChange}
-        />
-      </div>
-
-      <MediaGeralBimestre classOptions={classOptions} />
+        <div className="tile charts">
+          <MediaGeralBimestre classOptions={classOptions} />
+        </div>
+      </section>
       <Modal open={showAgendaModal} onClose={() => setShowAgendaModal(false)}>
         <div className="w-full max-w-3xl p-6">
           <div className="mb-4 flex items-center justify-between">
