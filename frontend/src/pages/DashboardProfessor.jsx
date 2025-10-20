@@ -539,19 +539,17 @@ function DashboardProfessor(){
           />
         </div>
 
-        <div className="tile atividades-panel">
-          <AgendaCalendarCard
-            className="min-h-[26rem]"
-            contentClassName="flex-1"
-            refreshToken={agendaRefreshKey}
-            onOpenEditor={handleOpenAgendaEditor}
-            editorLoading={agendaEditorLoading}
-          />
-        </div>
-
         <div className="tile charts">
           <MediaGeralBimestre classOptions={classOptions} />
         </div>
+      </section>
+      <section className="mt-6 grid grid-cols-12 gap-6">
+        <AgendaCalendarCard
+          className="col-span-12"
+          refreshToken={agendaRefreshKey}
+          onOpenEditor={handleOpenAgendaEditor}
+          editorLoading={agendaEditorLoading}
+        />
       </section>
       <DivisaoNotasModal
         ano={gradeSchemeYear}

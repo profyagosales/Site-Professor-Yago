@@ -1,11 +1,28 @@
-import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from 'react';
-import DashboardCard from './DashboardCard';
-import { Button } from '@/components/ui/Button';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
 import { toast } from 'react-toastify';
 import {
+  FiBookOpen,
+  FiCalendar,
+  FiClock,
+  FiEdit2,
+  FiFlag,
+  FiPlus,
+  FiTrash2,
+} from 'react-icons/fi';
+import { Button } from '@/components/ui/Button';
+import {
+  deleteAgendaItem,
   listAgenda,
-  type AgendaListItem,
   type AgendaItemType,
+  type AgendaListItem,
   type AgendaQueryParams,
 } from '@/services/agenda';
 
@@ -21,6 +38,10 @@ const WEEKDAY_FORMATTER = new Intl.DateTimeFormat('pt-BR', { weekday: 'short', t
 const DAY_FORMATTER = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', timeZone: 'UTC' });
 const YEAR_FORMATTER = new Intl.DateTimeFormat('pt-BR', { year: 'numeric', timeZone: 'UTC' });
 const MONTH_FORMATTER = new Intl.DateTimeFormat('pt-BR', { month: 'short', timeZone: 'UTC' });
+const TIME_FORMATTER = new Intl.DateTimeFormat('pt-BR', {
+  hour: '2-digit',
+  minute: '2-digit',
+});
 
 const FILTER_LABELS: Record<FilterOption, string> = {
   ALL: 'Todos',
@@ -36,22 +57,16 @@ const FILTER_TO_QUERY: Record<FilterOption, AgendaQueryParams['tipo']> = {
   DATA: 'data',
 };
 
-const TYPE_STYLES: Record<AgendaItemType, { pill: string; text: string; hover: string }> = {
-  ATIVIDADE: {
-    pill: 'bg-orange-500/15 border border-orange-200',
-    text: 'text-orange-700',
-    hover: 'hover:border-orange-300 hover:bg-orange-500/20',
-  },
-  CONTEUDO: {
-    pill: 'bg-indigo-500/15 border border-indigo-200',
-    text: 'text-indigo-700',
-    hover: 'hover:border-indigo-300 hover:bg-indigo-500/20',
-  },
-  DATA: {
-    pill: 'bg-emerald-500/15 border border-emerald-200',
-    text: 'text-emerald-700',
-    hover: 'hover:border-emerald-300 hover:bg-emerald-500/20',
-  },
+const TYPE_TO_DOT_CLASS: Record<AgendaItemType, string> = {
+  ATIVIDADE: 'bg-orange-400',
+  CONTEUDO: 'bg-indigo-400',
+  DATA: 'bg-emerald-400',
+};
+
+const TYPE_ICON_MAP: Record<AgendaItemType, JSX.Element> = {
+  ATIVIDADE: <FiFlag className="h-4 w-4 text-orange-500" />,
+  CONTEUDO: <FiBookOpen className="h-4 w-4 text-indigo-500" />,
+  DATA: <FiCalendar className="h-4 w-4 text-emerald-500" />,
 };
 
 type FilterOption = 'ALL' | AgendaItemType;
@@ -59,7 +74,6 @@ type ViewMode = 'month' | 'week';
 
 type AgendaCalendarCardProps = {
   className?: string;
-  contentClassName?: string;
   refreshToken?: number;
   onOpenEditor?: (options?: { focusId?: string | null; presetDate?: string | null }) => void;
   editorLoading?: boolean;
@@ -79,6 +93,14 @@ type PeriodContext = {
   calendarEnd: Date;
   label: string;
 };
+
+type PopoverState = {
+  dayKey: string;
+  top: number;
+  left: number;
+};
+
+const EMPTY_ARRAY: AgendaListItem[] = [];
 
 function setUtcMidnight(date: Date): Date {
   const clone = new Date(date);
@@ -163,9 +185,193 @@ function resolveInitialReferenceDate(): Date {
   return clampToYear(reference);
 }
 
+function formatTime(value: string | null | undefined): string | null {
+  if (!value) return null;
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return null;
+    }
+    return TIME_FORMATTER.format(date);
+  } catch {
+    return null;
+  }
+}
+
+function getWeekdayLabel(day: CalendarDay) {
+  return WEEKDAY_FORMATTER.format(day.date).replace('.', '');
+}
+
+const CalendarGrid = memo(function CalendarGrid({
+  viewMode,
+  calendarWeeks,
+  weekDays,
+  itemsByDate,
+  registerDayNode,
+  onDayClick,
+  selectedDayKey,
+  editorLoading,
+  todayKey,
+}: {
+  viewMode: ViewMode;
+  calendarWeeks: CalendarDay[][];
+  weekDays: CalendarDay[];
+  itemsByDate: Map<string, AgendaListItem[]>;
+  registerDayNode: (key: string, node: HTMLDivElement | null) => void;
+  onDayClick: (day: CalendarDay) => void;
+  selectedDayKey: string | null;
+  editorLoading: boolean;
+  todayKey: string;
+}) {
+  if (viewMode === 'month') {
+    return (
+      <div className="grid grid-cols-7 gap-2 pb-6 pr-2 lg:gap-3">
+        {calendarWeeks.map((week) =>
+          week.map((day) => (
+            <CalendarDayTile
+              key={day.key}
+              day={day}
+              events={itemsByDate.get(day.key) ?? EMPTY_ARRAY}
+              registerDayNode={registerDayNode}
+              onDayClick={onDayClick}
+              selectedDayKey={selectedDayKey}
+              editorLoading={editorLoading}
+              isToday={day.key === todayKey}
+              dimmed={!day.isCurrentMonth}
+            />
+          )),
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto snap-x">
+      <div className="grid min-w-max grid-cols-7 gap-2 pb-6 pr-6 snap-mandatory lg:gap-3">
+        {weekDays.map((day) => (
+          <CalendarDayTile
+            key={day.key}
+            day={day}
+            events={itemsByDate.get(day.key) ?? EMPTY_ARRAY}
+            registerDayNode={registerDayNode}
+            onDayClick={onDayClick}
+            selectedDayKey={selectedDayKey}
+            editorLoading={editorLoading}
+            isToday={day.key === todayKey}
+            dimmed={!day.isWithinYear}
+            horizontal
+          />
+        ))}
+      </div>
+    </div>
+  );
+});
+
+const CalendarDayTile = memo(function CalendarDayTile({
+  day,
+  events,
+  registerDayNode,
+  onDayClick,
+  selectedDayKey,
+  editorLoading,
+  isToday,
+  dimmed,
+  horizontal = false,
+}: {
+  day: CalendarDay;
+  events: AgendaListItem[];
+  registerDayNode: (key: string, node: HTMLDivElement | null) => void;
+  onDayClick: (day: CalendarDay) => void;
+  selectedDayKey: string | null;
+  editorLoading: boolean;
+  isToday: boolean;
+  dimmed: boolean;
+  horizontal?: boolean;
+}) {
+  const refCallback = useCallback(
+    (node: HTMLDivElement | null) => {
+      registerDayNode(day.key, node);
+    },
+    [day.key, registerDayNode],
+  );
+
+  const weekday = getWeekdayLabel(day).toUpperCase();
+  const dayNumber = DAY_FORMATTER.format(day.date);
+  const hasEvents = events.length > 0;
+  const dots = events.slice(0, 4);
+  const overflow = events.length - dots.length;
+  const disabled = !day.isWithinYear || editorLoading;
+  const isSelected = selectedDayKey === day.key;
+
+  return (
+    <div
+      ref={refCallback}
+      className={[
+        'flex min-h-[96px] lg:min-h-[112px] flex-col rounded-2xl border border-black/5 bg-white/70 p-2 text-left transition duration-250',
+        'hover:-translate-y-[1px] hover:shadow-md hover:bg-white/90',
+        horizontal ? 'snap-start min-w-[140px]' : '',
+        dimmed ? 'opacity-60' : '',
+        isSelected ? 'ring-2 ring-ys-amber' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onDayClick(day)}
+        className="flex w-full items-center justify-between rounded-xl px-2 py-1 text-[11px] font-medium text-black/60 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ys-amber disabled:cursor-not-allowed"
+      >
+        <span className="uppercase tracking-wide">{weekday}</span>
+        <span
+          className={[
+            'ml-auto inline-flex min-w-[2.25rem] items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-semibold',
+            isToday ? 'bg-ys-amber text-white' : 'bg-black/5 text-black/70',
+          ].join(' ')}
+        >
+          {dayNumber}
+        </span>
+      </button>
+      {hasEvents ? (
+        <div className="mt-3 flex flex-wrap items-center gap-1">
+          {dots.map((item) => (
+            <span
+              key={item.id}
+              className={`h-2.5 w-2.5 rounded-full ${TYPE_TO_DOT_CLASS[item.type]}`}
+              title={item.title}
+            />
+          ))}
+          {overflow > 0 ? (
+            <span className="ml-1 text-[11px] font-semibold text-black/50">+{overflow}</span>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+});
+
+CalendarDayTile.displayName = 'CalendarDayTile';
+CalendarGrid.displayName = 'CalendarGrid';
+
+function useOutsideClick(ref: React.RefObject<HTMLDivElement>, handler: () => void) {
+  useEffect(() => {
+    function handleClick(event: MouseEvent) {
+      if (!ref.current) return;
+      if (event.target instanceof Node && ref.current.contains(event.target)) {
+        return;
+      }
+      handler();
+    }
+
+    window.addEventListener('mousedown', handleClick);
+    return () => {
+      window.removeEventListener('mousedown', handleClick);
+    };
+  }, [handler, ref]);
+}
+
 export default function AgendaCalendarCard({
   className = '',
-  contentClassName = '',
   refreshToken = 0,
   onOpenEditor,
   editorLoading = false,
@@ -176,9 +382,22 @@ export default function AgendaCalendarCard({
   const [items, setItems] = useState<AgendaListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasFetched, setHasFetched] = useState(false);
+  const [popover, setPopover] = useState<PopoverState | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const cardClassName = ['flex h-full min-h-[26rem] flex-col', className].filter(Boolean).join(' ');
-  const cardContentClassName = ['flex h-full min-h-0 flex-col gap-4', contentClassName].filter(Boolean).join(' ');
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const dayNodeMap = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  const todayKey = useMemo(() => toDateKey(setUtcMidnight(new Date())), []);
+
+  const cardClassName = [
+    'w-full max-w-none rounded-[22px] border border-black/5 bg-white/80 shadow-ys-md backdrop-blur-sm',
+    'flex h-full min-h-[28rem] flex-col',
+    className,
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   const period = useMemo<PeriodContext>(() => {
     if (viewMode === 'month') {
@@ -333,12 +552,58 @@ export default function AgendaCalendarCard({
     };
   }, [activeFilter, period.fetchEnd, period.fetchStart, refreshToken]);
 
+  const registerDayNode = useCallback((key: string, node: HTMLDivElement | null) => {
+    if (!node) {
+      dayNodeMap.current.delete(key);
+      return;
+    }
+    dayNodeMap.current.set(key, node);
+  }, []);
+
+  const closePopover = useCallback(() => {
+    setPopover(null);
+  }, []);
+
+  useOutsideClick(popoverRef, closePopover);
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        onOpenEditor?.();
+      }
+      if (event.key === 'Escape') {
+        closePopover();
+      }
+    };
+
+    window.addEventListener('keydown', handler);
+    return () => {
+      window.removeEventListener('keydown', handler);
+    };
+  }, [closePopover, onOpenEditor]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const handleScroll = () => {
+      if (popover) {
+        closePopover();
+      }
+    };
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+    };
+  }, [closePopover, popover]);
+
   const handleToggleView = useCallback(
     (mode: ViewMode) => {
       setViewMode(mode);
+      setPopover(null);
       setCurrentDate((prev) => (mode === 'month' ? startOfMonthUtc(prev) : startOfWeekUtc(prev)));
     },
-    []
+    [],
   );
 
   const handlePrevPeriod = useCallback(() => {
@@ -352,6 +617,7 @@ export default function AgendaCalendarCard({
       const next = addDaysUtc(weekStart, -7);
       return next.getTime() < MIN_WEEK_START.getTime() ? new Date(MIN_WEEK_START) : next;
     });
+    setPopover(null);
   }, [viewMode]);
 
   const handleNextPeriod = useCallback(() => {
@@ -365,10 +631,11 @@ export default function AgendaCalendarCard({
       const next = addDaysUtc(weekStart, 7);
       return next.getTime() > MAX_WEEK_START.getTime() ? new Date(MAX_WEEK_START) : next;
     });
+    setPopover(null);
   }, [viewMode]);
 
   const handleNavKey = useCallback(
-    (event: KeyboardEvent<HTMLDivElement>) => {
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
       if (event.key === 'ArrowLeft' && canGoPrev) {
         event.preventDefault();
         handlePrevPeriod();
@@ -377,7 +644,7 @@ export default function AgendaCalendarCard({
         handleNextPeriod();
       }
     },
-    [canGoNext, canGoPrev, handleNextPeriod, handlePrevPeriod]
+    [canGoNext, canGoPrev, handleNextPeriod, handlePrevPeriod],
   );
 
   const handleDayClick = useCallback(
@@ -385,120 +652,113 @@ export default function AgendaCalendarCard({
       if (!day.isWithinYear) {
         return;
       }
-      onOpenEditor?.({ presetDate: day.key });
+      const node = dayNodeMap.current.get(day.key);
+      const container = containerRef.current;
+      if (!node || !container) {
+        onOpenEditor?.({ presetDate: day.key });
+        return;
+      }
+
+      if (popover?.dayKey === day.key) {
+        setPopover(null);
+        return;
+      }
+
+      const nodeRect = node.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      const top = nodeRect.top - containerRect.top + container.scrollTop + nodeRect.height + 12;
+      const left = nodeRect.left - containerRect.left + container.scrollLeft + nodeRect.width / 2;
+      setPopover({ dayKey: day.key, top, left });
     },
-    [onOpenEditor]
+    [onOpenEditor, popover?.dayKey],
   );
 
   const handleItemClick = useCallback(
     (item: AgendaListItem) => {
       onOpenEditor?.({ focusId: item.id });
+      closePopover();
     },
-    [onOpenEditor]
+    [closePopover, onOpenEditor],
   );
 
-  const handleEmptyAdd = useCallback(() => {
+  const handleDeleteItem = useCallback(
+    async (item: AgendaListItem) => {
+      if (deletingId) return;
+      try {
+        setDeletingId(item.id);
+        await deleteAgendaItem(item.id);
+        setItems((prev) => prev.filter((entry) => entry.id !== item.id));
+        toast.success('Item removido da agenda.');
+        closePopover();
+      } catch (error) {
+        console.error('[AgendaCalendarCard] Falha ao excluir item', error);
+        toast.error('Não foi possível excluir o item.');
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [closePopover, deletingId],
+  );
+
+  const handleQuickAdd = useCallback(() => {
     const candidate = clampToYear(period.fetchStart);
     onOpenEditor?.({ presetDate: toDateKey(candidate) });
   }, [onOpenEditor, period.fetchStart]);
 
-  const renderDayHeader = (day: CalendarDay) => {
-    const weekdayLabel = WEEKDAY_FORMATTER.format(day.date).replace('.', '');
-    const dayLabel = DAY_FORMATTER.format(day.date);
-    const monthLabel = MONTH_FORMATTER.format(day.date).replace('.', '');
-    const yearLabel = YEAR_FORMATTER.format(day.date);
-    return (
-      <button
-        type="button"
-        onClick={() => handleDayClick(day)}
-        disabled={!day.isWithinYear || editorLoading}
-        aria-label={`Adicionar item em ${dayLabel} ${monthLabel} ${yearLabel}`}
-        className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 ${
-          day.isCurrentMonth ? 'text-slate-700' : 'text-slate-400'
-        } ${day.isWithinYear ? 'bg-white hover:bg-slate-50' : 'bg-slate-100 cursor-not-allowed opacity-50'}`}
-      >
-        <span className="uppercase">{weekdayLabel}</span>
-        <span>{dayLabel}</span>
-      </button>
-    );
-  };
-
-  const renderPills = (dayKey: string) => {
-    const entries = itemsByDate.get(dayKey) ?? [];
-    if (!entries.length) {
-      return null;
-    }
-    return (
-      <div className="mt-2 flex flex-col gap-1">
-        {entries.map((item) => {
-          const style = TYPE_STYLES[item.type];
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => handleItemClick(item)}
-              disabled={editorLoading}
-              className={`flex items-center justify-between rounded-full px-3 py-1 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 disabled:cursor-not-allowed disabled:opacity-60 ${
-                style.pill
-              } ${style.text} ${style.hover}`}
-            >
-              <span className="truncate text-left">{item.title}</span>
-              <span className="ml-2 text-[0.65rem] uppercase tracking-wide text-slate-500">{FILTER_LABELS[item.type]}</span>
-            </button>
-          );
-        })}
-      </div>
-    );
-  };
+  const popoverItems = popover ? itemsByDate.get(popover.dayKey) ?? EMPTY_ARRAY : EMPTY_ARRAY;
+  const isEmpty = !loading && visibleItemCount === 0;
 
   return (
-    <DashboardCard
-      title="Agenda"
-      className={cardClassName}
-      contentClassName={cardContentClassName}
-      action={
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex rounded-full border border-slate-200 bg-white p-1 text-xs font-semibold shadow-sm">
-            {(['month', 'week'] as ViewMode[]).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => handleToggleView(mode)}
-                className={`rounded-full px-3 py-1 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 ${
-                  viewMode === mode ? 'bg-orange-100 text-orange-700 shadow-sm' : 'text-slate-500'
-                }`}
-                aria-pressed={viewMode === mode}
-              >
-                {mode === 'month' ? 'Mês' : 'Semana'}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap gap-2">
+    <section className={cardClassName}>
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-black/5 pb-3 px-5 pt-4">
+        <div className="flex flex-1 flex-wrap items-center gap-3">
+          <h3 className="text-xl font-semibold text-slate-900">Agenda</h3>
+          <nav className="flex flex-wrap items-center gap-1 text-sm">
             {(Object.keys(FILTER_LABELS) as FilterOption[]).map((option) => {
               const active = activeFilter === option;
               return (
                 <button
                   key={option}
                   type="button"
-                  onClick={() => setActiveFilter(option)}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 ${
+                  onClick={() => {
+                    setActiveFilter(option);
+                    setPopover(null);
+                  }}
+                  className={[
+                    'rounded-full px-3 py-1 text-sm font-medium transition duration-250',
                     active
                       ? 'bg-slate-900 text-white shadow-sm'
-                      : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                  }`}
+                      : 'bg-black/5 text-black/60 hover:bg-black/10',
+                  ].join(' ')}
                   aria-pressed={active}
                 >
                   {FILTER_LABELS[option]}
                 </button>
               );
             })}
+          </nav>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 rounded-full bg-black/5 px-1 py-1">
+            {(['week', 'month'] as ViewMode[]).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => handleToggleView(mode)}
+                className={[
+                  'rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide transition duration-250',
+                  viewMode === mode ? 'bg-white text-slate-900 shadow-sm' : 'text-black/60 hover:text-slate-900',
+                ].join(' ')}
+                aria-pressed={viewMode === mode}
+              >
+                {mode === 'month' ? 'Mês' : 'Semana'}
+              </button>
+            ))}
           </div>
-
           <div
-            className="flex items-center gap-2 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500"
-            tabIndex={0}
+            className="flex items-center gap-2 rounded-full border border-black/10 bg-white/70 px-3 py-1 text-sm font-medium text-black/70 shadow-sm"
             role="group"
+            tabIndex={0}
             onKeyDown={handleNavKey}
           >
             <button
@@ -506,11 +766,11 @@ export default function AgendaCalendarCard({
               onClick={handlePrevPeriod}
               disabled={!canGoPrev || loading}
               aria-label={viewMode === 'month' ? 'Mês anterior' : 'Semana anterior'}
-              className="rounded-full border border-slate-200 bg-white px-2 py-1 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-full px-2 py-1 text-lg leading-none transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40"
             >
               ‹
             </button>
-            <span className="min-w-[8rem] text-center text-sm font-semibold text-slate-700 uppercase tracking-wide">
+            <span className="whitespace-nowrap px-1 text-sm font-semibold uppercase tracking-wide text-black/70">
               {period.label}
             </span>
             <button
@@ -518,72 +778,144 @@ export default function AgendaCalendarCard({
               onClick={handleNextPeriod}
               disabled={!canGoNext || loading}
               aria-label={viewMode === 'month' ? 'Próximo mês' : 'Próxima semana'}
-              className="rounded-full border border-slate-200 bg-white px-2 py-1 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-full px-2 py-1 text-lg leading-none transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40"
             >
               ›
             </button>
           </div>
-
           <Button
             type="button"
+            variant="ghost"
             size="sm"
-            variant="outline"
             onClick={() => onOpenEditor?.()}
             disabled={editorLoading}
+            className="inline-flex"
           >
-            Editar
+            <FiEdit2 className="h-4 w-4" />
+            <span className="hidden sm:inline">Editar</span>
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleQuickAdd}
+            disabled={editorLoading}
+            className="inline-flex"
+          >
+            <FiPlus className="h-4 w-4" />
+            <span className="lg:hidden">Adicionar</span>
           </Button>
         </div>
-      }
-    >
-      {loading && hasFetched ? (
-        <div className={`grid gap-2 ${viewMode === 'month' ? 'grid-cols-7' : 'grid-cols-7'}`}>
-          {Array.from({ length: viewMode === 'month' ? 42 : 7 }).map((_, index) => (
-            <div key={index} className="h-24 rounded-2xl bg-slate-100 animate-pulse" />
-          ))}
-        </div>
-      ) : (
-        <div className="flex-1 overflow-x-auto">
-          {viewMode === 'month' ? (
-            <div className="grid grid-cols-7 gap-3">
-              {calendarWeeks.map((week) =>
-                week.map((day) => (
-                  <div key={day.key} className="flex min-h-[7.5rem] flex-col rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
-                    {renderDayHeader(day)}
-                    <div className="flex-1 overflow-hidden">
-                      {renderPills(day.key) ?? (
-                        <p className="mt-2 text-xs text-slate-400">Sem itens</p>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          ) : (
-            <div className="grid grid-cols-7 gap-3">
-              {weekDays.map((day) => (
-                <div key={day.key} className="flex min-h-[8rem] flex-col rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
-                  {renderDayHeader(day)}
-                  <div className="flex-1 overflow-hidden">
-                    {renderPills(day.key) ?? (
-                      <p className="mt-2 text-xs text-slate-400">Sem itens</p>
-                    )}
-                  </div>
-                </div>
+      </header>
+
+      <div ref={containerRef} className="relative h-[540px] flex-1 overflow-auto overscroll-contain px-1">
+        <div className="space-y-4 px-4 py-5">
+          {loading && hasFetched ? (
+            <div className={viewMode === 'month' ? 'grid grid-cols-7 gap-2 lg:gap-3' : 'grid grid-cols-7 gap-2 lg:gap-3'}>
+              {Array.from({ length: viewMode === 'month' ? 42 : 7 }).map((_, index) => (
+                <div key={index} className="h-24 rounded-2xl bg-black/5 animate-pulse" />
               ))}
             </div>
+          ) : (
+            <>
+              {isEmpty ? (
+                <div className="text-sm text-black/50 flex items-center gap-2 px-2 py-2">
+                  <span role="img" aria-label="Sem itens">
+                    🌤️
+                  </span>
+                  <span>Sem itens no período selecionado.</span>
+                </div>
+              ) : null}
+              <CalendarGrid
+                viewMode={viewMode}
+                calendarWeeks={calendarWeeks}
+                weekDays={weekDays}
+                itemsByDate={itemsByDate}
+                registerDayNode={(key, node) => {
+                  registerDayNode(key, node);
+                  if (popover?.dayKey === key && !node) {
+                    setPopover(null);
+                  }
+                }}
+                onDayClick={handleDayClick}
+                selectedDayKey={popover?.dayKey ?? null}
+                editorLoading={editorLoading}
+                todayKey={todayKey}
+              />
+            </>
           )}
         </div>
-      )}
-
-      {!loading && visibleItemCount === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 py-10 text-center">
-          <p className="text-sm text-slate-500">Nenhum item neste período.</p>
-          <Button type="button" size="sm" onClick={handleEmptyAdd} disabled={editorLoading}>
-            Adicionar item
-          </Button>
-        </div>
-      ) : null}
-    </DashboardCard>
+        {popover ? (
+          <div
+            ref={popoverRef}
+            className="pointer-events-auto absolute z-20 max-w-[320px] rounded-2xl border border-black/5 bg-white/95 p-3 shadow-xl backdrop-blur"
+            style={{
+              top: popover.top,
+              left: popover.left,
+              transform: 'translate(-50%, 0)',
+            }}
+          >
+            <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-black/50">
+              <FiCalendar className="h-4 w-4" />
+              {popover.dayKey}
+            </div>
+            {popoverItems.length ? (
+              <ul className="flex flex-col gap-3">
+                {popoverItems.map((item) => {
+                  const timeLabel = formatTime(item.date);
+                  return (
+                    <li key={item.id} className="rounded-2xl border border-black/5 bg-white/90 p-3 shadow-sm">
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5 shrink-0 rounded-full bg-black/5 p-2">{TYPE_ICON_MAP[item.type]}</div>
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <p
+                            className="text-sm font-semibold text-slate-900 leading-snug"
+                            style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                          >
+                            {item.title}
+                          </p>
+                          <p className="text-xs text-black/50">
+                            {item.className ?? 'Turma'}
+                            {timeLabel ? (
+                              <span className="ml-2 inline-flex items-center gap-1 text-[11px] text-black/40">
+                                <FiClock className="h-3 w-3" />
+                                {timeLabel}
+                              </span>
+                            ) : null}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex items-center justify-end gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleItemClick(item)}
+                        >
+                          <FiEdit2 className="h-4 w-4" />
+                          Editar
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteItem(item)}
+                          disabled={deletingId === item.id}
+                        >
+                          <FiTrash2 className="h-4 w-4 text-rose-500" />
+                          Excluir
+                        </Button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <div className="text-sm text-black/50">Sem itens neste dia.</div>
+            )}
+          </div>
+        ) : null}
+      </div>
+    </section>
   );
 }
