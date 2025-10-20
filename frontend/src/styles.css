@@ -140,6 +140,25 @@ html, body, #root { height: 100%; background: #F2F4F7; }
     gap: 0.5rem;
     padding: 1rem;
   }
+
+  .mini-stat-card.compact {
+    width: 160px;
+    height: 120px;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    gap: 0.35rem;
+  }
+
+  .mini-stat-card.compact .mini-stat-label {
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+  }
+
+  .mini-stat-card.compact .mini-stat-value {
+    font-size: 2.25rem;
+    font-weight: 800;
+  }
   .mini-stat-label {
     font-size: 0.75rem;
     font-weight: 600;
@@ -231,8 +250,8 @@ html, body, #root { height: 100%; background: #F2F4F7; }
   display: grid;
   gap: clamp(1.25rem, 2.5vw, 1.5rem);
   grid-template-areas:
-    "left title title rightTop"
-    "left ctas ctas rightBot";
+    "left title title metrics"
+    "left ctas ctas metrics";
   grid-template-columns: minmax(220px, 260px) repeat(2, minmax(0, 1fr)) minmax(200px, 240px);
   align-items: stretch;
 }
@@ -265,11 +284,24 @@ html, body, #root { height: 100%; background: #F2F4F7; }
 }
 
 .hero-title-heading {
-  font-size: clamp(28px, 3vw, 44px);
+  font-size: clamp(32px, 4vw, 40px);
   font-weight: 800;
-  letter-spacing: 0.5px;
-  line-height: 1.1;
+  letter-spacing: 0.3px;
+  line-height: 1.05;
   text-transform: none;
+}
+
+.hero-welcome {
+  font-size: 0.75rem;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.hero-name {
+  font-size: clamp(1.5rem, 3vw, 1.75rem);
+  font-weight: 700;
+  margin-top: 4px;
 }
 
 .hero-ctas {
@@ -280,15 +312,20 @@ html, body, #root { height: 100%; background: #F2F4F7; }
   gap: clamp(1.25rem, 2.5vw, 1.5rem);
 }
 
-.hero-cta {
+.hero-ctas--compact {
+  gap: 16px;
+}
+
+.cta-compact {
   @apply btn-primary;
-  border-radius: 9999px;
-  min-width: 160px;
-  min-height: 44px;
-  padding: 0 clamp(1.25rem, 3vw, 1.5rem);
-  font-size: 0.95rem;
+  height: 48px;
+  padding: 0 20px;
+  border-radius: 28px;
+  font-size: 1rem;
   font-weight: 600;
-  line-height: 1.1;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+  max-width: 220px;
+  width: auto;
 }
 
 .dash-grid {
@@ -387,60 +424,27 @@ html, body, #root { height: 100%; background: #F2F4F7; }
   }
 }
 
-.hero-right-top {
-  grid-area: rightTop;
-  min-height: 36px;
-  position: relative;
-  display: flex;
-  justify-content: flex-end;
-  align-items: flex-start;
-}
-
-.hero-logout {
-  position: absolute;
-  top: clamp(16px, 2.5vw, 24px);
-  right: clamp(16px, 4vw, 28px);
-  min-height: 36px;
-  padding: 0 clamp(1rem, 2.5vw, 1.25rem);
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-  font-size: 0.875rem;
-  font-weight: 600;
-  backdrop-filter: blur(6px);
-  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.18);
-  transition: background-color 150ms ease, border-color 150ms ease;
-}
-
-.hero-logout:hover {
-  background: rgba(255, 255, 255, 0.22);
-  border-color: rgba(255, 255, 255, 0.55);
-}
-
-.hero-logout:focus-visible {
-  outline: var(--ys-focus-outline);
-  outline-offset: 2px;
-}
-
-.hero-right-stats {
-  grid-area: rightBot;
+.hero-metrics {
+  grid-area: metrics;
   display: grid;
-  grid-template-columns: repeat(2, minmax(160px, 1fr));
-  gap: clamp(1rem, 2vw, 1.5rem);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
   align-self: stretch;
   justify-items: center;
   align-content: center;
 }
 
+.hero-metrics--center {
+  justify-items: center;
+}
+
 @media (max-width: 1023px) {
   .hero-grid {
     grid-template-areas:
-      "rightTop"
       "title"
       "left"
       "ctas"
-      "rightBot";
+      "metrics";
     grid-template-columns: minmax(0, 1fr);
     text-align: center;
   }
@@ -455,19 +459,8 @@ html, body, #root { height: 100%; background: #F2F4F7; }
     text-align: center;
   }
 
-  .hero-right-top {
-    justify-content: center;
-  }
-
-  .hero-right-stats {
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  }
-
-  .hero-logout {
-    position: static;
-    margin: 0 auto;
-    min-height: 36px;
-    margin-bottom: 0.5rem;
+  .hero-metrics {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   }
 }
 

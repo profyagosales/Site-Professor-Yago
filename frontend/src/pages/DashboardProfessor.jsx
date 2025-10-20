@@ -5,7 +5,6 @@ import QuickContentModal from '@/components/QuickContentModal'
 import AnnouncementModal from '@/components/AnnouncementModal'
 import { getCurrentUser } from '@/services/auth'
 import { listMyClasses, mergeCalendars, getClassDetails } from '@/services/classes.service'
-import { useAuth } from '@/store/AuthContext'
 import { Button } from '@/components/ui/Button'
 import DashboardCard from '@/components/dashboard/DashboardCard'
 import MediaGeralBimestre from '@/components/dashboard/MediaGeralBimestre'
@@ -133,8 +132,6 @@ function DashboardProfessor(){
   const [calendarScope, setCalendarScope] = useState('week')
   const [showAgendaModal, setShowAgendaModal] = useState(false)
   const [divisaoNotasOpen, setDivisaoNotasOpen] = useState(false)
-  const { logout: logoutSession } = useAuth()
-
   const classSummariesRef = useRef(classSummaries)
   const classDetailsRef = useRef(classDetails)
 
@@ -309,10 +306,6 @@ function DashboardProfessor(){
     })()
     return () => { abort = true }
   }, [refreshCalendarEvents])
-
-  const handleLogout = async () => {
-    await logoutSession()
-  }
 
   const reloadContents = useCallback(async () => {
     await refreshCalendarEvents()
@@ -601,9 +594,8 @@ function DashboardProfessor(){
               </div>
             )}
             <div className="hero-left-text">
-              <p className="text-xs uppercase tracking-wide text-white/80">Bem-vindo de volta</p>
-              <p className="text-2xl font-semibold md:text-3xl">{user?.name || 'Professor'}</p>
-              <p className="text-sm text-white/80">Painel do professor</p>
+              <small className="hero-welcome">Bem-vindo de volta</small>
+              <h2 className="hero-name">{user?.name || 'Professor'}</h2>
             </div>
           </div>
 
@@ -611,12 +603,12 @@ function DashboardProfessor(){
             <h1 className="hero-title-heading">Painel do Professor</h1>
           </div>
 
-          <div className="hero-ctas">
-            <Button className="hero-cta" onClick={() => setShowEmail(true)}>
+          <div className="hero-ctas hero-ctas--compact">
+            <Button className="cta-compact" onClick={() => setShowEmail(true)}>
               Enviar e-mail
             </Button>
             <Button
-              className="hero-cta"
+              className="cta-compact"
               onClick={() => {
                 setAnnouncementDraft(null)
                 setAnnouncementOpen(true)
@@ -624,23 +616,17 @@ function DashboardProfessor(){
             >
               Novo aviso
             </Button>
-            <Button className="hero-cta" onClick={() => setContentOpen(true)}>
+            <Button className="cta-compact" onClick={() => setContentOpen(true)}>
               Atividades
             </Button>
           </div>
 
-          <div className="hero-right-top">
-            <Button type="button" className="hero-logout" onClick={handleLogout}>
-              Sair
-            </Button>
-          </div>
-
-          <div className="hero-right-stats">
-            <div className="mini-stat-card">
+          <div className="hero-metrics hero-metrics--center">
+            <div className="mini-stat-card compact">
               <p className="mini-stat-label">Turmas</p>
               <p className="mini-stat-value">{totalClasses}</p>
             </div>
-            <div className="mini-stat-card">
+            <div className="mini-stat-card compact">
               <p className="mini-stat-label">Total de alunos</p>
               <p className="mini-stat-value">{uniqueStudentsCount}</p>
             </div>
