@@ -649,12 +649,12 @@ function DashboardProfessor(){
       </section>
 
       <section className="dash-grid">
-        <div className="prof-grid">
+        <div className="prof-grid grid-gap">
           <div className="tile schedule">
             <DashboardCard
               title="Horário Semanal"
-              className="card schedule-card"
-              contentClassName="card-body schedule-card-body"
+              className="schedule-card"
+              contentClassName="schedule-card-body"
             >
               <WeeklySchedule slots={SLOT_CONFIG} days={WEEKDAY_CONFIG} cells={scheduleMatrix} />
             </DashboardCard>
@@ -672,7 +672,6 @@ function DashboardProfessor(){
 
           <div className="tile notices">
             <AvisosCard
-              className="card"
               onEdit={(announcement) => {
                 setAnnouncementDraft(announcement)
                 setAnnouncementOpen(true)
@@ -685,11 +684,11 @@ function DashboardProfessor(){
           </div>
         </div>
 
-        <div className="agenda-atividades">
+        <div className="agenda-atividades grid-gap">
           <div className="tile agenda-panel">
             <DashboardCard
               title="Agenda"
-              className="h-full"
+              className="h-full min-h-[24rem]"
               actions={
                 <div className="flex items-center gap-2">
                   <div className="flex rounded-full border border-slate-200 bg-slate-50 p-1">
@@ -716,7 +715,7 @@ function DashboardProfessor(){
                   </div>
                 </div>
               }
-              contentClassName="flex flex-1 flex-col overflow-hidden"
+              contentClassName="overflow-hidden"
             >
               {insightsLoading ? (
                 <div className="flex-1 animate-pulse rounded-2xl bg-slate-100" />
@@ -766,8 +765,8 @@ function DashboardProfessor(){
           <div className="tile atividades-panel">
             <DashboardCard
               title="Atividades"
-              className="h-full"
-              contentClassName="flex flex-1 flex-col overflow-hidden"
+              className="h-full min-h-[24rem]"
+              contentClassName="overflow-hidden"
             >
               <ResumoConteudosCard embedded limit={5} className="h-full min-h-0" />
             </DashboardCard>

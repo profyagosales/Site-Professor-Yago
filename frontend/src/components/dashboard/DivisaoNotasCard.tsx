@@ -161,7 +161,7 @@ export default function DivisaoNotasCard({
             Editar
           </Button>
         }
-        contentClassName="flex flex-1 flex-col overflow-hidden"
+        contentClassName="overflow-hidden"
       >
         <div className="flex flex-wrap items-center gap-3">
           <div>

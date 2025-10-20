@@ -132,7 +132,7 @@ export default function AvisosCard({
   onCreate = noop,
 }: AvisosCardProps) {
   const cardClassName = ['avisos-card', className].filter(Boolean).join(' ');
-  const cardContentClassName = 'avisos-card-content flex flex-1 min-h-0 flex-col overflow-hidden';
+  const cardContentClassName = 'avisos-card-content';
   const hasEditAction = onEdit !== noop;
   const hasCreateAction = onCreate !== noop;
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
