@@ -512,12 +512,18 @@ export default function AvisosCard({
                 </p>
                 <h4 className="text-lg font-semibold text-slate-900">{activeAnnouncement?.subject}</h4>
               </header>
-              <div className="avisos-body space-y-4">
+              <div className="avisos-body">
                 <div
-                  className="rich-content prose prose-sm max-w-none text-slate-700"
-                  dangerouslySetInnerHTML={{ __html: announcementHtml }}
-                />
-                <AttachmentList attachments={activeAnnouncement?.attachments} />
+                  className="avisos-content fixed-height space-y-4"
+                  role="region"
+                  aria-label="Avisos da turma"
+                >
+                  <div
+                    className="rich-content prose prose-sm max-w-none text-slate-700"
+                    dangerouslySetInnerHTML={{ __html: announcementHtml }}
+                  />
+                  <AttachmentList attachments={activeAnnouncement?.attachments} />
+                </div>
               </div>
             </div>
             {announcements.length > 1 ? (
