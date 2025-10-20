@@ -8,7 +8,7 @@ import { listMyClasses, mergeCalendars, getClassDetails } from '@/services/class
 import { Button } from '@/components/ui/Button'
 import DashboardCard from '@/components/dashboard/DashboardCard'
 import MediaGeralBimestre from '@/components/dashboard/MediaGeralBimestre'
-import ResumoConteudosCard from '@/components/dashboard/ResumoConteudosCard'
+import AgendaCard from '@/components/dashboard/AgendaCard'
 import AtividadesCard from '@/components/dashboard/AtividadesCard'
 import WeeklySchedule from '@/components/dashboard/WeeklySchedule'
 import AvisosCard from '@/components/dashboard/AvisosCard'
@@ -136,8 +136,6 @@ function DashboardProfessor(){
   const [announcementDraft, setAnnouncementDraft] = useState(null)
   const [calendarScope, setCalendarScope] = useState('week')
   const [showAgendaModal, setShowAgendaModal] = useState(false)
-  const [agendaCardAction, setAgendaCardAction] = useState(null)
-  const [activitiesCardAction, setActivitiesCardAction] = useState(null)
   const [divisaoNotasOpen, setDivisaoNotasOpen] = useState(false)
   const [gradeSchemeDraft, setGradeSchemeDraft] = useState(/** @type {import('@/services/gradeScheme').GradeScheme | null} */(null))
   const [gradeSchemeRefreshKey, setGradeSchemeRefreshKey] = useState(0)
@@ -758,34 +756,10 @@ function DashboardProfessor(){
         <div className="tile atividades-panel">
           <div className="grid h-full grid-cols-12 gap-6">
             <div className="col-span-12 xl:col-span-6 flex flex-col">
-              <DashboardCard
-                title="Agenda"
-                className="min-h-[24rem] flex-1"
-                action={agendaCardAction}
-                contentClassName="overflow-hidden"
-              >
-                <ResumoConteudosCard
-                  embedded
-                  limit={5}
-                  className="h-full min-h-0"
-                  onActionChange={setAgendaCardAction}
-                />
-              </DashboardCard>
+              <AgendaCard className="min-h-[24rem] flex-1" contentClassName="overflow-hidden" limit={5} />
             </div>
             <div className="col-span-12 xl:col-span-6 flex flex-col">
-              <DashboardCard
-                title="Atividades"
-                className="min-h-[24rem] flex-1"
-                action={activitiesCardAction}
-                contentClassName="overflow-hidden"
-              >
-                <AtividadesCard
-                  embedded
-                  limit={5}
-                  className="h-full min-h-0"
-                  onActionChange={setActivitiesCardAction}
-                />
-              </DashboardCard>
+              <AtividadesCard className="min-h-[24rem] flex-1" limit={5} />
             </div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import Modal from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
+import DashboardCard from './DashboardCard';
 import { listContents, deleteContent } from '@/services/contents';
 import type { ContentItem } from '@/types/school';
 import { toast } from 'react-toastify';
@@ -50,14 +51,7 @@ export default function AtividadesCard({
   const [modalHasMore, setModalHasMore] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
 
-  const containerClass = embedded
-    ? ['flex h-full min-h-0 flex-col gap-4', className].filter(Boolean).join(' ')
-    : [
-        'flex h-full min-h-[24rem] flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm',
-        className,
-      ]
-        .filter(Boolean)
-        .join(' ');
+  const containerClass = ['flex h-full min-h-0 flex-col gap-4', className].filter(Boolean).join(' ');
 
   const loadSummary = async () => {
     setLoading(true);
@@ -143,133 +137,164 @@ export default function AtividadesCard({
 
   const isEditDisabled = loading && items.length === 0;
 
+  const renderEditButton = useCallback(
+    () => (
+      <Button type="button" variant="ghost" size="sm" onClick={openModal} disabled={isEditDisabled}>
+        Editar
+      </Button>
+    ),
+    [openModal, isEditDisabled],
+  );
+
+  const shouldRenderHeader = embedded && !onActionChange;
+
   useEffect(() => {
     if (!embedded || !onActionChange) {
       return;
     }
 
-    onActionChange(
-      <Button type="button" variant="ghost" size="sm" onClick={openModal} disabled={isEditDisabled}>
-        Editar
-      </Button>,
-    );
+    onActionChange(renderEditButton());
 
     return () => {
       onActionChange(null);
     };
-  }, [embedded, onActionChange, openModal, isEditDisabled]);
+  }, [embedded, onActionChange, renderEditButton]);
 
-  const shouldRenderHeader = !embedded || !onActionChange;
+  const headerAction = renderEditButton();
 
-  return (
-    <div className={containerClass}>
-      {shouldRenderHeader ? (
-        <div className="flex items-center justify-between gap-3">
-          <h3 className={embedded ? 'text-sm font-semibold text-slate-900' : 'card-title text-slate-900'}>
-            Atividades
-          </h3>
-          <Button type="button" variant="ghost" size="sm" onClick={openModal} disabled={isEditDisabled}>
-            Editar
+  const content = (
+    <div className="min-h-0 flex-1">
+      {loading ? (
+        <div className="h-28 w-full animate-pulse rounded-xl bg-slate-100" />
+      ) : error ? (
+        <p className="text-sm text-slate-500">{error}</p>
+      ) : displayedItems.length === 0 ? (
+        <p className="text-sm text-slate-500">Nenhuma atividade cadastrada recentemente.</p>
+      ) : (
+        <ul className="space-y-3">
+          {displayedItems.map((item) => (
+            <li key={item.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0 space-y-1">
+                  <p className="truncate text-sm font-semibold text-slate-800">{item.title}</p>
+                  <p className="truncate text-xs text-slate-500">{item.className}</p>
+                </div>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                  {formatContentDate(item.date)}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+
+  const modalElement = (
+    <Modal open={modalOpen} onClose={closeModal}>
+      <div className="w-full max-w-4xl p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="card-title text-slate-900">Atividades cadastradas</h2>
+          <Button variant="ghost" onClick={closeModal}>
+            Fechar
           </Button>
         </div>
-      ) : null}
 
-      <div className="min-h-0 flex-1">
-        {loading ? (
-          <div className="h-28 w-full animate-pulse rounded-xl bg-slate-100" />
-        ) : error ? (
-          <p className="text-sm text-slate-500">{error}</p>
-        ) : displayedItems.length === 0 ? (
-          <p className="text-sm text-slate-500">Nenhuma atividade cadastrada recentemente.</p>
-        ) : (
-          <ul className="space-y-3">
-            {displayedItems.map((item) => (
-              <li key={item.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0 space-y-1">
-                    <p className="truncate text-sm font-semibold text-slate-800">{item.title}</p>
-                    <p className="truncate text-xs text-slate-500">{item.className}</p>
-                  </div>
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-                    {formatContentDate(item.date)}
-                  </span>
-                </div>
-              </li>
+        {modalLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: MODAL_PAGE_SIZE }).map((_, index) => (
+              <div key={index} className="h-16 animate-pulse rounded-xl bg-slate-100" />
             ))}
-          </ul>
+          </div>
+        ) : modalItems.length === 0 ? (
+          <p className="text-sm text-slate-500">Nenhuma atividade cadastrada.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="px-4 py-2 text-left font-semibold text-slate-600">Título</th>
+                  <th className="px-4 py-2 text-left font-semibold text-slate-600">Turma</th>
+                  <th className="px-4 py-2 text-left font-semibold text-slate-600">Data</th>
+                  <th className="px-4 py-2 text-left font-semibold text-slate-600">Bimestre</th>
+                  <th className="px-4 py-2 text-left font-semibold text-slate-600">Status</th>
+                  <th className="px-4 py-2 text-right font-semibold text-slate-600">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {modalItems.map((item) => (
+                  <tr key={item.id}>
+                    <td className="px-4 py-3 font-medium text-slate-800">{item.title}</td>
+                    <td className="px-4 py-3 text-slate-600">{item.className}</td>
+                    <td className="px-4 py-3 text-slate-600">{formatContentDate(item.date)}</td>
+                    <td className="px-4 py-3 text-slate-600">{item.bimester}º</td>
+                    <td className="px-4 py-3 text-slate-600">{item.done ? 'Concluída' : 'Pendente'}</td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => handleDelete(item)}>
+                          Excluir
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-      </div>
 
-      <Modal open={modalOpen} onClose={closeModal}>
-        <div className="w-full max-w-4xl p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="card-title text-slate-900">Atividades cadastradas</h2>
-            <Button variant="ghost" onClick={closeModal}>
-              Fechar
+        <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
+          <span>Página {modalPage}</span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setModalPage((page) => Math.max(1, page - 1))}
+              disabled={modalPage === 1}
+            >
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setModalPage((page) => (modalHasMore ? page + 1 : page))}
+              disabled={!modalHasMore}
+            >
+              Próximo
             </Button>
           </div>
-
-          {modalLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: MODAL_PAGE_SIZE }).map((_, index) => (
-                <div key={index} className="h-16 animate-pulse rounded-xl bg-slate-100" />
-              ))}
-            </div>
-          ) : modalItems.length === 0 ? (
-            <p className="text-sm text-slate-500">Nenhuma atividade cadastrada.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200 text-sm">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left font-semibold text-slate-600">Título</th>
-                    <th className="px-4 py-2 text-left font-semibold text-slate-600">Turma</th>
-                    <th className="px-4 py-2 text-left font-semibold text-slate-600">Data</th>
-                    <th className="px-4 py-2 text-left font-semibold text-slate-600">Bimestre</th>
-                    <th className="px-4 py-2 text-left font-semibold text-slate-600">Status</th>
-                    <th className="px-4 py-2 text-right font-semibold text-slate-600">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {modalItems.map((item) => (
-                    <tr key={item.id}>
-                      <td className="px-4 py-3 font-medium text-slate-800">{item.title}</td>
-                      <td className="px-4 py-3 text-slate-600">{item.className}</td>
-                      <td className="px-4 py-3 text-slate-600">{formatContentDate(item.date)}</td>
-                      <td className="px-4 py-3 text-slate-600">{item.bimester}º</td>
-                      <td className="px-4 py-3 text-slate-600">{item.done ? 'Concluída' : 'Pendente'}</td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="sm" onClick={() => handleDelete(item)}>
-                            Excluir
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
-            <span>Página {modalPage}</span>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => setModalPage((page) => Math.max(1, page - 1))} disabled={modalPage === 1}>
-                Anterior
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setModalPage((page) => (modalHasMore ? page + 1 : page))}
-                disabled={!modalHasMore}
-              >
-                Próximo
-              </Button>
-            </div>
-          </div>
         </div>
-      </Modal>
-    </div>
+      </div>
+    </Modal>
+  );
+
+  if (embedded) {
+    return (
+      <div className={containerClass}>
+        {shouldRenderHeader ? (
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-sm font-semibold text-slate-900">Atividades</h3>
+            {headerAction}
+          </div>
+        ) : null}
+        {content}
+        {modalElement}
+      </div>
+    );
+  }
+
+  const standaloneClassName = ['flex h-full min-h-[24rem] flex-col', className].filter(Boolean).join(' ');
+
+  return (
+    <>
+      <DashboardCard
+        title="Atividades"
+        action={headerAction}
+        className={standaloneClassName}
+        contentClassName="flex h-full min-h-0 flex-col gap-4 overflow-hidden"
+      >
+        {content}
+      </DashboardCard>
+      {modalElement}
+    </>
   );
 }
 
