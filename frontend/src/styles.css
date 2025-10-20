@@ -242,15 +242,19 @@ html, body, #root { height: 100%; background: #F2F4F7; }
 }
 
 .dash-grid {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-6);
-  grid-template-columns: 1fr 1fr;
+}
+
+.prof-grid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-template-areas:
     "schedule notices"
-    "grades   notices"
-    "agenda-atividades agenda-atividades"
-    "charts   charts";
-  grid-auto-rows: minmax(320px, auto);
+    "grades notices";
+  grid-auto-rows: min-content;
   align-items: stretch;
 }
 
@@ -265,15 +269,33 @@ html, body, #root { height: 100%; background: #F2F4F7; }
   min-height: 0;
 }
 
-.schedule { grid-area: schedule; }
-.grades { grid-area: grades; }
-.notices { grid-area: notices; display: flex; }
-.agenda-atividades { grid-area: agenda-atividades; }
-.charts { grid-area: charts; }
+.prof-grid .schedule {
+  grid-area: schedule;
+}
 
-.notices > * {
+.prof-grid .grades {
+  grid-area: grades;
+  min-height: 360px;
+}
+
+.prof-grid .notices {
+  grid-area: notices;
+  display: flex;
+}
+
+.prof-grid .schedule-card {
+  min-height: 420px;
+}
+
+.prof-grid .notices > * {
   flex: 1 1 auto;
   min-height: 0;
+}
+
+.prof-grid .avisos-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .agenda-atividades {
@@ -296,20 +318,28 @@ html, body, #root { height: 100%; background: #F2F4F7; }
 }
 
 @media (max-width: 1024px) {
-  .dash-grid {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "schedule"
-      "grades"
-      "notices"
-      "agenda-atividades"
-      "charts";
-    grid-auto-rows: auto;
+  .prof-grid {
+    gap: 16px;
   }
 
   .agenda-atividades {
     grid-template-columns: 1fr;
     grid-auto-rows: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .prof-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "schedule"
+      "notices"
+      "grades";
+    gap: 12px;
+  }
+
+  .prof-grid .grades {
+    min-height: 340px;
   }
 }
 

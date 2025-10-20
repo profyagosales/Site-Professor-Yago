@@ -649,38 +649,40 @@ function DashboardProfessor(){
       </section>
 
       <section className="dash-grid">
-        <div className="tile schedule">
-          <DashboardCard
-            title="Horário Semanal"
-            className="card schedule-card"
-            contentClassName="card-body schedule-card-body"
-          >
-            <WeeklySchedule slots={SLOT_CONFIG} days={WEEKDAY_CONFIG} cells={scheduleMatrix} />
-          </DashboardCard>
-        </div>
+        <div className="prof-grid">
+          <div className="tile schedule">
+            <DashboardCard
+              title="Horário Semanal"
+              className="card schedule-card"
+              contentClassName="card-body schedule-card-body"
+            >
+              <WeeklySchedule slots={SLOT_CONFIG} days={WEEKDAY_CONFIG} cells={scheduleMatrix} />
+            </DashboardCard>
+          </div>
 
-        <div className="tile grades">
-          <DivisaoNotasCard
-            classOptions={classOptions}
-            className="h-full"
-            onEdit={handleEditGradeScheme}
-            editOpen={divisaoNotasOpen}
-            onEditOpenChange={handleDivisaoNotasOpenChange}
-          />
-        </div>
+          <div className="tile grades">
+            <DivisaoNotasCard
+              classOptions={classOptions}
+              className="h-full"
+              onEdit={handleEditGradeScheme}
+              editOpen={divisaoNotasOpen}
+              onEditOpenChange={handleDivisaoNotasOpenChange}
+            />
+          </div>
 
-        <div className="tile notices">
-          <AvisosCard
-            className="card avisos-card"
-            onEdit={(announcement) => {
-              setAnnouncementDraft(announcement)
-              setAnnouncementOpen(true)
-            }}
-            onCreate={() => {
-              setAnnouncementDraft(null)
-              setAnnouncementOpen(true)
-            }}
-          />
+          <div className="tile notices">
+            <AvisosCard
+              className="card avisos-card"
+              onEdit={(announcement) => {
+                setAnnouncementDraft(announcement)
+                setAnnouncementOpen(true)
+              }}
+              onCreate={() => {
+                setAnnouncementDraft(null)
+                setAnnouncementOpen(true)
+              }}
+            />
+          </div>
         </div>
 
         <div className="agenda-atividades">
