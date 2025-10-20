@@ -8,15 +8,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { toast } from 'react-toastify';
-import {
-  FiBookOpen,
-  FiCalendar,
-  FiClock,
-  FiEdit2,
-  FiFlag,
-  FiPlus,
-  FiTrash2,
-} from 'react-icons/fi';
+import { FiBookOpen, FiCalendar, FiClock, FiFlag, FiTrash2 } from 'react-icons/fi';
 import { Button } from '@/components/ui/Button';
 import {
   deleteAgendaItem,
@@ -57,16 +49,18 @@ const FILTER_TO_QUERY: Record<FilterOption, AgendaQueryParams['tipo']> = {
   DATA: 'data',
 };
 
+const FILTER_OPTIONS = Object.keys(FILTER_LABELS) as FilterOption[];
+
 const TYPE_TO_DOT_CLASS: Record<AgendaItemType, string> = {
-  ATIVIDADE: 'bg-orange-400',
-  CONTEUDO: 'bg-indigo-400',
-  DATA: 'bg-emerald-400',
+  ATIVIDADE: 'bg-trabalho',
+  CONTEUDO: 'bg-conteudo',
+  DATA: 'bg-data',
 };
 
 const TYPE_ICON_MAP: Record<AgendaItemType, JSX.Element> = {
-  ATIVIDADE: <FiFlag className="h-4 w-4 text-orange-500" />,
-  CONTEUDO: <FiBookOpen className="h-4 w-4 text-indigo-500" />,
-  DATA: <FiCalendar className="h-4 w-4 text-emerald-500" />,
+  ATIVIDADE: <FiFlag className="h-4 w-4 text-trabalho" />,
+  CONTEUDO: <FiBookOpen className="h-4 w-4 text-conteudo" />,
+  DATA: <FiCalendar className="h-4 w-4 text-data" />,
 };
 
 type FilterOption = 'ALL' | AgendaItemType;
@@ -225,7 +219,7 @@ const CalendarGrid = memo(function CalendarGrid({
 }) {
   if (viewMode === 'month') {
     return (
-      <div className="grid grid-cols-7 gap-2 pb-6 pr-2 lg:gap-3">
+      <div className="grid grid-cols-7 gap-3 pb-6">
         {calendarWeeks.map((week) =>
           week.map((day) => (
             <CalendarDayTile
@@ -246,8 +240,8 @@ const CalendarGrid = memo(function CalendarGrid({
   }
 
   return (
-    <div className="overflow-x-auto snap-x">
-      <div className="grid min-w-max grid-cols-7 gap-2 pb-6 pr-6 snap-mandatory lg:gap-3">
+    <div className="overflow-x-auto">
+      <div className="grid grid-flow-col auto-cols-[140px] gap-2 pb-6 lg:auto-cols-auto lg:grid-cols-7 lg:gap-3">
         {weekDays.map((day) => (
           <CalendarDayTile
             key={day.key}
@@ -307,11 +301,11 @@ const CalendarDayTile = memo(function CalendarDayTile({
     <div
       ref={refCallback}
       className={[
-        'flex min-h-[96px] lg:min-h-[112px] flex-col rounded-2xl border border-black/5 bg-white/70 p-2 text-left transition duration-250',
-        'hover:-translate-y-[1px] hover:shadow-md hover:bg-white/90',
+        'flex min-h-[var(--tile-min-h-sm)] lg:min-h-[var(--tile-min-h-lg)] flex-col rounded-2xl border border-border bg-surface p-2 text-left transition duration-fast',
+        'hover:-translate-y-[1px] hover:bg-surface2 hover:shadow-soft',
         horizontal ? 'snap-start min-w-[140px]' : '',
         dimmed ? 'opacity-60' : '',
-        isSelected ? 'ring-2 ring-ys-amber' : '',
+        isSelected ? 'ring-2 ring-brand' : '',
       ]
         .filter(Boolean)
         .join(' ')}
@@ -320,20 +314,20 @@ const CalendarDayTile = memo(function CalendarDayTile({
         type="button"
         disabled={disabled}
         onClick={() => onDayClick(day)}
-        className="flex w-full items-center justify-between rounded-xl px-2 py-1 text-[11px] font-medium text-black/60 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ys-amber disabled:cursor-not-allowed"
+        className="flex w-full items-center justify-between rounded-xl px-2 py-1 text-[11px] font-medium text-textSoft transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-200 disabled:cursor-not-allowed disabled:opacity-[var(--op-disabled)]"
       >
         <span className="uppercase tracking-wide">{weekday}</span>
         <span
           className={[
             'ml-auto inline-flex min-w-[2.25rem] items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-semibold',
-            isToday ? 'bg-ys-amber text-white' : 'bg-black/5 text-black/70',
+            isToday ? 'bg-brand-100 text-brand-700' : 'bg-surface2 text-textSoft',
           ].join(' ')}
         >
           {dayNumber}
         </span>
       </button>
       {hasEvents ? (
-        <div className="mt-3 flex flex-wrap items-center gap-1">
+        <div className="mt-2 flex flex-wrap items-center gap-1">
           {dots.map((item) => (
             <span
               key={item.id}
@@ -342,7 +336,7 @@ const CalendarDayTile = memo(function CalendarDayTile({
             />
           ))}
           {overflow > 0 ? (
-            <span className="ml-1 text-[11px] font-semibold text-black/50">+{overflow}</span>
+            <span className="ml-1 text-[11px] font-semibold text-textSoft">+{overflow}</span>
           ) : null}
         </div>
       ) : null}
@@ -392,7 +386,7 @@ export default function AgendaCalendarCard({
   const todayKey = useMemo(() => toDateKey(setUtcMidnight(new Date())), []);
 
   const cardClassName = [
-    'w-full max-w-none rounded-[22px] border border-black/5 bg-white/80 shadow-ys-md backdrop-blur-sm',
+    'w-full max-w-none rounded-3xl border border-border bg-surface shadow-card',
     'flex h-full min-h-[28rem] flex-col',
     className,
   ]
@@ -710,11 +704,30 @@ export default function AgendaCalendarCard({
 
   return (
     <section className={cardClassName}>
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-black/5 pb-3 px-5 pt-4">
-        <div className="flex flex-1 flex-wrap items-center gap-3">
-          <h3 className="text-xl font-semibold text-slate-900">Agenda</h3>
-          <nav className="flex flex-wrap items-center gap-1 text-sm">
-            {(Object.keys(FILTER_LABELS) as FilterOption[]).map((option) => {
+      <header className="flex items-center justify-between gap-3 border-b border-border px-5 pb-4 pt-5">
+        <h3 className="text-[15px] font-semibold text-text">Agenda</h3>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 rounded-full border border-border bg-surface2 p-1">
+            {(['month', 'week'] as ViewMode[]).map((mode) => {
+              const active = viewMode === mode;
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => handleToggleView(mode)}
+                  className={[
+                    'h-8 rounded-full px-3 text-[13px] font-medium transition duration-fast',
+                    active ? 'bg-white text-text shadow-soft' : 'text-textSoft hover:bg-white/80',
+                  ].join(' ')}
+                  aria-pressed={active}
+                >
+                  {mode === 'month' ? 'Mês' : 'Semana'}
+                </button>
+              );
+            })}
+          </div>
+          <div className="hidden items-center gap-1 md:flex">
+            {FILTER_OPTIONS.map((option) => {
               const active = activeFilter === option;
               return (
                 <button
@@ -725,10 +738,58 @@ export default function AgendaCalendarCard({
                     setPopover(null);
                   }}
                   className={[
-                    'rounded-full px-3 py-1 text-sm font-medium transition duration-250',
+                    'h-8 rounded-full px-3 text-[13px] font-medium transition duration-fast',
                     active
-                      ? 'bg-slate-900 text-white shadow-sm'
-                      : 'bg-black/5 text-black/60 hover:bg-black/10',
+                      ? 'border border-border bg-white text-text shadow-soft'
+                      : 'border border-transparent text-textSoft hover:bg-white/80',
+                  ].join(' ')}
+                  aria-pressed={active}
+                >
+                  {FILTER_LABELS[option]}
+                </button>
+              );
+            })}
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => onOpenEditor?.()}
+            disabled={editorLoading}
+          >
+            Editar
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            onClick={handleQuickAdd}
+            disabled={editorLoading}
+            className="!px-4"
+          >
+            + Adicionar
+          </Button>
+        </div>
+      </header>
+
+      <div className="px-5 pt-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <nav className="flex items-center gap-1 md:hidden">
+            {FILTER_OPTIONS.map((option) => {
+              const active = activeFilter === option;
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => {
+                    setActiveFilter(option);
+                    setPopover(null);
+                  }}
+                  className={[
+                    'h-8 rounded-full px-3 text-[13px] font-medium transition duration-fast',
+                    active
+                      ? 'border border-border bg-white text-text shadow-soft'
+                      : 'border border-transparent text-textSoft hover:bg-white/80',
                   ].join(' ')}
                   aria-pressed={active}
                 >
@@ -737,26 +798,8 @@ export default function AgendaCalendarCard({
               );
             })}
           </nav>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 rounded-full bg-black/5 px-1 py-1">
-            {(['week', 'month'] as ViewMode[]).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => handleToggleView(mode)}
-                className={[
-                  'rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide transition duration-250',
-                  viewMode === mode ? 'bg-white text-slate-900 shadow-sm' : 'text-black/60 hover:text-slate-900',
-                ].join(' ')}
-                aria-pressed={viewMode === mode}
-              >
-                {mode === 'month' ? 'Mês' : 'Semana'}
-              </button>
-            ))}
-          </div>
           <div
-            className="flex items-center gap-2 rounded-full border border-black/10 bg-white/70 px-3 py-1 text-sm font-medium text-black/70 shadow-sm"
+            className="flex items-center gap-2 rounded-2xl border border-border bg-surface px-3 py-1.5 text-sm font-medium text-text"
             role="group"
             tabIndex={0}
             onKeyDown={handleNavKey}
@@ -766,11 +809,11 @@ export default function AgendaCalendarCard({
               onClick={handlePrevPeriod}
               disabled={!canGoPrev || loading}
               aria-label={viewMode === 'month' ? 'Mês anterior' : 'Semana anterior'}
-              className="rounded-full px-2 py-1 text-lg leading-none transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex h-8 w-8 items-center justify-center rounded-full transition duration-fast hover:bg-surface2 disabled:cursor-not-allowed disabled:opacity-[var(--op-disabled)]"
             >
               ‹
             </button>
-            <span className="whitespace-nowrap px-1 text-sm font-semibold uppercase tracking-wide text-black/70">
+            <span className="min-w-[140px] text-center text-xs font-semibold uppercase tracking-wide text-textSoft">
               {period.label}
             </span>
             <button
@@ -778,85 +821,75 @@ export default function AgendaCalendarCard({
               onClick={handleNextPeriod}
               disabled={!canGoNext || loading}
               aria-label={viewMode === 'month' ? 'Próximo mês' : 'Próxima semana'}
-              className="rounded-full px-2 py-1 text-lg leading-none transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex h-8 w-8 items-center justify-center rounded-full transition duration-fast hover:bg-surface2 disabled:cursor-not-allowed disabled:opacity-[var(--op-disabled)]"
             >
               ›
             </button>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => onOpenEditor?.()}
-            disabled={editorLoading}
-            className="inline-flex"
-          >
-            <FiEdit2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Editar</span>
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleQuickAdd}
-            disabled={editorLoading}
-            className="inline-flex"
-          >
-            <FiPlus className="h-4 w-4" />
-            <span className="lg:hidden">Adicionar</span>
-          </Button>
         </div>
-      </header>
+      </div>
 
-      <div ref={containerRef} className="relative h-[540px] flex-1 overflow-auto overscroll-contain px-1">
-        <div className="space-y-4 px-4 py-5">
-          {loading && hasFetched ? (
-            <div className={viewMode === 'month' ? 'grid grid-cols-7 gap-2 lg:gap-3' : 'grid grid-cols-7 gap-2 lg:gap-3'}>
-              {Array.from({ length: viewMode === 'month' ? 42 : 7 }).map((_, index) => (
-                <div key={index} className="h-24 rounded-2xl bg-black/5 animate-pulse" />
+      <div ref={containerRef} className="relative mt-4 h-[600px] flex-1 overflow-auto overscroll-contain px-5 pb-5">
+        {isEmpty && !loading ? (
+          <div className="absolute left-8 top-6 flex items-center gap-2 text-sm text-textSoft opacity-70" data-empty>
+            <span role="img" aria-label="Sem itens">
+              🌤️
+            </span>
+            <span>Sem itens no período selecionado</span>
+          </div>
+        ) : null}
+
+        {loading && hasFetched ? (
+          viewMode === 'month' ? (
+            <div className="grid grid-cols-7 gap-3">
+              {Array.from({ length: 42 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="min-h-[var(--tile-min-h-lg)] rounded-2xl border border-border bg-surface2 opacity-80 animate-pulse"
+                />
               ))}
             </div>
           ) : (
-            <>
-              {isEmpty ? (
-                <div className="text-sm text-black/50 flex items-center gap-2 px-2 py-2">
-                  <span role="img" aria-label="Sem itens">
-                    🌤️
-                  </span>
-                  <span>Sem itens no período selecionado.</span>
-                </div>
-              ) : null}
-              <CalendarGrid
-                viewMode={viewMode}
-                calendarWeeks={calendarWeeks}
-                weekDays={weekDays}
-                itemsByDate={itemsByDate}
-                registerDayNode={(key, node) => {
-                  registerDayNode(key, node);
-                  if (popover?.dayKey === key && !node) {
-                    setPopover(null);
-                  }
-                }}
-                onDayClick={handleDayClick}
-                selectedDayKey={popover?.dayKey ?? null}
-                editorLoading={editorLoading}
-                todayKey={todayKey}
-              />
-            </>
-          )}
-        </div>
+            <div className="grid grid-flow-col auto-cols-[140px] gap-2 lg:auto-cols-auto lg:grid-cols-7 lg:gap-3">
+              {Array.from({ length: 7 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="min-h-[var(--tile-min-h-sm)] rounded-2xl border border-border bg-surface2 opacity-80 animate-pulse"
+                />
+              ))}
+            </div>
+          )
+        ) : (
+          <CalendarGrid
+            viewMode={viewMode}
+            calendarWeeks={calendarWeeks}
+            weekDays={weekDays}
+            itemsByDate={itemsByDate}
+            registerDayNode={(key, node) => {
+              registerDayNode(key, node);
+              if (popover?.dayKey === key && !node) {
+                setPopover(null);
+              }
+            }}
+            onDayClick={handleDayClick}
+            selectedDayKey={popover?.dayKey ?? null}
+            editorLoading={editorLoading}
+            todayKey={todayKey}
+          />
+        )}
+
         {popover ? (
           <div
             ref={popoverRef}
-            className="pointer-events-auto absolute z-20 max-w-[320px] rounded-2xl border border-black/5 bg-white/95 p-3 shadow-xl backdrop-blur"
+            className="pointer-events-auto absolute z-[var(--z-pop)] max-w-[320px] rounded-3xl border border-border bg-surface p-4 shadow-elev"
             style={{
               top: popover.top,
               left: popover.left,
               transform: 'translate(-50%, 0)',
             }}
           >
-            <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-black/50">
-              <FiCalendar className="h-4 w-4" />
+            <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-textSoft">
+              <FiCalendar className="h-4 w-4 text-data" />
               {popover.dayKey}
             </div>
             {popoverItems.length ? (
@@ -864,20 +897,20 @@ export default function AgendaCalendarCard({
                 {popoverItems.map((item) => {
                   const timeLabel = formatTime(item.date);
                   return (
-                    <li key={item.id} className="rounded-2xl border border-black/5 bg-white/90 p-3 shadow-sm">
+                    <li key={item.id} className="rounded-2xl border border-border bg-surface2 p-3 shadow-soft">
                       <div className="flex items-start gap-3">
-                        <div className="mt-0.5 shrink-0 rounded-full bg-black/5 p-2">{TYPE_ICON_MAP[item.type]}</div>
+                        <div className="mt-0.5 shrink-0 rounded-full bg-surface p-2 shadow-soft">{TYPE_ICON_MAP[item.type]}</div>
                         <div className="min-w-0 flex-1 space-y-1">
                           <p
-                            className="text-sm font-semibold text-slate-900 leading-snug"
+                            className="text-sm font-semibold text-text leading-snug"
                             style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
                           >
                             {item.title}
                           </p>
-                          <p className="text-xs text-black/50">
+                          <p className="text-xs text-textSoft">
                             {item.className ?? 'Turma'}
                             {timeLabel ? (
-                              <span className="ml-2 inline-flex items-center gap-1 text-[11px] text-black/40">
+                              <span className="ml-2 inline-flex items-center gap-1 text-[11px] text-muted">
                                 <FiClock className="h-3 w-3" />
                                 {timeLabel}
                               </span>
@@ -892,7 +925,6 @@ export default function AgendaCalendarCard({
                           variant="ghost"
                           onClick={() => handleItemClick(item)}
                         >
-                          <FiEdit2 className="h-4 w-4" />
                           Editar
                         </Button>
                         <Button
@@ -901,8 +933,8 @@ export default function AgendaCalendarCard({
                           variant="ghost"
                           onClick={() => handleDeleteItem(item)}
                           disabled={deletingId === item.id}
+                          className="text-danger"
                         >
-                          <FiTrash2 className="h-4 w-4 text-rose-500" />
                           Excluir
                         </Button>
                       </div>
@@ -911,7 +943,7 @@ export default function AgendaCalendarCard({
                 })}
               </ul>
             ) : (
-              <div className="text-sm text-black/50">Sem itens neste dia.</div>
+              <div className="text-sm text-textSoft">Sem itens neste dia.</div>
             )}
           </div>
         ) : null}
