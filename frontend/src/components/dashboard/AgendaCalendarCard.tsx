@@ -1,3 +1,4 @@
+import * as Popover from '@radix-ui/react-popover';
 import {
   memo,
   useCallback,
@@ -8,7 +9,6 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { toast } from 'react-toastify';
-import { FiBookOpen, FiCalendar, FiClock, FiFlag, FiTrash2 } from 'react-icons/fi';
 import { Button } from '@/components/ui/Button';
 import {
   deleteAgendaItem,
@@ -35,6 +35,12 @@ const TIME_FORMATTER = new Intl.DateTimeFormat('pt-BR', {
   minute: '2-digit',
 });
 
+const POPOVER_DATE_FORMATTER = new Intl.DateTimeFormat('pt-BR', {
+  weekday: 'short',
+  day: '2-digit',
+  month: 'short',
+});
+
 const FILTER_LABELS: Record<FilterOption, string> = {
   ALL: 'Todos',
   ATIVIDADE: 'Atividades',
@@ -51,20 +57,8 @@ const FILTER_TO_QUERY: Record<FilterOption, AgendaQueryParams['tipo']> = {
 
 const FILTER_OPTIONS = Object.keys(FILTER_LABELS) as FilterOption[];
 
-const TYPE_TO_DOT_CLASS: Record<AgendaItemType, string> = {
-  ATIVIDADE: 'bg-trabalho',
-  CONTEUDO: 'bg-conteudo',
-  DATA: 'bg-data',
-};
-
-const TYPE_ICON_MAP: Record<AgendaItemType, JSX.Element> = {
-  ATIVIDADE: <FiFlag className="h-4 w-4 text-trabalho" />,
-  CONTEUDO: <FiBookOpen className="h-4 w-4 text-conteudo" />,
-  DATA: <FiCalendar className="h-4 w-4 text-data" />,
-};
-
 type FilterOption = 'ALL' | AgendaItemType;
-type ViewMode = 'month' | 'week';
+type ViewMode = 'mes' | 'semana';
 
 type AgendaCalendarCardProps = {
   className?: string;
@@ -88,13 +82,57 @@ type PeriodContext = {
   label: string;
 };
 
-type PopoverState = {
-  dayKey: string;
-  top: number;
-  left: number;
-};
-
 const EMPTY_ARRAY: AgendaListItem[] = [];
+
+function mapTypeStroke(type: AgendaItemType) {
+  switch (type) {
+    case 'ATIVIDADE':
+      return 'var(--agenda-atividades)';
+    case 'CONTEUDO':
+      return 'var(--agenda-conteudos)';
+    case 'DATA':
+    default:
+      return 'var(--agenda-datas)';
+  }
+}
+
+function mapTypeBg(type: AgendaItemType) {
+  switch (type) {
+    case 'ATIVIDADE':
+      return 'var(--agenda-atividades-bg)';
+    case 'CONTEUDO':
+      return 'var(--agenda-conteudos-bg)';
+    case 'DATA':
+    default:
+      return 'var(--agenda-datas-bg)';
+  }
+}
+
+function mapTypeText(type: AgendaItemType) {
+  switch (type) {
+    case 'ATIVIDADE':
+      return '#7a3e19';
+    case 'CONTEUDO':
+      return '#332b7a';
+    case 'DATA':
+    default:
+      return '#135e56';
+  }
+}
+
+function formatPopoverDate(value: string) {
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+    const weekday = POPOVER_DATE_FORMATTER.format(date).replace('.', '').toUpperCase();
+    const timeLabel = TIME_FORMATTER.format(date);
+    return `${weekday} • ${timeLabel}`;
+  } catch {
+    return '';
+  }
+}
 
 function setUtcMidnight(date: Date): Date {
   const clone = new Date(date);
@@ -179,6 +217,19 @@ function resolveInitialReferenceDate(): Date {
   return clampToYear(reference);
 }
 
+function resolveInitialDateForView(mode: ViewMode): Date {
+  const today = setUtcMidnight(new Date());
+  const base = mode === 'mes' ? startOfMonthUtc(today) : startOfWeekUtc(today);
+  if (mode === 'mes') {
+    if (base.getTime() < MIN_MONTH_START.getTime()) return new Date(MIN_MONTH_START);
+    if (base.getTime() > MAX_MONTH_START.getTime()) return new Date(MAX_MONTH_START);
+  } else {
+    if (base.getTime() < MIN_WEEK_START.getTime()) return new Date(MIN_WEEK_START);
+    if (base.getTime() > MAX_WEEK_START.getTime()) return new Date(MAX_WEEK_START);
+  }
+  return base;
+}
+
 function formatTime(value: string | null | undefined): string | null {
   if (!value) return null;
   try {
@@ -202,9 +253,10 @@ const CalendarGrid = memo(function CalendarGrid({
   weekDays,
   itemsByDate,
   registerDayNode,
-  onDayClick,
-  selectedDayKey,
-  editorLoading,
+  onCreateForDay,
+  onEditItem,
+  onDeleteItem,
+  deletingId,
   todayKey,
 }: {
   viewMode: ViewMode;
@@ -212,26 +264,31 @@ const CalendarGrid = memo(function CalendarGrid({
   weekDays: CalendarDay[];
   itemsByDate: Map<string, AgendaListItem[]>;
   registerDayNode: (key: string, node: HTMLDivElement | null) => void;
-  onDayClick: (day: CalendarDay) => void;
-  selectedDayKey: string | null;
-  editorLoading: boolean;
+  onCreateForDay: (day: CalendarDay) => void;
+  onEditItem: (item: AgendaListItem) => void;
+  onDeleteItem: (item: AgendaListItem) => Promise<void> | void;
+  deletingId: string | null;
   todayKey: string;
 }) {
-  if (viewMode === 'month') {
+  if (viewMode === 'mes') {
     return (
-      <div className="grid grid-cols-7 grid-rows-6 gap-3">
-        {calendarWeeks.map((week) =>
+      <div
+        className="grid gap-[var(--agenda-gap)]"
+        style={{ gridTemplateColumns: 'repeat(7, minmax(0,1fr))' }}
+      >
+        {calendarWeeks.flatMap((week) =>
           week.map((day) => (
             <CalendarDayTile
               key={day.key}
               day={day}
-              events={itemsByDate.get(day.key) ?? EMPTY_ARRAY}
+              items={itemsByDate.get(day.key) ?? EMPTY_ARRAY}
               registerDayNode={registerDayNode}
-              onDayClick={onDayClick}
-              selectedDayKey={selectedDayKey}
-              editorLoading={editorLoading}
+              onCreateForDay={onCreateForDay}
+              onEditItem={onEditItem}
+              onDeleteItem={onDeleteItem}
+              deletingId={deletingId}
               isToday={day.key === todayKey}
-              dimmed={!day.isCurrentMonth}
+              dimmed={!day.isCurrentMonth || !day.isWithinYear}
             />
           )),
         )}
@@ -240,47 +297,48 @@ const CalendarGrid = memo(function CalendarGrid({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <div className="grid grid-flow-col auto-cols-[minmax(140px,1fr)] gap-3 lg:auto-cols-auto lg:grid-cols-7">
-        {weekDays.map((day) => (
-          <CalendarDayTile
-            key={day.key}
-            day={day}
-            events={itemsByDate.get(day.key) ?? EMPTY_ARRAY}
-            registerDayNode={registerDayNode}
-            onDayClick={onDayClick}
-            selectedDayKey={selectedDayKey}
-            editorLoading={editorLoading}
-            isToday={day.key === todayKey}
-            dimmed={!day.isWithinYear}
-            horizontal
-          />
-        ))}
-      </div>
+    <div
+      className="grid gap-[var(--agenda-gap)]"
+      style={{ gridTemplateColumns: 'repeat(7, minmax(0,1fr))' }}
+    >
+      {weekDays.map((day) => (
+        <CalendarDayTile
+          key={day.key}
+          day={day}
+          items={itemsByDate.get(day.key) ?? EMPTY_ARRAY}
+          registerDayNode={registerDayNode}
+          onCreateForDay={onCreateForDay}
+          onEditItem={onEditItem}
+          onDeleteItem={onDeleteItem}
+          deletingId={deletingId}
+          isToday={day.key === todayKey}
+          dimmed={!day.isWithinYear}
+        />
+      ))}
     </div>
   );
 });
 
 const CalendarDayTile = memo(function CalendarDayTile({
   day,
-  events,
+  items,
   registerDayNode,
-  onDayClick,
-  selectedDayKey,
-  editorLoading,
+  onCreateForDay,
+  onEditItem,
+  onDeleteItem,
+  deletingId,
   isToday,
   dimmed,
-  horizontal = false,
 }: {
   day: CalendarDay;
-  events: AgendaListItem[];
+  items: AgendaListItem[];
   registerDayNode: (key: string, node: HTMLDivElement | null) => void;
-  onDayClick: (day: CalendarDay) => void;
-  selectedDayKey: string | null;
-  editorLoading: boolean;
+  onCreateForDay: (day: CalendarDay) => void;
+  onEditItem: (item: AgendaListItem) => void;
+  onDeleteItem: (item: AgendaListItem) => Promise<void> | void;
+  deletingId: string | null;
   isToday: boolean;
   dimmed: boolean;
-  horizontal?: boolean;
 }) {
   const refCallback = useCallback(
     (node: HTMLDivElement | null) => {
@@ -291,60 +349,176 @@ const CalendarDayTile = memo(function CalendarDayTile({
 
   const weekday = getWeekdayLabel(day).toUpperCase();
   const dayNumber = DAY_FORMATTER.format(day.date);
-  const hasEvents = events.length > 0;
-  const disabled = !day.isWithinYear || editorLoading;
-  const isSelected = selectedDayKey === day.key;
+
+  const handleCreate = useCallback(() => {
+    if (!day.isWithinYear) return;
+    onCreateForDay(day);
+  }, [day, onCreateForDay]);
 
   return (
     <div
       ref={refCallback}
       className={[
-        'flex h-24 flex-col rounded-2xl border border-slate-200 bg-white p-2 text-left transition-colors duration-150 md:h-28 lg:h-32 xl:h-36',
-        'hover:border-slate-300',
-        horizontal ? 'snap-start min-w-[140px]' : '',
-        dimmed ? 'opacity-60' : '',
-        isSelected ? 'ring-2 ring-slate-400' : '',
+        'relative flex flex-col rounded-2xl border border-gray-200/70 bg-white shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-shadow duration-150',
+        'hover:shadow-[0_6px_18px_rgba(15,23,42,0.06)]',
+        dimmed ? 'opacity-60' : 'opacity-100',
       ]
         .filter(Boolean)
         .join(' ')}
+      style={{ minHeight: 'var(--agenda-cell-h)' }}
     >
       <button
         type="button"
-        disabled={disabled}
-        onClick={() => onDayClick(day)}
-        className="flex w-full items-center justify-between rounded-xl px-2 py-1 text-left text-[11px] font-medium text-slate-500 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
+        onClick={handleCreate}
+        disabled={!day.isWithinYear}
+        className="flex items-center gap-2 p-2 text-left transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">
-          {weekday}
-        </span>
+        <span className="text-[11px] uppercase tracking-wide text-gray-500">{weekday}</span>
         <span
           className={[
-            'inline-flex min-w-[2.25rem] justify-center rounded-full px-2 py-0.5 text-[11px] font-semibold',
-            isToday ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600',
+            'ml-auto text-[12px] font-semibold rounded-full px-2 py-0.5',
+            isToday ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200' : 'bg-gray-50 text-gray-400',
           ].join(' ')}
         >
           {dayNumber}
         </span>
+        {isToday ? (
+          <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-indigo-500" />
+        ) : null}
       </button>
-      <div className="mt-2 flex-1 space-y-1 overflow-auto">
-        {hasEvents
-          ? events.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-600 shadow-[0_1px_0_rgba(15,23,42,0.04)]"
-              >
-                <span className={`h-2 w-2 rounded-full ${TYPE_TO_DOT_CLASS[item.type]}`} />
-                <span className="line-clamp-2 leading-snug">{item.title}</span>
-              </div>
-            ))
-          : null}
+
+      <div className="flex flex-1 flex-col gap-1.5 px-2 pb-2">
+        {items.slice(0, 3).map((item) => (
+          <AgendaItemButton
+            key={item.id}
+            item={item}
+            onEdit={onEditItem}
+            onDelete={onDeleteItem}
+            deleting={deletingId === item.id}
+          />
+        ))}
+
+        {items.length > 3 ? (
+          <span className="px-3 text-[11px] text-gray-500">+ {items.length - 3} outros</span>
+        ) : null}
       </div>
+
+      {isToday ? (
+        <div className="pointer-events-none absolute inset-0 rounded-2xl ring-2 ring-indigo-300/50 ring-offset-2" />
+      ) : null}
     </div>
   );
 });
 
 CalendarDayTile.displayName = 'CalendarDayTile';
 CalendarGrid.displayName = 'CalendarGrid';
+
+function AgendaItemButton({
+  item,
+  onEdit,
+  onDelete,
+  deleting,
+}: {
+  item: AgendaListItem;
+  onEdit: (item: AgendaListItem) => void;
+  onDelete: (item: AgendaListItem) => Promise<void> | void;
+  deleting: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const stroke = mapTypeStroke(item.type);
+  const background = mapTypeBg(item.type);
+  const color = mapTypeText(item.type);
+
+  const handleEdit = useCallback(() => {
+    onEdit(item);
+    setOpen(false);
+  }, [item, onEdit]);
+
+  const handleDelete = useCallback(async () => {
+    await onDelete(item);
+    setOpen(false);
+  }, [item, onDelete]);
+
+  const dateLabel = useMemo(() => formatPopoverDate(item.date), [item.date]);
+
+  return (
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Trigger asChild>
+        <button
+          type="button"
+          className="w-full truncate rounded-full border text-left text-[12px] px-3 py-1 transition-colors duration-150"
+          style={{
+            borderColor: stroke,
+            background,
+            color,
+          }}
+        >
+          <span
+            className="mr-2 inline-block h-1.5 w-1.5 rounded-full"
+            style={{ background: stroke }}
+          />
+          {item.title}
+        </button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          side="top"
+          align="center"
+          className="z-[var(--z-pop)] w-[320px] rounded-2xl border border-gray-200 bg-white/95 p-3 shadow-xl backdrop-blur"
+        >
+          <div className="space-y-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 space-y-1">
+                <div className="text-sm font-semibold text-slate-900">{item.title}</div>
+                <div className="text-xs text-gray-500">
+                  {dateLabel}
+                  {item.className ? <span> • {item.className}</span> : null}
+                </div>
+              </div>
+              <span
+                className="mt-1.5 h-2.5 w-2.5 rounded-full"
+                style={{ background: stroke }}
+              />
+            </div>
+
+            {item.description ? (
+              <p className="max-h-[5.5rem] overflow-hidden text-[12px] leading-5 text-gray-600">
+                {item.description}
+              </p>
+            ) : null}
+
+            <div className="flex gap-2 pt-1">
+              <Popover.Close asChild>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 rounded-xl border border-gray-200 px-3 text-xs font-semibold text-slate-700 hover:bg-gray-50"
+                  onClick={handleEdit}
+                >
+                  Editar
+                </Button>
+              </Popover.Close>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-8 rounded-xl border border-transparent px-3 text-xs font-semibold text-red-600 hover:bg-red-50"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                Excluir
+              </Button>
+            </div>
+          </div>
+          <Popover.Arrow className="fill-white" />
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+
 
 function EmptyStateCompact({ onAdd, disabled = false }: { onAdd: () => void; disabled?: boolean }) {
   return (
@@ -367,54 +541,35 @@ function EmptyStateCompact({ onAdd, disabled = false }: { onAdd: () => void; dis
   );
 }
 
-function useOutsideClick(ref: React.RefObject<HTMLDivElement>, handler: () => void) {
-  useEffect(() => {
-    function handleClick(event: MouseEvent) {
-      if (!ref.current) return;
-      if (event.target instanceof Node && ref.current.contains(event.target)) {
-        return;
-      }
-      handler();
-    }
-
-    window.addEventListener('mousedown', handleClick);
-    return () => {
-      window.removeEventListener('mousedown', handleClick);
-    };
-  }, [handler, ref]);
-}
-
 export default function AgendaCalendarCard({
   className = '',
   refreshToken = 0,
   onOpenEditor,
   editorLoading = false,
 }: AgendaCalendarCardProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>('month');
-  const [currentDate, setCurrentDate] = useState<Date>(() => startOfMonthUtc(resolveInitialReferenceDate()));
+  const [viewMode, setViewMode] = useState<ViewMode>('mes');
+  const [currentDate, setCurrentDate] = useState<Date>(() => resolveInitialDateForView('mes'));
   const [activeFilter, setActiveFilter] = useState<FilterOption>('ALL');
   const [items, setItems] = useState<AgendaListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasFetched, setHasFetched] = useState(false);
-  const [popover, setPopover] = useState<PopoverState | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const popoverRef = useRef<HTMLDivElement | null>(null);
   const dayNodeMap = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const todayKey = useMemo(() => toDateKey(setUtcMidnight(new Date())), []);
 
   const cardClassName = [
-    'w-full max-w-none rounded-3xl border border-slate-100 bg-white shadow-[0_8px_30px_rgba(0,0,0,0.04)]',
-    'p-6 h-[540px] md:h-[560px] xl:h-[600px] flex flex-col',
+    'w-full rounded-[28px] border border-slate-100 bg-white shadow-[0_24px_45px_rgba(15,23,42,0.08)]',
+    'flex h-full max-h-[640px] flex-col overflow-hidden',
     className,
   ]
     .filter(Boolean)
     .join(' ');
 
   const period = useMemo<PeriodContext>(() => {
-    if (viewMode === 'month') {
+    if (viewMode === 'mes') {
       const monthStart = startOfMonthUtc(currentDate);
       const calendarStart = startOfWeekUtc(monthStart);
       const calendarEnd = endOfWeekUtc(endOfMonthUtc(monthStart));
@@ -443,7 +598,7 @@ export default function AgendaCalendarCard({
   }, [currentDate, viewMode]);
 
   const calendarWeeks = useMemo<CalendarDay[][]>(() => {
-    if (viewMode !== 'month') {
+    if (viewMode !== 'mes') {
       return [];
     }
     const monthStart = startOfMonthUtc(currentDate);
@@ -470,7 +625,7 @@ export default function AgendaCalendarCard({
   }, [currentDate, viewMode]);
 
   const weekDays = useMemo<CalendarDay[]>(() => {
-    if (viewMode !== 'week') {
+    if (viewMode !== 'semana') {
       return [];
     }
     const start = startOfWeekUtc(currentDate);
@@ -504,7 +659,7 @@ export default function AgendaCalendarCard({
   }, [items]);
 
   const visibleItemCount = useMemo(() => {
-    if (viewMode === 'month') {
+    if (viewMode === 'mes') {
       return calendarWeeks.reduce((total, week) => {
         return (
           total +
@@ -516,7 +671,7 @@ export default function AgendaCalendarCard({
   }, [calendarWeeks, itemsByDate, viewMode, weekDays]);
 
   const canGoPrev = useMemo(() => {
-    if (viewMode === 'month') {
+    if (viewMode === 'mes') {
       const monthStart = startOfMonthUtc(currentDate);
       return monthStart.getTime() > MIN_MONTH_START.getTime();
     }
@@ -525,7 +680,7 @@ export default function AgendaCalendarCard({
   }, [currentDate, viewMode]);
 
   const canGoNext = useMemo(() => {
-    if (viewMode === 'month') {
+    if (viewMode === 'mes') {
       const monthStart = startOfMonthUtc(currentDate);
       return monthStart.getTime() < MAX_MONTH_START.getTime();
     }
@@ -574,20 +729,11 @@ export default function AgendaCalendarCard({
     dayNodeMap.current.set(key, node);
   }, []);
 
-  const closePopover = useCallback(() => {
-    setPopover(null);
-  }, []);
-
-  useOutsideClick(popoverRef, closePopover);
-
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         onOpenEditor?.();
-      }
-      if (event.key === 'Escape') {
-        closePopover();
       }
     };
 
@@ -595,34 +741,34 @@ export default function AgendaCalendarCard({
     return () => {
       window.removeEventListener('keydown', handler);
     };
-  }, [closePopover, onOpenEditor]);
+  }, [onOpenEditor]);
+
+  const calendarStartTime = period.calendarStart.getTime();
+  const calendarEndTime = period.calendarEnd.getTime();
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const handleScroll = () => {
-      if (popover) {
-        closePopover();
-      }
-    };
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    return () => {
-      container.removeEventListener('scroll', handleScroll);
-    };
-  }, [closePopover, popover]);
+    const node = dayNodeMap.current.get(todayKey);
+    if (!node) return;
+    if (container.scrollHeight <= container.clientHeight) return;
+    const raf = window.requestAnimationFrame(() => {
+      node.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [calendarStartTime, calendarEndTime, todayKey, viewMode]);
 
   const handleToggleView = useCallback(
     (mode: ViewMode) => {
       setViewMode(mode);
-      setPopover(null);
-      setCurrentDate((prev) => (mode === 'month' ? startOfMonthUtc(prev) : startOfWeekUtc(prev)));
+      setCurrentDate(resolveInitialDateForView(mode));
     },
     [],
   );
 
   const handlePrevPeriod = useCallback(() => {
     setCurrentDate((prev) => {
-      if (viewMode === 'month') {
+      if (viewMode === 'mes') {
         const monthStart = startOfMonthUtc(prev);
         const next = addMonthsUtc(monthStart, -1);
         return next.getTime() < MIN_MONTH_START.getTime() ? new Date(MIN_MONTH_START) : next;
@@ -631,12 +777,11 @@ export default function AgendaCalendarCard({
       const next = addDaysUtc(weekStart, -7);
       return next.getTime() < MIN_WEEK_START.getTime() ? new Date(MIN_WEEK_START) : next;
     });
-    setPopover(null);
   }, [viewMode]);
 
   const handleNextPeriod = useCallback(() => {
     setCurrentDate((prev) => {
-      if (viewMode === 'month') {
+      if (viewMode === 'mes') {
         const monthStart = startOfMonthUtc(prev);
         const next = addMonthsUtc(monthStart, 1);
         return next.getTime() > MAX_MONTH_START.getTime() ? new Date(MAX_MONTH_START) : next;
@@ -645,7 +790,6 @@ export default function AgendaCalendarCard({
       const next = addDaysUtc(weekStart, 7);
       return next.getTime() > MAX_WEEK_START.getTime() ? new Date(MAX_WEEK_START) : next;
     });
-    setPopover(null);
   }, [viewMode]);
 
   const handleNavKey = useCallback(
@@ -661,38 +805,21 @@ export default function AgendaCalendarCard({
     [canGoNext, canGoPrev, handleNextPeriod, handlePrevPeriod],
   );
 
-  const handleDayClick = useCallback(
+  const handleCreateForDay = useCallback(
     (day: CalendarDay) => {
       if (!day.isWithinYear) {
         return;
       }
-      const node = dayNodeMap.current.get(day.key);
-      const container = containerRef.current;
-      if (!node || !container) {
-        onOpenEditor?.({ presetDate: day.key });
-        return;
-      }
-
-      if (popover?.dayKey === day.key) {
-        setPopover(null);
-        return;
-      }
-
-      const nodeRect = node.getBoundingClientRect();
-      const containerRect = container.getBoundingClientRect();
-      const top = nodeRect.top - containerRect.top + container.scrollTop + nodeRect.height + 12;
-      const left = nodeRect.left - containerRect.left + container.scrollLeft + nodeRect.width / 2;
-      setPopover({ dayKey: day.key, top, left });
+      onOpenEditor?.({ presetDate: day.key });
     },
-    [onOpenEditor, popover?.dayKey],
+    [onOpenEditor],
   );
 
-  const handleItemClick = useCallback(
+  const handleEditItem = useCallback(
     (item: AgendaListItem) => {
       onOpenEditor?.({ focusId: item.id });
-      closePopover();
     },
-    [closePopover, onOpenEditor],
+    [onOpenEditor],
   );
 
   const handleDeleteItem = useCallback(
@@ -703,7 +830,6 @@ export default function AgendaCalendarCard({
         await deleteAgendaItem(item.id);
         setItems((prev) => prev.filter((entry) => entry.id !== item.id));
         toast.success('Item removido da agenda.');
-        closePopover();
       } catch (error) {
         console.error('[AgendaCalendarCard] Falha ao excluir item', error);
         toast.error('Não foi possível excluir o item.');
@@ -711,7 +837,7 @@ export default function AgendaCalendarCard({
         setDeletingId(null);
       }
     },
-    [closePopover, deletingId],
+    [deletingId],
   );
 
   const handleQuickAdd = useCallback(() => {
@@ -719,161 +845,140 @@ export default function AgendaCalendarCard({
     onOpenEditor?.({ presetDate: toDateKey(candidate) });
   }, [onOpenEditor, period.fetchStart]);
 
-  const popoverItems = popover ? itemsByDate.get(popover.dayKey) ?? EMPTY_ARRAY : EMPTY_ARRAY;
   const isEmpty = !loading && visibleItemCount === 0;
 
   return (
     <section className={cardClassName}>
-      <header className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <h2 className="text-[18px] font-semibold text-slate-900">Agenda</h2>
-            <span className="text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-full">Todos</span>
+      <header className="px-6 pt-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="mr-2 text-2xl font-semibold text-slate-900">Agenda</h2>
+          <div className="rounded-full bg-slate-100 p-1">
+            {(['mes', 'semana'] as ViewMode[]).map((mode) => {
+              const active = viewMode === mode;
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => handleToggleView(mode)}
+                  className={[
+                    'rounded-full px-3 py-1 text-xs font-semibold transition-colors',
+                    active ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:bg-white',
+                  ].join(' ')}
+                  aria-pressed={active}
+                >
+                  {mode === 'mes' ? 'MÊS' : 'SEMANA'}
+                </button>
+              );
+            })}
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <div className="inline-flex rounded-full bg-slate-100 p-1">
-              {(['month', 'week'] as ViewMode[]).map((mode) => {
-                const active = viewMode === mode;
-                return (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => handleToggleView(mode)}
-                    className={[
-                      'px-3 py-1 text-xs rounded-full transition',
-                      active
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-600 hover:bg-white',
-                    ].join(' ')}
-                    aria-pressed={active}
-                  >
-                    {mode === 'month' ? 'MÊS' : 'SEMANA'}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="hidden items-center gap-1 xl:flex">
-              {FILTER_OPTIONS.map((option) => {
-                const active = activeFilter === option;
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => {
-                      setActiveFilter(option);
-                      setPopover(null);
-                    }}
-                    className={[
-                      'rounded-full border px-3 py-1 text-xs font-medium transition',
-                      active
-                        ? 'border-slate-300 bg-white text-slate-900 shadow-sm'
-                        : 'border-transparent text-slate-600 hover:bg-white',
-                    ].join(' ')}
-                    aria-pressed={active}
-                  >
-                    {FILTER_LABELS[option]}
-                  </button>
-                );
-              })}
-            </div>
-            <div
-              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600"
-              role="group"
-              tabIndex={0}
-              onKeyDown={handleNavKey}
-            >
-              <button
-                type="button"
-                onClick={handlePrevPeriod}
-                disabled={!canGoPrev || loading}
-                aria-label={viewMode === 'month' ? 'Mês anterior' : 'Semana anterior'}
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                ‹
-              </button>
-              <span className="min-w-[140px] text-center text-[11px] font-semibold uppercase tracking-wide text-slate-600">
-                {period.label}
-              </span>
-              <button
-                type="button"
-                onClick={handleNextPeriod}
-                disabled={!canGoNext || loading}
-                aria-label={viewMode === 'month' ? 'Próximo mês' : 'Próxima semana'}
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                ›
-              </button>
-            </div>
+
+          <div className="flex flex-wrap items-center gap-1">
+            {FILTER_OPTIONS.map((option) => {
+              const active = activeFilter === option;
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => setActiveFilter(option)}
+                  className={[
+                    'rounded-full px-3 py-1 text-xs font-semibold transition-colors',
+                    active
+                      ? 'bg-slate-900 text-white shadow-[0_6px_18px_rgba(15,23,42,0.18)]'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                  ].join(' ')}
+                  aria-pressed={active}
+                >
+                  {FILTER_LABELS[option]}
+                </button>
+              );
+            })}
+          </div>
+
+          <div
+            className="ml-auto flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600"
+            role="group"
+            tabIndex={0}
+            onKeyDown={handleNavKey}
+          >
             <button
               type="button"
-              onClick={() => onOpenEditor?.()}
+              onClick={handlePrevPeriod}
+              disabled={!canGoPrev || loading}
+              aria-label={viewMode === 'mes' ? 'Mês anterior' : 'Semana anterior'}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              ‹
+            </button>
+            <span className="min-w-[140px] text-center text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+              {period.label}
+            </span>
+            <button
+              type="button"
+              onClick={handleNextPeriod}
+              disabled={!canGoNext || loading}
+              aria-label={viewMode === 'mes' ? 'Próximo mês' : 'Próxima semana'}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              ›
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
               disabled={editorLoading}
-              className="h-8 rounded-xl border border-slate-200 px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => onOpenEditor?.()}
+              className="h-9 rounded-xl px-4"
             >
               Editar
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              onClick={handleQuickAdd}
+              size="sm"
               disabled={editorLoading}
-              className="h-8 rounded-xl bg-slate-900 px-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={handleQuickAdd}
+              className="h-9 rounded-xl px-4"
             >
               + Novo
-            </button>
+            </Button>
           </div>
         </div>
-        <nav className="flex flex-wrap items-center gap-1 xl:hidden">
-          {FILTER_OPTIONS.map((option) => {
-            const active = activeFilter === option;
-            return (
-              <button
-                key={option}
-                type="button"
-                onClick={() => {
-                  setActiveFilter(option);
-                  setPopover(null);
-                }}
-                className={[
-                  'rounded-full border px-3 py-1 text-xs font-medium transition',
-                  active
-                    ? 'border-slate-300 bg-white text-slate-900 shadow-sm'
-                    : 'border-transparent text-slate-600 hover:bg-white',
-                ].join(' ')}
-                aria-pressed={active}
-              >
-                {FILTER_LABELS[option]}
-              </button>
-            );
-          })}
-        </nav>
       </header>
 
-      <div className="mt-4 flex-1 min-h-0 overflow-hidden">
+      <div className="flex-1 overflow-hidden px-6 pb-6">
         <div
           ref={containerRef}
-          className="relative h-full overflow-auto overscroll-contain rounded-2xl border border-slate-100 bg-slate-50/40 p-3"
+          className="relative h-full overflow-y-auto rounded-[24px] border border-slate-100 bg-slate-50/60 p-4"
         >
           <div className="space-y-3">
-            {isEmpty && !loading ? (
-              <EmptyStateCompact onAdd={handleQuickAdd} disabled={editorLoading} />
-            ) : null}
+            {isEmpty && !loading ? <EmptyStateCompact onAdd={handleQuickAdd} disabled={editorLoading} /> : null}
 
             {loading && hasFetched ? (
-              viewMode === 'month' ? (
-                <div className="grid grid-cols-7 grid-rows-6 gap-3">
+              viewMode === 'mes' ? (
+                <div
+                  className="grid gap-[var(--agenda-gap)]"
+                  style={{ gridTemplateColumns: 'repeat(7, minmax(0,1fr))' }}
+                >
                   {Array.from({ length: 42 }).map((_, index) => (
                     <div
                       key={index}
-                      className="h-24 rounded-2xl border border-slate-200 bg-white/70 opacity-80 animate-pulse md:h-28 lg:h-32 xl:h-36"
+                      className="rounded-2xl border border-slate-200 bg-white/70 shadow-[0_1px_0_rgba(0,0,0,0.02)]"
+                      style={{ minHeight: 'var(--agenda-cell-h)' }}
                     />
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-flow-col auto-cols-[minmax(140px,1fr)] gap-3 lg:grid-cols-7">
+                <div
+                  className="grid gap-[var(--agenda-gap)]"
+                  style={{ gridTemplateColumns: 'repeat(7, minmax(0,1fr))' }}
+                >
                   {Array.from({ length: 7 }).map((_, index) => (
                     <div
                       key={index}
-                      className="h-24 rounded-2xl border border-slate-200 bg-white/70 opacity-80 animate-pulse md:h-28 lg:h-32 xl:h-36"
+                      className="rounded-2xl border border-slate-200 bg-white/70 shadow-[0_1px_0_rgba(0,0,0,0.02)]"
+                      style={{ minHeight: 'var(--agenda-cell-h)' }}
                     />
                   ))}
                 </div>
@@ -884,91 +989,18 @@ export default function AgendaCalendarCard({
                 calendarWeeks={calendarWeeks}
                 weekDays={weekDays}
                 itemsByDate={itemsByDate}
-                registerDayNode={(key, node) => {
-                  registerDayNode(key, node);
-                  if (popover?.dayKey === key && !node) {
-                    setPopover(null);
-                  }
-                }}
-                onDayClick={handleDayClick}
-                selectedDayKey={popover?.dayKey ?? null}
-                editorLoading={editorLoading}
+                registerDayNode={registerDayNode}
+                onCreateForDay={handleCreateForDay}
+                onEditItem={handleEditItem}
+                onDeleteItem={handleDeleteItem}
+                deletingId={deletingId}
                 todayKey={todayKey}
               />
             )}
           </div>
-
-          {popover ? (
-            <div
-              ref={popoverRef}
-              className="pointer-events-auto absolute z-[var(--z-pop)] max-w-[320px] rounded-3xl border border-border bg-surface p-4 shadow-elev"
-              style={{
-                top: popover.top,
-                left: popover.left,
-                transform: 'translate(-50%, 0)',
-              }}
-            >
-              <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-textSoft">
-                <FiCalendar className="h-4 w-4 text-data" />
-                {popover.dayKey}
-              </div>
-              {popoverItems.length ? (
-                <ul className="flex flex-col gap-3">
-                  {popoverItems.map((item) => {
-                    const timeLabel = formatTime(item.date);
-                    return (
-                      <li key={item.id} className="rounded-2xl border border-border bg-surface2 p-3 shadow-soft">
-                        <div className="flex items-start gap-3">
-                        <div className="mt-0.5 shrink-0 rounded-full bg-surface p-2 shadow-soft">{TYPE_ICON_MAP[item.type]}</div>
-                        <div className="min-w-0 flex-1 space-y-1">
-                          <p
-                            className="text-sm font-semibold text-text leading-snug"
-                            style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
-                          >
-                            {item.title}
-                          </p>
-                          <p className="text-xs text-textSoft">
-                            {item.className ?? 'Turma'}
-                            {timeLabel ? (
-                              <span className="ml-2 inline-flex items-center gap-1 text-[11px] text-muted">
-                                <FiClock className="h-3 w-3" />
-                                {timeLabel}
-                              </span>
-                            ) : null}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="mt-3 flex items-center justify-end gap-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleItemClick(item)}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDeleteItem(item)}
-                          disabled={deletingId === item.id}
-                          className="text-danger"
-                        >
-                          Excluir
-                        </Button>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <div className="text-sm text-textSoft">Sem itens neste dia.</div>
-            )}
-          </div>
-        ) : null}
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
   );
 }
+
