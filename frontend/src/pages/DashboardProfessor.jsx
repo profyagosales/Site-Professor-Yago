@@ -132,6 +132,7 @@ function DashboardProfessor(){
   const [announcementDraft, setAnnouncementDraft] = useState(null)
   const [calendarScope, setCalendarScope] = useState('week')
   const [showAgendaModal, setShowAgendaModal] = useState(false)
+  const [divisaoNotasOpen, setDivisaoNotasOpen] = useState(false)
   const { logout: logoutSession } = useAuth()
 
   const classSummariesRef = useRef(classSummaries)
@@ -194,6 +195,14 @@ function DashboardProfessor(){
     },
     []
   )
+
+  const handleEditGradeScheme = useCallback(() => {
+    setDivisaoNotasOpen(true)
+  }, [])
+
+  const handleDivisaoNotasOpenChange = useCallback((open) => {
+    setDivisaoNotasOpen(Boolean(open))
+  }, [])
 
   useEffect(() => {
     let abort = false
@@ -639,7 +648,8 @@ function DashboardProfessor(){
             <div className="flex items-center gap-2">
               <div className="flex rounded-full border border-slate-200 bg-slate-50 p-1">
                 <button
-                  className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                  type="button"
+                  className={`rounded-full px-3 py-1 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A00] ${
                     calendarScope === 'week' ? 'bg-white text-[#FF8A00] shadow-sm' : 'text-slate-500'
                   }`}
                   onClick={() => setCalendarScope('week')}
@@ -647,7 +657,8 @@ function DashboardProfessor(){
                   Semana
                 </button>
                 <button
-                  className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                  type="button"
+                  className={`rounded-full px-3 py-1 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A00] ${
                     calendarScope === 'month' ? 'bg-white text-[#FF8A00] shadow-sm' : 'text-slate-500'
                   }`}
                   onClick={() => setCalendarScope('month')}
@@ -709,6 +720,9 @@ function DashboardProfessor(){
         <DivisaoNotasCard
           classOptions={classOptions}
           className="lg:col-span-3"
+          onEdit={handleEditGradeScheme}
+          editOpen={divisaoNotasOpen}
+          onEditOpenChange={handleDivisaoNotasOpenChange}
         />
       </div>
 

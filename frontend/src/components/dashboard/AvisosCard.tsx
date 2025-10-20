@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useId, type TouchEvent, type KeyboardEvent } from 'react';
 import DOMPurify from 'dompurify';
 import { toast } from 'react-toastify';
 import DashboardCard from '@/components/dashboard/DashboardCard';
@@ -150,7 +150,7 @@ export default function AvisosCard({
   const [processingIds, setProcessingIds] = useState<Set<string>>(() => new Set());
 
   const iconButtonClass =
-    'inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 disabled:opacity-60 disabled:cursor-not-allowed';
+    'inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A00] disabled:opacity-60 disabled:cursor-not-allowed';
 
   const resetInterval = useCallback(() => {
     if (intervalRef.current !== undefined) {
@@ -383,6 +383,9 @@ export default function AvisosCard({
     setModalPage((current) => Math.max(1, current - 1));
   };
 
+  const rawCarouselId = useId();
+  const carouselId = `announcement-carousel-${rawCarouselId.replace(/[^a-zA-Z0-9-]/g, '')}`;
+
   return (
     <>
       <DashboardCard
@@ -421,6 +424,7 @@ export default function AvisosCard({
             aria-roledescription="carrossel"
             aria-live="polite"
             aria-label="Avisos recentes"
+            id={carouselId}
             tabIndex={0}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
@@ -499,6 +503,7 @@ export default function AvisosCard({
                     className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600 hover:bg-slate-100"
                     onClick={handlePrev}
                     aria-label="Mostrar aviso anterior"
+                    aria-controls={carouselId}
                   >
                     Anterior
                   </Button>
@@ -510,6 +515,7 @@ export default function AvisosCard({
                     className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600 hover:bg-slate-100"
                     onClick={togglePause}
                     aria-label={isPaused ? 'Retomar carrossel' : 'Pausar carrossel'}
+                    aria-controls={carouselId}
                   >
                     {isPaused ? 'Retomar' : 'Pausar'}
                   </Button>
@@ -520,6 +526,7 @@ export default function AvisosCard({
                     className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600 hover:bg-slate-100"
                     onClick={handleNext}
                     aria-label="Mostrar próximo aviso"
+                    aria-controls={carouselId}
                   >
                     Próximo
                   </Button>
@@ -537,7 +544,7 @@ export default function AvisosCard({
                         setActiveIndex(index);
                         resetInterval();
                       }}
-                      className={`h-2.5 rounded-full transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 ${
+                      className={`h-2.5 rounded-full transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A00] ${
                         index === activeIndex ? 'w-6 bg-orange-500' : 'w-2 bg-slate-300 hover:bg-slate-400'
                       }`}
                     />

@@ -13,6 +13,9 @@ type ClassOption = {
 type DivisaoNotasCardProps = {
   classOptions: ClassOption[];
   className?: string;
+  onEdit?: () => void;
+  editOpen?: boolean;
+  onEditOpenChange?: (open: boolean) => void;
 };
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -30,13 +33,57 @@ function getContrastColor(color: string | null | undefined): string {
   return luminance > 0.6 ? '#0f172a' : '#ffffff';
 }
 
-export default function DivisaoNotasCard({ classOptions, className = '' }: DivisaoNotasCardProps) {
+export default function DivisaoNotasCard({
+  classOptions,
+  className = '',
+  onEdit,
+  editOpen,
+  onEditOpenChange,
+}: DivisaoNotasCardProps) {
   const [selectedClassId, setSelectedClassId] = useState<string>(() => classOptions[0]?.id || '');
   const [year, setYear] = useState<number>(CURRENT_YEAR);
   const [schemes, setSchemes] = useState<GradeScheme[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const canTriggerEdit = typeof onEdit === 'function';
+
+  useEffect(() => {
+    if (typeof editOpen === 'boolean' && editOpen !== modalOpen) {
+      setModalOpen(editOpen);
+    }
+  }, [editOpen, modalOpen]);
+
+  useEffect(() => {
+    if (onEdit === undefined) {
+      console.info('[DivisaoNotasCard] Ação de edição indisponível; botão permanecerá desabilitado.');
+    } else if (onEdit !== null && typeof onEdit !== 'function') {
+      console.warn('[DivisaoNotasCard] onEdit deve ser uma função quando fornecido.');
+    }
+  }, [onEdit]);
+
+  const handleModalToggle = useCallback(
+    (open: boolean) => {
+      setModalOpen(open);
+      onEditOpenChange?.(open);
+    },
+    [onEditOpenChange]
+  );
+
+  const handleEditClick = useCallback(() => {
+    if (!canTriggerEdit) {
+      console.info('[DivisaoNotasCard] Ignorando clique em editar sem handler registrado.');
+      return;
+    }
+
+    try {
+      onEdit?.();
+    } catch (err) {
+      console.error('[DivisaoNotasCard] Erro ao executar onEdit', err);
+    }
+
+    handleModalToggle(true);
+  }, [canTriggerEdit, handleModalToggle, onEdit]);
 
   const activeScheme = useMemo(() => {
     if (!schemes.length) return null;
@@ -96,7 +143,15 @@ export default function DivisaoNotasCard({ classOptions, className = '' }: Divis
         title="Divisão de notas"
         className={className}
         actions={
-          <Button variant="outline" size="sm" onClick={() => setModalOpen(true)} disabled={!selectedClassId}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleEditClick}
+            disabled={!selectedClassId || !canTriggerEdit}
+            title={!canTriggerEdit ? 'Indisponível' : 'Editar divisão de notas'}
+            aria-disabled={!selectedClassId || !canTriggerEdit}
+          >
             Editar
           </Button>
         }
@@ -219,7 +274,7 @@ export default function DivisaoNotasCard({ classOptions, className = '' }: Divis
 
       <DivisaoNotasModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => handleModalToggle(false)}
         classOptions={classOptions}
         defaultClassId={selectedClassId}
         defaultYear={year}
