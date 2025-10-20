@@ -10,9 +10,10 @@ type Props = {
 const BIMESTRES: Bimester[] = [1, 2, 3, 4];
 
 export default function DivisaoNotasCard({ teacherId, scheme, onEdit }: Props) {
-  const [active, setActive] = useState<Bimester>(1);
+  const [selected, setSelected] = useState<Bimester>(1);
 
-  const items = useMemo(() => scheme?.[active] ?? [], [scheme, active]);
+  const itemsByBim = useMemo(() => scheme ?? ({} as GradeSchemeByBimester), [scheme]);
+  const items = useMemo(() => itemsByBim[selected] ?? [], [itemsByBim, selected]);
 
   return (
     <section
@@ -29,9 +30,9 @@ export default function DivisaoNotasCard({ teacherId, scheme, onEdit }: Props) {
                 key={b}
                 role="tab"
                 type="button"
-                className={`bimester-chip ${b === active ? 'is-active' : ''}`}
-                aria-pressed={b === active}
-                onClick={() => setActive(b)}
+                className={`bimester-chip ${b === selected ? 'is-active' : ''}`}
+                aria-pressed={b === selected}
+                onClick={() => setSelected(b)}
               >
                 {b}º
               </button>
@@ -43,39 +44,36 @@ export default function DivisaoNotasCard({ teacherId, scheme, onEdit }: Props) {
         </div>
       </header>
 
-      {!items.length && (
-        <p className="text-foreground/60">
-          Nenhuma divisão configurada para este bimestre. Clique em <strong>Editar</strong>.
-        </p>
-      )}
-
-      {!!items.length && (
-        <div className="flex flex-wrap gap-2 mt-3">
-          {items.map((it) => (
+      <div className="flex flex-wrap gap-2 mt-3">
+        {items.length ? (
+          items.map((it) => (
             <span
               key={it.id}
-              className="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium shadow-sm"
-              style={{ backgroundColor: it.color, color: pickContrast(it.color) }}
-              title={`${it.type} • ${it.points.toFixed(1)} pts`}
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full"
+              style={{
+                background: it.color,
+                color: '#fff',
+                boxShadow: 'inset 0 0 0 2px rgba(255,255,255,.15)',
+              }}
+              title={`${it.name} • ${it.points.toLocaleString('pt-BR')} pts`}
             >
-              {it.name} • {it.points.toFixed(1)} pts
+              <span
+                aria-hidden
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '9999px',
+                  background: 'rgba(255,255,255,.85)',
+                }}
+              />
+              {it.name} • {it.points.toLocaleString('pt-BR')} pts
             </span>
-          ))}
-        </div>
-      )}
+          ))
+        ) : (
+          <p className="text-slate-500">
+            Nenhuma divisão configurada para este bimestre. Clique em <strong>Editar</strong>.
+          </p>
+        )}
+      </div>
     </section>
   );
-}
-
-function pickContrast(hex: string) {
-  try {
-    const c = hex.replace('#', '');
-    const r = parseInt(c.substring(0, 2), 16);
-    const g = parseInt(c.substring(2, 4), 16);
-    const b = parseInt(c.substring(4, 6), 16);
-    const yiq = (r * 299 + g * 587 + b * 114) / 1000;
-    return yiq >= 128 ? '#111' : '#fff';
-  } catch {
-    return '#111';
-  }
-}
