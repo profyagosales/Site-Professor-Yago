@@ -613,31 +613,28 @@ function DashboardProfessor(){
 
   return (
     <div className="page-safe pt-4 space-y-6">
-      <section className="hero-compact relative rounded-3xl bg-gradient-to-r from-orange-500 to-orange-400 text-white shadow-xl">
-        <div className="hero-grid">
-          <div className="hero-left">
-            {resolvedAvatar ? (
-              <img
-                src={resolvedAvatar}
-                alt={user.name}
-                className="h-20 w-20 rounded-2xl border border-white/50 object-cover shadow-lg"
-              />
-            ) : (
-              <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-white/50 bg-white/20 text-3xl font-semibold uppercase">
-                {user?.name ? user.name.slice(0, 1) : '?'}
-              </div>
-            )}
-            <div className="hero-left-text">
-              <small className="hero-welcome">Bem-vindo de volta</small>
-              <h2 className="hero-name">{user?.name || 'Professor'}</h2>
+      <section className="hero">
+        <div className="hero-left">
+          {resolvedAvatar ? (
+            <img
+              src={resolvedAvatar}
+              alt={user.name}
+              className="h-20 w-20 rounded-2xl border border-white/50 object-cover shadow-lg"
+            />
+          ) : (
+            <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-white/50 bg-white/20 text-3xl font-semibold uppercase">
+              {user?.name ? user.name.slice(0, 1) : '?'}
             </div>
+          )}
+          <div className="hero-left-text">
+            <small className="hero-welcome">Bem-vindo de volta</small>
+            <h2 className="hero-name">{user?.name || 'Professor'}</h2>
           </div>
+        </div>
 
-          <div className="hero-title">
-            <h1 className="hero-title-heading">Painel do Professor</h1>
-          </div>
-
-          <div className="hero-ctas hero-ctas--compact">
+        <div className="hero-center">
+          <h1 className="hero-title">Painel do Professor</h1>
+          <div className="hero-ctas">
             <Button className="cta-compact" onClick={() => setShowEmail(true)}>
               Enviar e-mail
             </Button>
@@ -654,16 +651,16 @@ function DashboardProfessor(){
               Atividades
             </Button>
           </div>
+        </div>
 
-          <div className="hero-metrics hero-metrics--center">
-            <div className="mini-stat-card compact">
-              <p className="mini-stat-label">Turmas</p>
-              <p className="mini-stat-value">{totalClasses}</p>
-            </div>
-            <div className="mini-stat-card compact">
-              <p className="mini-stat-label">Total de alunos</p>
-              <p className="mini-stat-value">{uniqueStudentsCount}</p>
-            </div>
+        <div className="hero-stats" aria-label="Resumo de turmas e alunos">
+          <div className="hero-stat">
+            <span className="hero-stat__label">Turmas</span>
+            <span className="hero-stat__value">{totalClasses}</span>
+          </div>
+          <div className="hero-stat">
+            <span className="hero-stat__label">Total de alunos</span>
+            <span className="hero-stat__value">{uniqueStudentsCount}</span>
           </div>
         </div>
       </section>

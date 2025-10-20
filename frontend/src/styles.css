@@ -121,56 +121,88 @@ html, body, #root { height: 100%; background: #F2F4F7; }
   .page-safe {
     @apply px-4 md:px-6 lg:px-10;
   }
-  .hero-compact {
+  .hero {
+    display: grid;
+    grid-template-columns: 320px 1fr minmax(300px, 360px);
+    align-items: center;
+    gap: 24px;
+    padding: 28px 32px;
+    border-radius: 24px;
+    background: linear-gradient(180deg, #e87d33 0%, #d96a2a 100%);
+    color: #fff;
     position: relative;
-    padding: clamp(28px, 4vw, 36px) clamp(1.5rem, 4vw, 2.5rem);
+  }
+  .hero-left {
+    align-self: stretch;
+    display: grid;
+    grid-auto-flow: row;
+    align-content: center;
+    gap: 16px;
+  }
+  .hero-left-text {
+    display: grid;
+    gap: 6px;
+  }
+  .hero-center {
+    display: grid;
+    justify-items: center;
+    gap: 20px;
+  }
+  .hero-title {
+    margin: 0;
+    font-weight: 800;
+    line-height: 1.1;
+    font-size: clamp(28px, 3.2vw, 44px);
+  }
+  .hero-welcome {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    opacity: 0.85;
+  }
+  .hero-name {
+    font-size: clamp(1.5rem, 3vw, 1.85rem);
+    font-weight: 700;
+    margin: 0;
+  }
+  .hero-ctas {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .hero-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+    gap: 16px;
+    justify-self: end;
+    align-self: stretch;
+  }
+  .hero-stat {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 6px;
+    border-radius: 20px;
+    padding: 18px 22px;
+    background: rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(2px);
+    isolation: isolate;
+  }
+  .hero-stat__label {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    opacity: 0.9;
+    text-align: center;
+  }
+  .hero-stat__value {
+    text-align: center;
+    font-weight: 800;
+    font-size: clamp(22px, 2.2vw, 32px);
   }
   .cta-row {
     @apply flex flex-wrap items-center justify-center gap-3 md:gap-4;
-  }
-  .mini-stat-card {
-    @apply rounded-2xl bg-white/15 shadow-sm text-white;
-    min-width: 160px;
-    min-height: 120px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    gap: 0.5rem;
-    padding: 1rem;
-  }
-
-  .mini-stat-card.compact {
-    width: 160px;
-    height: 120px;
-    display: grid;
-    place-items: center;
-    text-align: center;
-    gap: 0.35rem;
-  }
-
-  .mini-stat-card.compact .mini-stat-label {
-    font-size: 0.75rem;
-    letter-spacing: 0.08em;
-  }
-
-  .mini-stat-card.compact .mini-stat-value {
-    font-size: 2.25rem;
-    font-weight: 800;
-  }
-  .mini-stat-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.75);
-  }
-  .mini-stat-value {
-    font-size: clamp(1.75rem, 4vw, 2rem);
-    font-weight: 700;
-    line-height: 1.1;
-    color: #fff;
   }
   .modal-body-scroll {
     @apply overflow-y-auto pr-1;
@@ -246,74 +278,23 @@ html, body, #root { height: 100%; background: #F2F4F7; }
   }
 }
 
-.hero-grid {
-  display: grid;
-  gap: clamp(1.25rem, 2.5vw, 1.5rem);
-  grid-template-areas:
-    "left title title metrics"
-    "left ctas ctas metrics";
-  grid-template-columns: minmax(220px, 260px) repeat(2, minmax(0, 1fr)) minmax(200px, 240px);
-  align-items: stretch;
+@media (max-width: 1200px) {
+  .hero {
+    grid-template-columns: 1fr;
+    grid-auto-rows: auto;
+    justify-items: stretch;
+    gap: 20px;
+  }
+  .hero-stats {
+    justify-self: stretch;
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+  }
 }
 
-.hero-left {
-  grid-area: left;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 16px;
-  padding-right: clamp(0.5rem, 1vw, 1.5rem);
-  min-height: 100%;
-  align-self: stretch;
-}
-
-.hero-left-text {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  text-align: left;
-}
-
-.hero-title {
-  grid-area: title;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-}
-
-.hero-title-heading {
-  font-size: clamp(32px, 4vw, 40px);
-  font-weight: 800;
-  letter-spacing: 0.3px;
-  line-height: 1.05;
-  text-transform: none;
-}
-
-.hero-welcome {
-  font-size: 0.75rem;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.85);
-}
-
-.hero-name {
-  font-size: clamp(1.5rem, 3vw, 1.75rem);
-  font-weight: 700;
-  margin-top: 4px;
-}
-
-.hero-ctas {
-  grid-area: ctas;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: clamp(1.25rem, 2.5vw, 1.5rem);
-}
-
-.hero-ctas--compact {
-  gap: 16px;
+@media (max-width: 560px) {
+  .hero-stats {
+    grid-template-columns: 1fr;
+  }
 }
 
 .cta-compact {
@@ -399,46 +380,6 @@ html, body, #root { height: 100%; background: #F2F4F7; }
   .dash-grid .charts {
     grid-column: 1;
     grid-row: auto;
-  }
-}
-
-.hero-metrics {
-  grid-area: metrics;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  align-self: stretch;
-  justify-items: center;
-  align-content: center;
-}
-
-.hero-metrics--center {
-  justify-items: center;
-}
-
-@media (max-width: 1023px) {
-  .hero-grid {
-    grid-template-areas:
-      "title"
-      "left"
-      "ctas"
-      "metrics";
-    grid-template-columns: minmax(0, 1fr);
-    text-align: center;
-  }
-
-  .hero-left {
-    align-items: center;
-    padding-right: 0;
-  }
-
-  .hero-left-text {
-    align-items: center;
-    text-align: center;
-  }
-
-  .hero-metrics {
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   }
 }
 
@@ -681,26 +622,6 @@ a {
 
 .aria-carousel {
   position: relative;
-}
-
-@media (max-width: 767px) {
-  .hero-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .hero-left {
-    grid-row: auto;
-    flex-direction: row;
-  }
-
-  .hero-right-top {
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-
-  .hero-right-ctas {
-    flex-wrap: wrap;
-  }
 }
 
 .ql-align-center { text-align: center; }
