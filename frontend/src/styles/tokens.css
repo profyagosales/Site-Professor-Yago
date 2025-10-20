@@ -1,0 +1,78 @@
+:root{
+  /* BRAND */
+  --c-brand-50:#FFF6EE;
+  --c-brand-100:#FFE7D3;
+  --c-brand-200:#FFD0A6;
+  --c-brand-300:#FFB777;
+  --c-brand-400:#FF9E4D;
+  --c-brand-500:#FF7F1F;
+  --c-brand-600:#E86F18;
+  --c-brand-700:#C75A11;
+  --c-brand-800:#9B460C;
+  --c-brand-900:#733409;
+
+  /* GRADIENT (hero/botões destacados) */
+  --g-brand-from:#F59E0B;
+  --g-brand-to:#F97316;
+
+  /* NEUTRALS (slate-ish) */
+  --c-bg:#F7F8FA;
+  --c-surface:#FFFFFF;
+  --c-surface-2:#FBFBFD;
+  --c-border:#E9ECF1;
+  --c-border-strong:#D8DEE6;
+  --c-text:#0F172A;
+  --c-text-soft:#334155;
+  --c-muted:#6B7280;
+
+  /* STATES */
+  --c-success:#22C55E;
+  --c-warning:#F59E0B;
+  --c-danger:#EF4444;
+  --c-info:#3B82F6;
+
+  /* SEMÂNTICAS (usadas em Divisão/Agenda) */
+  --c-prova:#F59E0B;
+  --c-trabalho:#3B82F6;
+  --c-projeto:#A855F7;
+  --c-teste:#22C55E;
+  --c-outros:#EF4444;
+  --c-conteudo:#FB923C;
+  --c-data:#64748B;
+
+  /* TYPO */
+  --f-sans: ui-sans-serif, system-ui, -apple-system, "Inter", "SF Pro", "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol";
+  --fs-xxs:10px; --fs-xs:12px; --fs-sm:13px; --fs-md:14px; --fs-base:16px; --fs-lg:18px; --fs-xl:20px; --fs-2xl:24px; --fs-3xl:28px;
+
+  /* RADIUS */
+  --r-xs:8px; --r-sm:10px; --r-md:12px; --r-lg:16px; --r-xl:18px; --r-2xl:24px; --r-3xl:28px;
+
+  /* SHADOWS */
+  --sh-soft:0 2px 10px rgba(15,23,42,.06),0 1px 2px rgba(15,23,42,.03);
+  --sh-card:0 10px 35px rgba(15,23,42,.06),0 2px 10px rgba(15,23,42,.04);
+  --sh-elev:0 20px 50px rgba(15,23,42,.10),0 6px 20px rgba(15,23,42,.06);
+
+  /* MOTION */
+  --dur-fast:120ms; --dur-mid:220ms; --dur-slow:360ms;
+  --ease-out: cubic-bezier(.17,.67,.16,1);
+  --ease-in: cubic-bezier(.42,0,1,1);
+
+  /* OPACITIES */
+  --op-quiet:.65; --op-muted:.45; --op-disabled:.35;
+
+  /* Z */
+  --z-header:50; --z-pop:60; --z-toast:70; --z-modal:80;
+
+  /* CALENDAR SIZES (tile) */
+  --tile-min-h-sm:92px;
+  --tile-min-h-lg:112px;
+  --tile-pad:10px;
+
+  /* AVATAR */
+  --av-sm:20px; --av-md:28px; --av-lg:36px; --av-xl:48px;
+}
+
+/* global */
+*::-webkit-scrollbar{height:10px;width:10px}
+*::-webkit-scrollbar-thumb{background:rgba(15,23,42,.12);border-radius:999px}
+*::-webkit-scrollbar-thumb:hover{background:rgba(15,23,42,.22)}
