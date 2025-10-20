@@ -754,14 +754,10 @@ function DashboardProfessor(){
         )}
 
         <div className="tile atividades-panel">
-          <div className="grid h-full grid-cols-12 gap-6">
-            <div className="col-span-12 xl:col-span-6 flex flex-col">
-              <AgendaCard className="min-h-[24rem] flex-1" contentClassName="overflow-hidden" limit={5} />
-            </div>
-            <div className="col-span-12 xl:col-span-6 flex flex-col">
-              <AtividadesCard className="min-h-[24rem] flex-1" limit={5} />
-            </div>
-          </div>
+          <section className="dashboard-two-col">
+            <AgendaCard className="min-h-[24rem] flex-1" contentClassName="overflow-hidden" limit={5} />
+            <AtividadesCard className="min-h-[24rem] flex-1" limit={5} />
+          </section>
         </div>
 
         <div className="tile charts">

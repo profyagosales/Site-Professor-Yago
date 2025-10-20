@@ -426,6 +426,18 @@ html, body, #root { height: 100%; background: #F2F4F7; }
   grid-column: 2;
 }
 
+.dashboard-two-col {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1280px) {
+  .dashboard-two-col {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 .dash-grid .charts {
   grid-column: 1 / -1;
 }
