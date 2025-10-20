@@ -1,10 +1,9 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'react-toastify'
 import SendEmailModal from '@/components/SendEmailModal'
 import AnnouncementModal from '@/components/AnnouncementModal'
 import { getCurrentUser } from '@/services/auth'
 import { listMyClasses, getClassDetails } from '@/services/classes.service'
-import { Button } from '@/components/ui/Button'
 import RadarCard from '@/components/dashboard/radar/RadarCard'
 import AgendaCalendarCard from '@/components/dashboard/AgendaCalendarCard'
 import WeeklySchedule, { WeeklyScheduleTabs } from '@/components/dashboard/WeeklySchedule'
@@ -13,6 +12,7 @@ import DivisaoNotasCard from '@/components/dashboard/DivisaoNotasCard'
 import DivisaoNotasModal from '@/components/dashboard/DivisaoNotasModal'
 import AgendaEditorModal from '@/components/dashboard/AgendaEditorModal'
 import { listAgenda } from '@/services/agenda'
+import LogoYS from '@/components/LogoYS'
 
 /*
 // Snippet opcional para habilitar o widget da agenda semanal
@@ -448,21 +448,22 @@ function DashboardProfessor(){
   }, [schedule, classDetails, classNameMap, classSummaryMap])
 
   const resolvedAvatar = resolveAvatarUrl(user?.photoUrl || user?.photo || user?.avatarUrl)
+  const heroMetricsLoading = loading || insightsLoading
 
   if(!user) return <div className="page-safe pt-20"><p>Carregando...</p></div>
 
   return (
     <div className="page-safe pt-4 space-y-6">
-      <section className="hero">
+      <section className="hero" aria-label="Cabeçalho do painel do professor">
         <div className="hero-left">
           {resolvedAvatar ? (
             <img
               src={resolvedAvatar}
               alt={user.name}
-              className="h-20 w-20 rounded-2xl border border-white/50 object-cover shadow-lg"
+              className="hero-avatar"
             />
           ) : (
-            <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-white/50 bg-white/20 text-3xl font-semibold uppercase">
+            <div className="hero-avatar hero-avatar--fallback" aria-hidden="true">
               {user?.name ? user.name.slice(0, 1) : '?'}
             </div>
           )}
@@ -473,35 +474,13 @@ function DashboardProfessor(){
         </div>
 
         <div className="hero-center">
-          <h1 className="hero-title">Painel do Professor</h1>
-          <div className="hero-ctas">
-            <Button className="cta-compact" onClick={() => setShowEmail(true)}>
-              Enviar e-mail
-            </Button>
-            <Button
-              className="cta-compact"
-              onClick={() => {
-                setAnnouncementDraft(null)
-                setAnnouncementOpen(true)
-              }}
-            >
-              Novo aviso
-            </Button>
-            <Button className="cta-compact" onClick={() => handleOpenAgendaEditor()} disabled={agendaEditorLoading}>
-              Agenda
-            </Button>
-          </div>
+          <LogoYS size={140} />
+          <h1 className="hero-title">PAINEL DO PROFESSOR</h1>
         </div>
 
         <div className="hero-stats" aria-label="Resumo de turmas e alunos">
-          <div className="hero-stat">
-            <span className="hero-stat__label">Turmas</span>
-            <span className="hero-stat__value">{totalClasses}</span>
-          </div>
-          <div className="hero-stat">
-            <span className="hero-stat__label">Total de alunos</span>
-            <span className="hero-stat__value">{uniqueStudentsCount}</span>
-          </div>
+          <HeroMetric label="TOTAL DE TURMAS" value={totalClasses} loading={heroMetricsLoading} />
+          <HeroMetric label="TOTAL DE ALUNOS" value={uniqueStudentsCount} loading={heroMetricsLoading} />
         </div>
       </section>
 
@@ -597,3 +576,19 @@ function DashboardProfessor(){
 }
 
 export default DashboardProfessor
+
+function HeroMetric({ label, value, loading }) {
+  return (
+    <div className="hero-stat">
+      <span className="hero-stat__label">{label}</span>
+      {loading ? (
+        <>
+          <span className="hero-metric__skeleton" aria-hidden="true" />
+          <span className="sr-only">Carregando</span>
+        </>
+      ) : (
+        <span className="hero-stat__value">{value}</span>
+      )}
+    </div>
+  )
+}
