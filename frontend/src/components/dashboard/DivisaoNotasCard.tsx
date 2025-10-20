@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DashboardCard from '@/components/dashboard/DashboardCard';
 import { Button } from '@/components/ui/Button';
 import { listSchemes, type GradeScheme } from '@/services/gradeScheme';
@@ -41,12 +41,34 @@ export default function DivisaoNotasCard({
   onEditOpenChange,
 }: DivisaoNotasCardProps) {
   const [selectedClassId, setSelectedClassId] = useState<string>(() => classOptions[0]?.id || '');
-  const [year, setYear] = useState<number>(CURRENT_YEAR);
+  const [selectedBimester, setSelectedBimester] = useState<number>(1);
   const [schemes, setSchemes] = useState<GradeScheme[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const canTriggerEdit = typeof onEdit === 'function';
+  const userSelectedBimesterRef = useRef(false);
+
+  useEffect(() => {
+    if (!classOptions.length) {
+      if (selectedClassId) {
+        setSelectedClassId('');
+      }
+      userSelectedBimesterRef.current = false;
+      setSelectedBimester(1);
+      return;
+    }
+
+    const hasSelected = selectedClassId && classOptions.some((option) => option.id === selectedClassId);
+    if (!hasSelected) {
+      const fallback = classOptions[0]?.id || '';
+      if (fallback !== selectedClassId) {
+        setSelectedClassId(fallback);
+      }
+      userSelectedBimesterRef.current = false;
+      setSelectedBimester(1);
+    }
+  }, [classOptions, selectedClassId]);
 
   useEffect(() => {
     if (typeof editOpen === 'boolean' && editOpen !== modalOpen) {
@@ -85,33 +107,6 @@ export default function DivisaoNotasCard({
     handleModalToggle(true);
   }, [canTriggerEdit, handleModalToggle, onEdit]);
 
-  const activeScheme = useMemo(() => {
-    if (!schemes.length) return null;
-    const visible = schemes.find((scheme) => scheme.showToStudents);
-    if (visible) return visible;
-    return schemes.sort((a, b) => a.bimester - b.bimester)[0] ?? null;
-  }, [schemes]);
-
-  const totalPointsSum =
-    activeScheme?.items?.reduce((sum, item) => sum + (Number.isFinite(item.points) ? Number(item.points) : 0), 0) ?? 0;
-  const totalPoints = Number(totalPointsSum.toFixed(1));
-  const totalMatches = Math.abs(totalPoints - 10) < 0.001;
-
-  const typeLegend = useMemo(() => {
-    if (!activeScheme?.items?.length) return [] as Array<{ type: string; label: string; color: string }>;
-    const seen = new Set<string>();
-    return activeScheme.items.reduce<Array<{ type: string; label: string; color: string }>>((acc, item) => {
-      const resolvedType = resolveGradeItemType(item.type);
-      if (seen.has(resolvedType)) {
-        return acc;
-      }
-      seen.add(resolvedType);
-      const config = GRADE_ITEM_TYPE_MAP[resolvedType];
-      acc.push({ type: resolvedType, label: config.label, color: config.color });
-      return acc;
-    }, []);
-  }, [activeScheme?.items]);
-
   const loadSchemes = useCallback(async () => {
     if (!selectedClassId) {
       setSchemes([]);
@@ -120,7 +115,7 @@ export default function DivisaoNotasCard({
     setLoading(true);
     setError(null);
     try {
-      const response = await listSchemes({ classId: selectedClassId, year });
+      const response = await listSchemes({ classId: selectedClassId, year: CURRENT_YEAR });
       setSchemes(response);
     } catch (err) {
       console.error('[DivisaoNotasCard] Falha ao carregar esquemas', err);
@@ -129,11 +124,53 @@ export default function DivisaoNotasCard({
     } finally {
       setLoading(false);
     }
-  }, [selectedClassId, year]);
+  }, [selectedClassId]);
 
   useEffect(() => {
     void loadSchemes();
   }, [loadSchemes]);
+
+  useEffect(() => {
+    if (!schemes.length) {
+      userSelectedBimesterRef.current = false;
+      setSelectedBimester(1);
+      return;
+    }
+
+    if (userSelectedBimesterRef.current) {
+      const exists = schemes.some((scheme) => scheme.bimester === selectedBimester);
+      if (exists) {
+        return;
+      }
+    }
+
+    const sorted = [...schemes].sort((a, b) => a.bimester - b.bimester);
+    const withItems = sorted.find((scheme) => scheme.items.length > 0);
+    const fallback = withItems?.bimester ?? sorted[0]?.bimester ?? 1;
+    userSelectedBimesterRef.current = false;
+    if (selectedBimester !== fallback) {
+      setSelectedBimester(fallback);
+    }
+  }, [schemes, selectedBimester]);
+
+  const itemsByBimester = useMemo(() => {
+    const map = new Map<number, GradeScheme['items']>();
+    [1, 2, 3, 4].forEach((value) => {
+      map.set(value, []);
+    });
+    schemes.forEach((scheme) => {
+      map.set(scheme.bimester, Array.isArray(scheme.items) ? scheme.items : []);
+    });
+    return map;
+  }, [schemes]);
+
+  const currentItems = itemsByBimester.get(selectedBimester) ?? [];
+
+  const handleBimesterSelect = useCallback((bimester: number) => {
+    const normalized = Math.min(4, Math.max(1, Math.round(bimester)));
+    userSelectedBimesterRef.current = true;
+    setSelectedBimester(normalized);
+  }, []);
 
   const handleModalSaved = () => {
     void loadSchemes();
@@ -155,7 +192,7 @@ export default function DivisaoNotasCard({
               !canTriggerEdit
                 ? 'Indisponível'
                 : !selectedClassId
-                  ? 'Selecione uma turma'
+                  ? 'Nenhuma turma disponível'
                   : 'Editar divisão de notas'
             }
             aria-disabled={!selectedClassId || !canTriggerEdit}
@@ -163,120 +200,67 @@ export default function DivisaoNotasCard({
             Editar
           </Button>
         }
-        contentClassName="overflow-hidden"
+        contentClassName="flex flex-col gap-4"
       >
-        <div className="flex flex-wrap items-center gap-3">
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Turma
-            </label>
-            <select
-              value={selectedClassId}
-              onChange={(event) => setSelectedClassId(event.target.value)}
-              className="rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
-            >
-              {!classOptions.length && <option value="">Selecione</option>}
-              {classOptions.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Ano
-            </label>
-            <select
-              value={year}
-              onChange={(event) => setYear(Number(event.target.value))}
-              className="rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
-            >
-              {[CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR + 1].map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1 shadow-sm">
+            {[1, 2, 3, 4].map((bimester) => {
+              const isActive = selectedBimester === bimester;
+              return (
+                <button
+                  key={`bimester-${bimester}`}
+                  type="button"
+                  className={`rounded-full px-4 py-1 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A00] ${
+                    isActive ? 'bg-white text-[#FF8A00] shadow-sm' : 'text-slate-500'
+                  }`}
+                  aria-pressed={isActive}
+                  onClick={() => handleBimesterSelect(bimester)}
+                >
+                  {bimester}º
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        <div className="mt-4 flex-1 overflow-y-auto pr-1">
+        <div className="min-h-[6rem]">
           {loading ? (
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="h-12 animate-pulse rounded-xl bg-slate-100" />
+                <div key={index} className="h-8 animate-pulse rounded-full bg-slate-100" />
               ))}
             </div>
           ) : error ? (
             <p className="text-sm text-slate-500">{error}</p>
-          ) : !activeScheme ? (
-            <p className="text-sm text-slate-500">
-              Nenhuma divisão de notas cadastrada para {year}. Clique em editar para configurar.
-            </p>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
-                <div className="flex items-center gap-2">
-                  <span>Bimestre em exibição</span>
-                  <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-600">
-                    {activeScheme.bimester}º
-                  </span>
-                </div>
-                <span className="text-xs uppercase tracking-wide text-slate-500">
-                  Visível para alunos: {activeScheme.showToStudents ? 'Sim' : 'Não'}
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {activeScheme.items.map((item) => {
-                  const resolvedType = resolveGradeItemType(item.type);
-                  const config = GRADE_ITEM_TYPE_MAP[resolvedType];
-                  const badgeColor = item.color || config.color;
-                  const displayName = item.name || item.label || 'Item';
-                  return (
-                    <div
-                      key={`${displayName}-${item.order}`}
-                      className="rounded-full px-4 py-2 text-sm font-medium shadow-sm"
-                      style={{
-                        backgroundColor: badgeColor,
-                        color: getContrastColor(badgeColor),
-                      }}
-                    >
-                      {displayName} • {Number(item.points).toFixed(1)} pts
-                    </div>
-                  );
-                })}
-              </div>
-              {typeLegend.length ? (
-                <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-600">
-                  {typeLegend.map((entry) => (
-                    <span key={`legend-${entry.type}`} className="flex items-center gap-2">
-                      <span
-                        className="h-2.5 w-2.5 rounded-full border border-white/80 shadow-sm"
-                        style={{ backgroundColor: entry.color }}
-                      />
-                      {entry.label}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-              <div>
-                <div className="mb-1 flex justify-between text-xs text-slate-500">
-                  <span>Total distribuído</span>
-                  <span className={totalMatches ? 'text-slate-500' : 'text-red-600'}>
-                    {totalPoints.toFixed(1)} / 10
-                  </span>
-                </div>
-                <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+          ) : currentItems.length ? (
+            <div className="flex flex-wrap gap-2">
+              {currentItems.map((item) => {
+                const resolvedType = resolveGradeItemType(item.type);
+                const config = GRADE_ITEM_TYPE_MAP[resolvedType];
+                const badgeColor = (typeof item.color === 'string' && item.color.trim()) ? item.color : config.color;
+                const rawName = typeof item.name === 'string' ? item.name.trim() : '';
+                const displayName = rawName || config.label;
+                const points = Number.isFinite(item.points) ? Number(item.points) : 0;
+                return (
                   <div
-                    className="h-full rounded-full bg-orange-500 transition-all"
+                    key={`${resolvedType}-${item.order}-${displayName}`}
+                    className="inline-flex h-8 items-center gap-2 rounded-full px-4 text-sm font-semibold shadow-sm"
                     style={{
-                      width: `${Math.min(100, (totalPoints / 10) * 100)}%`,
+                      backgroundColor: badgeColor,
+                      color: getContrastColor(badgeColor),
                     }}
-                  />
-                </div>
-              </div>
+                  >
+                    <span>{displayName}</span>
+                    <span>•</span>
+                    <span>{points.toFixed(1)} pts</span>
+                  </div>
+                );
+              })}
             </div>
+          ) : (
+            <p className="text-sm text-slate-500">
+              Nenhuma divisão configurada para este bimestre. Clique em Editar.
+            </p>
           )}
         </div>
       </DashboardCard>
@@ -286,7 +270,7 @@ export default function DivisaoNotasCard({
         onClose={() => handleModalToggle(false)}
         classOptions={classOptions}
         defaultClassId={selectedClassId}
-        defaultYear={year}
+        defaultYear={CURRENT_YEAR}
         onSaved={handleModalSaved}
       />
     </>
