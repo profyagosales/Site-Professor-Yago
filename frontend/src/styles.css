@@ -32,6 +32,37 @@ a:focus-visible,
   transition: transform 150ms ease, background-color 150ms ease;
 }
 
+/* --- Divisão de notas: chips de bimestre --- */
+.bimester-chip {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: .5rem .8rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border, #e6e6e6);
+  background: #fff;
+  color: #222;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 1;
+  transition: background .2s ease, color .2s ease, border-color .2s ease, opacity .2s ease;
+}
+
+.bimester-chip[aria-pressed="true"],
+.bimester-chip.is-active {
+  background: var(--brand-500, #eb7a2f);
+  border-color: var(--brand-500, #eb7a2f);
+  color: #fff;
+  opacity: 1 !important;
+}
+
+.bimester-chip:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
 
 .card {
   border-radius: 16px;

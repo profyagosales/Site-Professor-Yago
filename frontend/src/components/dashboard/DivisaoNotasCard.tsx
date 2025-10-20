@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { GradeSchemeByBimester, Bimester } from '@/types/gradeScheme';
-import { cn } from '@/utils/cn';
 
 type Props = {
   teacherId: string;
@@ -24,14 +23,14 @@ export default function DivisaoNotasCard({ teacherId, scheme, onEdit }: Props) {
       <header className="card-header">
         <h2 id="divisao-notas-title">Divisão de notas</h2>
         <div className="gap-2 flex items-center">
-          <div className="inline-flex rounded-full bg-muted p-1">
+          <div role="tablist" aria-label="Bimestre" className="flex gap-2">
             {BIMESTRES.map((b) => (
               <button
                 key={b}
-                className={cn(
-                  'px-3 py-1 text-sm rounded-full transition',
-                  b === active ? 'bg-brand text-white' : 'text-foreground/70 hover:bg-foreground/5',
-                )}
+                role="tab"
+                type="button"
+                className={`bimester-chip ${b === active ? 'is-active' : ''}`}
+                aria-pressed={b === active}
                 onClick={() => setActive(b)}
               >
                 {b}º
