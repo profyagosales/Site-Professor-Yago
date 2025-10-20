@@ -16,6 +16,19 @@ type Props = {
   refreshToken?: number;
 };
 
+function splitOddEven<T>(items: T[]) {
+  const left: T[] = [];
+  const right: T[] = [];
+  items.forEach((value, index) => {
+    if (index % 2 === 0) {
+      left.push(value);
+    } else {
+      right.push(value);
+    }
+  });
+  return { left, right };
+}
+
 export default function DivisaoNotasCard({ ano, classId, onEdit, refreshToken = 0 }: Props) {
   const [selectedBimester, setSelectedBimester] = useState<Bimestre>(1);
   const [scheme, setScheme] = useState<GradeScheme | null>(null);
@@ -60,6 +73,8 @@ export default function DivisaoNotasCard({ ano, classId, onEdit, refreshToken = 
     return scheme.byBimester?.[selectedBimester]?.items ?? [];
   }, [scheme, selectedBimester]);
 
+  const { left: leftItems, right: rightItems } = useMemo(() => splitOddEven(itens), [itens]);
+
   const handleEdit = () => {
     if (!classId) return;
     onEdit(scheme ?? DEFAULT_SCHEME(classId, ano));
@@ -93,87 +108,81 @@ export default function DivisaoNotasCard({ ano, classId, onEdit, refreshToken = 
     );
   } else {
     bodyContent = (
-      <div className="pb-2">
-        <table className="grade-scheme-table w-full text-sm">
-          <thead className="sticky top-0 z-10 bg-white/90 backdrop-blur">
-            <tr>
-              <th className="py-2 px-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Item
-              </th>
-              <th className="py-2 px-4 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Pontos
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {itens.map((item) => (
-              <SchemeRow key={item.id} item={item} />
-            ))}
-          </tbody>
-        </table>
+      <div className="flex h-full flex-col">
+        <div className="grid grid-cols-1 gap-4 px-1 pb-2 text-xs font-medium uppercase tracking-wide text-slate-500 md:grid-cols-2">
+          <div className="grid grid-cols-[1fr_auto]">
+            <span>Item</span>
+            <span className="text-right">Pontos</span>
+          </div>
+          <div className="hidden grid-cols-[1fr_auto] md:grid">
+            <span>Item</span>
+            <span className="text-right">Pontos</span>
+          </div>
+        </div>
+        <div className="flex-1 card-scroll-y px-1">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2" style={{ rowGap: '12px' }}>
+            <ul className="space-y-3">
+              {leftItems.map((item) => (
+                <li key={item.id}>
+                  <LinhaItem item={item} />
+                </li>
+              ))}
+            </ul>
+            <ul className="space-y-3">
+              {rightItems.map((item) => (
+                <li key={item.id}>
+                  <LinhaItem item={item} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <section className="card h-[520px] flex flex-col lg:h-[560px] 2xl:h-[600px]">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-1 flex-wrap items-center gap-3">
-          <h3 className="card-title">Divisão de notas</h3>
-          <div className="flex flex-wrap items-center gap-2">
-            {BIMESTERS.map((bim) => (
-              <button
-                key={bim}
-                className="bimestre-pill"
-                type="button"
-                aria-pressed={selectedBimester === bim}
-                onClick={() => setSelectedBimester(bim)}
-              >
-                {bim}º
-              </button>
-            ))}
-          </div>
+    <section className="card flex h-full flex-col">
+      <header className="flex flex-wrap items-center gap-3">
+        <h2 className="text-2xl font-semibold text-slate-900">Divisão de notas</h2>
+        <div className="flex items-center gap-2">
+          {BIMESTERS.map((bim) => (
+            <button
+              key={bim}
+              className="bimestre-pill"
+              type="button"
+              aria-pressed={selectedBimester === bim}
+              onClick={() => setSelectedBimester(bim)}
+            >
+              {bim}º
+            </button>
+          ))}
         </div>
-        <button className="btn btn-light" type="button" onClick={handleEdit} disabled={!classId}>
+        <button className="ml-auto rounded-full border border-slate-200 px-3 py-1 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50" type="button" onClick={handleEdit} disabled={!classId}>
           Editar
         </button>
       </header>
 
-      <div className="flex-none h-2" />
-
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1">{bodyContent}</div>
-
-      <footer className="flex-none pt-3 text-xs text-slate-400">
-        * A divisão fica visível para os alunos nos boletins e relatórios.
-      </footer>
+      <div className="mt-3 flex-1 min-h-0">
+        {bodyContent}
+      </div>
     </section>
   );
 }
 
-function SchemeRow({ item }: { item: GradeSchemeItem }) {
-  const name = item.name || item.label;
+function LinhaItem({ item }: { item: GradeSchemeItem }) {
+  const name = item.name || item.label || 'Sem nome';
   const points = formatPoints(item.points);
-  const badgeColor = item.color || '#FDEAD7';
-  const badgeText = getReadableText(badgeColor);
-  const tint = getTintColor(item.color, 0.15);
+  const background = item.color && /^#([0-9a-f]{3}){1,2}$/i.test(item.color) ? item.color : '#F6F7FB';
 
   return (
-    <tr style={{ backgroundColor: tint }}>
-      <td className="py-3 px-4">
-        <div className="flex items-center justify-between gap-3">
-          <span className="font-medium text-slate-800">{name || 'Sem nome'}</span>
-          <span
-            className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wide"
-            style={{ backgroundColor: badgeColor, color: badgeText }}
-          >
-            {formatType(item.type)}
-          </span>
-        </div>
-      </td>
-      <td className="py-3 px-4 text-right">
-        <span className="font-semibold text-slate-900">{points} pts</span>
-      </td>
-    </tr>
+    <div
+      className="grid h-14 grid-cols-[1fr_auto] items-center rounded-xl px-4"
+      style={{ backgroundColor: background }}
+    >
+      <span className="truncate text-sm font-medium text-slate-800">{name}</span>
+      <span className="text-sm font-semibold text-slate-900">{points} pts</span>
+    </div>
   );
 }
 
@@ -182,36 +191,4 @@ function formatPoints(value: number) {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   });
-}
-
-function formatType(value: string) {
-  if (!value) return 'PROVA';
-  const lower = value.toLowerCase();
-  return lower.charAt(0).toUpperCase() + lower.slice(1);
-}
-
-function getReadableText(color: string) {
-  try {
-    const hex = color.replace('#', '');
-    const r = parseInt(hex.slice(0, 2), 16);
-    const g = parseInt(hex.slice(2, 4), 16);
-    const b = parseInt(hex.slice(4, 6), 16);
-    const yiq = (r * 299 + g * 587 + b * 114) / 1000;
-    return yiq >= 160 ? '#111' : '#fff';
-  } catch {
-    return '#111';
-  }
-}
-
-function getTintColor(color: string, alpha = 0.12) {
-  if (!color) return 'rgba(253, 234, 215, 0.35)';
-  try {
-    const hex = color.replace('#', '');
-    const r = parseInt(hex.slice(0, 2), 16);
-    const g = parseInt(hex.slice(2, 4), 16);
-    const b = parseInt(hex.slice(4, 6), 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  } catch {
-    return 'rgba(253, 234, 215, 0.35)';
-  }
 }

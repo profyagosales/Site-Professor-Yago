@@ -1,4 +1,8 @@
 :root{
+  /* DASHBOARD LAYOUT */
+  --dash-gap:24px;          /* espaço entre cards do grid superior */
+  --h-stack:360px;          /* altura padrão dos cards empilhados à esquerda */
+
   /* BRAND */
   --c-brand-50:#FFF6EE;
   --c-brand-100:#FFE7D3;
@@ -70,6 +74,25 @@
 
   /* AVATAR */
   --av-sm:20px; --av-md:28px; --av-lg:36px; --av-xl:48px;
+}
+
+@media (min-width: 1280px){
+  :root{
+    --h-stack:380px;
+  }
+}
+
+@media (min-width: 1536px){
+  :root{
+    --h-stack:400px;
+  }
+}
+
+.card-scroll-y{
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
 }
 
 /* global */
