@@ -129,11 +129,12 @@ export default function DivisaoNotasModal({ ano, initial, isOpen, onClose, onSav
         <div className="modal-body">
           <div className="mb-3">
             <span className="text-sm text-foreground/70 mr-2">Bimestre para edição</span>
-            <div className="inline-flex rounded-full bg-muted p-1">
+            <div className="flex flex-wrap gap-2">
               {BIMESTRES.map((b) => (
                 <button
                   key={b}
-                  className={cnForBimesterButton(b === active)}
+                  className="bim-pill"
+                  data-active={b === active}
                   onClick={() => setActive(b)}
                   type="button"
                 >
@@ -178,10 +179,6 @@ export default function DivisaoNotasModal({ ano, initial, isOpen, onClose, onSav
       </div>
     </div>
   );
-}
-
-function cnForBimesterButton(active: boolean) {
-  return `px-3 py-1 text-sm rounded-full ${active ? 'bg-brand text-white' : 'hover:bg-foreground/5'}`;
 }
 
 function ItemList({

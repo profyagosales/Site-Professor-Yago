@@ -77,7 +77,8 @@ export function NotasTabela({ classId }: NotasTabelaProps) {
                   key={bimester}
                   type="button"
                   onClick={() => toggleBimester(bimester)}
-                  className={`rounded-full px-3 py-1 text-sm font-medium transition ${active ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                  className="bim-pill"
+                  data-active={active}
                 >
                   {bimester}º
                 </button>

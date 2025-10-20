@@ -32,6 +32,44 @@ a:focus-visible,
   transition: transform 150ms ease, background-color 150ms ease;
 }
 
+/* --- Bimestres: pills de seleção --- */
+.bim-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .4rem .9rem;
+  border-radius: 9999px;
+  border: 1px solid #e4e7ec;
+  background: #fff;
+  color: #374151;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color .2s ease,
+    color .2s ease,
+    border-color .2s ease,
+    box-shadow .2s ease;
+}
+
+.bim-pill[data-active="true"],
+.bim-pill[aria-pressed="true"] {
+  background: #ffeadb;
+  border-color: #f59e0b;
+  color: #9a3412;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, .03) inset;
+}
+
+.bim-pill:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.bim-pill:focus-visible {
+  outline: 3px solid #fdba74;
+  outline-offset: 2px;
+}
+
 /* --- Divisão de notas: chips de bimestre --- */
 .bimester-chip {
   appearance: none;

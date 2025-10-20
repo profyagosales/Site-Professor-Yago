@@ -278,12 +278,8 @@ export default function MinhasNotasPage() {
             key={term}
             type="button"
             onClick={() => handleSelectTerm(term)}
-            className={[
-              'rounded-full px-3 py-1 text-sm font-semibold transition',
-              selectedTerm === term
-                ? 'bg-orange-500 text-white shadow-sm'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-            ].join(' ')}
+            className="bim-pill"
+            data-active={selectedTerm === term}
           >
             {term}º bimestre
           </button>
