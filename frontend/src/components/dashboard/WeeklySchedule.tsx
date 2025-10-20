@@ -28,8 +28,8 @@ type WeeklyScheduleProps = {
 
 export default function WeeklySchedule({ slots, days, cells }: WeeklyScheduleProps) {
   return (
-    <div className="h-full overflow-x-auto pb-1">
-      <div className="h-full min-w-full">
+    <div className="schedule-container">
+      <div className="schedule-scroll">
         <div
           className="schedule-grid grid h-full"
           style={{
@@ -40,7 +40,7 @@ export default function WeeklySchedule({ slots, days, cells }: WeeklySchedulePro
           {days.map((day) => (
             <div
               key={day.id}
-              className="flex h-8 items-center justify-center rounded-xl bg-slate-100 px-2 text-xs font-semibold uppercase tracking-wide text-slate-600"
+              className="flex h-8 min-w-[88px] items-center justify-center rounded-xl bg-slate-100 px-3 text-xs font-semibold uppercase tracking-wide text-slate-600 whitespace-nowrap"
             >
               {day.label}
             </div>
