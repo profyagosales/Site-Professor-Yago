@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { GradeSchemeByBimester, Bimester } from '@/types/gradeScheme';
+import { Bimester, GradeItem, GradeScheme } from '@/types/gradeScheme';
 
 type Props = {
   teacherId: string;
-  scheme: GradeSchemeByBimester | null;
+  scheme: GradeScheme | null;
   onEdit: () => void;
 };
 
@@ -12,29 +12,25 @@ const BIMESTRES: Bimester[] = [1, 2, 3, 4];
 export default function DivisaoNotasCard({ teacherId, scheme, onEdit }: Props) {
   const [selected, setSelected] = useState<Bimester>(1);
 
-  const itemsByBim = useMemo(() => scheme ?? ({} as GradeSchemeByBimester), [scheme]);
-  const items = useMemo(() => itemsByBim[selected] ?? [], [itemsByBim, selected]);
+  const itemsByBimester = useMemo(() => groupByBimester(scheme ?? []), [scheme]);
+  const items = useMemo(() => itemsByBimester[selected] ?? [], [itemsByBimester, selected]);
 
   return (
-    <section
-      aria-labelledby="divisao-notas-title"
-      className="card"
-      data-teacher-id={teacherId}
-    >
+    <section aria-labelledby="divisao-notas-title" className="card" data-teacher-id={teacherId}>
       <header className="card-header">
         <h2 id="divisao-notas-title">Divisão de notas</h2>
         <div className="gap-2 flex items-center">
           <div role="tablist" aria-label="Bimestre" className="flex gap-2">
-            {BIMESTRES.map((b) => (
+            {BIMESTRES.map((bimester) => (
               <button
-                key={b}
+                key={bimester}
                 role="tab"
                 type="button"
-                className={`bimester-chip ${b === selected ? 'is-active' : ''}`}
-                aria-pressed={b === selected}
-                onClick={() => setSelected(b)}
+                className={`bimester-chip ${bimester === selected ? 'is-active' : ''}`}
+                aria-pressed={bimester === selected}
+                onClick={() => setSelected(bimester)}
               >
-                {b}º
+                {bimester}º
               </button>
             ))}
           </div>
@@ -46,16 +42,16 @@ export default function DivisaoNotasCard({ teacherId, scheme, onEdit }: Props) {
 
       <div className="flex flex-wrap gap-2 mt-3">
         {items.length ? (
-          items.map((it) => (
+          items.map((item) => (
             <span
-              key={it.id}
+              key={item.id}
               className="inline-flex items-center gap-2 px-3 py-1 rounded-full"
               style={{
-                background: it.color,
+                background: item.color,
                 color: '#fff',
                 boxShadow: 'inset 0 0 0 2px rgba(255,255,255,.15)',
               }}
-              title={`${it.name} • ${it.points.toLocaleString('pt-BR')} pts`}
+              title={`${item.name} • ${item.points.toLocaleString('pt-BR')} pts`}
             >
               <span
                 aria-hidden
@@ -66,7 +62,7 @@ export default function DivisaoNotasCard({ teacherId, scheme, onEdit }: Props) {
                   background: 'rgba(255,255,255,.85)',
                 }}
               />
-              {it.name} • {it.points.toLocaleString('pt-BR')} pts
+              {item.name} • {item.points.toLocaleString('pt-BR')} pts
             </span>
           ))
         ) : (
@@ -77,3 +73,13 @@ export default function DivisaoNotasCard({ teacherId, scheme, onEdit }: Props) {
       </div>
     </section>
   );
+}
+
+function groupByBimester(entries: GradeScheme): Record<Bimester, GradeItem[]> {
+  const map: Record<Bimester, GradeItem[]> = { 1: [], 2: [], 3: [], 4: [] };
+  entries.forEach((item) => {
+    const key: Bimester = ([1, 2, 3, 4] as Bimester[]).includes(item.bimester) ? item.bimester : 1;
+    map[key] = [...map[key], item];
+  });
+  return map;
+}

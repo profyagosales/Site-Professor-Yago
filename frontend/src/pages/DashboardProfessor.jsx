@@ -120,7 +120,7 @@ function formatAgendaHeader(date) {
 }
 
 function createEmptyGradeScheme() {
-  return { 1: [], 2: [], 3: [], 4: [] }
+  return []
 }
 
 function DashboardProfessor(){
@@ -317,7 +317,7 @@ function DashboardProfessor(){
 
   useEffect(() => {
     if (!teacherId) {
-      setGradeScheme(null)
+      setGradeScheme(createEmptyGradeScheme())
       return
     }
 
@@ -326,7 +326,7 @@ function DashboardProfessor(){
       try {
         const response = await getSchemeForProfessor(teacherId)
         if (cancelled) return
-        setGradeScheme(response?.scheme ?? createEmptyGradeScheme())
+        setGradeScheme(response?.items ?? createEmptyGradeScheme())
       } catch (error) {
         if (!cancelled) {
           console.error('Erro ao carregar divisão de notas do professor', error)

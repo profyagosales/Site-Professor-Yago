@@ -1,5 +1,5 @@
 import { api } from '@/services/api';
-import { GradeSchemeByBimester, GradeSchemeForProfessor } from '@/types/gradeScheme';
+import { Bimester, GradeItem, GradeScheme as GradeSchemeItems, GradeSchemeForProfessor } from '@/types/gradeScheme';
 
 export type GradeSchemeItem = {
   name: string;
@@ -147,29 +147,186 @@ export async function setVisibleScheme(payload: { classId: string; year: number;
   return normalizeScheme(data);
 }
 
-export async function getSchemeForProfessor(teacherId: string): Promise<GradeSchemeForProfessor | null> {
-  const response = await fetch(`/api/grade-scheme/professor/${teacherId}`);
-  if (response.status === 404) {
-    return null;
+const BIMESTERS: Bimester[] = [1, 2, 3, 4];
+const GRADE_ITEM_TYPES: GradeItem['type'][] = ['Prova', 'Trabalho', 'Projeto', 'Teste', 'Outros'];
+const DEFAULT_ITEM_COLOR = '#F28C2E';
+
+const makeId = () =>
+  globalThis.crypto?.randomUUID?.() ?? `id_${Math.random().toString(36).slice(2)}`;
+
+function unwrapPayload(payload: any): any {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return payload;
   }
-  if (!response.ok) {
-    throw new Error('Falha ao carregar divisão de notas');
+  if (payload.data && typeof payload.data === 'object' && !Array.isArray(payload.data)) {
+    return payload.data;
   }
-  return (await response.json()) as GradeSchemeForProfessor;
+  return payload;
 }
 
-export async function saveSchemeForProfessor(
-  teacherId: string,
-  scheme: GradeSchemeByBimester,
-): Promise<void> {
-  const response = await fetch(`/api/grade-scheme/professor/${teacherId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ teacherId, scheme }),
-  });
-  if (!response.ok) {
-    throw new Error('Falha ao salvar divisão de notas');
+function ensureBimester(value: unknown, fallback: Bimester = 1): Bimester {
+  const parsed = Number(value);
+  if (BIMESTERS.includes(parsed as Bimester)) {
+    return parsed as Bimester;
   }
+  return fallback;
+}
+
+function resolveGradeItemType(value: unknown): GradeItem['type'] {
+  if (typeof value !== 'string') {
+    return 'Prova';
+  }
+  const normalized = value.trim().toLowerCase();
+  const matched = GRADE_ITEM_TYPES.find((entry) => entry.toLowerCase() === normalized);
+  return matched ?? 'Prova';
+}
+
+function normalizeGradeItem(raw: any, fallbackBimester: Bimester): GradeItem {
+  const idSource =
+    typeof raw?.id === 'string'
+      ? raw.id
+      : typeof raw?._id === 'string'
+        ? raw._id
+        : null;
+  const id = idSource && idSource.trim() ? idSource : makeId();
+  const nameSource =
+    typeof raw?.name === 'string'
+      ? raw.name
+      : typeof raw?.label === 'string'
+        ? raw.label
+        : '';
+  const name = nameSource.trim();
+  const pointsValue =
+    typeof raw?.points === 'number'
+      ? raw.points
+      : raw?.points !== undefined
+        ? Number.parseFloat(String(raw.points).replace(',', '.'))
+        : 0;
+  const boundedPoints = Number.isFinite(pointsValue) ? Math.min(Math.max(pointsValue, 0), 10) : 0;
+  const color =
+    typeof raw?.color === 'string' && raw.color.trim() ? raw.color.trim() : DEFAULT_ITEM_COLOR;
+  const bimester = ensureBimester(raw?.bimester, fallbackBimester);
+  const type = resolveGradeItemType(raw?.type);
+
+  return {
+    id,
+    name,
+    type,
+    points: Number.parseFloat(boundedPoints.toFixed(2)),
+    color,
+    bimester,
+  };
+}
+
+function normalizeItemsFromRecord(record: any): GradeSchemeItems {
+  if (!record || typeof record !== 'object') {
+    return [];
+  }
+  return BIMESTERS.flatMap((bimester) => {
+    const entries = Array.isArray(record[bimester]) ? record[bimester] : [];
+    return entries.map((entry: any) => normalizeGradeItem(entry, bimester));
+  });
+}
+
+function normalizeSchemePayload(payload: any): GradeSchemeItems {
+  const resolved = unwrapPayload(payload);
+  if (!resolved) {
+    return [];
+  }
+  if (Array.isArray(resolved)) {
+    return resolved.map((entry) => normalizeGradeItem(entry, ensureBimester(entry?.bimester, 1)));
+  }
+  if (Array.isArray(resolved?.items)) {
+    return resolved.items.map((entry: any) =>
+      normalizeGradeItem(entry, ensureBimester(entry?.bimester, 1)),
+    );
+  }
+  if (resolved?.scheme) {
+    return normalizeItemsFromRecord(resolved.scheme);
+  }
+  return [];
+}
+
+function extractUpdatedAt(payload: any): string | null {
+  const resolved = unwrapPayload(payload);
+  const raw = resolved?.updatedAt ?? resolved?.lastUpdatedAt ?? resolved?.schemeUpdatedAt;
+  if (typeof raw === 'string' && raw.trim()) {
+    return raw;
+  }
+  return null;
+}
+
+function buildProfessorEndpoints(teacherId?: string): string[] {
+  if (teacherId && teacherId.trim()) {
+    return [`/api/grade-scheme/professor/${teacherId}`, '/api/grade-scheme/professor'];
+  }
+  return ['/api/grade-scheme/professor'];
+}
+
+export async function getSchemeForProfessor(teacherId: string): Promise<GradeSchemeForProfessor> {
+  const endpoints = buildProfessorEndpoints(teacherId);
+  let lastError: Error | null = null;
+
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetch(endpoint);
+      if (response.status === 404) {
+        continue;
+      }
+      if (!response.ok) {
+        throw new Error('Falha ao carregar divisão de notas');
+      }
+      const payload = await response.json();
+      return {
+        teacherId,
+        items: normalizeSchemePayload(payload),
+        updatedAt: extractUpdatedAt(payload),
+      };
+    } catch (error) {
+      lastError = error as Error;
+    }
+  }
+
+  if (lastError) {
+    throw lastError;
+  }
+
+  return {
+    teacherId,
+    items: [],
+    updatedAt: null,
+  };
+}
+
+export async function saveSchemeForProfessor(items: GradeSchemeItems, teacherId?: string): Promise<void> {
+  const endpoints = buildProfessorEndpoints(teacherId);
+  let lastError: Error | null = null;
+
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetch(endpoint, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items }),
+      });
+      if (response.ok) {
+        return;
+      }
+      if (response.status === 404 || response.status === 405) {
+        continue;
+      }
+      const message = await response.text().catch(() => '');
+      throw new Error(message || 'Falha ao salvar divisão de notas');
+    } catch (error) {
+      lastError = error as Error;
+    }
+  }
+
+  if (lastError) {
+    throw lastError;
+  }
+
+  throw new Error('Falha ao salvar divisão de notas');
 }
 
 export default {

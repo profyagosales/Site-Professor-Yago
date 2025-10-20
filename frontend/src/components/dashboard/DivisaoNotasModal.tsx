@@ -1,93 +1,101 @@
 import { useEffect, useMemo, useState } from 'react';
-import { nanoid } from 'nanoid';
-import { Bimester, GradeItem, GradeItemType, GradeSchemeByBimester } from '@/types/gradeScheme';
+import { Bimester, GradeItem, GradeItemType, GradeScheme } from '@/types/gradeScheme';
 import { saveSchemeForProfessor } from '@/services/gradeScheme';
 
 type Props = {
   teacherId: string;
-  initial: GradeSchemeByBimester | null;
+  initial: GradeScheme | null;
   isOpen: boolean;
   onClose: () => void;
-  onSaved: (next: GradeSchemeByBimester) => void;
+  onSaved: (next: GradeScheme) => void;
 };
 
 const TYPES: GradeItemType[] = ['Prova', 'Trabalho', 'Projeto', 'Teste', 'Outros'];
 const BIMESTRES: Bimester[] = [1, 2, 3, 4];
 
-function createEmptyScheme(): GradeSchemeByBimester {
-  return { 1: [], 2: [], 3: [], 4: [] };
-}
+const makeId = () => globalThis.crypto?.randomUUID?.() ?? `id_${Math.random().toString(36).slice(2)}`;
 
-function cloneScheme(data: GradeSchemeByBimester | null): GradeSchemeByBimester {
-  const source = data ?? createEmptyScheme();
-  return {
-    1: [...(source[1] ?? [])].map((item) => ({ ...item })),
-    2: [...(source[2] ?? [])].map((item) => ({ ...item })),
-    3: [...(source[3] ?? [])].map((item) => ({ ...item })),
-    4: [...(source[4] ?? [])].map((item) => ({ ...item })),
-  };
+function cloneItems(items: GradeScheme | null): GradeScheme {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+  return items.map((item) => ({ ...item }));
 }
 
 export default function DivisaoNotasModal({ teacherId, initial, isOpen, onClose, onSaved }: Props) {
   const [active, setActive] = useState<Bimester>(1);
-  const [data, setData] = useState<GradeSchemeByBimester>(() => cloneScheme(initial));
+  const [items, setItems] = useState<GradeScheme>(() => cloneItems(initial));
 
   useEffect(() => {
     if (isOpen) {
       setActive(1);
-      setData(cloneScheme(initial));
+      setItems(cloneItems(initial));
     }
   }, [initial, isOpen]);
 
-  const totals = useMemo(() => computeTotals(data), [data]);
-  const valid = useMemo(
-    () => BIMESTRES.every((b) => Number.isFinite(totals[b]) && Math.abs(totals[b] - 10) < 1e-6),
+  const filteredItems = useMemo(
+    () => items.filter((item) => item.bimester === active),
+    [items, active],
+  );
+
+  const totals = useMemo(() => computeTotals(items), [items]);
+  const isValid = useMemo(
+    () => BIMESTRES.every((b) => Number.isFinite(totals[b]) && Math.abs(totals[b] - 10) < 1e-4),
     [totals],
   );
 
-  function addItem() {
+  const addItem = (bimester: Bimester) => {
     const fresh: GradeItem = {
-      id: nanoid(),
+      id: makeId(),
       name: '',
-      points: 0,
       type: 'Prova',
-      color: '#F28C28',
+      points: 0,
+      color: '#F28C2E',
+      bimester,
     };
-    setData((prev) => ({ ...prev, [active]: [...prev[active], fresh] }));
-  }
+    setItems((prev) => [...prev, fresh]);
+  };
 
-  function removeItem(id: string) {
-    setData((prev) => ({ ...prev, [active]: prev[active].filter((item) => item.id !== id) }));
-  }
+  const updateItem = (id: string, patch: Partial<GradeItem>) => {
+    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  };
 
-  function move(id: string, dir: -1 | 1) {
-    setData((prev) => {
-      const arr = [...prev[active]];
-      const index = arr.findIndex((item) => item.id === id);
+  const removeItem = (id: string) => {
+    setItems((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const moveItem = (id: string, direction: -1 | 1) => {
+    setItems((prev) => {
+      const index = prev.findIndex((item) => item.id === id);
       if (index < 0) return prev;
-      const targetIndex = Math.max(0, Math.min(arr.length - 1, index + dir));
-      [arr[index], arr[targetIndex]] = [arr[targetIndex], arr[index]];
-      return { ...prev, [active]: arr };
+      const targetBimester = prev[index].bimester;
+      const indices = prev
+        .map((entry, idx) => ({ entry, idx }))
+        .filter(({ entry }) => entry.bimester === targetBimester)
+        .map(({ idx }) => idx);
+      const position = indices.indexOf(index);
+      const nextPosition = position + direction;
+      if (nextPosition < 0 || nextPosition >= indices.length) {
+        return prev;
+      }
+      const swapIndex = indices[nextPosition];
+      const clone = [...prev];
+      [clone[index], clone[swapIndex]] = [clone[swapIndex], clone[index]];
+      return clone;
     });
-  }
+  };
 
-  function patch(id: string, partial: Partial<GradeItem>) {
-    setData((prev) => ({
-      ...prev,
-      [active]: prev[active].map((item) => (item.id === id ? { ...item, ...partial } : item)),
-    }));
-  }
-
-  async function save() {
+  const handleSave = async () => {
+    if (!isValid) return;
     try {
-      await saveSchemeForProfessor(teacherId, data);
-      onSaved(cloneScheme(data));
-      onClose();
+      await saveSchemeForProfessor(items, teacherId);
+      onSaved(cloneItems(items));
+      onClose?.();
     } catch (error) {
       console.error('Falha ao salvar divisão de notas', error);
       window.alert?.('Não foi possível salvar a divisão de notas. Tente novamente.');
     }
-  }
+  };
 
   if (!isOpen) {
     return null;
@@ -120,30 +128,35 @@ export default function DivisaoNotasModal({ teacherId, initial, isOpen, onClose,
             </div>
           </div>
 
-          <ItemList items={data[active]} onAdd={addItem} onRemove={removeItem} onMove={move} onPatch={patch} />
+          <ItemList
+            items={filteredItems}
+            onAdd={() => addItem(active)}
+            onRemove={removeItem}
+            onMove={moveItem}
+            onPatch={updateItem}
+          />
 
-          <div className="mt-4 text-sm">
-            <strong>Totais</strong>
-            <ul className="mt-1 grid grid-cols-4 gap-2">
-              {BIMESTRES.map((b) => (
-                <li
+          <div className="grid grid-cols-4 gap-3 mt-4 text-sm">
+            {BIMESTRES.map((b) => {
+              const total = totals[b];
+              const ok = Math.abs(total - 10) < 0.0001;
+              return (
+                <div
                   key={b}
-                  className={`rounded-md px-2 py-1 text-center ${
-                    Math.abs(totals[b] - 10) < 1e-6 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-                  }`}
+                  className={`rounded px-3 py-2 text-sm ${ok ? 'bg-green-50 text-green-700' : 'bg-rose-50 text-rose-700'}`}
                 >
-                  {b}º: {totals[b].toFixed(1)} / 10,0
-                </li>
-              ))}
-            </ul>
+                  {b}º: {total.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} / 10,0
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        <footer className="modal-footer">
+        <footer className="modal-footer flex justify-end gap-3 mt-4">
           <button className="btn btn-ghost" onClick={onClose} type="button">
             Cancelar
           </button>
-          <button className="btn btn-primary" disabled={!valid} onClick={save} type="button">
+          <button className="btn btn-primary" disabled={!isValid} onClick={handleSave} type="button">
             Salvar
           </button>
         </footer>
@@ -212,45 +225,15 @@ function ItemRow({
   onDown: () => void;
   onPatch: (p: Partial<GradeItem>) => void;
 }) {
-  const [name, setName] = useState(item.name ?? '');
-  const [pointsStr, setPointsStr] = useState(
-    (Number.isFinite(item.points) ? item.points.toFixed(1) : '').replace('.', ','),
-  );
-
-  useEffect(() => {
-    setName(item.name ?? '');
-  }, [item.id, item.name]);
-
-  useEffect(() => {
-    const formatted = (Number.isFinite(item.points) ? item.points.toFixed(1) : '').replace('.', ',');
-    setPointsStr(formatted);
-  }, [item.id, item.points]);
-
-  function onPointsBlur() {
-    let s = (pointsStr || '').trim().replace(',', '.');
-    let n = Number.parseFloat(s);
-    if (!Number.isFinite(n)) n = 0;
-    n = Math.max(0, Math.min(10, Math.round(n * 10) / 10));
-    onPatch({ points: n });
-    setPointsStr(n.toFixed(1).replace('.', ','));
-  }
-
-  function onNameBlur() {
-    const trimmed = name.trim();
-    setName(trimmed);
-    onPatch({ name: trimmed });
-  }
-
   return (
     <div className="rounded-xl border p-3 flex flex-wrap items-center gap-3">
       <div className="grow min-w-[200px]">
         <label className="label">Nome do item</label>
         <input
           className="input w-full"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          onBlur={onNameBlur}
-          placeholder="Ex.: Prova 1, Trabalho, Projeto…"
+          value={item.name}
+          onChange={(event) => onPatch({ name: event.target.value })}
+          placeholder="Ex.: Prova 1, Trabalho, Projeto..."
         />
       </div>
 
@@ -259,9 +242,15 @@ function ItemRow({
         <input
           className="input w-[110px] text-right"
           inputMode="decimal"
-          value={pointsStr}
-          onChange={(event) => setPointsStr(event.target.value)}
-          onBlur={onPointsBlur}
+          pattern="[0-9]+([\\.,][0-9]+)?"
+          value={String(item.points ?? 0).replace('.', ',')}
+          onChange={(event) => {
+            const raw = event.target.value.replace(',', '.');
+            const next = Number(raw);
+            if (Number.isFinite(next)) {
+              onPatch({ points: Math.max(0, Math.min(10, next)) });
+            }
+          }}
           placeholder="0,0"
         />
       </div>
@@ -285,13 +274,14 @@ function ItemRow({
         <label className="label">Cor</label>
         <input
           type="color"
-          className="input h-[40px] w-[80px] p-1"
+          className="h-10 w-16 p-0 border rounded"
           value={item.color}
           onChange={(event) => onPatch({ color: event.target.value })}
+          aria-label="Selecionar cor"
         />
       </div>
 
-      <div className="ml-auto flex gap-1">
+      <div className="ml-auto flex gap-2">
         <button className="icon-btn" disabled={!canUp} onClick={onUp} title="Mover para cima" type="button">
           ↑
         </button>
@@ -306,10 +296,11 @@ function ItemRow({
   );
 }
 
-function computeTotals(d: GradeSchemeByBimester): Record<Bimester, number> {
-  return { 1: sum(d[1]), 2: sum(d[2]), 3: sum(d[3]), 4: sum(d[4]) };
-}
-
-function sum(arr: GradeItem[] | undefined) {
-  return (arr ?? []).reduce((acc, item) => acc + (item.points || 0), 0);
+function computeTotals(entries: GradeScheme): Record<Bimester, number> {
+  const totals: Record<Bimester, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  entries.forEach((item) => {
+    const increment = Number.isFinite(item.points) ? Number(item.points) : 0;
+    totals[item.bimester] = Number.parseFloat((totals[item.bimester] + increment).toFixed(2));
+  });
+  return totals;
 }
