@@ -650,6 +650,16 @@ html, body, #root { height: 100%; background: #F2F4F7; }
   max-height: 60vh;
   overflow-y: auto;
   padding-right: 0.25rem;
+  overscroll-behavior: contain;
+  word-break: break-word;
+}
+
+.announcement-modal-list img {
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  max-height: 280px;
 }
 
 .dashboard-equal-grid {

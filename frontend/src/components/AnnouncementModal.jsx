@@ -140,9 +140,24 @@ export default function AnnouncementModal({
   const isEditMode = Boolean(initialAnnouncement?.id)
 
   const quillRef = useRef(null)
-  const initializedRef = useRef(false)
+  const draftsRef = useRef(new Map())
   const [classes, setClasses] = useState([])
-  const [form, setForm] = useState(() => mapFromDefaults(defaultClassIds))
+  const normalizedDefaultIds = useMemo(
+    () =>
+      Array.isArray(defaultClassIds)
+        ? defaultClassIds
+            .map((value) => String(value))
+            .filter(Boolean)
+            .sort((a, b) => a.localeCompare(b))
+        : [],
+    [defaultClassIds],
+  )
+  const editingId = initialAnnouncement?.id ? String(initialAnnouncement.id) : null
+  const contextKey = editingId ? `edit:${editingId}` : `create:${normalizedDefaultIds.join('|')}`
+  const [activeContext, setActiveContext] = useState(contextKey)
+  const [form, setForm] = useState(() =>
+    initialAnnouncement ? mapFromEditing(initialAnnouncement, defaultClassIds) : mapFromDefaults(defaultClassIds),
+  )
   const [submitting, setSubmitting] = useState(false)
 
   const availableClasses = useMemo(() => {
@@ -185,22 +200,28 @@ export default function AnnouncementModal({
       .catch(() => setClasses([]))
   }, [open])
 
-  const editingId = initialAnnouncement?.id ?? null
+  useEffect(() => {
+    if (contextKey === activeContext) return
+
+    const storedDraft = draftsRef.current.get(contextKey)
+    const nextForm = storedDraft
+      ? storedDraft
+      : initialAnnouncement
+        ? mapFromEditing(initialAnnouncement, defaultClassIds)
+        : mapFromDefaults(defaultClassIds)
+
+    draftsRef.current.set(contextKey, nextForm)
+    setForm(nextForm)
+    setActiveContext(contextKey)
+  }, [contextKey, activeContext, initialAnnouncement, defaultClassIds])
 
   useEffect(() => {
-    if (open && !initializedRef.current) {
-      setForm(initialAnnouncement ? mapFromEditing(initialAnnouncement, defaultClassIds) : mapFromDefaults(defaultClassIds))
-      initializedRef.current = true
-    }
-    if (!open) {
-      initializedRef.current = false
-    }
-  }, [open, editingId, initialAnnouncement, defaultClassIds])
+    draftsRef.current.set(activeContext, form)
+  }, [activeContext, form])
 
   const closeIfAllowed = useCallback(
     (force = false) => {
       if (submitting && !force) return
-      initializedRef.current = false
       onClose?.()
     },
     [onClose, submitting]
@@ -316,6 +337,10 @@ export default function AnnouncementModal({
       }
       const onSavedHandler = typeof onSaved === 'function' ? onSaved : () => {}
       await onSavedHandler()
+      draftsRef.current.delete(contextKey)
+      if (!isEditMode) {
+        setForm(mapFromDefaults(defaultClassIds))
+      }
       closeIfAllowed(true)
     } catch (err) {
       console.error('[AnnouncementModal] Falha ao salvar aviso', err)

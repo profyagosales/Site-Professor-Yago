@@ -124,6 +124,69 @@ function isPdf(attachment: Attachment): boolean {
   return typeof attachment?.mime === 'string' && attachment.mime === 'application/pdf';
 }
 
+type AttachmentListProps = {
+  attachments?: Announcement['attachments'];
+  className?: string;
+};
+
+function AttachmentList({ attachments, className = '' }: AttachmentListProps) {
+  if (!attachments?.length) {
+    return null;
+  }
+
+  const containerClassName = ['announcement-attachments space-y-3', className]
+    .filter(Boolean)
+    .join(' ');
+
+  return (
+    <div className={containerClassName}>
+      {attachments.map((attachment) => {
+        if (!attachment || !attachment.url) return null;
+        if (isImage(attachment)) {
+          return (
+            <div
+              key={attachment.url}
+              className="announcement-image-wrapper overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
+            >
+              <img
+                src={attachment.url}
+                alt={attachment.name ?? 'Imagem do aviso'}
+                className="announcement-image w-full"
+                loading="lazy"
+              />
+            </div>
+          );
+        }
+        if (isPdf(attachment)) {
+          return (
+            <a
+              key={attachment.url}
+              href={attachment.url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+            >
+              <FiFileText aria-hidden="true" className="h-4 w-4" />
+              {attachment.name || 'Ver PDF'}
+            </a>
+          );
+        }
+        return (
+          <a
+            key={attachment.url}
+            href={attachment.url}
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm text-orange-600 underline"
+          >
+            {attachment.name || 'Ver anexo'}
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function AvisosCard({
   className = '',
   limit = 5,
@@ -454,53 +517,7 @@ export default function AvisosCard({
                   className="rich-content prose prose-sm max-w-none text-slate-700"
                   dangerouslySetInnerHTML={{ __html: announcementHtml }}
                 />
-                {activeAnnouncement?.attachments?.length ? (
-                  <div className="announcement-attachments space-y-3">
-                    {activeAnnouncement.attachments.map((attachment) => {
-                      if (!attachment || !attachment.url) return null;
-                      if (isImage(attachment)) {
-                        return (
-                          <div
-                            key={attachment.url}
-                            className="announcement-image-wrapper overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
-                          >
-                            <img
-                              src={attachment.url}
-                              alt={attachment.name ?? 'Imagem do aviso'}
-                              className="announcement-image w-full"
-                              loading="lazy"
-                            />
-                          </div>
-                        );
-                      }
-                      if (isPdf(attachment)) {
-                        return (
-                          <a
-                            key={attachment.url}
-                            href={attachment.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
-                          >
-                            <FiFileText aria-hidden="true" className="h-4 w-4" />
-                            {attachment.name || 'Ver PDF'}
-                          </a>
-                        );
-                      }
-                      return (
-                        <a
-                          key={attachment.url}
-                          href={attachment.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-sm text-orange-600 underline"
-                        >
-                          {attachment.name || 'Ver anexo'}
-                        </a>
-                      );
-                    })}
-                  </div>
-                ) : null}
+                <AttachmentList attachments={activeAnnouncement?.attachments} />
               </div>
             </div>
             {announcements.length > 1 ? (
@@ -561,38 +578,7 @@ export default function AvisosCard({
                       className="announcement-content rich-content prose prose-sm max-w-none text-slate-700"
                       dangerouslySetInnerHTML={{ __html: html }}
                     />
-                    {announcement.attachments?.length ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {announcement.attachments.map((attachment) => {
-                          if (!attachment?.url) return null;
-                          if (isPdf(attachment)) {
-                            return (
-                              <a
-                                key={attachment.url}
-                                href={attachment.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
-                              >
-                                <FiFileText aria-hidden="true" className="h-4 w-4" />
-                                {attachment.name || 'Ver PDF'}
-                              </a>
-                            );
-                          }
-                          return (
-                            <a
-                              key={attachment.url}
-                              href={attachment.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 transition hover:bg-slate-50"
-                            >
-                              {attachment.name || 'Abrir anexo'}
-                            </a>
-                          );
-                        })}
-                      </div>
-                    ) : null}
+                    <AttachmentList attachments={announcement.attachments} className="mt-3" />
                     <div className="mt-4 flex flex-wrap justify-end gap-2">
                       {hasEditAction ? (
                         <Button
