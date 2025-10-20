@@ -570,52 +570,55 @@ function DashboardProfessor(){
             )}
             <div className="hero-left-text">
               <p className="text-xs uppercase tracking-wide text-white/80">Bem-vindo de volta</p>
-              <h1 className="text-2xl font-semibold md:text-3xl">{user?.name || 'Professor'}</h1>
+              <p className="text-2xl font-semibold md:text-3xl">{user?.name || 'Professor'}</p>
               <p className="text-sm text-white/80">Painel do professor</p>
             </div>
           </div>
 
-          <div className="hero-right">
-            <div className="hero-right-top">
-              <Button
-                type="button"
-                className="rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-white/20 focus-visible:ring-white/60"
-                onClick={handleLogout}
-              >
-                Sair
-              </Button>
+          <div className="hero-title">
+            <h1 className="hero-title-heading">Painel do Professor</h1>
+          </div>
+
+          <div className="hero-ctas">
+            <Button className="hero-cta" onClick={() => setShowEmail(true)}>
+              Enviar e-mail
+            </Button>
+            <Button
+              className="hero-cta"
+              onClick={() => {
+                setAnnouncementDraft(null)
+                setAnnouncementOpen(true)
+              }}
+            >
+              Novo aviso
+            </Button>
+            <Button className="hero-cta" onClick={() => setContentOpen(true)}>
+              Atividades
+            </Button>
+          </div>
+
+          <div className="hero-right-top">
+            <Button
+              type="button"
+              className="rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-white/20 focus-visible:ring-white/60"
+              onClick={handleLogout}
+            >
+              Sair
+            </Button>
+          </div>
+
+          <div className="hero-right-stats">
+            <div className="mini-stat-card">
+              <p className="mini-stat-label">Turmas</p>
+              <p className="mini-stat-value">{totalClasses}</p>
             </div>
-            <div className="hero-right-stats">
-              <div className="mini-stat-card">
-                <p className="mini-stat-label">Turmas</p>
-                <p className="mini-stat-value">{totalClasses}</p>
-              </div>
-              <div className="mini-stat-card">
-                <p className="mini-stat-label">Total de alunos</p>
-                <p className="mini-stat-value">{uniqueStudentsCount}</p>
-              </div>
+            <div className="mini-stat-card">
+              <p className="mini-stat-label">Total de alunos</p>
+              <p className="mini-stat-value">{uniqueStudentsCount}</p>
             </div>
           </div>
         </div>
       </section>
-
-      <div className="hero-cta-row">
-        <Button className="hero-cta" onClick={() => setShowEmail(true)}>
-          Enviar e-mail
-        </Button>
-        <Button
-          className="hero-cta"
-          onClick={() => {
-            setAnnouncementDraft(null)
-            setAnnouncementOpen(true)
-          }}
-        >
-          Novo aviso
-        </Button>
-        <Button className="hero-cta" onClick={() => setContentOpen(true)}>
-          Atividades
-        </Button>
-      </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,50%)_minmax(0,1fr)] lg:items-start">
         <div className="lg:max-w-full">
