@@ -73,24 +73,36 @@ html, body, #root { height: 100%; background: #F2F4F7; }
     @apply px-4 md:px-6 lg:px-10;
   }
   .hero-compact {
-    @apply px-6 py-5 md:px-8 md:py-6;
+    position: relative;
+    padding: clamp(28px, 4vw, 36px) clamp(1.5rem, 4vw, 2.5rem);
   }
   .cta-row {
     @apply flex flex-wrap items-center justify-center gap-3 md:gap-4;
   }
   .mini-stat-card {
-    @apply rounded-2xl bg-white/15 px-4 py-3 text-left shadow-sm text-white;
+    @apply rounded-2xl bg-white/15 shadow-sm text-white;
+    min-width: 160px;
     min-height: 120px;
     display: flex;
     flex-direction: column;
+    align-items: center;
     justify-content: center;
-    gap: 4px;
+    text-align: center;
+    gap: 0.5rem;
+    padding: 1rem;
   }
   .mini-stat-label {
-    @apply text-xs uppercase tracking-wide text-white/70;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.75);
   }
   .mini-stat-value {
-    @apply text-xl font-semibold leading-tight text-white;
+    font-size: clamp(1.75rem, 4vw, 2rem);
+    font-weight: 700;
+    line-height: 1.1;
+    color: #fff;
   }
   .modal-body-scroll {
     @apply overflow-y-auto pr-1;
@@ -167,7 +179,7 @@ html, body, #root { height: 100%; background: #F2F4F7; }
 
 .hero-grid {
   display: grid;
-  gap: 24px;
+  gap: clamp(1.25rem, 2.5vw, 1.5rem);
   grid-template-areas:
     "left title title rightTop"
     "left ctas ctas rightBot";
@@ -182,7 +194,9 @@ html, body, #root { height: 100%; background: #F2F4F7; }
   align-items: flex-start;
   justify-content: center;
   gap: 16px;
-  padding-right: 8px;
+  padding-right: clamp(0.5rem, 1vw, 1.5rem);
+  min-height: 100%;
+  align-self: stretch;
 }
 
 .hero-left-text {
@@ -201,10 +215,11 @@ html, body, #root { height: 100%; background: #F2F4F7; }
 }
 
 .hero-title-heading {
-  font-size: clamp(2.5rem, 5vw, 3.5rem);
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  text-transform: uppercase;
+  font-size: clamp(28px, 3vw, 44px);
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  line-height: 1.1;
+  text-transform: none;
 }
 
 .hero-ctas {
@@ -212,17 +227,18 @@ html, body, #root { height: 100%; background: #F2F4F7; }
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 16px;
+  gap: clamp(1.25rem, 2.5vw, 1.5rem);
 }
 
 .hero-cta {
   @apply btn-primary;
   border-radius: 9999px;
-  padding: 0.6rem 1.5rem;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  line-height: 1;
   min-width: 160px;
+  min-height: 44px;
+  padding: 0 clamp(1.25rem, 3vw, 1.5rem);
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.1;
 }
 
 .dash-grid {
@@ -299,18 +315,48 @@ html, body, #root { height: 100%; background: #F2F4F7; }
 
 .hero-right-top {
   grid-area: rightTop;
+  min-height: 36px;
+  position: relative;
   display: flex;
   justify-content: flex-end;
   align-items: flex-start;
 }
 
+.hero-logout {
+  position: absolute;
+  top: clamp(16px, 2.5vw, 24px);
+  right: clamp(16px, 4vw, 28px);
+  min-height: 36px;
+  padding: 0 clamp(1rem, 2.5vw, 1.25rem);
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.18);
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.hero-logout:hover {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.55);
+}
+
+.hero-logout:focus-visible {
+  outline: var(--ys-focus-outline);
+  outline-offset: 2px;
+}
+
 .hero-right-stats {
   grid-area: rightBot;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+  gap: clamp(1rem, 2vw, 1.5rem);
   align-self: stretch;
-  justify-items: stretch;
+  justify-items: center;
+  align-content: center;
 }
 
 @media (max-width: 1023px) {
@@ -341,6 +387,13 @@ html, body, #root { height: 100%; background: #F2F4F7; }
 
   .hero-right-stats {
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+
+  .hero-logout {
+    position: static;
+    margin: 0 auto;
+    min-height: 36px;
+    margin-bottom: 0.5rem;
   }
 }
 

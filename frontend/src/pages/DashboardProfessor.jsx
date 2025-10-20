@@ -586,7 +586,7 @@ function DashboardProfessor(){
 
   return (
     <div className="page-safe pt-4 space-y-6">
-      <section className="hero-compact rounded-3xl bg-gradient-to-r from-orange-500 to-orange-400 text-white shadow-xl">
+      <section className="hero-compact relative rounded-3xl bg-gradient-to-r from-orange-500 to-orange-400 text-white shadow-xl">
         <div className="hero-grid">
           <div className="hero-left">
             {resolvedAvatar ? (
@@ -630,11 +630,7 @@ function DashboardProfessor(){
           </div>
 
           <div className="hero-right-top">
-            <Button
-              type="button"
-              className="rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-white/20 focus-visible:ring-white/60"
-              onClick={handleLogout}
-            >
+            <Button type="button" className="hero-logout" onClick={handleLogout}>
               Sair
             </Button>
           </div>
