@@ -17,20 +17,27 @@ export default function DashboardCard({
   children,
   ariaLabel,
 }: DashboardCardProps) {
+  const headingId = useId();
+  const assistiveLabelId = ariaLabel ? `${headingId}-assistive` : undefined;
+  const labelledBy = assistiveLabelId ? `${headingId} ${assistiveLabelId}` : headingId;
+
   const containerClass = [
-    'flex h-full flex-col rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_20px_50px_rgba(15,23,42,0.08)] sm:p-6 min-h-[22rem]',
+    'dashboard-card flex h-full min-h-[22rem] min-w-0 flex-col gap-5 px-6 py-5 shadow-[0_20px_50px_rgba(15,23,42,0.08)] sm:gap-6 sm:px-8 sm:py-6',
     className,
   ]
     .filter(Boolean)
     .join(' ');
 
-  const contentClass = ['mt-4 flex flex-1 flex-col overflow-hidden', contentClassName].filter(Boolean).join(' ');
-  const headingId = useId();
-  const regionLabel = ariaLabel ?? title;
+  const contentClass = ['flex flex-1 min-h-0 flex-col overflow-hidden', contentClassName].filter(Boolean).join(' ');
 
   return (
-    <section className={containerClass} role="region" aria-label={regionLabel} aria-labelledby={headingId}>
-      <div className="flex items-start justify-between gap-3">
+    <section className={containerClass} role="region" aria-labelledby={labelledBy}>
+      {assistiveLabelId ? (
+        <span id={assistiveLabelId} className="sr-only">
+          {ariaLabel}
+        </span>
+      ) : null}
+      <div className="flex items-start justify-between gap-4 sm:gap-5">
         <h3 id={headingId} className="card-title text-slate-900">
           {title}
         </h3>
