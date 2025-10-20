@@ -73,6 +73,63 @@ const formats = [
   'font',
 ]
 
+const INITIAL_FORM = {
+  subject: '',
+  html: DEFAULT_EDITOR_VALUE,
+  plainText: '',
+  attachments: [],
+  existingAttachments: [],
+  selectedClasses: [],
+  emailList: '',
+  bccTeachers: false,
+  targetMode: 'class',
+  sendMode: 'now',
+  scheduleAt: '',
+}
+
+const mapFromDefaults = (defaultClassIds = []) => {
+  const preset = Array.isArray(defaultClassIds)
+    ? defaultClassIds.map((value) => String(value)).filter(Boolean)
+    : []
+
+  return {
+    ...INITIAL_FORM,
+    selectedClasses: preset,
+    targetMode: 'class',
+  }
+}
+
+const mapFromEditing = (announcement, defaultClassIds = []) => {
+  if (!announcement) {
+    return mapFromDefaults(defaultClassIds)
+  }
+
+  const target = announcement.target || { type: 'class', value: [] }
+  const isClassTarget = target.type !== 'email'
+  const selectedClasses = isClassTarget
+    ? (Array.isArray(target.value) ? target.value : [])
+        .map((value) => String(value))
+        .filter(Boolean)
+    : []
+  const emails = !isClassTarget && Array.isArray(target.value) ? target.value.join(', ') : ''
+  const html = announcement.html || DEFAULT_EDITOR_VALUE
+  const scheduleSource = announcement.scheduleAt || announcement.scheduledFor || ''
+
+  return {
+    subject: announcement.subject || '',
+    html,
+    plainText: stripHtml(html),
+    attachments: [],
+    existingAttachments: announcement.attachments || [],
+    selectedClasses,
+    emailList: emails,
+    bccTeachers: Boolean(announcement.includeTeachers),
+    targetMode: isClassTarget ? 'class' : 'email',
+    sendMode: scheduleSource ? 'schedule' : 'now',
+    scheduleAt: scheduleSource ? scheduleSource.slice(0, 16) : '',
+  }
+}
+
 export default function AnnouncementModal({
   open,
   onClose,
@@ -83,17 +140,9 @@ export default function AnnouncementModal({
   const isEditMode = Boolean(initialAnnouncement?.id)
 
   const quillRef = useRef(null)
+  const initializedRef = useRef(false)
   const [classes, setClasses] = useState([])
-  const [subject, setSubject] = useState('')
-  const [editorValue, setEditorValue] = useState(DEFAULT_EDITOR_VALUE)
-  const [existingAttachments, setExistingAttachments] = useState([])
-  const [attachments, setAttachments] = useState([])
-  const [selectedClasses, setSelectedClasses] = useState([])
-  const [emailList, setEmailList] = useState('')
-  const [bccTeachers, setBccTeachers] = useState(false)
-  const [targetMode, setTargetMode] = useState('class')
-  const [sendMode, setSendMode] = useState('now')
-  const [scheduleAt, setScheduleAt] = useState('')
+  const [form, setForm] = useState(() => mapFromDefaults(defaultClassIds))
   const [submitting, setSubmitting] = useState(false)
 
   const availableClasses = useMemo(() => {
@@ -113,94 +162,72 @@ export default function AnnouncementModal({
       .filter(Boolean)
   }, [classes])
 
-  const parsedEmails = useMemo(() => sanitizeEmails(emailList.split(EMAIL_SPLIT_REGEX)), [emailList])
-  const plainText = useMemo(() => stripHtml(editorValue), [editorValue])
-
   const canSubmit = useMemo(() => {
-    if (!subject.trim()) return false
-    if (!plainText.trim()) return false
-    if (targetMode === 'class') {
-      return selectedClasses.length > 0
+    if (!form.subject.trim()) return false
+    if (!form.plainText.trim()) return false
+    if (form.targetMode === 'class') {
+      return form.selectedClasses.length > 0
     }
-    return parsedEmails.length > 0
-  }, [subject, plainText, targetMode, selectedClasses.length, parsedEmails.length])
-
-  const applyInitialData = useCallback(
-    (announcement) => {
-      if (announcement) {
-        setSubject(announcement.subject || '')
-        setEditorValue(announcement.html || DEFAULT_EDITOR_VALUE)
-        setExistingAttachments(announcement.attachments || [])
-        setAttachments([])
-        const target = announcement.target || { type: 'class', value: [] }
-        setTargetMode(target.type === 'email' ? 'email' : 'class')
-        if (target.type === 'class') {
-          setSelectedClasses(Array.isArray(target.value) ? target.value.map(String) : [])
-          setEmailList('')
-        } else {
-          setSelectedClasses([])
-          setEmailList(Array.isArray(target.value) ? target.value.join(', ') : '')
-        }
-        setBccTeachers(Boolean(announcement.includeTeachers))
-        const scheduled = announcement.scheduleAt || announcement.scheduledFor || ''
-        setScheduleAt(scheduled ? scheduled.slice(0, 16) : '')
-        setSendMode(scheduled ? 'schedule' : 'now')
-      } else {
-        setSubject('')
-        setEditorValue(DEFAULT_EDITOR_VALUE)
-        setExistingAttachments([])
-        setAttachments([])
-        const preset = Array.isArray(defaultClassIds)
-          ? defaultClassIds.map((value) => String(value)).filter(Boolean)
-          : []
-        setSelectedClasses(preset)
-        setEmailList('')
-        setBccTeachers(false)
-        setTargetMode(preset.length ? 'class' : 'class')
-        setSendMode('now')
-        setScheduleAt('')
-      }
-    },
-    [defaultClassIds]
-  )
+    return form.emailList.split(EMAIL_SPLIT_REGEX).some((entry) => entry.trim())
+  }, [form.subject, form.plainText, form.targetMode, form.selectedClasses.length, form.emailList])
 
   useEffect(() => {
     if (!open) return
     listClasses()
       .then((response) => {
-        const entries = Array.isArray(response) ? response : Array.isArray(response?.data) ? response.data : []
+        const entries = Array.isArray(response)
+          ? response
+          : Array.isArray(response?.data)
+            ? response.data
+            : []
         setClasses(entries)
       })
       .catch(() => setClasses([]))
   }, [open])
 
+  const editingId = initialAnnouncement?.id ?? null
+
   useEffect(() => {
-    if (!open) return
-    applyInitialData(initialAnnouncement)
-  }, [open, initialAnnouncement, applyInitialData])
+    if (open && !initializedRef.current) {
+      setForm(initialAnnouncement ? mapFromEditing(initialAnnouncement, defaultClassIds) : mapFromDefaults(defaultClassIds))
+      initializedRef.current = true
+    }
+    if (!open) {
+      initializedRef.current = false
+    }
+  }, [open, editingId, initialAnnouncement, defaultClassIds])
 
   const closeIfAllowed = useCallback(
     (force = false) => {
       if (submitting && !force) return
-      onClose()
-      applyInitialData(null)
+      initializedRef.current = false
+      onClose?.()
     },
-    [applyInitialData, onClose, submitting]
+    [onClose, submitting]
   )
 
   const handleAttachmentChange = (event) => {
     const files = Array.from(event.target.files || []).filter((file) => file.type === 'application/pdf')
     if (!files.length) return
-    setAttachments((prev) => [...prev, ...files])
+    setForm((prev) => ({
+      ...prev,
+      attachments: [...prev.attachments, ...files],
+    }))
     event.target.value = ''
   }
 
   const removeAttachment = (index) => {
-    setAttachments((prev) => prev.filter((_, idx) => idx !== index))
+    setForm((prev) => ({
+      ...prev,
+      attachments: prev.attachments.filter((_, idx) => idx !== index),
+    }))
   }
 
   const removeExistingAttachment = (index) => {
-    setExistingAttachments((prev) => prev.filter((_, idx) => idx !== index))
+    setForm((prev) => ({
+      ...prev,
+      existingAttachments: prev.existingAttachments.filter((_, idx) => idx !== index),
+    }))
   }
 
   const handleImageUpload = useCallback(async () => {
@@ -238,25 +265,40 @@ export default function AnnouncementModal({
       ? 'Atualizar'
       : 'Salvar'
 
-  const handleEditorChange = useCallback((content, _delta, _source, editor) => {
+  const onQuillChange = useCallback((content, _delta, _source, editor) => {
     const html = typeof editor?.getHTML === 'function' ? editor.getHTML() : content
-    setEditorValue(html)
+    setForm((prev) => ({
+      ...prev,
+      html,
+      plainText: stripHtml(html),
+    }))
+  }, [])
+
+  const handleEmailsBlur = useCallback(() => {
+    setForm((prev) => ({
+      ...prev,
+      emailList: sanitizeEmails(prev.emailList.split(EMAIL_SPLIT_REGEX)).join(', '),
+    }))
   }, [])
 
   const handleSubmit = async (event) => {
     event.preventDefault()
     if (!canSubmit || submitting) return
 
+    const sanitizedEmails = form.targetMode === 'email'
+      ? sanitizeEmails(form.emailList.split(EMAIL_SPLIT_REGEX))
+      : []
+
     const payload = {
-      type: targetMode,
-      value: targetMode === 'class' ? selectedClasses : parsedEmails,
-      subject: subject.trim(),
-      html: editorValue,
-      message: plainText,
-      scheduleAt: sendMode === 'schedule' && scheduleAt ? scheduleAt : undefined,
-      bccTeachers: targetMode === 'class' ? bccTeachers : false,
-      attachments,
-      keepAttachments: existingAttachments.map((item) => item.url).filter(Boolean),
+      type: form.targetMode,
+      value: form.targetMode === 'class' ? form.selectedClasses : sanitizedEmails,
+      subject: form.subject.trim(),
+      html: form.html,
+      message: form.plainText,
+      scheduleAt: form.sendMode === 'schedule' && form.scheduleAt ? form.scheduleAt : undefined,
+      bccTeachers: form.targetMode === 'class' ? form.bccTeachers : false,
+      attachments: form.attachments,
+      keepAttachments: form.existingAttachments.map((item) => item.url).filter(Boolean),
     }
 
     setSubmitting(true)
@@ -272,9 +314,8 @@ export default function AnnouncementModal({
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('announcements:refresh'))
       }
-      if (typeof onSaved === 'function') {
-        await onSaved()
-      }
+      const onSavedHandler = typeof onSaved === 'function' ? onSaved : () => {}
+      await onSavedHandler()
       closeIfAllowed(true)
     } catch (err) {
       console.error('[AnnouncementModal] Falha ao salvar aviso', err)
@@ -286,21 +327,29 @@ export default function AnnouncementModal({
 
   const quillModules = useMemo(() => modules(handleImageUpload), [handleImageUpload])
 
+  const bodyStyle = useMemo(
+    () => ({ maxHeight: '70vh', overflowY: 'auto', overscrollBehavior: 'contain' }),
+    []
+  )
+
   return (
     <Modal open={open} onClose={closeIfAllowed} className="max-w-3xl overflow-hidden">
       <div className="flex max-h-[85vh] flex-col overflow-hidden">
-        <header className="mb-4">
+        <header className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <h2 className="text-xl font-semibold text-slate-900">{isEditMode ? 'Editar aviso' : 'Novo aviso'}</h2>
+          <Button type="button" variant="ghost" size="sm" onClick={() => closeIfAllowed(true)} disabled={submitting}>
+            Fechar
+          </Button>
         </header>
         <form onSubmit={handleSubmit} className="flex flex-1 flex-col">
-          <div className="modal-body min-h-0 space-y-5 pr-2">
+          <div className="space-y-5 px-6 py-4" style={bodyStyle}>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Assunto</label>
               <input
                 type="text"
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                value={subject}
-                onChange={(event) => setSubject(event.target.value)}
+                value={form.subject}
+                onChange={(event) => setForm((prev) => ({ ...prev, subject: event.target.value }))}
                 required
               />
             </div>
@@ -312,8 +361,8 @@ export default function AnnouncementModal({
                 theme="snow"
                 modules={quillModules}
                 formats={formats}
-                value={editorValue}
-                onChange={handleEditorChange}
+                value={form.html}
+                onChange={onQuillChange}
               />
             </div>
 
@@ -322,11 +371,11 @@ export default function AnnouncementModal({
                 <label className="mb-1 block text-sm font-medium text-slate-700">Anexos (PDF)</label>
                 <input type="file" accept="application/pdf" multiple onChange={handleAttachmentChange} />
               </div>
-              {existingAttachments.length ? (
+              {form.existingAttachments.length ? (
                 <div className="mt-3 space-y-2">
                   <p className="text-xs uppercase tracking-wide text-slate-500">Anexos atuais</p>
                   <ul className="space-y-2">
-                    {existingAttachments.map((attachment, index) => (
+                    {form.existingAttachments.map((attachment, index) => (
                       <li
                         key={attachment.url ?? `${attachment.name}-${index}`}
                         className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700"
@@ -347,11 +396,11 @@ export default function AnnouncementModal({
                   </ul>
                 </div>
               ) : null}
-              {attachments.length ? (
+              {form.attachments.length ? (
                 <div className="mt-3 space-y-2">
                   <p className="text-xs uppercase tracking-wide text-slate-500">Novos anexos</p>
                   <ul className="space-y-2">
-                    {attachments.map((file, index) => (
+                    {form.attachments.map((file, index) => (
                       <li
                         key={`${file.name}-${index}`}
                         className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700"
@@ -373,8 +422,14 @@ export default function AnnouncementModal({
                   type="radio"
                   name="target"
                   value="class"
-                  checked={targetMode === 'class'}
-                  onChange={() => setTargetMode('class')}
+                  checked={form.targetMode === 'class'}
+                  onChange={() =>
+                    setForm((prev) => ({
+                      ...prev,
+                      targetMode: 'class',
+                      emailList: '',
+                    }))
+                  }
                 />
                 Enviar para turmas
               </label>
@@ -383,25 +438,35 @@ export default function AnnouncementModal({
                   type="radio"
                   name="target"
                   value="email"
-                  checked={targetMode === 'email'}
-                  onChange={() => setTargetMode('email')}
+                  checked={form.targetMode === 'email'}
+                  onChange={() =>
+                    setForm((prev) => ({
+                      ...prev,
+                      targetMode: 'email',
+                      selectedClasses: [],
+                      bccTeachers: false,
+                    }))
+                  }
                 />
                 Enviar para e-mails
               </label>
             </div>
 
-            {targetMode === 'class' ? (
+            {form.targetMode === 'class' ? (
               <div className="space-y-3">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-slate-700">Turmas</label>
                   <select
                     multiple
                     className="h-36 max-h-40 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400 overflow-auto"
-                    value={selectedClasses}
-                    onChange={(event) =>
-                      setSelectedClasses(Array.from(event.target.selectedOptions).map((option) => option.value))
-                    }
-                    required
+                    value={form.selectedClasses}
+                    onChange={(event) => {
+                      const values = Array.from(event.target.selectedOptions || []).map((option) => option.value)
+                      setForm((prev) => ({
+                        ...prev,
+                        selectedClasses: values,
+                      }))
+                    }}
                   >
                     {availableClasses.map((klass) => (
                       <option key={klass.id} value={klass.id}>
@@ -413,73 +478,94 @@ export default function AnnouncementModal({
                 <label className="flex items-center gap-2 text-sm text-slate-700">
                   <input
                     type="checkbox"
-                    checked={bccTeachers}
-                    onChange={(event) => setBccTeachers(event.target.checked)}
+                    checked={form.bccTeachers}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        bccTeachers: event.target.checked,
+                      }))
+                    }
                   />
-                  Incluir professores em CCO
+                  Incluir professores em cópia oculta
                 </label>
               </div>
             ) : (
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  E-mails (separe com vírgula ou quebra de linha)
-                </label>
-                <textarea
-                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                  value={emailList}
-                  onChange={(event) => setEmailList(event.target.value)}
-                  rows={3}
-                  required
-                />
-                <p className="mt-1 text-xs text-slate-500">Destinatários válidos: {parsedEmails.length}</p>
+              <div className="space-y-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">E-mails (separados por vírgula)</label>
+                  <textarea
+                    rows={4}
+                    className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
+                    value={form.emailList}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        emailList: event.target.value,
+                      }))
+                    }
+                    onBlur={handleEmailsBlur}
+                  />
+                </div>
               </div>
             )}
 
-            <div className="flex flex-wrap gap-4 text-sm text-slate-700">
-              <label className="flex items-center gap-2">
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 text-sm text-slate-700">
                 <input
                   type="radio"
                   name="send-mode"
                   value="now"
-                  checked={sendMode === 'now'}
-                  onChange={() => setSendMode('now')}
+                  checked={form.sendMode === 'now'}
+                  onChange={() =>
+                    setForm((prev) => ({
+                      ...prev,
+                      sendMode: 'now',
+                      scheduleAt: '',
+                    }))
+                  }
                 />
                 Enviar agora
               </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="send-mode"
-                  value="schedule"
-                  checked={sendMode === 'schedule'}
-                  onChange={() => setSendMode('schedule')}
-                />
-                Agendar envio
-              </label>
-            </div>
-
-            {sendMode === 'schedule' && (
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Data e hora</label>
-                <input
-                  type="datetime-local"
-                  className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                  value={scheduleAt}
-                  onChange={(event) => setScheduleAt(event.target.value)}
-                  required
-                />
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="radio"
+                    name="send-mode"
+                    value="schedule"
+                    checked={form.sendMode === 'schedule'}
+                    onChange={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        sendMode: 'schedule',
+                      }))
+                    }
+                  />
+                  Agendar envio
+                </label>
+                {form.sendMode === 'schedule' ? (
+                  <input
+                    type="datetime-local"
+                    className="rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
+                    value={form.scheduleAt}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        scheduleAt: event.target.value,
+                      }))
+                    }
+                  />
+                ) : null}
               </div>
-            )}
+            </div>
           </div>
-
-          <div className="modal-footer mt-6 flex justify-end gap-3 border-t border-slate-100">
+          <footer className="flex items-center justify-end gap-3 border-t border-slate-100 px-6 py-4">
             <Button type="button" variant="ghost" onClick={closeIfAllowed} disabled={submitting}>
               Cancelar
             </Button>
-            <Button type="submit" className="btn-primary" disabled={!canSubmit || submitting}>
+            <Button type="submit" disabled={!canSubmit || submitting}>
               {submitLabel}
             </Button>
-          </div>
+          </footer>
         </form>
       </div>
     </Modal>

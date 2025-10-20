@@ -31,7 +31,7 @@ export default function WeeklySchedule({ slots, days, cells }: WeeklySchedulePro
     <div className="h-full pb-1">
       <div className="min-w-full h-full">
         <div
-          className="schedule-grid grid h-full gap-1.5 md:gap-2"
+          className="schedule-grid grid h-full"
           style={{
             gridTemplateColumns: `132px repeat(${days.length}, minmax(0, 1fr))`,
           }}
@@ -48,55 +48,49 @@ export default function WeeklySchedule({ slots, days, cells }: WeeklySchedulePro
 
           {slots.map((slot) => (
             <div key={slot.id} className="contents">
-              <div className="flex min-h-[46px] flex-col justify-center rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-2 text-[11px]">
-                <span className="text-xs font-semibold text-slate-700">{slot.label} horário</span>
-                <span className="text-[10px] text-slate-500">{slot.time}</span>
+              <div className="schedule-slot">
+                <span className="schedule-slot-label">{slot.label} horário</span>
+                <span className="schedule-slot-time">{slot.time}</span>
               </div>
 
               {days.map((day) => {
                 const key = `${slot.id}-${day.id}`;
                 const items = cells[key] || [];
+                const timeInfo = slot.time?.trim() || slot.label;
                 if (!items.length) {
                   return (
-                    <div
-                      key={key}
-                      className="schedule-cell schedule-empty flex min-h-[46px] items-center justify-center border border-dashed border-slate-200 bg-white text-sm text-slate-400"
-                    >
+                    <div key={key} className="schedule-cell schedule-empty" aria-label={`Sem aula em ${day.label} / ${timeInfo}`}>
                       —
                     </div>
                   );
                 }
 
                 return (
-                  <div key={key} className="flex min-h-[46px] flex-col gap-2">
+                  <div key={key} className="schedule-cell-stack">
                     {items.map((item, index) => {
                       const palette = resolveClassColors(item.color ?? null, item.classId ?? item.label);
                       const ariaDiscipline = item.discipline?.trim() || item.label;
                       const classLabel = item.className?.trim() || item.label;
-                      const timeInfo = slot.time?.trim() || slot.label;
                       const ariaLabel = `Aula de ${ariaDiscipline}${
                         classLabel && classLabel !== ariaDiscipline ? ` — ${classLabel}` : ''
                       } em ${day.label}/${timeInfo}`;
                       const itemStyle: CSSProperties = {
                         backgroundColor: palette.bg,
                         color: palette.fg,
-                        width: '100%',
                       };
 
                       return (
                         <div
                           key={`${item.classId || item.label}-${index}`}
-                          className="schedule-cell text-center font-medium leading-tight"
+                          className="schedule-cell schedule-filled"
                           style={itemStyle}
                           title={item.label}
                           aria-label={ariaLabel}
                         >
-                          <div className="flex w-full flex-col items-center justify-center gap-1">
-                            <span className="block w-full truncate">{item.label}</span>
-                            {item.discipline && item.discipline !== item.label ? (
-                              <span className="block w-full truncate text-xs opacity-80">{item.discipline}</span>
-                            ) : null}
-                          </div>
+                          <span className="schedule-cell-title">{item.label}</span>
+                          {item.discipline && item.discipline !== item.label ? (
+                            <span className="schedule-cell-subtitle">{item.discipline}</span>
+                          ) : null}
                         </div>
                       );
                     })}

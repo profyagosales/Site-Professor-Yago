@@ -556,35 +556,36 @@ function DashboardProfessor(){
     <div className="page-safe pt-4 space-y-6">
       <section className="hero-compact rounded-3xl bg-gradient-to-r from-orange-500 to-orange-400 text-white shadow-xl">
         <div className="hero-grid">
-          <Button
-            type="button"
-            className="hero-exit rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-white/20 focus-visible:ring-white/60"
-            onClick={handleLogout}
-          >
-            Sair
-          </Button>
-
           <div className="hero-left">
             {resolvedAvatar ? (
               <img
                 src={resolvedAvatar}
                 alt={user.name}
-                className="h-16 w-16 rounded-2xl border border-white/50 object-cover shadow-lg"
+                className="h-20 w-20 rounded-2xl border border-white/50 object-cover shadow-lg"
               />
             ) : (
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/50 bg-white/20 text-2xl font-semibold uppercase">
+              <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-white/50 bg-white/20 text-3xl font-semibold uppercase">
                 {user?.name ? user.name.slice(0, 1) : '?'}
               </div>
             )}
-            <div className="space-y-1">
+            <div className="hero-left-text">
               <p className="text-xs uppercase tracking-wide text-white/80">Bem-vindo de volta</p>
               <h1 className="text-2xl font-semibold md:text-3xl">{user?.name || 'Professor'}</h1>
               <p className="text-sm text-white/80">Painel do professor</p>
             </div>
           </div>
 
-          <div className="hero-right-top">
-            <div className="flex gap-3">
+          <div className="hero-right">
+            <div className="hero-right-top">
+              <Button
+                type="button"
+                className="rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-white/20 focus-visible:ring-white/60"
+                onClick={handleLogout}
+              >
+                Sair
+              </Button>
+            </div>
+            <div className="hero-right-stats">
               <div className="mini-stat-card">
                 <p className="mini-stat-label">Turmas</p>
                 <p className="mini-stat-value">{totalClasses}</p>
@@ -595,38 +596,40 @@ function DashboardProfessor(){
               </div>
             </div>
           </div>
-
-          <div className="hero-right-ctas">
-            <Button className="btn-primary" onClick={() => setShowEmail(true)}>
-              Enviar e-mail
-            </Button>
-            <Button
-              className="btn-primary"
-              onClick={() => {
-                setAnnouncementDraft(null)
-                setAnnouncementOpen(true)
-              }}
-            >
-              Novo aviso
-            </Button>
-            <Button className="btn-primary" onClick={() => setContentOpen(true)}>
-              Atividades
-            </Button>
-          </div>
         </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <DashboardCard
-          title="Horário Semanal"
-          className="card schedule-card"
-          contentClassName="card-body"
+      <div className="hero-cta-row">
+        <Button className="hero-cta" onClick={() => setShowEmail(true)}>
+          Enviar e-mail
+        </Button>
+        <Button
+          className="hero-cta"
+          onClick={() => {
+            setAnnouncementDraft(null)
+            setAnnouncementOpen(true)
+          }}
         >
-          <WeeklySchedule slots={SLOT_CONFIG} days={WEEKDAY_CONFIG} cells={scheduleMatrix} />
-        </DashboardCard>
+          Novo aviso
+        </Button>
+        <Button className="hero-cta" onClick={() => setContentOpen(true)}>
+          Atividades
+        </Button>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,50%)_minmax(0,1fr)] lg:items-start">
+        <div className="lg:max-w-full">
+          <DashboardCard
+            title="Horário Semanal"
+            className="card schedule-card"
+            contentClassName="card-body schedule-card-body"
+          >
+            <WeeklySchedule slots={SLOT_CONFIG} days={WEEKDAY_CONFIG} cells={scheduleMatrix} />
+          </DashboardCard>
+        </div>
 
         <AvisosCard
-          className="card h-[420px]"
+          className="card avisos-card"
           onEdit={(announcement) => {
             setAnnouncementDraft(announcement)
             setAnnouncementOpen(true)

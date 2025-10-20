@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { nanoid } from 'nanoid';
 import { toast } from 'react-toastify';
 import Modal from '@/components/ui/Modal';
@@ -44,6 +44,25 @@ type ItemForm = {
 const MAX_TOTAL_POINTS = 10;
 const CURRENT_YEAR = new Date().getFullYear();
 const YEAR_OPTIONS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR + 1];
+
+type FormState = {
+  classId: string;
+  year: number;
+  bimester: number;
+  items: ItemForm[];
+  visibleBimester: number | null;
+};
+
+const createInitialForm = (
+  classId: string,
+  year: number
+): FormState => ({
+  classId,
+  year,
+  bimester: 1,
+  items: [createEmptyItem(0)],
+  visibleBimester: null,
+});
 
 function toNumberOrZero(value: string): number {
   if (typeof value !== 'string') {
@@ -96,14 +115,35 @@ export default function DivisaoNotasModal({
   defaultYear = CURRENT_YEAR,
   onSaved = () => {},
 }: DivisaoNotasModalProps) {
-  const [classId, setClassId] = useState<string>(() => defaultClassId || classOptions[0]?.id || '');
-  const [year, setYear] = useState<number>(defaultYear);
-  const [bimester, setBimester] = useState<number>(1);
-  const [items, setItems] = useState<ItemForm[]>([createEmptyItem(0)]);
-  const [visibleBimester, setVisibleBimester] = useState<number | null>(null);
+  const initialClassId = defaultClassId || classOptions[0]?.id || '';
+  const [form, setForm] = useState<FormState>(() => createInitialForm(initialClassId, defaultYear));
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [schemesCache, setSchemesCache] = useState<Record<string, GradeScheme[]>>({});
+  const initializedRef = useRef(false);
+
+  const { classId, year, bimester, items, visibleBimester } = form;
+
+  useEffect(() => {
+    if (open && !initializedRef.current) {
+      const fallbackClass = defaultClassId || classOptions[0]?.id || form.classId || '';
+      setForm(createInitialForm(fallbackClass, defaultYear));
+      initializedRef.current = true;
+    }
+    if (!open) {
+      initializedRef.current = false;
+    }
+  }, [open, defaultClassId, defaultYear, classOptions, form.classId]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (!form.classId && classOptions.length) {
+      setForm((prev) => ({
+        ...prev,
+        classId: classOptions[0].id,
+      }));
+    }
+  }, [open, classOptions, form.classId]);
 
   const cacheKey = useMemo(() => `${classId}:${year}`, [classId, year]);
 
@@ -121,20 +161,18 @@ export default function DivisaoNotasModal({
       const schemes = await listSchemes({ classId, year });
       setSchemesCache((prev) => ({ ...prev, [cacheKey]: schemes }));
       const active = schemes.find((scheme) => scheme.showToStudents)?.bimester ?? null;
-      setVisibleBimester((current) => {
-        if (typeof current === 'number' && current >= 1 && current <= 4) {
-          return current;
-        }
-        if (active !== null) {
-          return active;
-        }
-        return schemes[0]?.bimester ?? 1;
-      });
-      setBimester((current) => {
-        if (schemes.some((scheme) => scheme.bimester === current)) {
-          return current;
-        }
-        return active ?? schemes[0]?.bimester ?? 1;
+      setForm((prev) => {
+        const nextVisible =
+          prev.visibleBimester !== null
+            ? prev.visibleBimester
+            : active ?? schemes[0]?.bimester ?? null;
+        const hasCurrent = schemes.some((scheme) => scheme.bimester === prev.bimester);
+        const nextBimester = hasCurrent ? prev.bimester : active ?? schemes[0]?.bimester ?? 1;
+        return {
+          ...prev,
+          visibleBimester: nextVisible,
+          bimester: nextBimester || 1,
+        };
       });
     } catch (err) {
       console.error('[DivisaoNotasModal] Falha ao carregar esquemas', err);
@@ -143,17 +181,6 @@ export default function DivisaoNotasModal({
       setLoading(false);
     }
   }, [cacheKey, classId, year]);
-
-  useEffect(() => {
-    if (!open) return;
-    if (!classId && classOptions.length) {
-      setClassId(classOptions[0].id);
-    }
-  }, [open, classId, classOptions]);
-
-  useEffect(() => {
-    setVisibleBimester(null);
-  }, [classId, year]);
 
   useEffect(() => {
     if (!open || !classId) return;
@@ -166,47 +193,83 @@ export default function DivisaoNotasModal({
     if (!open) return;
     const schemes = schemesCache[cacheKey] ?? [];
     const current = schemes.find((scheme) => scheme.bimester === bimester);
-    if (current) {
-      const formItems = current.items.length
-        ? current.items.map((item, index) => toItemForm(item, index)).sort((a, b) => a.order - b.order)
-        : [createEmptyItem(0)];
-      setItems(formItems);
-    } else {
-      setItems([createEmptyItem(0)]);
-    }
+    const nextItems = current
+      ? (current.items.length
+          ? current.items.map((item, index) => toItemForm(item, index)).sort((a, b) => a.order - b.order)
+          : [createEmptyItem(0)])
+      : [createEmptyItem(0)];
+
+    setForm((prev) => {
+      const isSameLength = prev.items.length === nextItems.length;
+      const isSameContent =
+        isSameLength &&
+        prev.items.every((item, index) => {
+          const candidate = nextItems[index];
+          return (
+            item.label === candidate.label &&
+            item.points === candidate.points &&
+            item.rawPoints === candidate.rawPoints &&
+            item.type === candidate.type &&
+            item.color === candidate.color &&
+            item.order === candidate.order
+          );
+        });
+      if (isSameContent) {
+        return prev;
+      }
+      return {
+        ...prev,
+        items: nextItems,
+      };
+    });
   }, [open, bimester, cacheKey, schemesCache]);
 
   const handleAddItem = () => {
-    setItems((prev) => {
-      const nextOrder = prev.length ? Math.max(...prev.map((item) => item.order)) + 1 : 0;
-      return [...prev, createEmptyItem(nextOrder)];
+    setForm((prev) => {
+      const nextOrder = prev.items.length ? Math.max(...prev.items.map((item) => item.order)) + 1 : 0;
+      return {
+        ...prev,
+        items: [...prev.items, createEmptyItem(nextOrder)],
+      };
     });
   };
 
   const handleRemoveItem = (uid: string) => {
-    setItems((prev) => {
-      if (prev.length === 1) {
+    setForm((prev) => {
+      if (prev.items.length === 1) {
         return prev;
       }
-      return prev.filter((item) => item.uid !== uid).map((item, index) => ({ ...item, order: index }));
+      const remaining = prev.items
+        .filter((item) => item.uid !== uid)
+        .map((item, index) => ({ ...item, order: index }));
+      return {
+        ...prev,
+        items: remaining,
+      };
     });
   };
 
   const handleMove = (uid: string, direction: 'up' | 'down') => {
-    setItems((prev) => {
-      const index = prev.findIndex((item) => item.uid === uid);
+    setForm((prev) => {
+      const index = prev.items.findIndex((item) => item.uid === uid);
       if (index === -1) return prev;
       const targetIndex = direction === 'up' ? index - 1 : index + 1;
-      if (targetIndex < 0 || targetIndex >= prev.length) return prev;
-      const next = [...prev];
+      if (targetIndex < 0 || targetIndex >= prev.items.length) return prev;
+      const next = [...prev.items];
       const [removed] = next.splice(index, 1);
       next.splice(targetIndex, 0, removed);
-      return next.map((item, order) => ({ ...item, order }));
+      return {
+        ...prev,
+        items: next.map((item, order) => ({ ...item, order })),
+      };
     });
   };
 
   const handleItemChange = (uid: string, patch: Partial<ItemForm>) => {
-    setItems((prev) => prev.map((item) => (item.uid === uid ? { ...item, ...patch } : item)));
+    setForm((prev) => ({
+      ...prev,
+      items: prev.items.map((item) => (item.uid === uid ? { ...item, ...patch } : item)),
+    }));
   };
 
   const handleSave = async () => {
@@ -283,7 +346,10 @@ export default function DivisaoNotasModal({
       };
     });
 
-      setVisibleBimester(desiredVisible);
+      setForm((prev) => ({
+        ...prev,
+        visibleBimester: desiredVisible,
+      }));
 
       toast.success('Divisão de notas salva.');
       onSaved?.();
@@ -298,27 +364,41 @@ export default function DivisaoNotasModal({
 
   const handleClose = () => {
     if (saving) return;
+    initializedRef.current = false;
     onClose();
   };
 
+  const bodyStyle = useMemo(
+    () => ({ maxHeight: '70vh', overflowY: 'auto', overscrollBehavior: 'contain' as const }),
+    []
+  );
+
   return (
     <Modal open={open} onClose={handleClose} className="max-w-3xl overflow-hidden">
-      <div className="flex max-h-[85vh] flex-col overflow-hidden p-6">
-        <div className="mb-4 flex items-center justify-between">
+      <div className="flex max-h-[85vh] flex-col overflow-hidden">
+        <header className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <h2 className="card-title text-slate-900">Configurar divisão de notas</h2>
-          <Button variant="ghost" onClick={handleClose}>
+          <Button variant="ghost" size="sm" onClick={handleClose} disabled={saving}>
             Fechar
           </Button>
-        </div>
+        </header>
 
-        <div className="modal-body flex-1 min-h-0 space-y-4 pr-2">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm font-semibold text-slate-700">Turma</label>
-              <select
+        <div className="flex-1">
+          <div className="space-y-4 px-6 py-4" style={bodyStyle}>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-sm font-semibold text-slate-700">Turma</label>
+                <select
                 value={classId}
                 onChange={(event) => {
-                  setClassId(event.target.value);
+                  const nextClassId = event.target.value;
+                  setForm((prev) => ({
+                    ...prev,
+                    classId: nextClassId,
+                    bimester: 1,
+                    visibleBimester: null,
+                    items: [createEmptyItem(0)],
+                  }));
                 }}
                 className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
               >
@@ -333,7 +413,15 @@ export default function DivisaoNotasModal({
               <label className="mb-1 block text-sm font-semibold text-slate-700">Ano</label>
               <select
                 value={year}
-                onChange={(event) => setYear(Number(event.target.value))}
+                onChange={(event) => {
+                  const nextYear = Number(event.target.value);
+                  setForm((prev) => ({
+                    ...prev,
+                    year: nextYear,
+                    bimester: 1,
+                    visibleBimester: null,
+                  }));
+                }}
                 className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
               >
                 {YEAR_OPTIONS.map((option) => (
@@ -364,7 +452,12 @@ export default function DivisaoNotasModal({
                     name="bimester"
                     className="h-3 w-3 accent-orange-500"
                     checked={bimester === option}
-                    onChange={() => setBimester(option)}
+                    onChange={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        bimester: option,
+                      }))
+                    }
                   />
                   {option}º bim.
                 </label>
@@ -406,8 +499,9 @@ export default function DivisaoNotasModal({
                       value={item.rawPoints}
                       onChange={(event) => handleItemChange(item.uid, { rawPoints: event.target.value })}
                       onBlur={() => {
-                        setItems((prev) =>
-                          prev.map((entry) => {
+                        setForm((prev) => ({
+                          ...prev,
+                          items: prev.items.map((entry) => {
                             if (entry.uid !== item.uid) return entry;
                             const normalized = toNumberOrZero(entry.rawPoints);
                             return {
@@ -415,8 +509,8 @@ export default function DivisaoNotasModal({
                               points: normalized,
                               rawPoints: entry.rawPoints.trim() ? String(normalized) : '',
                             };
-                          })
-                        );
+                          }),
+                        }));
                       }}
                       placeholder="0"
                       className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
@@ -495,7 +589,12 @@ export default function DivisaoNotasModal({
                     name="visible-bimester"
                     className="h-3 w-3 accent-orange-500"
                     checked={visibleBimester === option}
-                    onChange={() => setVisibleBimester(option)}
+                    onChange={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        visibleBimester: option,
+                      }))
+                    }
                   />
                   {option}º
                 </label>
@@ -524,16 +623,17 @@ export default function DivisaoNotasModal({
               Ajuste os pontos para que a soma seja exatamente 10.
             </p>
           )}
+          </div>
         </div>
 
-        <div className="modal-footer mt-6 flex justify-end gap-3 border-t border-slate-100">
+        <footer className="flex items-center justify-end gap-3 border-t border-slate-100 px-6 py-4">
           <Button type="button" variant="ghost" onClick={handleClose} disabled={saving}>
             Cancelar
           </Button>
-          <Button type="button" onClick={handleSave} disabled={saving || !totalIsValid}>
+          <Button type="button" onClick={handleSave} disabled={saving || !totalIsValid || loading}>
             {saving ? 'Salvando…' : 'Salvar'}
           </Button>
-        </div>
+        </footer>
       </div>
     </Modal>
   );
