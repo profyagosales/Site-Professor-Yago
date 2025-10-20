@@ -131,6 +131,8 @@ export default function AvisosCard({
   onEdit = noop,
   onCreate = noop,
 }: AvisosCardProps) {
+  const cardClassName = ['avisos-card', className].filter(Boolean).join(' ');
+  const cardContentClassName = 'avisos-card-content flex flex-1 min-h-0 flex-col overflow-hidden';
   const hasEditAction = onEdit !== noop;
   const hasCreateAction = onCreate !== noop;
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -385,7 +387,8 @@ export default function AvisosCard({
     <>
       <DashboardCard
         title="Avisos"
-        className={className}
+        className={cardClassName}
+        contentClassName={cardContentClassName}
         actions={
           <div className="flex gap-2">
             {hasCreateAction ? (
@@ -403,7 +406,6 @@ export default function AvisosCard({
             </Button>
           </div>
         }
-        contentClassName="flex flex-1 flex-col overflow-hidden"
       >
         {loading ? (
           <div className="flex h-full items-center justify-center">
@@ -453,16 +455,19 @@ export default function AvisosCard({
                   dangerouslySetInnerHTML={{ __html: announcementHtml }}
                 />
                 {activeAnnouncement?.attachments?.length ? (
-                  <div className="space-y-3">
+                  <div className="announcement-attachments space-y-3">
                     {activeAnnouncement.attachments.map((attachment) => {
                       if (!attachment || !attachment.url) return null;
                       if (isImage(attachment)) {
                         return (
-                          <div key={attachment.url} className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                          <div
+                            key={attachment.url}
+                            className="announcement-image-wrapper overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
+                          >
                             <img
                               src={attachment.url}
                               alt={attachment.name ?? 'Imagem do aviso'}
-                              className="w-full"
+                              className="announcement-image w-full"
                               loading="lazy"
                             />
                           </div>

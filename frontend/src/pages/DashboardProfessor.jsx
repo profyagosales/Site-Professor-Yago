@@ -672,7 +672,7 @@ function DashboardProfessor(){
 
           <div className="tile notices">
             <AvisosCard
-              className="card avisos-card"
+              className="card"
               onEdit={(announcement) => {
                 setAnnouncementDraft(announcement)
                 setAnnouncementOpen(true)
