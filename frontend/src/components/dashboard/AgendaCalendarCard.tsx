@@ -355,22 +355,16 @@ const CalendarDayTile = memo(function CalendarDayTile({
     onCreateForDay(day);
   }, [day, onCreateForDay]);
 
-  const containerClassName = [
-    'relative flex flex-col rounded-2xl border border-gray-200/70 bg-white shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-shadow duration-150',
-    'hover:shadow-[0_6px_18px_rgba(15,23,42,0.06)]',
-    dimmed ? 'opacity-60' : 'opacity-100',
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  const dayBadgeClassName = `ml-auto text-[12px] font-semibold rounded-full px-2 py-0.5 ${
-    isToday ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200' : 'bg-gray-50 text-gray-400'
-  }`;
-
   return (
     <div
       ref={refCallback}
-      className={containerClassName}
+      className={[
+        'relative flex flex-col rounded-2xl border border-gray-200/70 bg-white shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-shadow duration-150',
+        'hover:shadow-[0_6px_18px_rgba(15,23,42,0.06)]',
+        dimmed ? 'opacity-60' : 'opacity-100',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       style={{ minHeight: 'var(--agenda-cell-h)' }}
     >
       <button
@@ -380,7 +374,12 @@ const CalendarDayTile = memo(function CalendarDayTile({
         className="flex items-center gap-2 p-2 text-left transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <span className="text-[11px] uppercase tracking-wide text-gray-500">{weekday}</span>
-        <span className={dayBadgeClassName}>
+        <span
+          className=[
+            'ml-auto text-[12px] font-semibold rounded-full px-2 py-0.5',
+            isToday ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200' : 'bg-gray-50 text-gray-400',
+          ].join(' ')}
+        >
           {dayNumber}
         </span>
         {isToday ? (
