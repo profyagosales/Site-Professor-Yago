@@ -375,9 +375,10 @@ const CalendarDayTile = memo(function CalendarDayTile({
       >
         <span className="text-[11px] uppercase tracking-wide text-gray-500">{weekday}</span>
         <span
-          className={`ml-auto text-[12px] font-semibold rounded-full px-2 py-0.5 ${
-            isToday ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200' : 'bg-gray-50 text-gray-400'
-          }`}
+          className=[
+            'ml-auto text-[12px] font-semibold rounded-full px-2 py-0.5',
+            isToday ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200' : 'bg-gray-50 text-gray-400',
+          ].join(' ')}
         >
           {dayNumber}
         </span>
