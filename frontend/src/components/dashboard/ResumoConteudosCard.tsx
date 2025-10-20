@@ -1,11 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import Modal from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/services/api';
-import { listContents } from '@/services/contents';
-import type { ContentItem } from '@/types/school';
-import { toast } from 'react-toastify';
-import EditAgendaModal from '@/components/dashboard/EditAgendaModal';
+import AgendaEditorModal from '@/components/dashboard/AgendaEditorModal';
 
 type AgendaItemType = 'ATIVIDADE' | 'CONTEUDO' | 'DATA';
 
@@ -158,14 +154,7 @@ export default function ResumoConteudosCard({
   const [error, setError] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalItems, setModalItems] = useState<ContentItem[]>([]);
-  const [modalPage, setModalPage] = useState(1);
-  const [modalTotal, setModalTotal] = useState(0);
-  const [modalHasMore, setModalHasMore] = useState(false);
-  const [modalLoading, setModalLoading] = useState(false);
-
-  const [agendaModalOpen, setAgendaModalOpen] = useState(false);
+  const [agendaEditorOpen, setAgendaEditorOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterOption>('ALL');
 
   useEffect(() => {
@@ -204,23 +193,6 @@ export default function ResumoConteudosCard({
   }, [limit, refreshToken]);
 
   useEffect(() => {
-    const handler = () => {
-      setRefreshToken((token) => token + 1);
-      if (modalOpen) {
-        void loadModalPage(modalPage);
-      }
-    };
-    if (typeof window !== 'undefined') {
-      window.addEventListener('contents:refresh', handler);
-    }
-    return () => {
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('contents:refresh', handler);
-      }
-    };
-  }, [modalOpen, modalPage]);
-
-  useEffect(() => {
     if (activeFilter === 'ALL') {
       return;
     }
@@ -238,7 +210,6 @@ export default function ResumoConteudosCard({
   }, [summaryItems, activeFilter]);
 
   const displayedItems = useMemo(() => filteredItems.slice(0, limit), [filteredItems, limit]);
-  const hasMore = filteredItems.length > limit;
 
   const containerClass = embedded
     ? ['flex h-full min-h-0 flex-col gap-4', className].filter(Boolean).join(' ')
@@ -258,6 +229,20 @@ export default function ResumoConteudosCard({
       { ATIVIDADE: 0, CONTEUDO: 0, DATA: 0 } as Record<AgendaItemType, number>
     );
   }, [summaryItems]);
+
+  const agendaItemsForEditor = useMemo(
+    () =>
+      summaryItems.map((item) => ({
+        id: item.id,
+        title: item.title,
+        description: item.description ?? '',
+        date: item.date,
+        classId: item.classId ?? '',
+        className: item.className ?? '',
+        type: item.type,
+      })),
+    [summaryItems],
+  );
 
   const renderTypeFilters = () => (
     <div className="flex flex-wrap gap-2">
@@ -296,41 +281,8 @@ export default function ResumoConteudosCard({
     </div>
   );
 
-  const loadModalPage = async (page: number) => {
-    setModalLoading(true);
-    try {
-      const response = await listContents({ limit: MODAL_PAGE_SIZE, page, sort: 'desc' });
-      setModalItems(response.items);
-      setModalTotal(response.total);
-      setModalHasMore(response.hasMore);
-    } catch (err) {
-      console.error('[ResumoConteudosCard] Falha ao carregar atividades', err);
-      setModalItems([]);
-      setModalHasMore(false);
-      toast.error('Não foi possível carregar as atividades.');
-    } finally {
-      setModalLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!modalOpen) return;
-    void loadModalPage(modalPage);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modalOpen, modalPage]);
-
-  const openModal = () => {
-    setModalPage(1);
-    setModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setModalOpen(false);
-    setModalItems([]);
-  };
-
   const handleOpenAgendaModal = () => {
-    setAgendaModalOpen(true);
+    setAgendaEditorOpen(true);
   };
 
   const handleAgendaUpdated = () => {
@@ -392,7 +344,7 @@ export default function ResumoConteudosCard({
         </h3>
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="sm"
           onClick={handleOpenAgendaModal}
           disabled={loading && summaryItems.length === 0}
@@ -402,90 +354,11 @@ export default function ResumoConteudosCard({
       </div>
       {renderTypeFilters()}
       <div className="min-h-0 flex-1">{content()}</div>
-      {hasMore && (
-        <div className="flex justify-end">
-          <Button variant="link" onClick={openModal}>
-            Ver todos
-          </Button>
-        </div>
-      )}
-
-      <Modal open={modalOpen} onClose={closeModal}>
-        <div className="w-full max-w-4xl p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="card-title text-slate-900">Todas as atividades</h2>
-            <Button variant="ghost" onClick={closeModal}>
-              Fechar
-            </Button>
-          </div>
-          {modalLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: MODAL_PAGE_SIZE }).map((_, index) => (
-                <div key={index} className="h-16 animate-pulse rounded-xl bg-slate-100" />
-              ))}
-            </div>
-          ) : modalItems.length === 0 ? (
-            <p className="text-sm text-slate-500">Nenhuma atividade registrada.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200 text-sm">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left font-semibold text-slate-600">Título</th>
-                    <th className="px-4 py-2 text-left font-semibold text-slate-600">Turma</th>
-                    <th className="px-4 py-2 text-left font-semibold text-slate-600">Data</th>
-                    <th className="px-4 py-2 text-left font-semibold text-slate-600">Bimestre</th>
-                    <th className="px-4 py-2 text-left font-semibold text-slate-600">Status</th>
-                    <th className="px-4 py-2 text-right font-semibold text-slate-600">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {modalItems.map((item) => (
-                    <tr key={item.id}>
-                      <td className="px-4 py-3 font-medium text-slate-800">{item.title}</td>
-                      <td className="px-4 py-3 text-slate-600">{item.className}</td>
-                      <td className="px-4 py-3 text-slate-600">{formatAgendaDate(item.date)}</td>
-                      <td className="px-4 py-3 text-slate-600">{item.bimester}º</td>
-                      <td className="px-4 py-3 text-slate-600">{item.done ? 'Concluída' : 'Pendente'}</td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="sm" onClick={() => openEditModal(item)}>
-                            Editar
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(item)}>
-                            Excluir
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
-            <span>
-              Página {modalPage}
-              {modalTotal ? ` • ${modalTotal} atividades` : ''}
-            </span>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => setModalPage((page) => Math.max(1, page - 1))} disabled={modalPage === 1}>
-                Anterior
-              </Button>
-              <Button variant="outline" onClick={() => setModalPage((page) => (modalHasMore ? page + 1 : page))} disabled={!modalHasMore}>
-                Próximo
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Modal>
-
-      <EditAgendaModal
-        isOpen={agendaModalOpen}
-        onOpenChange={setAgendaModalOpen}
-        items={filteredItems}
-        onUpdated={handleAgendaUpdated}
+      <AgendaEditorModal
+        open={agendaEditorOpen}
+        onClose={() => setAgendaEditorOpen(false)}
+        initialItems={agendaItemsForEditor}
+        onSaved={handleAgendaUpdated}
       />
     </div>
   );

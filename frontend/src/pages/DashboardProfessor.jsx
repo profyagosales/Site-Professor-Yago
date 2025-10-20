@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button'
 import DashboardCard from '@/components/dashboard/DashboardCard'
 import MediaGeralBimestre from '@/components/dashboard/MediaGeralBimestre'
 import ResumoConteudosCard from '@/components/dashboard/ResumoConteudosCard'
+import AtividadesCard from '@/components/dashboard/AtividadesCard'
 import WeeklySchedule from '@/components/dashboard/WeeklySchedule'
 import AvisosCard from '@/components/dashboard/AvisosCard'
 import DivisaoNotasCard from '@/components/dashboard/DivisaoNotasCard'
@@ -771,13 +772,22 @@ function DashboardProfessor(){
         </div>
 
         <div className="tile atividades-panel">
-          <DashboardCard
-            title="Atividades"
-            className="h-full min-h-[24rem]"
-            contentClassName="overflow-hidden"
-          >
-            <ResumoConteudosCard embedded limit={5} className="h-full min-h-0" />
-          </DashboardCard>
+          <div className="flex h-full flex-col gap-6">
+            <DashboardCard
+              title="Agenda"
+              className="min-h-[24rem]"
+              contentClassName="overflow-hidden"
+            >
+              <ResumoConteudosCard embedded limit={5} className="h-full min-h-0" />
+            </DashboardCard>
+            <DashboardCard
+              title="Atividades"
+              className="min-h-[24rem]"
+              contentClassName="overflow-hidden"
+            >
+              <AtividadesCard embedded limit={5} className="h-full min-h-0" />
+            </DashboardCard>
+          </div>
         </div>
 
         <div className="tile charts">
