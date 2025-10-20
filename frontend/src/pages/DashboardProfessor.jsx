@@ -5,7 +5,6 @@ import QuickContentModal from '@/components/QuickContentModal'
 import AnnouncementModal from '@/components/AnnouncementModal'
 import { getCurrentUser } from '@/services/auth'
 import { listMyClasses, mergeCalendars, getClassDetails } from '@/services/classes.service'
-import { getSchemeForProfessor } from '@/services/gradeScheme'
 import { Button } from '@/components/ui/Button'
 import DashboardCard from '@/components/dashboard/DashboardCard'
 import MediaGeralBimestre from '@/components/dashboard/MediaGeralBimestre'
@@ -120,10 +119,6 @@ function formatAgendaHeader(date) {
   return `${capitalizedWeekday} • ${day} ${month} ${year}`
 }
 
-function createEmptyGradeScheme() {
-  return []
-}
-
 function DashboardProfessor(){
   const [user, setUser] = useState(null)
   const [classSummaries, setClassSummaries] = useState([])
@@ -139,10 +134,22 @@ function DashboardProfessor(){
   const [calendarScope, setCalendarScope] = useState('week')
   const [showAgendaModal, setShowAgendaModal] = useState(false)
   const [divisaoNotasOpen, setDivisaoNotasOpen] = useState(false)
-  const [gradeScheme, setGradeScheme] = useState(null)
+  const [gradeSchemeDraft, setGradeSchemeDraft] = useState(/** @type {import('@/services/gradeScheme').GradeScheme | null} */(null))
+  const [gradeSchemeRefreshKey, setGradeSchemeRefreshKey] = useState(0)
   const classSummariesRef = useRef(classSummaries)
   const classDetailsRef = useRef(classDetails)
   const teacherId = user?.id ?? ''
+  const gradeSchemeYear = new Date().getFullYear()
+
+  const handleOpenGradeScheme = useCallback((scheme) => {
+    setGradeSchemeDraft(scheme)
+    setDivisaoNotasOpen(true)
+  }, [])
+
+  const handleCloseGradeScheme = useCallback(() => {
+    setDivisaoNotasOpen(false)
+    setGradeSchemeDraft(null)
+  }, [])
 
   useEffect(() => {
     classSummariesRef.current = classSummaries
@@ -201,14 +208,6 @@ function DashboardProfessor(){
     },
     []
   )
-
-  const handleEditGradeScheme = useCallback(() => {
-    if (!teacherId) {
-      toast.error('Professor não identificado')
-      return
-    }
-    setDivisaoNotasOpen(true)
-  }, [teacherId])
 
   useEffect(() => {
     let abort = false
@@ -315,32 +314,6 @@ function DashboardProfessor(){
     })()
     return () => { abort = true }
   }, [refreshCalendarEvents])
-
-  useEffect(() => {
-    if (!teacherId) {
-      setGradeScheme(createEmptyGradeScheme())
-      return
-    }
-
-    let cancelled = false
-    ;(async () => {
-      try {
-        const response = await getSchemeForProfessor(teacherId)
-        if (cancelled) return
-        setGradeScheme(response?.items ?? createEmptyGradeScheme())
-      } catch (error) {
-        if (!cancelled) {
-          console.error('Erro ao carregar divisão de notas do professor', error)
-          toast.error('Não foi possível carregar a divisão de notas')
-          setGradeScheme(createEmptyGradeScheme())
-        }
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [teacherId])
 
   const reloadContents = useCallback(async () => {
     await refreshCalendarEvents()
@@ -691,7 +664,11 @@ function DashboardProfessor(){
         </div>
 
         <div className="tile grades">
-          <DivisaoNotasCard teacherId={teacherId} scheme={gradeScheme} onEdit={handleEditGradeScheme} />
+          <DivisaoNotasCard
+            ano={gradeSchemeYear}
+            onEdit={handleOpenGradeScheme}
+            refreshToken={gradeSchemeRefreshKey}
+          />
         </div>
 
         <div className="tile agenda-panel">
@@ -831,11 +808,13 @@ function DashboardProfessor(){
       </Modal>
 
       <DivisaoNotasModal
-        teacherId={teacherId}
-        initial={gradeScheme}
+        ano={gradeSchemeYear}
+        initial={gradeSchemeDraft}
         isOpen={divisaoNotasOpen}
-        onClose={() => setDivisaoNotasOpen(false)}
-        onSaved={(next) => setGradeScheme(next)}
+        onClose={handleCloseGradeScheme}
+        onSaved={() => {
+          setGradeSchemeRefreshKey((prev) => prev + 1)
+        }}
       />
       <SendEmailModal isOpen={showEmail} onClose={() => setShowEmail(false)} />
       <QuickContentModal open={contentOpen} onClose={() => setContentOpen(false)} onSaved={reloadContents} />

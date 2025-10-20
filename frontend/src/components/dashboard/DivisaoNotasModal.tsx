@@ -1,86 +1,99 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Bimester, GradeItem, GradeItemType, GradeScheme } from '@/types/gradeScheme';
-import { saveSchemeForProfessor } from '@/services/gradeScheme';
+import { toast } from 'react-toastify';
+import { DEFAULT_SCHEME, saveGradeScheme } from '@/services/gradeScheme';
+import type { GradeItem, GradeScheme, Bimestre } from '@/services/gradeScheme';
 
 type Props = {
-  teacherId: string;
+  ano: number;
   initial: GradeScheme | null;
   isOpen: boolean;
   onClose: () => void;
-  onSaved: (next: GradeScheme) => void;
+  onSaved?: () => void;
 };
 
-const TYPES: GradeItemType[] = ['Prova', 'Trabalho', 'Projeto', 'Teste', 'Outros'];
-const BIMESTRES: Bimester[] = [1, 2, 3, 4];
+const TYPES: GradeItem['tipo'][] = ['Prova', 'Trabalho', 'Projeto', 'Teste', 'Outros'];
+const BIMESTRES: Bimestre[] = [1, 2, 3, 4];
+const DEFAULT_ITEM_COLOR = '#F28C2E';
 
 const makeId = () => globalThis.crypto?.randomUUID?.() ?? `id_${Math.random().toString(36).slice(2)}`;
 
-function cloneItems(items: GradeScheme | null): GradeScheme {
-  if (!Array.isArray(items)) {
-    return [];
+function cloneScheme(source: GradeScheme | null, ano: number): GradeScheme {
+  const base = source ?? DEFAULT_SCHEME(ano);
+  const itensPorBimestre: GradeScheme['itensPorBimestre'] = { 1: [], 2: [], 3: [], 4: [] };
+  for (const b of BIMESTRES) {
+    const itens = Array.isArray(base.itensPorBimestre[b]) ? base.itensPorBimestre[b] : [];
+    itensPorBimestre[b] = itens.map((item) => ({
+      id: item.id ?? makeId(),
+      nome: item.nome ?? '',
+      tipo: item.tipo ?? 'Outros',
+      pontos: Number.isFinite(item.pontos) ? Number(item.pontos) : 0,
+      cor: item.cor ?? DEFAULT_ITEM_COLOR,
+    }));
   }
-  return items.map((item) => ({ ...item }));
+  return { ano: base.ano ?? ano, itensPorBimestre };
 }
 
-export default function DivisaoNotasModal({ teacherId, initial, isOpen, onClose, onSaved }: Props) {
-  const [active, setActive] = useState<Bimester>(1);
-  const [items, setItems] = useState<GradeScheme>(() => cloneItems(initial));
+export default function DivisaoNotasModal({ ano, initial, isOpen, onClose, onSaved }: Props) {
+  const [active, setActive] = useState<Bimestre>(1);
+  const [saving, setSaving] = useState(false);
+  const [localScheme, setLocalScheme] = useState<GradeScheme>(() => cloneScheme(initial, ano));
 
   useEffect(() => {
     if (isOpen) {
       setActive(1);
-      setItems(cloneItems(initial));
+      setLocalScheme(cloneScheme(initial, ano));
     }
-  }, [initial, isOpen]);
+  }, [ano, initial, isOpen]);
 
-  const filteredItems = useMemo(
-    () => items.filter((item) => item.bimester === active),
-    [items, active],
-  );
+  const itens = useMemo(() => localScheme.itensPorBimestre[active] ?? [], [localScheme, active]);
 
-  const totals = useMemo(() => computeTotals(items), [items]);
+  const totals = useMemo(() => computeTotals(localScheme), [localScheme]);
   const isValid = useMemo(
     () => BIMESTRES.every((b) => Number.isFinite(totals[b]) && Math.abs(totals[b] - 10) < 1e-4),
     [totals],
   );
 
-  const addItem = (bimester: Bimester) => {
+  const updateItems = (b: Bimestre, recipe: (items: GradeItem[]) => GradeItem[]) => {
+    setLocalScheme((prev) => ({
+      ...prev,
+      itensPorBimestre: {
+        ...prev.itensPorBimestre,
+        [b]: recipe(prev.itensPorBimestre[b] ?? []),
+      },
+    }));
+  };
+
+  const addItem = (bimester: Bimestre) => {
     const fresh: GradeItem = {
       id: makeId(),
-      name: '',
-      type: 'Prova',
-      points: 0,
-      color: '#F28C2E',
-      bimester,
+      nome: '',
+      tipo: 'Prova',
+      pontos: 0,
+      cor: DEFAULT_ITEM_COLOR,
     };
-    setItems((prev) => [...prev, fresh]);
+    updateItems(bimester, (prev) => [...prev, fresh]);
   };
 
-  const updateItem = (id: string, patch: Partial<GradeItem>) => {
-    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  const updateItem = (bimester: Bimestre, id: string, patch: Partial<GradeItem>) => {
+    updateItems(bimester, (prev) =>
+      prev.map((item) => (item.id === id ? { ...item, ...patch, id } : item)),
+    );
   };
 
-  const removeItem = (id: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
+  const removeItem = (bimester: Bimestre, id: string) => {
+    updateItems(bimester, (prev) => prev.filter((item) => item.id !== id));
   };
 
-  const moveItem = (id: string, direction: -1 | 1) => {
-    setItems((prev) => {
+  const moveItem = (bimester: Bimestre, id: string, direction: -1 | 1) => {
+    updateItems(bimester, (prev) => {
       const index = prev.findIndex((item) => item.id === id);
       if (index < 0) return prev;
-      const targetBimester = prev[index].bimester;
-      const indices = prev
-        .map((entry, idx) => ({ entry, idx }))
-        .filter(({ entry }) => entry.bimester === targetBimester)
-        .map(({ idx }) => idx);
-      const position = indices.indexOf(index);
-      const nextPosition = position + direction;
-      if (nextPosition < 0 || nextPosition >= indices.length) {
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= prev.length) {
         return prev;
       }
-      const swapIndex = indices[nextPosition];
       const clone = [...prev];
-      [clone[index], clone[swapIndex]] = [clone[swapIndex], clone[index]];
+      [clone[index], clone[nextIndex]] = [clone[nextIndex], clone[index]];
       return clone;
     });
   };
@@ -88,12 +101,14 @@ export default function DivisaoNotasModal({ teacherId, initial, isOpen, onClose,
   const handleSave = async () => {
     if (!isValid) return;
     try {
-      await saveSchemeForProfessor(items, teacherId);
-      onSaved(cloneItems(items));
-      onClose?.();
-    } catch (error) {
-      console.error('Falha ao salvar divisão de notas', error);
-      window.alert?.('Não foi possível salvar a divisão de notas. Tente novamente.');
+      setSaving(true);
+      await saveGradeScheme(localScheme);
+      onSaved?.(); // refetch no card
+      onClose();
+    } catch (e: any) {
+      toast.error(e?.message || 'Falha ao salvar divisão de notas.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -129,11 +144,11 @@ export default function DivisaoNotasModal({ teacherId, initial, isOpen, onClose,
           </div>
 
           <ItemList
-            items={filteredItems}
+            items={itens}
             onAdd={() => addItem(active)}
-            onRemove={removeItem}
-            onMove={moveItem}
-            onPatch={updateItem}
+            onRemove={(id) => removeItem(active, id)}
+            onMove={(id, dir) => moveItem(active, id, dir)}
+            onPatch={(id, partial) => updateItem(active, id, partial)}
           />
 
           <div className="grid grid-cols-4 gap-3 mt-4 text-sm">
@@ -156,8 +171,8 @@ export default function DivisaoNotasModal({ teacherId, initial, isOpen, onClose,
           <button className="btn btn-ghost" onClick={onClose} type="button">
             Cancelar
           </button>
-          <button className="btn btn-primary" disabled={!isValid} onClick={handleSave} type="button">
-            Salvar
+          <button className="btn btn-primary" disabled={!isValid || saving} onClick={handleSave} type="button">
+            {saving ? 'Salvando...' : 'Salvar'}
           </button>
         </footer>
       </div>
@@ -190,14 +205,22 @@ function ItemList({
       <div className="space-y-3">
         {items.map((item, idx) => (
           <ItemRow
-            key={item.id}
+            key={item.id ?? `item-${idx}`}
             item={item}
             canUp={idx > 0}
             canDown={idx < items.length - 1}
-            onRemove={() => onRemove(item.id)}
-            onUp={() => onMove(item.id, -1)}
-            onDown={() => onMove(item.id, 1)}
-            onPatch={(partial) => onPatch(item.id, partial)}
+            onRemove={() => {
+              if (item.id) onRemove(item.id);
+            }}
+            onUp={() => {
+              if (item.id) onMove(item.id, -1);
+            }}
+            onDown={() => {
+              if (item.id) onMove(item.id, 1);
+            }}
+            onPatch={(partial) => {
+              if (item.id) onPatch(item.id, partial);
+            }}
           />
         ))}
       </div>
@@ -231,8 +254,8 @@ function ItemRow({
         <label className="label">Nome do item</label>
         <input
           className="input w-full"
-          value={item.name}
-          onChange={(event) => onPatch({ name: event.target.value })}
+          value={item.nome}
+          onChange={(event) => onPatch({ nome: event.target.value })}
           placeholder="Ex.: Prova 1, Trabalho, Projeto..."
         />
       </div>
@@ -243,12 +266,12 @@ function ItemRow({
           className="input w-[110px] text-right"
           inputMode="decimal"
           pattern="[0-9]+([\\.,][0-9]+)?"
-          value={String(item.points ?? 0).replace('.', ',')}
+          value={String(item.pontos ?? 0).replace('.', ',')}
           onChange={(event) => {
             const raw = event.target.value.replace(',', '.');
             const next = Number(raw);
             if (Number.isFinite(next)) {
-              onPatch({ points: Math.max(0, Math.min(10, next)) });
+              onPatch({ pontos: Math.max(0, Math.min(10, next)) });
             }
           }}
           placeholder="0,0"
@@ -259,8 +282,8 @@ function ItemRow({
         <label className="label">Tipo</label>
         <select
           className="input"
-          value={item.type}
-          onChange={(event) => onPatch({ type: event.target.value as GradeItemType })}
+          value={item.tipo}
+          onChange={(event) => onPatch({ tipo: event.target.value as GradeItem['tipo'] })}
         >
           {TYPES.map((t) => (
             <option key={t} value={t}>
@@ -275,8 +298,8 @@ function ItemRow({
         <input
           type="color"
           className="h-10 w-16 p-0 border rounded"
-          value={item.color}
-          onChange={(event) => onPatch({ color: event.target.value })}
+          value={item.cor ?? DEFAULT_ITEM_COLOR}
+          onChange={(event) => onPatch({ cor: event.target.value })}
           aria-label="Selecionar cor"
         />
       </div>
@@ -296,11 +319,11 @@ function ItemRow({
   );
 }
 
-function computeTotals(entries: GradeScheme): Record<Bimester, number> {
-  const totals: Record<Bimester, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
-  entries.forEach((item) => {
-    const increment = Number.isFinite(item.points) ? Number(item.points) : 0;
-    totals[item.bimester] = Number.parseFloat((totals[item.bimester] + increment).toFixed(2));
-  });
+function computeTotals(scheme: GradeScheme): Record<Bimestre, number> {
+  const totals: Record<Bimestre, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  for (const b of BIMESTRES) {
+    const itens = scheme.itensPorBimestre[b] ?? [];
+    totals[b] = itens.reduce((sum, item) => sum + (Number.isFinite(item.pontos) ? Number(item.pontos) : 0), 0);
+  }
   return totals;
 }
