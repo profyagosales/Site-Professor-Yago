@@ -214,6 +214,37 @@ function collectTargetPayload(body) {
   return { type, value };
 }
 
+function normalizeAttachmentInput(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const url = typeof raw.url === 'string' ? raw.url.trim() : '';
+  if (!url) return null;
+
+  const name =
+    typeof raw.name === 'string'
+      ? raw.name
+      : typeof raw.originalname === 'string'
+        ? raw.originalname
+        : null;
+
+  const publicId =
+    typeof raw.publicId === 'string'
+      ? raw.publicId
+      : typeof raw.public_id === 'string'
+        ? raw.public_id
+        : null;
+
+  const mime = typeof raw.mime === 'string' ? raw.mime : null;
+  const size = Number.isFinite(raw.size) ? Number(raw.size) : null;
+
+  return {
+    url,
+    name,
+    publicId,
+    mime,
+    size,
+  };
+}
+
 function normalizeSubject(value) {
   if (typeof value === 'string') return value.trim();
   if (value === undefined || value === null) return '';
@@ -790,10 +821,104 @@ async function uploadAnnouncementAsset(req, res, next) {
   }
 }
 
+async function updateAnnouncement(req, res, next) {
+  try {
+    const { id } = req.params || {};
+    if (!id) {
+      const error = new Error('ID é obrigatório.');
+      error.status = 400;
+      throw error;
+    }
+
+    const updatePayload = {};
+    const body = req.body || {};
+
+    if (body.subject !== undefined) {
+      const subject = normalizeSubject(body.subject);
+      if (!subject) {
+        const error = new Error('Assunto é obrigatório.');
+        error.status = 400;
+        throw error;
+      }
+      updatePayload.subject = subject;
+    }
+
+    if (body.html !== undefined) {
+      if (body.html === null) {
+        updatePayload.html = '';
+      } else if (typeof body.html === 'string') {
+        updatePayload.html = body.html;
+      } else {
+        const error = new Error('Conteúdo HTML inválido.');
+        error.status = 400;
+        throw error;
+      }
+    }
+
+    if (body.visibility !== undefined) {
+      updatePayload.targetType = body.visibility === 'email' ? 'email' : 'class';
+    }
+
+    if (Array.isArray(body.classIds)) {
+      const normalizedClassIds = body.classIds.map((value) => toObjectId(value)).filter(Boolean);
+      updatePayload.classIds = normalizedClassIds;
+      if (normalizedClassIds.length) {
+        updatePayload.targetType = 'class';
+      }
+    }
+
+    if (Array.isArray(body.attachments)) {
+      const normalizedAttachments = body.attachments
+        .map((item) => normalizeAttachmentInput(item))
+        .filter(Boolean);
+      updatePayload.attachments = normalizedAttachments;
+    }
+
+    updatePayload.updatedAt = new Date();
+
+    const updatedAnnouncement = await Announcement.findByIdAndUpdate(id, updatePayload, { new: true });
+    if (!updatedAnnouncement) {
+      const error = new Error('Aviso não encontrado.');
+      error.status = 404;
+      throw error;
+    }
+
+    res.json({ success: true, data: sanitizeAnnouncement(updatedAnnouncement) });
+  } catch (err) {
+    if (!err.status) err.status = 500;
+    next(err);
+  }
+}
+
+async function deleteAnnouncement(req, res, next) {
+  try {
+    const { id } = req.params || {};
+    if (!id) {
+      const error = new Error('ID é obrigatório.');
+      error.status = 400;
+      throw error;
+    }
+
+    const deleted = await Announcement.findByIdAndDelete(id);
+    if (!deleted) {
+      const error = new Error('Aviso não encontrado.');
+      error.status = 404;
+      throw error;
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    if (!err.status) err.status = 500;
+    next(err);
+  }
+}
+
 module.exports = {
   createAnnouncement,
   listTeacherAnnouncements,
   listStudentAnnouncements,
   listAnnouncements,
   uploadAnnouncementAsset,
+  updateAnnouncement,
+  deleteAnnouncement,
 };

@@ -10,6 +10,8 @@ const {
   listStudentAnnouncements,
   listAnnouncements,
   uploadAnnouncementAsset,
+  updateAnnouncement,
+  deleteAnnouncement,
 } = require('../controllers/announcementsController');
 const Announcement = require('../models/Announcement');
 const Student = require('../models/Student');
@@ -172,7 +174,9 @@ router.get('/', authRequired, (req, res, next) => {
 });
 router.post('/upload', authRequired, ensureTeacher, upload.single('file'), uploadAnnouncementAsset);
 router.post('/', authRequired, ensureTeacher, upload.any(), createAnnouncement);
+router.patch('/:id', authRequired, ensureTeacher, updateAnnouncement);
 router.get('/teacher/:teacherId', authRequired, listTeacherAnnouncements);
 router.get('/student/:studentId', authRequired, listStudentAnnouncements);
+router.delete('/:id', authRequired, ensureTeacher, deleteAnnouncement);
 
 module.exports = router;
