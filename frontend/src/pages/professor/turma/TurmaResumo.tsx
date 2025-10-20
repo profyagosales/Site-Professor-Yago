@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormE
 import { toast } from 'react-toastify';
 import DashboardCard from '@/components/dashboard/DashboardCard';
 import AvisosCard from '@/components/dashboard/AvisosCard';
-import WeeklySchedule, { type WeeklyScheduleCellItem } from '@/components/dashboard/WeeklySchedule';
+import WeeklySchedule, { WeeklyScheduleTabs, type WeeklyScheduleCellItem } from '@/components/dashboard/WeeklySchedule';
 import { Button } from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import {
@@ -255,15 +255,25 @@ export function TurmaResumo({ classId, classInfo, onCreateAnnouncement, onEditAn
   return (
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-12">
-        <DashboardCard title="Horários da semana" className="lg:col-span-8" contentClassName="flex-1">
-          {hasSchedule ? (
-            <WeeklySchedule slots={SLOT_CONFIG} days={WEEKDAY_CONFIG} cells={scheduleCells} />
-          ) : (
-            <div className="flex flex-1 items-center justify-center text-sm text-slate-500">
-              Nenhum horário cadastrado para esta turma.
-            </div>
-          )}
-        </DashboardCard>
+        <div className="lg:col-span-8">
+          <div className="card h-full">
+            <header className="px-6 pt-6 pb-2">
+              <h2 className="text-3xl font-semibold text-slate-900">Horários da semana</h2>
+            </header>
+            <nav className="px-6 mb-2">
+              <WeeklyScheduleTabs days={WEEKDAY_CONFIG} className="gap-2" size="sm" />
+            </nav>
+            {hasSchedule ? (
+              <WeeklySchedule slots={SLOT_CONFIG} days={WEEKDAY_CONFIG} cells={scheduleCells} />
+            ) : (
+              <section className="flex flex-1 flex-col px-6 pb-6">
+                <div className="flex h-full items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 text-sm font-medium text-slate-400">
+                  Nenhum horário cadastrado para esta turma.
+                </div>
+              </section>
+            )}
+          </div>
+        </div>
 
         <AvisosCard
           className="lg:col-span-4"
