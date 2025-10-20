@@ -14,6 +14,17 @@ import { FiEdit2, FiFileText, FiTrash2 } from 'react-icons/fi';
 
 type Announcement = NonNullable<ReturnType<typeof normalizeAnnouncement>>;
 
+type AnnouncementIdentifier = { id?: string | null; _id?: string | null };
+
+function getAnnouncementId(
+  announcement: AnnouncementIdentifier | null | undefined
+): string | null {
+  if (!announcement) return null;
+  const rawId = announcement.id ?? announcement._id ?? null;
+  if (!rawId) return null;
+  return String(rawId);
+}
+
 type Attachment = NonNullable<Announcement['attachments']>[number];
 
 const noop = () => {};
@@ -370,12 +381,13 @@ export default function AvisosCard({
 
   const handleDelete = useCallback(
     async (announcement: Announcement) => {
-      if (!announcement?.id) return;
+      const id = getAnnouncementId(announcement);
+      if (!id) return;
       const confirmed = typeof window === 'undefined' ? true : window.confirm('Remover este aviso?');
       if (!confirmed) return;
-      setProcessingFlag(announcement.id, true);
+      setProcessingFlag(id, true);
       try {
-        await deleteAnnouncement(announcement.id);
+        await deleteAnnouncement(id);
         toast.success('Aviso removido');
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('announcements:refresh'));
@@ -392,7 +404,7 @@ export default function AvisosCard({
         const message = err instanceof Error && err.message ? err.message : 'Não foi possível remover este aviso.';
         toast.error(message);
       } finally {
-        setProcessingFlag(announcement.id, false);
+        setProcessingFlag(id, false);
         resetInterval();
       }
     },
@@ -503,7 +515,11 @@ export default function AvisosCard({
               {isPaused ? 'Carrossel pausado' : 'Carrossel em reprodução automática'}
             </p>
             <div
-              id={activeAnnouncement ? `announcement-slide-${activeAnnouncement.id}` : undefined}
+              id={
+                activeAnnouncement
+                  ? `announcement-slide-${getAnnouncementId(activeAnnouncement) ?? 'current'}`
+                  : undefined
+              }
               className="flex flex-1 flex-col overflow-hidden"
             >
               <header className="space-y-2">
@@ -528,9 +544,11 @@ export default function AvisosCard({
             </div>
             {announcements.length > 1 ? (
               <div className="mt-4 flex justify-center gap-2" role="tablist" aria-label="Selecionar aviso">
-                {announcements.map((item, index) => (
+                {announcements.map((item, index) => {
+                  const itemId = getAnnouncementId(item);
+                  return (
                   <button
-                    key={item.id ?? `announcement-${index}`}
+                    key={itemId ?? `announcement-${index}`}
                     type="button"
                     role="tab"
                     aria-pressed={index === activeIndex}
@@ -540,7 +558,8 @@ export default function AvisosCard({
                       index === activeIndex ? 'bg-orange-500' : 'bg-slate-300 hover:bg-slate-400'
                     }`}
                   />
-                ))}
+                  );
+                })}
               </div>
             ) : null}
           </div>
@@ -565,15 +584,16 @@ export default function AvisosCard({
             <p className="text-sm text-slate-500">Nenhum aviso disponível.</p>
           ) : (
             <div className="announcement-modal-list space-y-6">
-              {modalItems.map((announcement) => {
+              {modalItems.map((announcement, index) => {
                 const html = sanitizeHtml(
                   announcement.html || computeFallbackHtml(announcement.message)
                 );
                 const timestamp =
                   formatDateTime(announcement.scheduleAt ?? announcement.createdAt) || 'Aviso';
+                const announcementId = getAnnouncementId(announcement);
                 return (
                   <article
-                    key={announcement.id}
+                    key={announcementId ?? `announcement-${index}`}
                     className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                   >
                     <header className="mb-3">
@@ -602,7 +622,7 @@ export default function AvisosCard({
                         size="sm"
                         variant="outline"
                         onClick={() => handleDelete(announcement)}
-                        disabled={processingIds.has(announcement.id)}
+                        disabled={announcementId ? processingIds.has(announcementId) : false}
                       >
                         <FiTrash2 aria-hidden="true" className="h-4 w-4" />
                         Excluir

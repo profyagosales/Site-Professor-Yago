@@ -137,7 +137,8 @@ export default function AnnouncementModal({
   initialAnnouncement = null,
   defaultClassIds = [],
 }) {
-  const isEditMode = Boolean(initialAnnouncement?.id)
+  const editingId = initialAnnouncement?.id ?? initialAnnouncement?._id ?? null
+  const isEditMode = Boolean(editingId)
 
   const quillRef = useRef(null)
   const draftsRef = useRef(new Map())
@@ -152,8 +153,8 @@ export default function AnnouncementModal({
         : [],
     [defaultClassIds],
   )
-  const editingId = initialAnnouncement?.id ? String(initialAnnouncement.id) : null
-  const contextKey = editingId ? `edit:${editingId}` : `create:${normalizedDefaultIds.join('|')}`
+  const editingIdString = editingId ? String(editingId) : null
+  const contextKey = editingIdString ? `edit:${editingIdString}` : `create:${normalizedDefaultIds.join('|')}`
   const [activeContext, setActiveContext] = useState(contextKey)
   const [form, setForm] = useState(() =>
     initialAnnouncement ? mapFromEditing(initialAnnouncement, defaultClassIds) : mapFromDefaults(defaultClassIds),
@@ -324,8 +325,8 @@ export default function AnnouncementModal({
 
     setSubmitting(true)
     try {
-      const response = isEditMode && initialAnnouncement?.id
-        ? await updateAnnouncement(initialAnnouncement.id, payload)
+      const response = isEditMode && editingIdString
+        ? await updateAnnouncement(editingIdString, payload)
         : await createAnnouncement(payload)
 
       toast.success(isEditMode ? 'Aviso atualizado' : 'Aviso criado')
