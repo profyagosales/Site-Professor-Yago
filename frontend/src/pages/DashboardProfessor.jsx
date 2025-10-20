@@ -553,6 +553,14 @@ function DashboardProfessor(){
           <RadarCard role="teacher" />
         </div>
       </section>
+      <section className="mt-6 grid grid-cols-12 gap-6">
+        <AgendaCalendarCard
+          className="col-span-12"
+          refreshToken={agendaRefreshKey}
+          onOpenEditor={handleOpenAgendaEditor}
+          editorLoading={agendaEditorLoading}
+        />
+      </section>
       <DivisaoNotasModal
         ano={gradeSchemeYear}
         classId={primaryClassId || null}
