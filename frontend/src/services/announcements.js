@@ -1,5 +1,7 @@
 import { api, toArray } from '@/lib/api';
 
+const BASE = '/announcements';
+
 function unwrapData(response) {
   if (!response) return {};
   const base = response.data !== undefined ? response.data : response;
@@ -159,7 +161,7 @@ export async function listAnnouncements({ limit = 5, page = 1, includeScheduled 
   if (includeScheduled) params.includeScheduled = true;
   if (classId) params.classId = classId;
 
-  const response = await api.get('/announcements', {
+  const response = await api.get(BASE, {
     params,
     meta: { noCache: true },
   });
@@ -198,7 +200,7 @@ export async function getClassAnnouncements({ classId, limit = 5 } = {}) {
 
 export async function listAnnouncementsForStudent({ studentId, limit = 5 } = {}) {
   if (!studentId) return [];
-  const response = await api.get(`/announcements/student/${studentId}`, {
+  const response = await api.get(`${BASE}/student/${studentId}`, {
     params: { limit },
     meta: { noCache: true },
   });
@@ -251,7 +253,7 @@ export async function createAnnouncement({
     }
   });
 
-  const response = await api.post('/announcements', formData, {
+  const response = await api.post(BASE, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
     meta: { noCache: true },
   });
@@ -324,7 +326,7 @@ export async function updateAnnouncement(
     }
   });
 
-  const response = await api.put(`/announcements/${id}`, formData, {
+  const response = await api.patch(`${BASE}/${id}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
     meta: { noCache: true },
   });
@@ -344,7 +346,7 @@ export async function deleteAnnouncement(id) {
     throw new Error('ID do aviso é obrigatório para exclusão.');
   }
   try {
-    await api.delete(`/api/announcements/${id}`, { meta: { noCache: true } });
+    await api.delete(`${BASE}/${id}`, { meta: { noCache: true } });
     return true;
   } catch (error) {
     const message = extractErrorMessage(error);
@@ -367,7 +369,7 @@ export async function uploadAnnouncementImage(file) {
   if (!file) return null;
   const formData = new FormData();
   formData.append('file', file);
-  const response = await api.post('/announcements/upload', formData, {
+  const response = await api.post(`${BASE}/upload`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
     meta: { noCache: true },
   });
