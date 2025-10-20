@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import Modal from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { listContents, deleteContent } from '@/services/contents';
@@ -10,6 +10,7 @@ type AtividadesCardProps = {
   limit?: number;
   className?: string;
   refreshKey?: number;
+  onActionChange?: (action: ReactNode | null) => void;
 };
 
 const MODAL_PAGE_SIZE = 8;
@@ -31,7 +32,13 @@ function formatContentDate(value: string | Date): string {
   }
 }
 
-export default function AtividadesCard({ embedded = false, limit = 5, className = '', refreshKey = 0 }: AtividadesCardProps) {
+export default function AtividadesCard({
+  embedded = false,
+  limit = 5,
+  className = '',
+  refreshKey = 0,
+  onActionChange,
+}: AtividadesCardProps) {
   const [items, setItems] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -124,24 +131,48 @@ export default function AtividadesCard({ embedded = false, limit = 5, className 
     }
   };
 
-  const openModal = () => {
+  const openModal = useCallback(() => {
     setModalPage(1);
     setModalOpen(true);
-  };
+  }, []);
 
   const closeModal = () => {
     setModalOpen(false);
     setModalItems([]);
   };
 
+  const isEditDisabled = loading && items.length === 0;
+
+  useEffect(() => {
+    if (!embedded || !onActionChange) {
+      return;
+    }
+
+    onActionChange(
+      <Button type="button" variant="ghost" size="sm" onClick={openModal} disabled={isEditDisabled}>
+        Editar
+      </Button>,
+    );
+
+    return () => {
+      onActionChange(null);
+    };
+  }, [embedded, onActionChange, openModal, isEditDisabled]);
+
+  const shouldRenderHeader = !embedded || !onActionChange;
+
   return (
     <div className={containerClass}>
-      <div className="flex items-center justify-between gap-3">
-        <h3 className={embedded ? 'text-sm font-semibold text-slate-900' : 'card-title text-slate-900'}>Atividades</h3>
-        <Button type="button" variant="ghost" size="sm" onClick={openModal} disabled={loading && items.length === 0}>
-          Editar
-        </Button>
-      </div>
+      {shouldRenderHeader ? (
+        <div className="flex items-center justify-between gap-3">
+          <h3 className={embedded ? 'text-sm font-semibold text-slate-900' : 'card-title text-slate-900'}>
+            Atividades
+          </h3>
+          <Button type="button" variant="ghost" size="sm" onClick={openModal} disabled={isEditDisabled}>
+            Editar
+          </Button>
+        </div>
+      ) : null}
 
       <div className="min-h-0 flex-1">
         {loading ? (

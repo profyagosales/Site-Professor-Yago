@@ -136,6 +136,8 @@ function DashboardProfessor(){
   const [announcementDraft, setAnnouncementDraft] = useState(null)
   const [calendarScope, setCalendarScope] = useState('week')
   const [showAgendaModal, setShowAgendaModal] = useState(false)
+  const [agendaCardAction, setAgendaCardAction] = useState(null)
+  const [activitiesCardAction, setActivitiesCardAction] = useState(null)
   const [divisaoNotasOpen, setDivisaoNotasOpen] = useState(false)
   const [gradeSchemeDraft, setGradeSchemeDraft] = useState(/** @type {import('@/services/gradeScheme').GradeScheme | null} */(null))
   const [gradeSchemeRefreshKey, setGradeSchemeRefreshKey] = useState(0)
@@ -679,7 +681,7 @@ function DashboardProfessor(){
             <DashboardCard
               title="Agenda"
               className="h-full min-h-[24rem]"
-              actions={
+              action={
                 <div className="flex items-center gap-2">
                   <div className="flex rounded-full border border-slate-200 bg-slate-50 p-1">
                     <button
@@ -759,18 +761,30 @@ function DashboardProfessor(){
               <DashboardCard
                 title="Agenda"
                 className="min-h-[24rem] flex-1"
+                action={agendaCardAction}
                 contentClassName="overflow-hidden"
               >
-                <ResumoConteudosCard embedded limit={5} className="h-full min-h-0" />
+                <ResumoConteudosCard
+                  embedded
+                  limit={5}
+                  className="h-full min-h-0"
+                  onActionChange={setAgendaCardAction}
+                />
               </DashboardCard>
             </div>
             <div className="col-span-12 xl:col-span-6 flex flex-col">
               <DashboardCard
                 title="Atividades"
                 className="min-h-[24rem] flex-1"
+                action={activitiesCardAction}
                 contentClassName="overflow-hidden"
               >
-                <AtividadesCard embedded limit={5} className="h-full min-h-0" />
+                <AtividadesCard
+                  embedded
+                  limit={5}
+                  className="h-full min-h-0"
+                  onActionChange={setActivitiesCardAction}
+                />
               </DashboardCard>
             </div>
           </div>

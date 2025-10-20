@@ -464,7 +464,7 @@ export default function AvisosCard({
         title="Avisos"
         className={cardClassName}
         contentClassName={cardContentClassName}
-        actions={
+        action={
           <div className="flex gap-2">
             {hasCreateAction ? (
               <Button type="button" size="sm" variant="ghost" onClick={onCreate}>

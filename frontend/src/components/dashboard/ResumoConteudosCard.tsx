@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/services/api';
 import AgendaEditorModal from '@/components/dashboard/AgendaEditorModal';
@@ -26,6 +26,7 @@ type ResumoConteudosCardProps = {
   embedded?: boolean;
   limit?: number;
   className?: string;
+  onActionChange?: (action: ReactNode | null) => void;
 };
 
 const MODAL_PAGE_SIZE = 6;
@@ -148,6 +149,7 @@ export default function ResumoConteudosCard({
   embedded = false,
   limit = 5,
   className = '',
+  onActionChange,
 }: ResumoConteudosCardProps) {
   const [summaryItems, setSummaryItems] = useState<SummaryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -281,13 +283,37 @@ export default function ResumoConteudosCard({
     </div>
   );
 
-  const handleOpenAgendaModal = () => {
+  const handleOpenAgendaModal = useCallback(() => {
     setAgendaEditorOpen(true);
-  };
+  }, []);
 
   const handleAgendaUpdated = () => {
     setRefreshToken((token) => token + 1);
   };
+
+  const isEditDisabled = loading && summaryItems.length === 0;
+
+  useEffect(() => {
+    if (!embedded || !onActionChange) {
+      return;
+    }
+
+    onActionChange(
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={handleOpenAgendaModal}
+        disabled={isEditDisabled}
+      >
+        Editar
+      </Button>,
+    );
+
+    return () => {
+      onActionChange(null);
+    };
+  }, [embedded, onActionChange, handleOpenAgendaModal, isEditDisabled]);
 
   const content = () => {
     if (loading) {
@@ -336,22 +362,27 @@ export default function ResumoConteudosCard({
     );
   };
 
+  const shouldRenderHeader = !embedded || !onActionChange;
+  const headerTitle = embedded ? 'Agenda' : 'Próximas Atividades';
+
   return (
     <div className={containerClass}>
-      <div className="flex items-center justify-between gap-3">
-        <h3 className={!embedded ? 'card-title text-slate-900' : 'text-sm font-semibold text-slate-900'}>
-          {embedded ? 'Agenda' : 'Próximas Atividades'}
-        </h3>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={handleOpenAgendaModal}
-          disabled={loading && summaryItems.length === 0}
-        >
-          Editar
-        </Button>
-      </div>
+      {shouldRenderHeader ? (
+        <div className="flex items-center justify-between gap-3">
+          <h3 className={!embedded ? 'card-title text-slate-900' : 'text-sm font-semibold text-slate-900'}>
+            {headerTitle}
+          </h3>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleOpenAgendaModal}
+            disabled={isEditDisabled}
+          >
+            Editar
+          </Button>
+        </div>
+      ) : null}
       {renderTypeFilters()}
       <div className="min-h-0 flex-1">{content()}</div>
       <AgendaEditorModal

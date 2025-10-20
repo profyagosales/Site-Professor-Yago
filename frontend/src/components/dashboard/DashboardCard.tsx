@@ -1,51 +1,36 @@
-import { useId, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 interface DashboardCardProps {
   title: string;
-  actions?: ReactNode;
+  action?: ReactNode;
   className?: string;
   contentClassName?: string;
   children: ReactNode;
-  ariaLabel?: string;
 }
 
 export default function DashboardCard({
   title,
-  actions,
+  action,
   className = '',
   contentClassName = '',
   children,
-  ariaLabel,
 }: DashboardCardProps) {
-  const headingId = useId();
-  const assistiveLabelId = ariaLabel ? `${headingId}-assistive` : undefined;
-  const labelledBy = assistiveLabelId ? `${headingId} ${assistiveLabelId}` : headingId;
-
-  const containerClass = ['dashboard-card card min-h-[22rem] min-w-0', className]
-    .filter(Boolean)
-    .join(' ');
-
-  const contentClass = [
-    'card-body flex flex-1 min-h-0 flex-col overflow-hidden',
-    contentClassName,
+  const containerClass = [
+    'rounded-2xl bg-white shadow-sm ring-1 ring-slate-200',
+    className,
   ]
     .filter(Boolean)
     .join(' ');
 
+  const contentClass = ['px-5 pb-5', contentClassName].filter(Boolean).join(' ');
+
   return (
-    <section className={containerClass} role="region" aria-labelledby={labelledBy}>
-      {assistiveLabelId ? (
-        <span id={assistiveLabelId} className="sr-only">
-          {ariaLabel}
-        </span>
-      ) : null}
-      <div className="card-header">
-        <h3 id={headingId} className="card-title text-slate-900">
-          {title}
-        </h3>
-        {actions ? <div className="flex shrink-0 gap-2">{actions}</div> : null}
+    <div className={containerClass}>
+      <div className="flex items-center justify-between px-5 py-4">
+        <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+        {action}
       </div>
       <div className={contentClass}>{children}</div>
-    </section>
+    </div>
   );
 }
