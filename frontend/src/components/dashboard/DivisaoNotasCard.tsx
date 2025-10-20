@@ -268,9 +268,10 @@ export default function DivisaoNotasCard({
       <DivisaoNotasModal
         open={modalOpen}
         onClose={() => handleModalToggle(false)}
-        classOptions={classOptions}
-        defaultClassId={selectedClassId}
-        defaultYear={CURRENT_YEAR}
+        classId={selectedClassId}
+        year={CURRENT_YEAR}
+        schemes={schemes}
+        loading={loading}
         onSaved={handleModalSaved}
       />
     </>
