@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { v4 as uuid } from 'uuid';
+import { nanoid } from 'nanoid';
 import { Bimester, GradeItem, GradeItemType, GradeSchemeByBimester } from '@/types/gradeScheme';
 import { saveSchemeForProfessor } from '@/services/gradeScheme';
 
@@ -47,7 +47,7 @@ export default function DivisaoNotasModal({ teacherId, initial, isOpen, onClose,
 
   function addItem() {
     const fresh: GradeItem = {
-      id: uuid(),
+      id: nanoid(),
       name: '',
       points: 0,
       type: 'Prova',
