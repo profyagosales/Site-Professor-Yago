@@ -70,35 +70,63 @@ a:focus-visible,
   outline-offset: 2px;
 }
 
-/* --- Divisão de notas: chips de bimestre --- */
-.bimester-chip {
+/* --- Divisão de notas: pílulas de bimestre --- */
+.bimestre-pill {
   appearance: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: .5rem .8rem;
+  padding: .45rem .9rem;
   border-radius: 9999px;
-  border: 1px solid var(--border, #e6e6e6);
+  border: 1px solid #f4d7bc;
   background: #fff;
-  color: #222;
+  color: #b45309;
   font-weight: 600;
   line-height: 1;
   cursor: pointer;
-  opacity: 1;
-  transition: background .2s ease, color .2s ease, border-color .2s ease, opacity .2s ease;
+  transition: background-color .2s ease, color .2s ease, border-color .2s ease, box-shadow .2s ease;
 }
 
-.bimester-chip[aria-pressed="true"],
-.bimester-chip.is-active {
-  background: var(--brand-500, #eb7a2f);
-  border-color: var(--brand-500, #eb7a2f);
-  color: #fff;
-  opacity: 1 !important;
+.bimestre-pill[aria-pressed="true"] {
+  background: #fdebd8;
+  color: #c76619;
+  border-color: transparent;
+  box-shadow: 0 1px 3px rgba(199, 102, 25, .18);
 }
 
-.bimester-chip:disabled {
+.bimestre-pill:disabled {
   cursor: not-allowed;
-  opacity: .45;
+  opacity: .5;
+}
+
+.bimestre-pill:focus-visible {
+  outline: 3px solid #fdba74;
+  outline-offset: 2px;
+}
+
+/* --- Tabela da divisão de notas --- */
+.grade-scheme-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 10px;
+}
+
+.grade-scheme-table thead th {
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: #64748b;
+  padding: 0 .75rem;
+}
+
+.grade-scheme-table tbody tr {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.grade-scheme-table tbody td {
+  padding: .9rem .9rem;
+  vertical-align: middle;
 }
 
 

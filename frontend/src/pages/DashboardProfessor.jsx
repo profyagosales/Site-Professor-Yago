@@ -362,6 +362,11 @@ function DashboardProfessor(){
     [classSummaries]
   )
 
+  const primaryClassId = useMemo(() => {
+    const first = classSummaries.find((summary) => coalesceId(summary))
+    return first ? coalesceId(first) : ''
+  }, [classSummaries])
+
   const totalClasses = classSummaries.length
 
   const uniqueStudentsCount = useMemo(() => {
@@ -669,6 +674,7 @@ function DashboardProfessor(){
         <div className="tile grades">
           <DivisaoNotasCard
             ano={gradeSchemeYear}
+            classId={primaryClassId || null}
             onEdit={handleOpenGradeScheme}
             refreshToken={gradeSchemeRefreshKey}
           />
@@ -804,6 +810,7 @@ function DashboardProfessor(){
 
       <DivisaoNotasModal
         ano={gradeSchemeYear}
+        classId={primaryClassId || null}
         initial={gradeSchemeDraft}
         isOpen={divisaoNotasOpen}
         onClose={handleCloseGradeScheme}

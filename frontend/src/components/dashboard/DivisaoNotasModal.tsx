@@ -1,227 +1,247 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import { DEFAULT_SCHEME, saveGradeScheme } from '@/services/gradeScheme';
-import type { GradeItem, GradeScheme, Bimestre } from '@/services/gradeScheme';
+import {
+  DEFAULT_SCHEME,
+  saveGradeScheme,
+  type Bimestre,
+  type GradeScheme,
+  type GradeSchemeBimester,
+  type GradeSchemeItem,
+} from '@/services/gradeScheme';
 
 type Props = {
   ano: number;
+  classId: string | null;
   initial: GradeScheme | null;
   isOpen: boolean;
   onClose: () => void;
   onSaved?: () => void;
 };
 
-const TYPES: GradeItem['tipo'][] = ['Prova', 'Trabalho', 'Projeto', 'Teste', 'Outros'];
-const BIMESTRES: Bimestre[] = [1, 2, 3, 4];
-const DEFAULT_ITEM_COLOR = '#F28C2E';
+type EditableItem = GradeSchemeItem & { pointsText: string };
+type EditableBimester = Omit<GradeSchemeBimester, 'items'> & { items: EditableItem[] };
+type EditableScheme = {
+  classId: string;
+  year: number;
+  byBimester: Record<Bimestre, EditableBimester>;
+};
 
-const makeId = () => globalThis.crypto?.randomUUID?.() ?? `id_${Math.random().toString(36).slice(2)}`;
+const BIMESTERS: Bimestre[] = [1, 2, 3, 4];
+const DEFAULT_COLOR = '#EB7A28';
+const TYPES: Array<{ value: string; label: string }> = [
+  { value: 'PROVA', label: 'Prova' },
+  { value: 'TRABALHO', label: 'Trabalho' },
+  { value: 'PROJETO', label: 'Projeto' },
+  { value: 'TESTE', label: 'Teste' },
+  { value: 'OUTROS', label: 'Outros' },
+];
 
-function cloneScheme(source: GradeScheme | null, ano: number): GradeScheme {
-  const base = source ?? DEFAULT_SCHEME(ano);
-  const itensPorBimestre: GradeScheme['itensPorBimestre'] = { 1: [], 2: [], 3: [], 4: [] };
-  for (const b of BIMESTRES) {
-    const itens = Array.isArray(base.itensPorBimestre[b]) ? base.itensPorBimestre[b] : [];
-    itensPorBimestre[b] = itens.map((item) => ({
-      id: item.id ?? makeId(),
-      nome: item.nome ?? '',
-      tipo: item.tipo ?? 'Outros',
-      pontos: Number.isFinite(item.pontos) ? Number(item.pontos) : 0,
-      cor: item.cor ?? DEFAULT_ITEM_COLOR,
-    }));
-  }
-  return { ano: base.ano ?? ano, itensPorBimestre };
-}
+const makeId = () => globalThis.crypto?.randomUUID?.() ?? `id_${Math.random().toString(36).slice(2, 10)}`;
 
-export default function DivisaoNotasModal({ ano, initial, isOpen, onClose, onSaved }: Props) {
+export default function DivisaoNotasModal({ ano, classId, initial, isOpen, onClose, onSaved }: Props) {
   const [active, setActive] = useState<Bimestre>(1);
   const [saving, setSaving] = useState(false);
-  const [localScheme, setLocalScheme] = useState<GradeScheme>(() => cloneScheme(initial, ano));
+  const [invalidBimester, setInvalidBimester] = useState<Bimestre | null>(null);
+  const [localScheme, setLocalScheme] = useState<EditableScheme>(() =>
+    createEditableScheme(initial, classId, ano),
+  );
 
   useEffect(() => {
-    if (isOpen) {
-      setActive(1);
-      setLocalScheme(cloneScheme(initial, ano));
-    }
-  }, [ano, initial, isOpen]);
+    if (!isOpen) return;
+    setActive(1);
+    setInvalidBimester(null);
+    setLocalScheme(createEditableScheme(initial, classId, ano));
+  }, [ano, classId, initial, isOpen]);
 
-  const itens = useMemo(() => localScheme.itensPorBimestre[active] ?? [], [localScheme, active]);
+  const itens = useMemo(() => localScheme.byBimester[active]?.items ?? [], [localScheme, active]);
 
-  const totals = useMemo(() => computeTotals(localScheme), [localScheme]);
+  const totals = useMemo(() => {
+    return BIMESTERS.reduce((acc, bimester) => {
+      const items = localScheme.byBimester[bimester]?.items ?? [];
+      acc[bimester] = items.reduce((sum, item) => sum + parsePoints(item.pointsText), 0);
+      return acc;
+    },
+    { 1: 0, 2: 0, 3: 0, 4: 0 } as Record<Bimestre, number>);
+  }, [localScheme]);
+
   const hasAllNames = useMemo(
     () =>
-      BIMESTRES.every((b) =>
-        (localScheme.itensPorBimestre[b] ?? []).every(
-          (item) => Boolean(item.nome) && item.nome.trim().length > 0,
-        ),
+      BIMESTERS.every((b) =>
+        (localScheme.byBimester[b]?.items ?? []).every((item) => item.name.trim().length > 0),
       ),
     [localScheme],
   );
-  const isValid = useMemo(
+
+  const allTotalsValid = useMemo(
     () =>
-      BIMESTRES.every((b) => {
-        const itensDoBimestre = localScheme.itensPorBimestre[b] ?? [];
-        if (!itensDoBimestre.length) {
-          return true;
-        }
-        return Number.isFinite(totals[b]) && Math.abs(totals[b] - 10) < 1e-4;
+      BIMESTERS.every((b) => {
+        const total = totals[b];
+        return Math.abs(total - 10) < 0.001;
       }),
-    [localScheme, totals],
+    [totals],
   );
 
-  const updateItems = (b: Bimestre, recipe: (items: GradeItem[]) => GradeItem[]) => {
-    setLocalScheme((prev) => ({
-      ...prev,
-      itensPorBimestre: {
-        ...prev.itensPorBimestre,
-        [b]: recipe(prev.itensPorBimestre[b] ?? []),
-      },
-    }));
+  const updateItems = (bimester: Bimestre, recipe: (items: EditableItem[]) => EditableItem[]) => {
+    setLocalScheme((prev) => {
+      const current = prev.byBimester[bimester] ?? createEditableBimester(prev.classId, prev.year, bimester);
+      const nextItems = normalizeOrders(recipe([...current.items]));
+      return {
+        ...prev,
+        byBimester: {
+          ...prev.byBimester,
+          [bimester]: { ...current, items: nextItems },
+        },
+      };
+    });
   };
 
   const addItem = (bimester: Bimestre) => {
-    const fresh: GradeItem = {
-      id: makeId(),
-      nome: '',
-      tipo: 'Prova',
-      pontos: 0,
-      cor: DEFAULT_ITEM_COLOR,
-    };
-    updateItems(bimester, (prev) => [...prev, fresh]);
+    updateItems(bimester, (items) => [
+      ...items,
+      {
+        id: makeId(),
+        name: '',
+        label: '',
+        points: 0,
+        pointsText: '0,0',
+        type: 'PROVA',
+        color: DEFAULT_COLOR,
+        order: items.length,
+      },
+    ]);
   };
 
-  const updateItem = (bimester: Bimestre, id: string, patch: Partial<GradeItem>) => {
-    updateItems(bimester, (prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...patch, id } : item)),
+  const patchItem = (bimester: Bimestre, id: string, patch: Partial<EditableItem>) => {
+    updateItems(bimester, (items) =>
+      items.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              ...patch,
+              id,
+              name: patch.name !== undefined ? patch.name : item.name,
+              label: patch.label !== undefined ? patch.label : patch.name !== undefined ? patch.name : item.label,
+            }
+          : item,
+      ),
     );
   };
 
   const removeItem = (bimester: Bimestre, id: string) => {
-    updateItems(bimester, (prev) => prev.filter((item) => item.id !== id));
+    updateItems(bimester, (items) => items.filter((item) => item.id !== id));
   };
 
   const moveItem = (bimester: Bimestre, id: string, direction: -1 | 1) => {
-    updateItems(bimester, (prev) => {
-      const index = prev.findIndex((item) => item.id === id);
-      if (index < 0) return prev;
+    updateItems(bimester, (items) => {
+      const index = items.findIndex((item) => item.id === id);
+      if (index < 0) return items;
       const nextIndex = index + direction;
-      if (nextIndex < 0 || nextIndex >= prev.length) {
-        return prev;
-      }
-      const clone = [...prev];
+      if (nextIndex < 0 || nextIndex >= items.length) return items;
+      const clone = [...items];
       [clone[index], clone[nextIndex]] = [clone[nextIndex], clone[index]];
-      return clone;
+      return clone.map((item, idx) => ({ ...item, order: idx }));
     });
   };
 
   const handleSave = async () => {
+    if (!classId) {
+      toast.error('Selecione uma turma para salvar a divisão de notas.');
+      return;
+    }
     if (!hasAllNames) {
       toast.error('Preencha o nome de todos os itens.');
       return;
     }
-
-    if (!isValid) {
-      toast.error('Ajuste os pontos para que cada bimestre com itens some exatamente 10.');
+    if (!allTotalsValid) {
+      toast.error('Cada bimestre deve somar exatamente 10,0 pontos.');
       return;
     }
+
     try {
       setSaving(true);
-      const itensPorBimestre = BIMESTRES.reduce((acc, bimestre) => {
-        acc[bimestre] = (localScheme.itensPorBimestre[bimestre] ?? []).map((item) => ({
-          ...item,
-          nome: item.nome?.trim() ?? '',
-        }));
-        return acc;
-      }, { 1: [], 2: [], 3: [], 4: [] } as GradeScheme['itensPorBimestre']);
-      const trimmed: GradeScheme = {
-        ...localScheme,
-        itensPorBimestre,
-      };
-      await saveGradeScheme(trimmed);
-      onSaved?.(); // refetch no card
+      setInvalidBimester(null);
+      const payload = toServiceScheme(localScheme);
+      const saved = await saveGradeScheme(payload);
+      setLocalScheme(createEditableScheme(saved, classId, ano));
+      onSaved?.();
       onClose();
-    } catch (e: any) {
-      toast.error(e?.message || 'Falha ao salvar divisão de notas.');
+    } catch (error: any) {
+      const status = error?.status;
+      const code = error?.code;
+      if (code === 'ROUTE_NOT_FOUND' || status === 404 || /rota da api não encontrada/i.test(error?.message ?? '')) {
+        toast.error('Divisão de notas indisponível no momento (rota da API não encontrada)');
+      } else if (status === 400) {
+        const bimester = error?.bimester as Bimestre | undefined;
+        if (bimester) {
+          setInvalidBimester(bimester);
+        }
+        toast.error(error?.message ?? 'A soma de pontos deve ser igual a 10,0.');
+      } else {
+        toast.error(error?.message ?? 'Falha ao salvar divisão de notas.');
+      }
     } finally {
       setSaving(false);
     }
   };
 
-  if (!isOpen) {
-    return null;
-  }
+  if (!isOpen) return null;
 
   return (
     <div className="modal-overlay">
-      <div className="modal">
+      <div className="modal max-h-[90vh]">
         <header className="modal-header">
           <h3>Configurar divisão de notas</h3>
-          <button className="btn btn-outline" onClick={onClose} type="button">
+          <button className="btn btn-outline" type="button" onClick={onClose}>
             Fechar
           </button>
         </header>
 
-        <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-          <div className="mb-3">
-            <span className="text-sm text-foreground/70 mr-2">Bimestre para edição</span>
+        <div className="modal-body space-y-5" style={{ maxHeight: '70vh', overflowY: 'auto', paddingRight: '8px' }}>
+          <div className="flex flex-col gap-2">
+            <span className="text-sm text-slate-600">Selecione o bimestre para editar</span>
             <div className="flex flex-wrap gap-2">
-              {BIMESTRES.map((b) => (
+              {BIMESTERS.map((bim) => (
                 <button
-                  key={b}
-                  className="bim-pill"
-                  data-active={b === active}
-                  onClick={() => setActive(b)}
+                  key={bim}
+                  className="bimestre-pill"
                   type="button"
+                  aria-pressed={active === bim}
+                  onClick={() => setActive(bim)}
                 >
-                  {b}º
+                  {bim}º
                 </button>
               ))}
             </div>
           </div>
 
-          <ItemList
-            items={itens}
-            onAdd={() => addItem(active)}
-            onRemove={(id) => removeItem(active, id)}
-            onMove={(id, dir) => moveItem(active, id, dir)}
-            onPatch={(id, partial) => updateItem(active, id, partial)}
-          />
+          {classId ? (
+            <ItemList
+              items={itens}
+              onAdd={() => addItem(active)}
+              onRemove={(id) => removeItem(active, id)}
+              onMove={(id, dir) => moveItem(active, id, dir)}
+              onPatch={(id, patch) => patchItem(active, id, patch)}
+            />
+          ) : (
+            <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
+              Cadastre uma turma para configurar a divisão de notas.
+            </p>
+          )}
 
-          <div className="grid grid-cols-4 gap-3 mt-4 text-sm">
-            {BIMESTRES.map((b) => {
-              const total = totals[b];
-              const itensDoBimestre = localScheme.itensPorBimestre[b] ?? [];
-              const hasItems = itensDoBimestre.length > 0;
-              const ok = hasItems && Math.abs(total - 10) < 0.0001;
-              let variant = 'bg-rose-50 text-rose-700';
-              if (!hasItems) {
-                variant = 'bg-slate-100 text-slate-600';
-              } else if (ok) {
-                variant = 'bg-green-50 text-green-700';
-              }
-              return (
-                <div
-                  key={b}
-                  className={`rounded px-3 py-2 text-sm ${variant}`}
-                >
-                  {b}º: {total.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} / 10,0
-                </div>
-              );
-            })}
-          </div>
+          <TotalsGrid totals={totals} invalid={invalidBimester} />
         </div>
 
-        <footer className="modal-footer flex justify-end gap-3 mt-4">
-          <button className="btn btn-ghost" onClick={onClose} type="button">
+        <footer className="modal-footer sticky bottom-0 left-0 right-0 flex justify-end gap-3 border-t border-slate-200 bg-white/95 p-4">
+          <button className="btn btn-ghost" type="button" onClick={onClose}>
             Cancelar
           </button>
           <button
             className="btn btn-primary"
-            disabled={!isValid || !hasAllNames || saving}
-            onClick={handleSave}
             type="button"
+            onClick={handleSave}
+            disabled={saving || !classId || !hasAllNames || !allTotalsValid}
           >
-            {saving ? 'Salvando...' : 'Salvar'}
+            {saving ? 'Salvando…' : 'Salvar'}
           </button>
         </footer>
       </div>
@@ -236,40 +256,32 @@ function ItemList({
   onMove,
   onPatch,
 }: {
-  items: GradeItem[];
+  items: EditableItem[];
   onAdd: () => void;
   onRemove: (id: string) => void;
   onMove: (id: string, dir: -1 | 1) => void;
-  onPatch: (id: string, p: Partial<GradeItem>) => void;
+  onPatch: (id: string, patch: Partial<EditableItem>) => void;
 }) {
   return (
-    <div>
+    <div className="space-y-4">
       {!items.length && (
-        <p className="text-foreground/60 mb-3">Nenhum item cadastrado. Adicione um item para começar.</p>
+        <p className="text-sm text-slate-500">Nenhum item cadastrado. Adicione um item para começar.</p>
       )}
       <div className="space-y-3">
-        {items.map((item, idx) => (
+        {items.map((item, index) => (
           <ItemRow
-            key={item.id ?? `item-${idx}`}
+            key={item.id}
             item={item}
-            canUp={idx > 0}
-            canDown={idx < items.length - 1}
-            onRemove={() => {
-              if (item.id) onRemove(item.id);
-            }}
-            onUp={() => {
-              if (item.id) onMove(item.id, -1);
-            }}
-            onDown={() => {
-              if (item.id) onMove(item.id, 1);
-            }}
-            onPatch={(partial) => {
-              if (item.id) onPatch(item.id, partial);
-            }}
+            canMoveUp={index > 0}
+            canMoveDown={index < items.length - 1}
+            onRemove={() => onRemove(item.id)}
+            onMoveUp={() => onMove(item.id, -1)}
+            onMoveDown={() => onMove(item.id, 1)}
+            onPatch={(patch) => onPatch(item.id, patch)}
           />
         ))}
       </div>
-      <button className="btn btn-outline mt-3" onClick={onAdd} type="button">
+      <button className="btn btn-outline" type="button" onClick={onAdd}>
         Adicionar item
       </button>
     </div>
@@ -278,46 +290,54 @@ function ItemList({
 
 function ItemRow({
   item,
-  canUp,
-  canDown,
+  canMoveUp,
+  canMoveDown,
   onRemove,
-  onUp,
-  onDown,
+  onMoveUp,
+  onMoveDown,
   onPatch,
 }: {
-  item: GradeItem;
-  canUp: boolean;
-  canDown: boolean;
+  item: EditableItem;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
   onRemove: () => void;
-  onUp: () => void;
-  onDown: () => void;
-  onPatch: (p: Partial<GradeItem>) => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onPatch: (patch: Partial<EditableItem>) => void;
 }) {
+  const handlePointsChange = (value: string) => {
+    const cleaned = value.replace(/[^0-9.,]/g, '').replace(/,{2,}/g, ',');
+    onPatch({ pointsText: cleaned });
+  };
+
+  const commitPoints = (value: string) => {
+    const numeric = clampPoints(parsePoints(value));
+    onPatch({ points: numeric, pointsText: formatPointsInput(numeric) });
+  };
+
   return (
-    <div className="rounded-xl border p-3 flex flex-wrap items-center gap-3">
-      <div className="grow min-w-[200px]">
+    <div className="flex flex-wrap items-start gap-4 rounded-2xl border border-slate-200 p-4">
+      <div className="min-w-[200px] flex-1">
         <label className="label">Nome do item</label>
         <input
           className="input w-full"
-          value={item.nome}
-          onChange={(event) => onPatch({ nome: event.target.value })}
-          required
-          placeholder="Ex.: Prova 1, Trabalho, Projeto..."
+          value={item.name}
+          onChange={(event) => onPatch({ name: event.target.value, label: event.target.value })}
+          placeholder="Ex.: Prova 1, Projeto, Trabalho..."
         />
       </div>
 
       <div>
         <label className="label">Pontos</label>
         <input
-          className="input w-[110px] text-right"
+          className="input w-[120px] text-right"
           inputMode="decimal"
-          pattern="[0-9]+([\\.,][0-9]+)?"
-          value={String(item.pontos ?? 0).replace('.', ',')}
-          onChange={(event) => {
-            const raw = event.target.value.replace(',', '.');
-            const next = Number(raw);
-            if (Number.isFinite(next)) {
-              onPatch({ pontos: Math.max(0, Math.min(10, next)) });
+          value={item.pointsText}
+          onChange={(event) => handlePointsChange(event.target.value)}
+          onBlur={(event) => commitPoints(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              commitPoints((event.target as HTMLInputElement).value);
             }
           }}
           placeholder="0,0"
@@ -328,12 +348,12 @@ function ItemRow({
         <label className="label">Tipo</label>
         <select
           className="input"
-          value={item.tipo}
-          onChange={(event) => onPatch({ tipo: event.target.value as GradeItem['tipo'] })}
+          value={item.type}
+          onChange={(event) => onPatch({ type: event.target.value })}
         >
-          {TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
+          {TYPES.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
             </option>
           ))}
         </select>
@@ -343,21 +363,20 @@ function ItemRow({
         <label className="label">Cor</label>
         <input
           type="color"
-          className="h-10 w-16 p-0 border rounded"
-          value={item.cor ?? DEFAULT_ITEM_COLOR}
-          onChange={(event) => onPatch({ cor: event.target.value })}
-          aria-label="Selecionar cor"
+          className="h-10 w-16 cursor-pointer rounded border"
+          value={item.color || DEFAULT_COLOR}
+          onChange={(event) => onPatch({ color: event.target.value })}
         />
       </div>
 
-      <div className="ml-auto flex gap-2">
-        <button className="icon-btn" disabled={!canUp} onClick={onUp} title="Mover para cima" type="button">
+      <div className="ml-auto flex items-center gap-2">
+        <button className="icon-btn" type="button" onClick={onMoveUp} disabled={!canMoveUp} title="Mover para cima">
           ↑
         </button>
-        <button className="icon-btn" disabled={!canDown} onClick={onDown} title="Mover para baixo" type="button">
+        <button className="icon-btn" type="button" onClick={onMoveDown} disabled={!canMoveDown} title="Mover para baixo">
           ↓
         </button>
-        <button className="icon-btn danger" onClick={onRemove} title="Remover" type="button">
+        <button className="icon-btn danger" type="button" onClick={onRemove} title="Remover">
           ✕
         </button>
       </div>
@@ -365,11 +384,126 @@ function ItemRow({
   );
 }
 
-function computeTotals(scheme: GradeScheme): Record<Bimestre, number> {
-  const totals: Record<Bimestre, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
-  for (const b of BIMESTRES) {
-    const itens = scheme.itensPorBimestre[b] ?? [];
-    totals[b] = itens.reduce((sum, item) => sum + (Number.isFinite(item.pontos) ? Number(item.pontos) : 0), 0);
-  }
-  return totals;
+function TotalsGrid({ totals, invalid }: { totals: Record<Bimestre, number>; invalid: Bimestre | null }) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {BIMESTERS.map((bim) => {
+        const total = totals[bim];
+        const ok = Math.abs(total - 10) < 0.001;
+        const variant =
+          invalid === bim
+            ? 'border border-rose-500 bg-rose-50 text-rose-700'
+            : ok
+              ? 'border border-emerald-100 bg-emerald-50 text-emerald-700'
+              : 'border border-amber-200 bg-amber-50 text-amber-700';
+        return (
+          <div key={bim} className={`rounded-xl px-3 py-2 text-sm font-medium ${variant}`}>
+            {bim}º bimestre: {total.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} / 10,0
+          </div>
+        );
+      })}
+    </div>
+  );
 }
+
+function createEditableScheme(source: GradeScheme | null, classId: string | null, year: number): EditableScheme {
+  const effectiveClassId = source?.classId || classId || '';
+  const base = source ?? DEFAULT_SCHEME(effectiveClassId, year);
+  const byBimester = BIMESTERS.reduce((acc, bimester) => {
+    const entry = base.byBimester?.[bimester] ?? DEFAULT_SCHEME(effectiveClassId, year).byBimester[bimester];
+    acc[bimester] = createEditableBimester(effectiveClassId, base.year ?? year, bimester, entry);
+    return acc;
+  }, {} as Record<Bimestre, EditableBimester>);
+
+  return {
+    classId: effectiveClassId,
+    year: base.year ?? year,
+    byBimester,
+  };
+}
+
+function createEditableBimester(
+  classId: string,
+  year: number,
+  bimester: Bimestre,
+  entry?: GradeSchemeBimester,
+): EditableBimester {
+  const source = entry ?? DEFAULT_SCHEME(classId, year).byBimester[bimester];
+  const items = (source.items ?? []).map((item, index) => ({
+    id: item.id || makeId(),
+    name: item.name?.trim() || item.label?.trim() || '',
+    label: item.label?.trim() || item.name?.trim() || '',
+    points: clampPoints(item.points ?? 0),
+    pointsText: formatPointsInput(item.points ?? 0),
+    type: item.type || 'PROVA',
+    color: item.color || DEFAULT_COLOR,
+    order: Number.isFinite(item.order) ? Number(item.order) : index,
+  }));
+
+  return {
+    id: source.id,
+    classId: source.classId || classId,
+    year: source.year ?? year,
+    bimester: source.bimester ?? bimester,
+    items: normalizeOrders(items),
+    totalPoints: source.totalPoints ?? 0,
+    showToStudents: source.showToStudents ?? false,
+    createdAt: source.createdAt,
+    updatedAt: source.updatedAt,
+  };
+}
+
+function toServiceScheme(editable: EditableScheme): GradeScheme {
+  return {
+    classId: editable.classId,
+    year: editable.year,
+    byBimester: BIMESTERS.reduce((acc, bimester) => {
+      const entry = editable.byBimester[bimester] ?? createEditableBimester(editable.classId, editable.year, bimester);
+      const items = (entry.items ?? []).map((item, index) => ({
+        id: item.id,
+        name: item.name.trim(),
+        label: item.label.trim() || item.name.trim(),
+        points: clampPoints(parsePoints(item.pointsText)),
+        type: item.type || 'PROVA',
+        color: item.color || DEFAULT_COLOR,
+        order: Number.isFinite(item.order) ? Number(item.order) : index,
+      }));
+      acc[bimester] = {
+        id: entry.id,
+        classId: editable.classId,
+        year: editable.year,
+        bimester,
+        items,
+        totalPoints: clampPoints(items.reduce((sum, item) => sum + item.points, 0)),
+        showToStudents: entry.showToStudents ?? false,
+        createdAt: entry.createdAt,
+        updatedAt: entry.updatedAt,
+      };
+      return acc;
+    }, {} as Record<Bimestre, GradeSchemeBimester>),
+  };
+}
+
+function normalizeOrders(items: EditableItem[]): EditableItem[] {
+  return items
+    .slice()
+    .sort((a, b) => a.order - b.order)
+    .map((item, index) => ({ ...item, order: index }));
+}
+
+function parsePoints(value: string): number {
+  const normalized = Number.parseFloat(String(value ?? '').replace(',', '.'));
+  return Number.isFinite(normalized) ? normalized : 0;
+}
+
+function clampPoints(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  if (value < 0) return 0;
+  if (value > 10) return 10;
+  return Number(value.toFixed(1));
+}
+
+function formatPointsInput(value: number): string {
+  return clampPoints(value).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
