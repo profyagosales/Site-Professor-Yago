@@ -2,6 +2,8 @@
   /* DASHBOARD LAYOUT */
   --dash-gap:24px;          /* espaço entre cards do grid superior */
   --h-stack:360px;          /* altura padrão dos cards empilhados à esquerda */
+  --ws-row-h:108px;         /* altura das linhas do horário */
+  --ws-gap-y:10px;          /* espaçamento vertical entre linhas */
 
   /* BRAND */
   --c-brand-50:#FFF6EE;
@@ -79,6 +81,13 @@
 @media (min-width: 1280px){
   :root{
     --h-stack:380px;
+  }
+}
+
+@media (max-width: 1280px){
+  :root{
+    --ws-row-h:102px;
+    --ws-gap-y:8px;
   }
 }
 
