@@ -64,7 +64,7 @@ const createInitialForm = (
   visibleBimester: null,
 });
 
-function toNumberOrZero(value: string): number {
+function parsePointsInput(value: string): number {
   if (typeof value !== 'string') {
     return 0;
   }
@@ -148,7 +148,7 @@ export default function DivisaoNotasModal({
   const cacheKey = useMemo(() => `${classId}:${year}`, [classId, year]);
 
   const totalPoints = useMemo(
-    () => items.reduce((sum, item) => sum + toNumberOrZero(item.rawPoints), 0),
+    () => items.reduce((sum, item) => sum + parsePointsInput(item.rawPoints), 0),
     [items]
   );
 
@@ -268,7 +268,19 @@ export default function DivisaoNotasModal({
   const handleItemChange = (uid: string, patch: Partial<ItemForm>) => {
     setForm((prev) => ({
       ...prev,
-      items: prev.items.map((item) => (item.uid === uid ? { ...item, ...patch } : item)),
+      items: prev.items.map((item) => {
+        if (item.uid !== uid) {
+          return item;
+        }
+        const next: ItemForm = { ...item, ...patch };
+        if (patch.rawPoints !== undefined) {
+          next.points = parsePointsInput(patch.rawPoints);
+        }
+        if (patch.color !== undefined && typeof patch.color === 'string') {
+          next.color = patch.color;
+        }
+        return next;
+      }),
     }));
   };
 
@@ -284,7 +296,7 @@ export default function DivisaoNotasModal({
 
     const sanitizedItems = items
       .map((item, index) => {
-        const normalizedPoints = toNumberOrZero(item.rawPoints);
+        const normalizedPoints = parsePointsInput(item.rawPoints);
         return {
           label: item.label.trim(),
           points: normalizedPoints,
@@ -352,7 +364,7 @@ export default function DivisaoNotasModal({
       }));
 
       toast.success('Divisão de notas salva.');
-      onSaved?.();
+      await Promise.resolve(onSaved?.());
       onClose();
     } catch (err) {
       console.error('[DivisaoNotasModal] Falha ao salvar', err);
@@ -476,7 +488,7 @@ export default function DivisaoNotasModal({
               items.map((item, index) => (
                 <div
                   key={item.uid}
-                  className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[minmax(0,1fr)_110px_150px_auto]"
+                  className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[minmax(0,1fr)_110px_150px_120px_auto]"
                 >
                   <div>
                     <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -498,20 +510,6 @@ export default function DivisaoNotasModal({
                       inputMode="decimal"
                       value={item.rawPoints}
                       onChange={(event) => handleItemChange(item.uid, { rawPoints: event.target.value })}
-                      onBlur={() => {
-                        setForm((prev) => ({
-                          ...prev,
-                          items: prev.items.map((entry) => {
-                            if (entry.uid !== item.uid) return entry;
-                            const normalized = toNumberOrZero(entry.rawPoints);
-                            return {
-                              ...entry,
-                              points: normalized,
-                              rawPoints: entry.rawPoints.trim() ? String(normalized) : '',
-                            };
-                          }),
-                        }));
-                      }}
                       placeholder="0"
                       className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
                     />
@@ -535,6 +533,18 @@ export default function DivisaoNotasModal({
                         </option>
                       ))}
                     </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Cor
+                    </label>
+                    <input
+                      type="color"
+                      value={item.color || '#FF7A00'}
+                      onChange={(event) => handleItemChange(item.uid, { color: event.target.value })}
+                      className="h-10 w-full cursor-pointer rounded-xl border border-slate-200 bg-white p-1"
+                      aria-label="Selecionar cor do item"
+                    />
                   </div>
                   <div className="flex items-end justify-end gap-2">
                     <Button
@@ -603,16 +613,12 @@ export default function DivisaoNotasModal({
           </fieldset>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
-              <span>Total distribuído</span>
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  totalIsValid ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
-                }`}
-              >
-                {totalPoints.toFixed(1)} / {MAX_TOTAL_POINTS.toFixed(1)}
-              </span>
-            </div>
+            <p
+              className={`text-sm font-semibold ${totalIsValid ? 'text-emerald-600' : 'text-rose-600'}`}
+              aria-live="polite"
+            >
+              Total: {totalPoints.toFixed(1)} / {MAX_TOTAL_POINTS.toFixed(1)}
+            </p>
             <Button type="button" variant="outline" onClick={handleAddItem}>
               Adicionar item
             </Button>
@@ -620,7 +626,7 @@ export default function DivisaoNotasModal({
 
           {!totalIsValid && (
             <p className="text-xs text-rose-600">
-              Ajuste os pontos para que a soma seja exatamente 10.
+              Ajuste os pontos para que a soma seja exatamente {MAX_TOTAL_POINTS.toFixed(1)}.
             </p>
           )}
           </div>

@@ -641,10 +641,10 @@ function DashboardProfessor(){
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3 items-stretch">
+      <div className="dashboard-equal-grid">
         <DashboardCard
           title="Agenda"
-          className="card h-[380px]"
+          className="h-full"
           actions={
             <div className="flex items-center gap-2">
               <div className="flex rounded-full border border-slate-200 bg-slate-50 p-1">
@@ -653,6 +653,7 @@ function DashboardProfessor(){
                   className={`rounded-full px-3 py-1 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A00] ${
                     calendarScope === 'week' ? 'bg-white text-[#FF8A00] shadow-sm' : 'text-slate-500'
                   }`}
+                  aria-pressed={calendarScope === 'week'}
                   onClick={() => setCalendarScope('week')}
                 >
                   Semana
@@ -662,6 +663,7 @@ function DashboardProfessor(){
                   className={`rounded-full px-3 py-1 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A00] ${
                     calendarScope === 'month' ? 'bg-white text-[#FF8A00] shadow-sm' : 'text-slate-500'
                   }`}
+                  aria-pressed={calendarScope === 'month'}
                   onClick={() => setCalendarScope('month')}
                 >
                   Mês
@@ -669,12 +671,12 @@ function DashboardProfessor(){
               </div>
             </div>
           }
-          contentClassName="card-body flex-col"
+          contentClassName="flex flex-1 flex-col overflow-hidden"
         >
           {insightsLoading ? (
-            <div className="flex-1 rounded-xl bg-slate-100 animate-pulse" />
+            <div className="flex-1 animate-pulse rounded-2xl bg-slate-100" />
           ) : displayedAgendaGroups.length ? (
-            <div className="flex-1 space-y-4">
+            <div className="flex-1 space-y-4 overflow-y-auto pr-1">
               {displayedAgendaGroups.map((group) => (
                 <div key={group.iso} className="rounded-2xl border border-slate-100 p-4">
                   <p className="text-sm font-semibold text-slate-900">{formatAgendaHeader(group.date)}</p>
@@ -712,15 +714,15 @@ function DashboardProfessor(){
 
         <DashboardCard
           title="Atividades"
-          className="card h-[380px]"
-          contentClassName="card-body"
+          className="h-full"
+          contentClassName="flex flex-1 flex-col overflow-hidden"
         >
-          <ResumoConteudosCard embedded limit={5} className="h-full" />
+          <ResumoConteudosCard embedded limit={5} className="h-full min-h-0" />
         </DashboardCard>
 
         <DivisaoNotasCard
           classOptions={classOptions}
-          className="card h-[380px]"
+          className="h-full"
           onEdit={handleEditGradeScheme}
           editOpen={divisaoNotasOpen}
           onEditOpenChange={handleDivisaoNotasOpenChange}

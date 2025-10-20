@@ -220,11 +220,7 @@ html, body, #root { height: 100%; background: #F2F4F7; }
 }
 
 .schedule-card-body {
-  overflow: visible;
-}
-
-.avisos-card {
-  min-height: 100%;
+  overflow: visible !important;
 }
 
 .schedule-grid {
@@ -298,10 +294,43 @@ html, body, #root { height: 100%; background: #F2F4F7; }
   display: block;
 }
 
-.avisos-body {
-  height: 360px;
+
+.card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  padding-right: 0.25rem;
+}
+
+.card-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.card-body::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.6);
+  border-radius: 9999px;
+}
+
+.avisos-card {
+  min-height: 100%;
+}
+
+.avisos-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 0.25rem;
 }
 
 .avisos-body img {
@@ -316,16 +345,28 @@ html, body, #root { height: 100%; background: #F2F4F7; }
   margin: 0 0 8px;
 }
 
-.card {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+.announcement-modal-list {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 0.25rem;
 }
 
-.card-body {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
+.dashboard-equal-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-auto-rows: minmax(0, 1fr);
+}
+
+@media (min-width: 768px) {
+  .dashboard-equal-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .dashboard-equal-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .modal-body {

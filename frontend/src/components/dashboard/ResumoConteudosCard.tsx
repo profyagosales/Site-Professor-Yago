@@ -214,16 +214,17 @@ export default function ResumoConteudosCard({
   const displayedItems = useMemo(() => summaryItems.slice(0, limit), [summaryItems, limit]);
   const hasMore = summaryItems.length > limit;
 
-  const gridTemplate = embedded ? 'grid-rows-[1fr,auto]' : 'grid-rows-[auto,1fr,auto]';
-  const containerClass = [
-    'grid h-full min-h-[26rem] grid-auto-rows-min gap-4',
-    gridTemplate,
-    embedded
-      ? className
-      : ['rounded-2xl border border-slate-200 bg-white p-5 shadow-sm', className].filter(Boolean).join(' '),
-  ]
-    .filter(Boolean)
-    .join(' ');
+  const gridTemplate = embedded ? 'grid-rows-[1fr_auto]' : 'grid-rows-[auto,1fr,auto]';
+
+  const containerClass = embedded
+    ? ['grid h-full min-h-0 gap-4', gridTemplate, className].filter(Boolean).join(' ')
+    : [
+        'grid h-full min-h-[26rem] grid-auto-rows-min gap-4',
+        gridTemplate,
+        ['rounded-2xl border border-slate-200 bg-white p-5 shadow-sm', className].filter(Boolean).join(' '),
+      ]
+        .filter(Boolean)
+        .join(' ');
 
   const loadModalPage = async (page: number) => {
     setModalLoading(true);

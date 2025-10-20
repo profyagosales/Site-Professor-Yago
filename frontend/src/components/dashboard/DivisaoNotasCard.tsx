@@ -149,13 +149,19 @@ export default function DivisaoNotasCard({
             size="sm"
             onClick={handleEditClick}
             disabled={!selectedClassId || !canTriggerEdit}
-            title={!canTriggerEdit ? 'Indisponível' : 'Editar divisão de notas'}
+            title={
+              !canTriggerEdit
+                ? 'Indisponível'
+                : !selectedClassId
+                  ? 'Selecione uma turma'
+                  : 'Editar divisão de notas'
+            }
             aria-disabled={!selectedClassId || !canTriggerEdit}
           >
             Editar
           </Button>
         }
-        contentClassName="card-body"
+        contentClassName="flex flex-1 flex-col overflow-hidden"
       >
         <div className="flex flex-wrap items-center gap-3">
           <div>
@@ -193,7 +199,7 @@ export default function DivisaoNotasCard({
           </div>
         </div>
 
-        <div className="mt-4 flex-1">
+        <div className="mt-4 flex-1 overflow-y-auto pr-1">
           {loading ? (
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, index) => (

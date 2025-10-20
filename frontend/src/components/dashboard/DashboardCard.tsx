@@ -18,13 +18,13 @@ export default function DashboardCard({
   ariaLabel,
 }: DashboardCardProps) {
   const containerClass = [
-    'flex flex-col rounded-2xl border border-ys-line bg-ys-card p-4 sm:p-6 shadow-ys-sm min-h-[320px]',
+    'flex h-full flex-col rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_20px_50px_rgba(15,23,42,0.08)] sm:p-6 min-h-[22rem]',
     className,
   ]
     .filter(Boolean)
     .join(' ');
 
-  const contentClass = ['mt-4 flex-1 flex flex-col', contentClassName].filter(Boolean).join(' ');
+  const contentClass = ['mt-4 flex flex-1 flex-col overflow-hidden', contentClassName].filter(Boolean).join(' ');
   const headingId = useId();
   const regionLabel = ariaLabel ?? title;
 

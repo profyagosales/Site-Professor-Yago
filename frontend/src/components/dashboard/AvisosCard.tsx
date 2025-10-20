@@ -149,9 +149,6 @@ export default function AvisosCard({
   const [isPaused, setIsPaused] = useState(false);
   const [processingIds, setProcessingIds] = useState<Set<string>>(() => new Set());
 
-  const iconButtonClass =
-    'inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A00] disabled:opacity-60 disabled:cursor-not-allowed';
-
   const resetInterval = useCallback(() => {
     if (intervalRef.current !== undefined) {
       window.clearInterval(intervalRef.current);
@@ -319,20 +316,22 @@ export default function AvisosCard({
           window.dispatchEvent(new CustomEvent('announcements:refresh'));
         }
         await fetchAnnouncements();
-        const remaining = modalItems.filter((item) => item.id !== announcement.id).length;
-        setModalItems((prev) => prev.filter((item) => item.id !== announcement.id));
-        if (remaining === 0 && modalPage > 1) {
+        const shouldGoBack = modalItems.length === 1 && modalPage > 1;
+        if (shouldGoBack) {
           setModalPage((prev) => Math.max(1, prev - 1));
+        } else {
+          await loadModalPage(modalPage);
         }
       } catch (err) {
         console.error('[AvisosCard] Falha ao remover aviso', err);
-        toast.error('Não foi possível remover este aviso.');
+        const message = err instanceof Error && err.message ? err.message : 'Não foi possível remover este aviso.';
+        toast.error(message);
       } finally {
         setProcessingFlag(announcement.id, false);
         resetInterval();
       }
     },
-    [fetchAnnouncements, modalItems, modalPage, resetInterval, setProcessingFlag]
+    [fetchAnnouncements, loadModalPage, modalItems.length, modalPage, resetInterval, setProcessingFlag]
   );
 
   const togglePause = useCallback(() => {
@@ -390,16 +389,21 @@ export default function AvisosCard({
         actions={
           <div className="flex gap-2">
             {hasCreateAction ? (
-              <Button type="button" variant="ghost" onClick={onCreate}>
+              <Button type="button" size="sm" variant="ghost" onClick={onCreate}>
                 Registrar aviso
               </Button>
             ) : null}
-            <Button variant="link" onClick={openModal} disabled={loading || (!error && !announcements.length)}>
+            <Button
+              variant="link"
+              size="sm"
+              onClick={openModal}
+              disabled={loading || (!error && !announcements.length)}
+            >
               Ver todos
             </Button>
           </div>
         }
-        contentClassName="card-body"
+        contentClassName="flex flex-1 flex-col overflow-hidden"
       >
         {loading ? (
           <div className="flex h-full items-center justify-center">
@@ -415,7 +419,7 @@ export default function AvisosCard({
           </div>
         ) : (
           <div
-            className="aria-carousel flex h-full flex-col"
+            className="aria-carousel flex h-full flex-col overflow-hidden"
             role="region"
             aria-roledescription="carrossel"
             aria-live="polite"
@@ -433,61 +437,66 @@ export default function AvisosCard({
             <p className="sr-only" aria-live="polite">
               {isPaused ? 'Carrossel pausado' : 'Carrossel em reprodução automática'}
             </p>
-            <div id={activeAnnouncement ? `announcement-slide-${activeAnnouncement.id}` : undefined} className="flex flex-1 flex-col">
+            <div
+              id={activeAnnouncement ? `announcement-slide-${activeAnnouncement.id}` : undefined}
+              className="flex flex-1 flex-col overflow-hidden"
+            >
               <header className="space-y-2">
                 <p className="text-xs uppercase tracking-wide text-slate-500">
                   {formatDateTime(activeAnnouncement?.scheduleAt ?? activeAnnouncement?.createdAt) || 'Aviso'}
                 </p>
                 <h4 className="text-lg font-semibold text-slate-900">{activeAnnouncement?.subject}</h4>
               </header>
-              <div
-                className="avisos-body rich-content prose prose-sm mt-4 max-w-none text-slate-700"
-                dangerouslySetInnerHTML={{ __html: announcementHtml }}
-              />
-              {activeAnnouncement?.attachments?.length ? (
-                <div className="mt-4 space-y-3">
-                  {activeAnnouncement.attachments.map((attachment) => {
-                    if (!attachment || !attachment.url) return null;
-                    if (isImage(attachment)) {
-                      return (
-                        <div key={attachment.url} className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-                          <img
-                            src={attachment.url}
-                            alt={attachment.name ?? 'Imagem do aviso'}
-                            className="max-h-64 w-full object-contain"
-                            loading="lazy"
-                          />
-                        </div>
-                      );
-                    }
-                    if (isPdf(attachment)) {
+              <div className="avisos-body space-y-4">
+                <div
+                  className="rich-content prose prose-sm max-w-none text-slate-700"
+                  dangerouslySetInnerHTML={{ __html: announcementHtml }}
+                />
+                {activeAnnouncement?.attachments?.length ? (
+                  <div className="space-y-3">
+                    {activeAnnouncement.attachments.map((attachment) => {
+                      if (!attachment || !attachment.url) return null;
+                      if (isImage(attachment)) {
+                        return (
+                          <div key={attachment.url} className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                            <img
+                              src={attachment.url}
+                              alt={attachment.name ?? 'Imagem do aviso'}
+                              className="w-full"
+                              loading="lazy"
+                            />
+                          </div>
+                        );
+                      }
+                      if (isPdf(attachment)) {
+                        return (
+                          <a
+                            key={attachment.url}
+                            href={attachment.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+                          >
+                            <FiFileText aria-hidden="true" className="h-4 w-4" />
+                            {attachment.name || 'Ver PDF'}
+                          </a>
+                        );
+                      }
                       return (
                         <a
                           key={attachment.url}
                           href={attachment.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+                          className="text-sm text-orange-600 underline"
                         >
-                          <FiFileText aria-hidden="true" className="h-4 w-4" />
-                          {attachment.name || 'Ver PDF'}
+                          {attachment.name || 'Ver anexo'}
                         </a>
                       );
-                    }
-                    return (
-                      <a
-                        key={attachment.url}
-                        href={attachment.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-sm text-orange-600 underline"
-                      >
-                        {attachment.name || 'Ver anexo'}
-                      </a>
-                    );
-                  })}
-                </div>
-              ) : null}
+                    })}
+                  </div>
+                ) : null}
+              </div>
             </div>
             {announcements.length > 1 ? (
               <div className="mt-4 flex justify-center gap-2" role="tablist" aria-label="Selecionar aviso">
@@ -527,7 +536,7 @@ export default function AvisosCard({
           ) : modalItems.length === 0 ? (
             <p className="text-sm text-slate-500">Nenhum aviso disponível.</p>
           ) : (
-            <div className="space-y-6">
+            <div className="announcement-modal-list space-y-6">
               {modalItems.map((announcement) => {
                 const html = sanitizeHtml(
                   announcement.html || computeFallbackHtml(announcement.message)
@@ -581,28 +590,26 @@ export default function AvisosCard({
                     ) : null}
                     <div className="mt-4 flex flex-wrap justify-end gap-2">
                       {hasEditAction ? (
-                        <button
+                        <Button
                           type="button"
+                          size="sm"
+                          variant="outline"
                           onClick={() => handleEdit(announcement)}
-                          className={iconButtonClass}
-                          title="Editar aviso"
-                          aria-label="Editar aviso"
                         >
-                          <FiEdit2 aria-hidden="true" />
-                          <span className="sr-only">Editar aviso</span>
-                        </button>
+                          <FiEdit2 aria-hidden="true" className="h-4 w-4" />
+                          Editar
+                        </Button>
                       ) : null}
-                      <button
+                      <Button
                         type="button"
+                        size="sm"
+                        variant="outline"
                         onClick={() => handleDelete(announcement)}
-                        className={iconButtonClass}
-                        title="Excluir aviso"
-                        aria-label="Excluir aviso"
                         disabled={processingIds.has(announcement.id)}
                       >
-                        <FiTrash2 aria-hidden="true" />
-                        <span className="sr-only">Excluir aviso</span>
-                      </button>
+                        <FiTrash2 aria-hidden="true" className="h-4 w-4" />
+                        Excluir
+                      </Button>
                     </div>
                   </article>
                 );

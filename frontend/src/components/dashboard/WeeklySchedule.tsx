@@ -28,8 +28,8 @@ type WeeklyScheduleProps = {
 
 export default function WeeklySchedule({ slots, days, cells }: WeeklyScheduleProps) {
   return (
-    <div className="h-full pb-1">
-      <div className="min-w-full h-full">
+    <div className="h-full overflow-x-auto pb-1">
+      <div className="h-full min-w-full">
         <div
           className="schedule-grid grid h-full"
           style={{

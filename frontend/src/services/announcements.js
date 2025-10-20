@@ -9,6 +9,20 @@ function unwrapData(response) {
   return base ?? {};
 }
 
+function extractErrorMessage(error) {
+  if (!error) return 'Não foi possível processar sua solicitação.';
+  const response = error?.response;
+  const data = response?.data;
+  const candidates = [
+    data?.message,
+    data?.error,
+    data?.detail,
+    response?.statusText,
+    error?.message,
+  ];
+  return candidates.find((entry) => typeof entry === 'string' && entry.trim()) ?? 'Não foi possível processar sua solicitação.';
+}
+
 function normalizeAttachment(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const url = typeof raw.url === 'string' ? raw.url : null;
@@ -329,8 +343,13 @@ export async function deleteAnnouncement(id) {
   if (!id) {
     throw new Error('ID do aviso é obrigatório para exclusão.');
   }
-  await api.delete(`/announcements/${id}`, { meta: { noCache: true } });
-  return true;
+  try {
+    await api.delete(`/api/announcements/${id}`, { meta: { noCache: true } });
+    return true;
+  } catch (error) {
+    const message = extractErrorMessage(error);
+    throw new Error(message);
+  }
 }
 
 export default {
