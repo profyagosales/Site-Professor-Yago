@@ -42,6 +42,14 @@ const WEEKDAY_FORMATTER = new Intl.DateTimeFormat('pt-BR', { weekday: 'short' })
 const DAY_FORMATTER = new Intl.DateTimeFormat('pt-BR', { day: '2-digit' });
 const MONTH_FORMATTER = new Intl.DateTimeFormat('pt-BR', { month: 'short' });
 
+const TYPE_LABELS: Record<ConteudoTipo, string> = {
+  ATIVIDADE: 'Atividades',
+  CONTEUDO: 'Conteúdos',
+  DATA: 'Datas',
+};
+
+type FilterOption = 'ALL' | ConteudoTipo;
+
 function normalizeTipo(value: unknown): ConteudoTipo {
   const normalized = typeof value === 'string' ? value.trim().toUpperCase() : '';
   if (normalized === 'ATIVIDADE' || normalized === 'CONTEUDO' || normalized === 'DATA') {
@@ -158,6 +166,7 @@ export default function ResumoConteudosCard({
 
   const [deleteTarget, setDeleteTarget] = useState<ContentItem | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<FilterOption>('ALL');
 
   useEffect(() => {
     let cancelled = false;
@@ -211,20 +220,81 @@ export default function ResumoConteudosCard({
     };
   }, [modalOpen, modalPage]);
 
-  const displayedItems = useMemo(() => summaryItems.slice(0, limit), [summaryItems, limit]);
-  const hasMore = summaryItems.length > limit;
+  useEffect(() => {
+    if (activeFilter === 'ALL') {
+      return;
+    }
+    const hasItemsForFilter = summaryItems.some((item) => item.tipo === activeFilter);
+    if (!hasItemsForFilter) {
+      setActiveFilter('ALL');
+    }
+  }, [activeFilter, summaryItems]);
 
-  const gridTemplate = embedded ? 'grid-rows-[1fr_auto]' : 'grid-rows-[auto,1fr,auto]';
+  const filteredItems = useMemo(() => {
+    if (activeFilter === 'ALL') {
+      return summaryItems;
+    }
+    return summaryItems.filter((item) => item.tipo === activeFilter);
+  }, [summaryItems, activeFilter]);
+
+  const displayedItems = useMemo(() => filteredItems.slice(0, limit), [filteredItems, limit]);
+  const hasMore = filteredItems.length > limit;
 
   const containerClass = embedded
-    ? ['grid h-full min-h-0 gap-4', gridTemplate, className].filter(Boolean).join(' ')
+    ? ['flex h-full min-h-0 flex-col gap-4', className].filter(Boolean).join(' ')
     : [
-        'grid h-full min-h-[26rem] grid-auto-rows-min gap-4',
-        gridTemplate,
-        ['rounded-2xl border border-slate-200 bg-white p-5 shadow-sm', className].filter(Boolean).join(' '),
+        'flex h-full min-h-[26rem] flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm',
+        className,
       ]
         .filter(Boolean)
         .join(' ');
+
+  const typeCounts = useMemo(() => {
+    return summaryItems.reduce(
+      (acc, item) => {
+        acc[item.tipo] = (acc[item.tipo] ?? 0) + 1;
+        return acc;
+      },
+      { ATIVIDADE: 0, CONTEUDO: 0, DATA: 0 } as Record<ConteudoTipo, number>
+    );
+  }, [summaryItems]);
+
+  const renderTypeFilters = () => (
+    <div className="flex flex-wrap gap-2">
+      <button
+        type="button"
+        onClick={() => setActiveFilter('ALL')}
+        className={`chip px-3 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${
+          activeFilter === 'ALL'
+            ? 'bg-orange-100 text-orange-600 shadow-sm'
+            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+        }`}
+        aria-pressed={activeFilter === 'ALL'}
+      >
+        Todos
+      </button>
+      {(Object.keys(TYPE_LABELS) as ConteudoTipo[]).map((type) => {
+        const count = typeCounts[type] ?? 0;
+        return (
+          <button
+            key={type}
+            type="button"
+            onClick={() => setActiveFilter(type)}
+            className={`chip px-3 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${
+              activeFilter === type
+                ? 'bg-orange-100 text-orange-600 shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+            aria-pressed={activeFilter === type}
+            disabled={count === 0}
+          >
+            {TYPE_LABELS[type]}
+            <span className="ml-1 text-[11px] font-medium text-slate-500">{count}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
 
   const loadModalPage = async (page: number) => {
     setModalLoading(true);
@@ -284,7 +354,7 @@ export default function ResumoConteudosCard({
     try {
       await updateContent(editTarget.id, {
         title: editForm.title.trim(),
-        description: editForm.description.trim() ? editForm.description.trim() : null,
+        description: editForm.description.trim() ? editForm.description.trim() : undefined,
         date: editForm.date,
         bimester: Number(editForm.bimester),
         done: editForm.done,
@@ -330,12 +400,16 @@ export default function ResumoConteudosCard({
       return <p className="text-sm text-slate-500">{error}</p>;
     }
     if (displayedItems.length === 0) {
-      return <p className="text-sm text-slate-500">Nenhuma atividade cadastrada recentemente.</p>;
+      const emptyMessage =
+        activeFilter === 'ALL'
+          ? 'Nenhuma atividade cadastrada recentemente.'
+          : 'Nenhuma atividade para este tipo.';
+      return <p className="text-sm text-slate-500">{emptyMessage}</p>;
     }
     return (
-      <div className="min-h-0">
+      <div className="flex h-full min-h-0 flex-col">
         <ul
-          className="grid max-h-64 gap-3 overflow-y-auto pr-2"
+          className="flex-1 space-y-3 overflow-y-auto pr-2"
           role="region"
           aria-label="Próximas atividades agendadas"
         >
@@ -352,7 +426,7 @@ export default function ResumoConteudosCard({
                   ) : null}
                 </div>
                 <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700">
-                  {item.tipo}
+                  {TYPE_LABELS[item.tipo]}
                 </span>
               </div>
               <p className="mt-2 text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -372,7 +446,8 @@ export default function ResumoConteudosCard({
           <h3 className="card-title text-slate-900">Próximas Atividades</h3>
         </div>
       )}
-      <div className="min-h-0">{content()}</div>
+      {renderTypeFilters()}
+      <div className="min-h-0 flex-1">{content()}</div>
       {hasMore && (
         <div className="flex justify-end">
           <Button variant="link" onClick={openModal}>

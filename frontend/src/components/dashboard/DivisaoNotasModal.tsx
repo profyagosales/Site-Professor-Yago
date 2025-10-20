@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { nanoid } from 'nanoid';
 import { toast } from 'react-toastify';
 import Modal from '@/components/ui/Modal';
@@ -81,14 +81,30 @@ function parsePointsInput(value: string): number {
   return Math.round(clamped * 100) / 100;
 }
 
+function formatPointsString(value: string): string {
+  const sanitized = typeof value === 'string' ? value.trim() : '';
+  if (!sanitized) {
+    return '';
+  }
+  const parsed = parsePointsInput(sanitized);
+  if (!Number.isFinite(parsed) || Number.isNaN(parsed)) {
+    return '';
+  }
+  const normalizedNumber = Number.isInteger(parsed) ? parsed.toString() : parsed.toFixed(2);
+  const trimmedNormalized = normalizedNumber.replace(/\.0+$/, '.0').replace(/(\.\d*?[1-9])0+$/, '$1');
+  const display = trimmedNormalized || '0';
+  return display.replace('.', ',');
+}
+
 function toItemForm(item: GradeSchemeItem, index: number): ItemForm {
   const resolvedType = resolveGradeItemType(item.type);
   const typeConfig = GRADE_ITEM_TYPE_MAP[resolvedType];
+  const safePoints = Number.isFinite(item.points) ? Number(item.points) : 0;
   return {
     uid: nanoid(),
     label: item.label ?? '',
-    points: Number.isFinite(item.points) ? Number(item.points) : 0,
-    rawPoints: Number.isFinite(item.points) ? String(item.points) : '',
+    points: Number.isFinite(item.points) ? parsePointsInput(String(safePoints)) : 0,
+    rawPoints: Number.isFinite(item.points) ? formatPointsString(String(safePoints)) : '',
     type: resolvedType,
     color: typeof item.color === 'string' && item.color.trim() ? item.color.trim() : typeConfig.color,
     order: Number.isFinite(item.order) ? Number(item.order) : index,
@@ -120,20 +136,24 @@ export default function DivisaoNotasModal({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [schemesCache, setSchemesCache] = useState<Record<string, GradeScheme[]>>({});
-  const initializedRef = useRef(false);
+  const prevOpenRef = useRef(open);
+  const formSnapshotRef = useRef(form);
 
   const { classId, year, bimester, items, visibleBimester } = form;
 
   useEffect(() => {
-    if (open && !initializedRef.current) {
-      const fallbackClass = defaultClassId || classOptions[0]?.id || form.classId || '';
+    formSnapshotRef.current = form;
+  }, [form]);
+
+  useEffect(() => {
+    const wasOpen = prevOpenRef.current;
+    if (open && !wasOpen) {
+      const currentForm = formSnapshotRef.current;
+      const fallbackClass = defaultClassId || currentForm.classId || classOptions[0]?.id || '';
       setForm(createInitialForm(fallbackClass, defaultYear));
-      initializedRef.current = true;
     }
-    if (!open) {
-      initializedRef.current = false;
-    }
-  }, [open, defaultClassId, defaultYear, classOptions, form.classId]);
+    prevOpenRef.current = open;
+  }, [open, defaultClassId, defaultYear, classOptions]);
 
   useEffect(() => {
     if (!open) return;
@@ -148,11 +168,13 @@ export default function DivisaoNotasModal({
   const cacheKey = useMemo(() => `${classId}:${year}`, [classId, year]);
 
   const totalPoints = useMemo(
-    () => items.reduce((sum, item) => sum + parsePointsInput(item.rawPoints), 0),
+    () => items.reduce((sum, item) => sum + (Number.isFinite(item.points) ? item.points : 0), 0),
     [items]
   );
 
   const totalIsValid = Math.abs(totalPoints - MAX_TOTAL_POINTS) < 0.001;
+  const formatTotalPoints = (value: number) =>
+    value.toFixed(2).replace(/\.0+$/, '.0').replace(/(\.\d*?[1-9])0$/, '$1');
 
   const loadSchemes = useCallback(async () => {
     if (!classId) return;
@@ -284,6 +306,23 @@ export default function DivisaoNotasModal({
     }));
   };
 
+  const handlePointsBlur = (uid: string) => {
+    setForm((prev) => ({
+      ...prev,
+      items: prev.items.map((item) => {
+        if (item.uid !== uid) {
+          return item;
+        }
+        const normalized = formatPointsString(item.rawPoints);
+        if (!normalized) {
+          return { ...item, rawPoints: '', points: 0 };
+        }
+        const parsed = parsePointsInput(normalized);
+        return { ...item, rawPoints: normalized, points: parsed };
+      }),
+    }));
+  };
+
   const handleSave = async () => {
     if (!classId) {
       toast.error('Selecione uma turma.');
@@ -376,12 +415,11 @@ export default function DivisaoNotasModal({
 
   const handleClose = () => {
     if (saving) return;
-    initializedRef.current = false;
     onClose();
   };
 
-  const bodyStyle = useMemo(
-    () => ({ maxHeight: '70vh', overflowY: 'auto', overscrollBehavior: 'contain' as const }),
+  const bodyStyle = useMemo<CSSProperties>(
+    () => ({ maxHeight: '70vh', overflowY: 'auto', overscrollBehavior: 'contain' }),
     []
   );
 
@@ -510,6 +548,7 @@ export default function DivisaoNotasModal({
                       inputMode="decimal"
                       value={item.rawPoints}
                       onChange={(event) => handleItemChange(item.uid, { rawPoints: event.target.value })}
+                      onBlur={() => handlePointsBlur(item.uid)}
                       placeholder="0"
                       className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
                     />
@@ -617,7 +656,7 @@ export default function DivisaoNotasModal({
               className={`text-sm font-semibold ${totalIsValid ? 'text-emerald-600' : 'text-rose-600'}`}
               aria-live="polite"
             >
-              Total: {totalPoints.toFixed(1)} / {MAX_TOTAL_POINTS.toFixed(1)}
+              Total: {formatTotalPoints(totalPoints)} / {formatTotalPoints(MAX_TOTAL_POINTS)}
             </p>
             <Button type="button" variant="outline" onClick={handleAddItem}>
               Adicionar item
