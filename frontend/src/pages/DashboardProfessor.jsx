@@ -5,7 +5,6 @@ import AnnouncementModal from '@/components/AnnouncementModal'
 import { getCurrentUser } from '@/services/auth'
 import { listMyClasses, getClassDetails } from '@/services/classes.service'
 import { Button } from '@/components/ui/Button'
-import DashboardCard from '@/components/dashboard/DashboardCard'
 import RadarCard from '@/components/dashboard/radar/RadarCard'
 import AgendaCalendarCard from '@/components/dashboard/AgendaCalendarCard'
 import WeeklySchedule from '@/components/dashboard/WeeklySchedule'
@@ -507,18 +506,19 @@ function DashboardProfessor(){
       </section>
 
       <section className="mx-auto w-full max-w-[1600px]">
-        <div className="grid grid-cols-12 gap-6">
-          <div className="col-span-12 xl:col-span-8">
-            <DashboardCard
-              title="Horário Semanal"
-              className="schedule-card"
-              contentClassName="schedule-card-body"
-            >
-              <WeeklySchedule slots={SLOT_CONFIG} days={WEEKDAY_CONFIG} cells={scheduleMatrix} />
-            </DashboardCard>
+        <div className="grid grid-cols-1 gap-[var(--dash-gap)] lg:grid-cols-2 [--grid-h:calc(var(--h-stack)*2+var(--dash-gap))]">
+          <div className="h-[var(--h-stack)]">
+            <div className="card h-full">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-semibold text-slate-900">Horário semanal</h2>
+              </div>
+              <div className="mt-3 flex-1 min-h-0">
+                <WeeklySchedule slots={SLOT_CONFIG} days={WEEKDAY_CONFIG} cells={scheduleMatrix} />
+              </div>
+            </div>
           </div>
 
-          <div className="col-span-12 xl:col-span-4">
+          <aside className="lg:row-span-2 lg:h-[var(--grid-h)]">
             <AvisosCard
               onEdit={(announcement) => {
                 setAnnouncementDraft(announcement)
@@ -529,9 +529,9 @@ function DashboardProfessor(){
                 setAnnouncementOpen(true)
               }}
             />
-          </div>
+          </aside>
 
-          <div className="col-span-12">
+          <div className="h-[var(--h-stack)]">
             <DivisaoNotasCard
               ano={gradeSchemeYear}
               classId={primaryClassId || null}
@@ -539,18 +539,18 @@ function DashboardProfessor(){
               refreshToken={gradeSchemeRefreshKey}
             />
           </div>
+        </div>
 
-          <div className="col-span-full">
-            <AgendaCalendarCard
-              refreshToken={agendaRefreshKey}
-              onOpenEditor={handleOpenAgendaEditor}
-              editorLoading={agendaEditorLoading}
-            />
-          </div>
+        <div className="mt-6">
+          <AgendaCalendarCard
+            refreshToken={agendaRefreshKey}
+            onOpenEditor={handleOpenAgendaEditor}
+            editorLoading={agendaEditorLoading}
+          />
+        </div>
 
-          <div className="col-span-12">
-            <RadarCard role="teacher" />
-          </div>
+        <div className="mt-6">
+          <RadarCard role="teacher" />
         </div>
       </section>
       <DivisaoNotasModal

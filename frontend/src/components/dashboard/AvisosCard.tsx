@@ -204,9 +204,7 @@ export default function AvisosCard({
   onEdit = noop,
   onCreate = noop,
 }: AvisosCardProps) {
-  const containerClassName = ['card h-[560px] flex flex-col lg:h-[600px] 2xl:h-[640px]', className]
-    .filter(Boolean)
-    .join(' ');
+  const containerClassName = ['card flex h-full flex-col', className].filter(Boolean).join(' ');
   const hasEditAction = onEdit !== noop;
   const hasCreateAction = onCreate !== noop;
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -480,9 +478,7 @@ export default function AvisosCard({
           </div>
         </header>
 
-        <div className="flex-none h-2" />
-
-        <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="mt-3 flex-1 min-h-0 card-scroll-y pr-1">
           {loading ? (
             <div className="flex h-full items-center justify-center">
               <div className="h-24 w-full max-w-sm animate-pulse rounded-xl bg-slate-100" />
