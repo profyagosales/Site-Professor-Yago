@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DashboardCard from '@/components/dashboard/DashboardCard';
-import { fetchRankings, createFiltersKey } from '@/features/radar/services';
-import { resolveEntityLabel, resolveMetricLabel } from '@/features/radar/maps';
+import { fetchRankings, createFiltersKey } from '@/services/analytics';
 import type {
   RankingsFilters,
   RankingsResponse,
