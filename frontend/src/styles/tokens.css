@@ -10,19 +10,17 @@
   --hero-stat-gap:12px;     /* espaçamento entre os mini cards */
 
   /* WEEKLY SCHEDULE CARD */
-  --sched-card-radius:24px;
-  --sched-card-pad-x:20px;
-  --sched-card-pad-y:16px;
-  --sched-title-size:clamp(16px, 1.25vw, 20px);
-  --sched-daychip-size:12px;
-  --sched-time-size:13px;
-  --sched-grade-title:clamp(14px, 1.2vw, 16px);
-  --sched-grade-sub:12px;
-  --sched-gap:10px;
-  --sched-row-gap:12px;
-  --sched-chip-gap:6px;
-  --sched-timecol-w:150px;
-  --sched-cell-h:88px;
+  --sched-card-px:18px;
+  --sched-card-py:16px;
+  --sched-chip-h:36px;
+  --sched-chip-gap:8px;
+  --sched-leftcol-w:162px;
+  --sched-slot-h:88px;
+  --sched-gap-x:12px;
+  --sched-gap-y:10px;
+  --sched-grade-fz:20px;
+  --sched-subj-fz:14px;
+  --sched-title-fz:22px;
 
   /* BRAND */
   --c-brand-50:#FFF6EE;
@@ -124,6 +122,11 @@
   :root{
     --ws-row-h:102px;
     --ws-gap-y:8px;
+    --sched-leftcol-w:150px;
+    --sched-slot-h:84px;
+    --sched-grade-fz:19px;
+    --sched-subj-fz:13px;
+    --sched-title-fz:20px;
   }
 }
 
