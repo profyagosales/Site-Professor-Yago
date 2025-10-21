@@ -9,6 +9,20 @@ const Teacher = require('../models/Teacher');
 const router = express.Router();
 router.use(authRequired);
 
+function isSameTeacher(req) {
+  const { teacherId } = req.params || {};
+  const userId = req.user?.id || req.user?._id;
+  if (!teacherId) return false;
+  const role = (req.user?.role || req.user?.profile || '').toString().toLowerCase();
+  if (role === 'admin') {
+    return true;
+  }
+  if (!userId) {
+    return false;
+  }
+  return String(userId) === String(teacherId);
+}
+
 router.get('/search', ensureTeacher, async (req, res, next) => {
   try {
     const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
@@ -42,6 +56,68 @@ router.get('/search', ensureTeacher, async (req, res, next) => {
     }));
 
     res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/:teacherId/grade-split/settings', ensureTeacher, async (req, res, next) => {
+  try {
+    if (!isSameTeacher(req)) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
+    const teacher = await Teacher.findById(req.params.teacherId)
+      .select('gradeSplitSettings')
+      .lean();
+    if (!teacher) {
+      return res.status(404).json({ success: false, message: 'Professor não encontrado.' });
+    }
+    const rawValue = teacher?.gradeSplitSettings?.defaultTerm;
+    const numeric = Number(rawValue);
+    const isValid = Number.isInteger(numeric) && numeric >= 1 && numeric <= 4;
+    const defaultTerm = isValid ? numeric : null;
+    return res.json({
+      success: true,
+      data: {
+        defaultTerm,
+        defaultBimester: defaultTerm,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/:teacherId/grade-split/settings', ensureTeacher, async (req, res, next) => {
+  try {
+    if (!isSameTeacher(req)) {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
+    const rawValue =
+      req.body?.defaultTerm ??
+      req.body?.defaultBimester ??
+      req.body?.bimestrePadrao ??
+      req.body?.bimester ??
+      req.body?.bimestre ??
+      null;
+    const numeric = Number(rawValue);
+    if (!Number.isInteger(numeric) || numeric < 1 || numeric > 4) {
+      return res.status(400).json({ success: false, message: 'Bimestre padrão inválido. Use valores entre 1 e 4.' });
+    }
+    const updated = await Teacher.findByIdAndUpdate(
+      req.params.teacherId,
+      {
+        $set: {
+          'gradeSplitSettings.defaultTerm': numeric,
+          'gradeSplitSettings.updatedAt': new Date(),
+        },
+      },
+      { new: true, select: '_id' },
+    );
+    if (!updated) {
+      return res.status(404).json({ success: false, message: 'Professor não encontrado.' });
+    }
+    return res.status(204).end();
   } catch (err) {
     next(err);
   }

@@ -13,7 +13,7 @@ import DivisaoNotasModal from '@/components/dashboard/DivisaoNotasModal'
 import AgendaEditorModal from '@/components/dashboard/AgendaEditorModal'
 import { listAgenda } from '@/services/agenda'
 import LogoYS from '@/components/LogoYS'
-import { saveGradeSchemeConfig } from '@/services/gradeScheme'
+import { saveTeacherGradeSplitSettings } from '@/services/gradeScheme'
 
 /*
 // Snippet opcional para habilitar o widget da agenda semanal
@@ -122,7 +122,7 @@ function DashboardProfessor(){
   const [agendaRefreshKey, setAgendaRefreshKey] = useState(0)
   const classSummariesRef = useRef(classSummaries)
   const classDetailsRef = useRef(classDetails)
-  const teacherId = user?.id ?? ''
+  const teacherId = user?.id ?? user?._id ?? ''
   const gradeSchemeYear = new Date().getFullYear()
 
   const handleOpenGradeScheme = useCallback((payload) => {
@@ -328,14 +328,14 @@ function DashboardProfessor(){
 
   const handleSaveGradeSchemeDefault = useCallback(
     async (bimester) => {
-      if (!primaryClassId) {
-        throw new Error('Selecione uma turma para salvar o bimestre padrão.')
+      if (!teacherId) {
+        throw new Error('Não foi possível identificar o professor para salvar o bimestre padrão.')
       }
-      await saveGradeSchemeConfig({ classId: primaryClassId, year: gradeSchemeYear, defaultBimester: bimester })
       setGradeSchemeDefaultBimester(bimester)
+      await saveTeacherGradeSplitSettings({ teacherId, defaultBimester: bimester })
       setGradeSchemeRefreshKey((prev) => prev + 1)
     },
-    [primaryClassId, gradeSchemeYear],
+    [teacherId],
   )
 
   const totalClasses = classSummaries.length
@@ -532,6 +532,7 @@ function DashboardProfessor(){
             <DivisaoNotasCard
               ano={gradeSchemeYear}
               classId={primaryClassId || null}
+              teacherId={teacherId || null}
               onEdit={handleOpenGradeScheme}
               refreshToken={gradeSchemeRefreshKey}
             />

@@ -7,6 +7,7 @@
 /* Aumenta contraste de texto cinza (evita sumir no fundo) */
 :root {
   color-scheme: light;
+  --card-title-size: 22px;
 }
 
 button:focus-visible,
@@ -223,7 +224,10 @@ html, body, #root { height: 100%; background: var(--c-bg); }
     @apply bg-orange-500 text-white shadow-md hover:bg-orange-600 focus-visible:ring-2 focus-visible:ring-orange-300;
   }
   .card-title {
-    @apply text-lg font-semibold tracking-tight;
+    font-size: var(--card-title-size);
+    line-height: 1.25;
+    font-weight: 700;
+    letter-spacing: -0.01em;
   }
   .page-safe {
     @apply px-4 md:px-6 lg:px-10;

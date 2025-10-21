@@ -4,7 +4,7 @@ import {
   DEFAULT_SCHEME,
   GRADE_SCHEME_DEFAULT_STORAGE_KEY,
   fetchGradeScheme,
-  fetchGradeSchemeConfig,
+  fetchTeacherGradeSplitSettings,
   type Bimestre,
   type GradeScheme,
   type GradeSchemeItem,
@@ -15,6 +15,7 @@ const BIMESTERS: Bimestre[] = [1, 2, 3, 4];
 type Props = {
   ano: number;
   classId: string | null;
+  teacherId: string | null;
   onEdit: (payload: {
     scheme: GradeScheme;
     defaultBimester: Bimestre;
@@ -37,7 +38,14 @@ function splitOddEven<T>(items: T[]) {
   return { left, right };
 }
 
-export default function DivisaoNotasCard({ ano, classId, onEdit, refreshToken = 0, className }: Props) {
+export default function DivisaoNotasCard({
+  ano,
+  classId,
+  teacherId,
+  onEdit,
+  refreshToken = 0,
+  className,
+}: Props) {
   const [selectedBimester, setSelectedBimester] = useState<Bimestre>(1);
   const [defaultBimester, setDefaultBimester] = useState<Bimestre>(1);
   const [scheme, setScheme] = useState<GradeScheme | null>(null);
@@ -81,24 +89,27 @@ export default function DivisaoNotasCard({ ano, classId, onEdit, refreshToken = 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const stored = localStorage.getItem(GRADE_SCHEME_DEFAULT_STORAGE_KEY);
-    if (stored) {
-      const value = Number(stored);
-      if (BIMESTERS.includes(value as Bimestre)) {
-        setDefaultBimester(value as Bimestre);
+    if (!stored) {
+      return;
+    }
+    const value = Number(stored);
+    if (BIMESTERS.includes(value as Bimestre)) {
+      setDefaultBimester(value as Bimestre);
+      if (!userSelectedRef.current) {
         setSelectedBimester(value as Bimestre);
       }
     }
-  }, []);
+  }, [teacherId]);
 
   useEffect(() => {
-    if (!classId) {
+    if (!teacherId) {
       userSelectedRef.current = false;
       return;
     }
     let cancelled = false;
     async function loadConfig() {
       try {
-        const config = await fetchGradeSchemeConfig({ classId, year: ano });
+        const config = await fetchTeacherGradeSplitSettings({ teacherId });
         if (cancelled || !config) {
           return;
         }
@@ -119,7 +130,7 @@ export default function DivisaoNotasCard({ ano, classId, onEdit, refreshToken = 
     return () => {
       cancelled = true;
     };
-  }, [ano, classId, refreshToken]);
+  }, [ano, classId, teacherId, refreshToken]);
 
   const itens = useMemo(() => {
     if (!scheme) return [] as GradeSchemeItem[];
@@ -160,33 +171,33 @@ export default function DivisaoNotasCard({ ano, classId, onEdit, refreshToken = 
   } else {
     bodyContent = (
       <div className="flex h-full flex-col">
-        <div className="grid grid-cols-2 gap-6 px-1 pb-2 text-[12px] font-semibold uppercase tracking-wide text-slate-500">
-          <div className="grid grid-cols-[1fr_auto] gap-3">
+        <div className="grid grid-cols-2 gap-4 px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <div className="grid grid-cols-[1fr,84px] items-center">
             <span>Item</span>
             <span className="text-right">Pontos</span>
           </div>
-          <div className="grid grid-cols-[1fr_auto] gap-3">
+          <div className="grid grid-cols-[1fr,84px] items-center">
             <span>Item</span>
             <span className="text-right">Pontos</span>
           </div>
         </div>
-        <div className="relative flex-1 min-h-0">
-          <div className="max-h-[300px] md:max-h-[320px] overflow-y-auto pr-1">
+        <div className="relative mt-2 flex-1">
+          <div className="max-h-[320px] overflow-y-auto pr-1">
             {itens.length ? (
-              <div className="grid grid-cols-2 gap-6 pb-2">
-                <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-2 gap-4 pb-2">
+                <div className="space-y-3">
                   {leftItems.map((item) => (
                     <LinhaItem key={item.id} item={item} />
                   ))}
                 </div>
-                <div className="flex flex-col gap-3">
+                <div className="space-y-3">
                   {rightItems.map((item) => (
                     <LinhaItem key={item.id} item={item} />
                   ))}
                 </div>
               </div>
             ) : (
-              <div className="col-span-2 flex min-h-[180px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-6 py-8 text-center">
+              <div className="flex min-h-[180px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-6 py-8 text-center">
                 <p className="text-sm text-slate-500">Sem itens no bimestre selecionado.</p>
                 <button
                   type="button"
@@ -213,7 +224,7 @@ export default function DivisaoNotasCard({ ano, classId, onEdit, refreshToken = 
     >
       <header className="mb-4 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <h2 className="text-[22px] font-semibold tracking-[-0.02em] text-slate-900 md:text-[26px]">Divisão de notas</h2>
+          <h2 className="card-title text-slate-900">Divisão de notas</h2>
           <div className="hidden items-center gap-2 md:flex">
             {BIMESTERS.map((bim) => (
               <button
@@ -262,12 +273,14 @@ function LinhaItem({ item }: { item: GradeSchemeItem }) {
   const background = `${baseColor}1A`;
 
   return (
-    <div
-      className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-2xl px-4 py-3 text-slate-900 ring-1 ring-black/5 transition hover:ring-black/10 hover:shadow-sm md:px-5 md:py-3.5"
-      style={{ backgroundColor: background }}
-    >
-      <span className="truncate text-[15px] font-semibold md:text-[16px]">{name}</span>
-      <span className="text-right text-[14px] font-bold text-slate-900/90 md:text-[15px]">{points} pts</span>
+    <div className="grid grid-cols-[1fr,84px] items-center gap-3">
+      <div
+        className="rounded-2xl px-4 py-3 font-semibold text-slate-900 shadow-[0_1px_0_rgba(15,23,42,0.08)] ring-1 ring-black/5 md:px-5 md:py-3.5"
+        style={{ backgroundColor: background }}
+      >
+        <span className="block truncate text-[15px] md:text-[16px]">{name}</span>
+      </div>
+      <span className="text-right text-sm font-semibold tabular-nums text-slate-900/90 md:text-base">{points} pts</span>
     </div>
   );
 }

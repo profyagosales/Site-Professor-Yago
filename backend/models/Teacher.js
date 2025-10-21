@@ -21,6 +21,10 @@ const teacherSchema = new mongoose.Schema(
     // Mantém campo legacy apenas para leitura de registros antigos já persistidos.
     password: { type: String, select: false },
     subjects: { type: [String], default: [] },
+    gradeSplitSettings: {
+      defaultTerm: { type: Number, min: 1, max: 4 },
+      updatedAt: { type: Date },
+    },
   },
   { timestamps: true }
 );
