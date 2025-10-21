@@ -1,95 +1,49 @@
-import api from '@/services/api';
-import type {
-  RankingsFilters,
-  RankingsResponse,
-} from '@/types/analytics';
-import { buildRankingsURL, type Entity, type Metric, type Term } from '@/api/rankings';
+import axios from "axios";
 import {
-  createFiltersKey as createAnalyticsFiltersKey,
-  normalizeClassId as normalizeAnalyticsClassId,
-} from '@/services/analytics';
-import { metricMap, parseTerm, type RadarEntityLabel, type RadarMetricLabel, entityMap } from './maps';
-import { resolveEntityLabel } from "@/shared/analytics/entities";
+  DEFAULT_ENTITY, DEFAULT_METRIC, DEFAULT_TERM,
+  type RankingEntity, type RankingMetric, type RankingTerm
+} from "./maps";
 
-type FetchRankingsArgs = {
-  tabLabel: RadarEntityLabel;
-  metricLabel: RadarMetricLabel;
-  termChip: string;
-  classId?: string;
-  signal?: AbortSignal;
-  limit?: number;
+export type RankingItem = {
+  id: string | number;
+  name: string;
+  value: number;      // nota/média
+  avatarUrl?: string; // opcional para alunos
+  classLabel?: string; // chip de turma quando entity=student
 };
 
-function isProduction(): boolean {
-  if (typeof process !== 'undefined' && typeof process.env?.NODE_ENV === 'string') {
-    return process.env.NODE_ENV === 'production';
-  }
-  if (typeof import.meta !== 'undefined' && typeof (import.meta as any)?.env?.MODE === 'string') {
-    return (import.meta as any).env.MODE === 'production';
-  }
-  return false;
+export type RankingFilters = {
+  entity?: RankingEntity;
+  metric?: RankingMetric;
+  term?: RankingTerm;
+  classId?: string | number | null;
+  limit?: number; // default 10
+};
+
+const API = "https://api.professoryagosales.com.br/api/analytics/rankings";
+
+export function normalizeFilters(f: RankingFilters) {
+  return {
+    entity: f.entity ?? DEFAULT_ENTITY,
+    metric: f.metric ?? DEFAULT_METRIC,
+    term:   f.term   ?? DEFAULT_TERM,
+    classId: f.classId ?? null,
+    limit:  f.limit ?? 10,
+  };
 }
 
-export async function fetchRankings({
-  tabLabel,
-  metricLabel,
-  termChip,
-  classId,
-  signal,
-  limit = 10,
-}: FetchRankingsArgs): Promise<RankingsResponse> {
-  const normalizedTabLabel = (tabLabel ?? '').trim();
-  const normalizedMetricLabel = (metricLabel ?? '').trim();
+export async function fetchRankings(raw: RankingFilters): Promise<RankingItem[]> {
+  const f = normalizeFilters(raw);
+  const params: Record<string, any> = {
+    entity: f.entity,
+    metric: f.metric,
+    term:   f.term,
+    limit:  f.limit,
+  };
+  if (f.classId) params.classId = f.classId;
 
-  // Resolve labels defensively to avoid undefined params in the request
-  let entity: Entity | undefined = entityMap[normalizedTabLabel as keyof typeof entityMap];
-  let metric: Metric | undefined = metricMap[normalizedMetricLabel as keyof typeof metricMap];
-
-  if (!entity) {
-    const directEntity = (['student', 'class', 'activity'] as const).find((key) => key === normalizedTabLabel);
-    if (directEntity) {
-      entity = directEntity;
-    } else {
-      // Fallback to a safe default
-      entity = 'student';
-    }
-  }
-
-  if (!metric) {
-    const directMetric = (
-      ['term_avg', 'activity_peak', 'year_avg', 'term_delta'] as const
-    ).find((key) => key === normalizedMetricLabel);
-    if (directMetric) {
-      metric = directMetric;
-    } else {
-      // Fallback to a safe default
-      metric = 'term_avg';
-    }
-  }
-  const term: Term = parseTerm(termChip);
-
-  // Final safety net to guarantee defined values
-  const safeEntity: Entity = (entity ?? 'student');
-  const safeMetric: Metric = (metric ?? 'term_avg');
-
-  const url = buildRankingsURL(safeEntity, safeMetric, term, {
-    classId: normalizeAnalyticsClassId(classId),
-    limit,
-  });
-
-  if (!isProduction()) {
-    // eslint-disable-next-line no-console
-    console.log('[Radar] GET', url);
-  }
-
-  const response = await api.get<RankingsResponse>(url, {
-    signal,
-    headers: { Accept: 'application/json' },
-  });
-
-  return response.data;
+  const res = await axios.get(API, { params });
+  // Esperado do backend: [{id,name,value,avatarUrl?,classLabel?}, ...]
+  return Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
 }
 
-export function createFiltersKey(filters: RankingsFilters, limit = 10): string {
-  return createAnalyticsFiltersKey(filters, limit);
-}

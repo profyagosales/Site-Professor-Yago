@@ -1,33 +1,21 @@
-import type { RankingEntity, RankingMetric } from '@/types/analytics';
-import { resolveEntityLabel, ENTITY_BY_LABEL as entityMap } from "@/shared/analytics/entities";
+// Simples e à prova de 404 por params undefined
+export type RankingEntity = "student" | "class" | "activity";
+export type RankingMetric = "term_avg";
+export type RankingTerm = 1 | 2 | 3 | 4;
 
-export const metricMap = {
-  'Maior média no bimestre': 'term_avg',
-  'Maior nota de uma atividade': 'activity_peak',
-  'Maior média no ano': 'year_avg',
-  'Maior crescimento no bimestre': 'term_delta',
-} as const;
+export const DEFAULT_ENTITY: RankingEntity = "student";
+export const DEFAULT_METRIC: RankingMetric = "term_avg";
+export const DEFAULT_TERM: RankingTerm = 1;
 
-export type RadarEntityLabel = keyof typeof entityMap;
-export type RadarMetricLabel = keyof typeof metricMap;
+export const ENTITY_TABS: { key: RankingEntity; label: string }[] = [
+  { key: "student", label: "Alunos" },
+  { key: "class",   label: "Turmas" },
+  { key: "activity",label: "Atividades" },
+];
 
-type EntityEntry = [RadarEntityLabel, (typeof entityMap)[RadarEntityLabel]];
-type MetricEntry = [RadarMetricLabel, (typeof metricMap)[RadarMetricLabel]];
+export const METRIC_OPTIONS: { key: RankingMetric; label: string }[] = [
+  { key: "term_avg", label: "Maior média no bimestre" },
+];
 
-const entityEntries = Object.entries(entityMap) as EntityEntry[];
-const metricEntries = Object.entries(metricMap) as MetricEntry[];
+export const TERM_OPTIONS: RankingTerm[] = [1, 2, 3, 4];
 
-export function parseTerm(chip: string): 1 | 2 | 3 | 4 {
-  const n = Number(String(chip).replace(/\D/g, ''));
-  return n === 1 || n === 2 || n === 3 || n === 4 ? n : 1;
-}
-
-export function resolveEntityLabel(entity: RankingEntity): RadarEntityLabel {
-  const match = entityEntries.find(([, value]) => value === entity);
-  return match ? match[0] : entityEntries[0][0];
-}
-
-export function resolveMetricLabel(metric: RankingMetric): RadarMetricLabel {
-  const match = metricEntries.find(([, value]) => value === metric);
-  return match ? match[0] : metricEntries[0][0];
-}

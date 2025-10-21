@@ -1,294 +1,107 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import DashboardCard from '@/components/dashboard/DashboardCard';
-import { fetchRankings, createFiltersKey, normalizeClassId as normalizeRankingClassId } from '@/services/analytics';
-import type {
-  RankingsFilters,
-  RankingsResponse,
-  RankingMetric,
-  RankingEntity,
-  RankingTerm,
-} from '@/types/analytics';
-import RankingToolbar, { entityLabel, metricLabel } from './RankingToolbar';
-import { resolveMetricLabel } from '@/features/radar/maps';
-import RankingList, { RankingSkeleton } from './RankingList';
-import ConfettiBurst from './ConfettiBurst';
-import { listMyClasses, type ClassSummary } from '@/services/classes.service';
-import { resolveEntityLabel, entityMap } from "@/shared/analytics/entities";
-import { getCurrentUser } from '@/services/auth';
+import { useEffect, useMemo, useState } from "react";
+import RankingToolbar, { type ToolbarState } from "./RankingToolbar";
+import { fetchRankings, type RankingItem } from "@/features/radar/services";
+import { DEFAULT_ENTITY, DEFAULT_METRIC, DEFAULT_TERM } from "@/features/radar/maps";
 
-const _FALLBACK_ENTITY_LABEL = { student:"Alunos", class:"Turmas", activity:"Atividades" } as const;
-const safeResolveEntityLabel = (k: string) =>
-  (typeof resolveEntityLabel === "function" ? resolveEntityLabel(k) : _FALLBACK_ENTITY_LABEL[k as keyof typeof _FALLBACK_ENTITY_LABEL] ?? k);
-
-const CONFETTI_FLAG = String((import.meta as any)?.env?.VITE_FEATURE_RANKING_CONFETTI ?? '1') !== '0';
-const RANKING_LIMIT = 10;
-
-const INITIAL_FILTERS: RankingsFilters = {
-  term: 1,
-  entity: 'student',
-  metric: 'term_avg',
-  classId: null,
-};
-
-interface RankingCardState {
-  data: RankingsResponse | null;
-  loading: boolean;
-  error: string | null;
-}
-
-const initialState: RankingCardState = {
-  data: null,
-  loading: true,
-  error: null,
-};
+const CLASSES_PLACEHOLDER = [{ label: "Todas as turmas", value: null }]; // plug no futuro
 
 export default function RadarRankingCard() {
-  const [filters, setFilters] = useState<RankingsFilters>(INITIAL_FILTERS);
-  const [state, setState] = useState<RankingCardState>(initialState);
-  const [refreshToken, setRefreshToken] = useState(0);
-  const [classOptions, setClassOptions] = useState<Array<{ value: string; label: string }>>([]);
-  const [classesLoading, setClassesLoading] = useState(false);
-  const cacheRef = useRef<Map<string, RankingsResponse>>(new Map());
-  const pendingMetricRef = useRef<RankingMetric | null>(null);
-  const [confettiSeed, setConfettiSeed] = useState<number | null>(null);
-  const lastMetricRef = useRef<RankingMetric>(INITIAL_FILTERS.metric);
+  const [state, setState] = useState<ToolbarState>({
+    term: DEFAULT_TERM,
+    entity: DEFAULT_ENTITY,
+    metric: DEFAULT_METRIC,
+    classId: null
+  });
+  const [data, setData] = useState<RankingItem[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let active = true;
-    setClassesLoading(true);
-    (async () => {
-      try {
-        const current = await getCurrentUser().catch(() => null);
-        const teacherId = current?.id ?? current?._id ?? null;
-        const classes = await listMyClasses({ teacherId });
-        if (!active) return;
-        setClassOptions(
-          classes
-            .map((klass) => {
-              const value = extractClassId(klass);
-              if (!value) return null;
-              return {
-                value,
-                label: formatClassLabel(klass),
-              };
-            })
-            .filter(Boolean) as Array<{ value: string; label: string }>,
-        );
-      } catch (error) {
-        if (active) {
-          console.error('[RadarRankingCard] Falha ao carregar turmas', error);
-        }
-      } finally {
-        if (active) {
-          setClassesLoading(false);
-        }
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, []);
+  const title = useMemo(() =>
+    `Top 10 do ${state.term}º bimestre — ${state.entity === "student" ? "Alunos" : state.entity === "class" ? "Turmas" : "Atividades"}`,
+  [state.term, state.entity]);
 
-  useEffect(() => {
-    if (!filters.classId) return;
-    const exists = classOptions.some((option) => option.value === filters.classId);
-    if (!exists) {
-      setFilters((prev) => ({ ...prev, classId: null }));
-    }
-  }, [classOptions, filters.classId]);
-
-  useEffect(() => {
-    if (filters.metric !== lastMetricRef.current) {
-      lastMetricRef.current = filters.metric;
-      pendingMetricRef.current = filters.metric;
-    }
-  }, [filters.metric]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const normalizedFilters: RankingsFilters = {
-      ...filters,
-      classId: filters.entity === 'class' ? null : filters.classId ?? null,
-    };
-    const cacheKey = createFiltersKey(normalizedFilters, RANKING_LIMIT);
-    const cached = cacheRef.current.get(cacheKey);
-
-    setState((prev) => ({
-      data: cached ?? prev.data,
-      loading: !cached,
-      error: null,
-    }));
-
-    const tabLabel = safeResolveEntityLabel(normalizedFilters.entity);
-    const metricLabelName = resolveMetricLabel(normalizedFilters.metric);
-    const termChip = `${normalizedFilters.term}º bimestre`;
-
-    fetchRankings({
-      tabLabel,
-      metricLabel: metricLabelName,
-      termChip,
-      classId: normalizedFilters.classId ?? undefined,
-      signal: controller.signal,
-      limit: RANKING_LIMIT,
-    })
-      .then((response) => {
-        if (controller.signal.aborted) return;
-        cacheRef.current.set(cacheKey, response);
-        setState({ data: response, loading: false, error: null });
-      })
-      .catch((error) => {
-        if (controller.signal.aborted) return;
-        console.error('[RadarRankingCard] Falha ao carregar rankings', error);
-        setState((prev) => ({
-          data: prev.data,
-          loading: false,
-          error: 'Não foi possível carregar os rankings.',
-        }));
+  async function load() {
+    setLoading(true); setError(null);
+    try {
+      const items = await fetchRankings({
+        term: state.term,
+        entity: state.entity,
+        metric: state.metric,
+        classId: state.classId ?? undefined,
+        limit: 10
       });
-
-    return () => {
-      controller.abort();
-    };
-  }, [filters, refreshToken]);
-
-  useEffect(() => {
-    if (!CONFETTI_FLAG) return;
-    if (!state.data) return;
-    if (state.loading || state.error) return;
-    const pendingMetric = pendingMetricRef.current;
-    if (!pendingMetric) return;
-    if (state.data.context.metric !== pendingMetric) return;
-    const seed = Math.floor(Math.random() * 1_000_000);
-    setConfettiSeed(seed);
-    pendingMetricRef.current = null;
-    const timeout = window.setTimeout(() => setConfettiSeed(null), 900);
-    return () => window.clearTimeout(timeout);
-  }, [state.data, state.loading, state.error]);
-
-  const title = useMemo(() => {
-    return `Top ${RANKING_LIMIT} do ${filters.term}º bimestre — ${entityLabel(filters.entity)}`;
-  }, [filters.term, filters.entity]);
-
-  const subtitle = useMemo(() => {
-    const context = state.data?.context;
-    if (!context) return '';
-    const parts: string[] = [];
-    const format = (value: number | null | undefined) =>
-      typeof value === 'number' && Number.isFinite(value)
-        ? value.toLocaleString('pt-BR')
-        : null;
-    if (context.base_classes) {
-      const formatted = format(context.base_classes);
-      if (formatted) parts.push(`${formatted} turmas`);
+      setData(items);
+    } catch (e: any) {
+      setError(e?.message || "Falha ao carregar rankings");
+      setData(null);
+    } finally {
+      setLoading(false);
     }
-    if (context.base_students) {
-      const formatted = format(context.base_students);
-      if (formatted) parts.push(`${formatted} alunos`);
-    }
-    if (context.base_activities) {
-      const formatted = format(context.base_activities);
-      if (formatted) parts.push(`${formatted} atividades`);
-    }
-    return parts.length ? `Base: ${parts.join(' · ')}` : '';
-  }, [state.data?.context]);
+  }
 
-  const items = state.data?.items ?? [];
-
-  const handleTermChange = useCallback((term: RankingTerm) => {
-    setFilters((prev) => ({ ...prev, term }));
-  }, []);
-
-  const handleMetricChange = useCallback((metric: RankingMetric) => {
-    setFilters((prev) => ({ ...prev, metric }));
-  }, []);
-
-  const handleEntityChange = useCallback((entity: RankingEntity) => {
-    setFilters((prev) => ({
-      ...prev,
-      entity,
-      classId: entity === 'class' ? null : prev.classId ?? null,
-    }));
-  }, []);
-
-  const handleClassChange = useCallback((classId: string | null) => {
-    setFilters((prev) => ({ ...prev, classId }));
-  }, []);
-
-  const handleRetry = useCallback(() => {
-    setRefreshToken((prev) => prev + 1);
-  }, []);
+  useEffect(() => { load(); }, [state.term, state.entity, state.metric, state.classId]);
 
   return (
-    <DashboardCard
-      title={title}
-      action={subtitle ? <span className="text-xs font-medium text-slate-400">{subtitle}</span> : undefined}
-      className="relative overflow-hidden"
-      contentClassName="relative flex flex-col gap-6"
-    >
-      {CONFETTI_FLAG && confettiSeed !== null ? <ConfettiBurst seed={confettiSeed} /> : null}
+    <section className="rounded-2xl bg-white p-20 shadow-sm border">
+      <header className="flex items-center justify-between mb-16">
+        <h3 className="text-xl font-semibold">{title}</h3>
+      </header>
+
       <RankingToolbar
-        term={filters.term}
-        metric={filters.metric}
-        entity={filters.entity}
-        classId={filters.classId ?? null}
-        classOptions={classOptions}
-        classOptionsLoading={classesLoading}
-        onTermChange={handleTermChange}
-        onMetricChange={handleMetricChange}
-        onEntityChange={handleEntityChange}
-        onClassChange={handleClassChange}
+        state={state}
+        onChange={(next)=>setState(s=>({ ...s, ...next }))}
+        classes={CLASSES_PLACEHOLDER}
       />
 
-      <div className="relative min-h-[360px]">
-        {state.loading && !items.length ? (
-          <RankingSkeleton />
-        ) : state.error && !items.length ? (
-          <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-rose-200 bg-rose-50/80 px-6 py-12 text-center text-sm text-rose-700">
-            <p>{state.error}</p>
-            <button
-              type="button"
-              className="mt-4 rounded-full bg-rose-600 px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
-              onClick={handleRetry}
-            >
-              Tentar novamente
-            </button>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-slate-200 bg-slate-50/70 px-6 py-12 text-center text-sm text-slate-500">
-            <p>Sem dados para este recorte.</p>
-          </div>
-        ) : (
-          <RankingList items={items} entity={filters.entity} metric={filters.metric} />
+      <div className="mt-16">
+        {loading && <SkeletonList />}
+        {!loading && error && (
+          <ErrorBlock msg={error} onRetry={load} />
+        )}
+        {!loading && !error && data && (
+          <ol className="divide-y">
+            {data.map((r, i) => (
+              <li key={r.id} className="py-10 flex items-center gap-12">
+                <span className="w-10 text-right tabular-nums font-semibold">{i+1}</span>
+                {r.avatarUrl
+                  ? <img src={r.avatarUrl} className="w-10 h-10 rounded-full object-cover" />
+                  : <div className="w-10 h-10 rounded-full bg-neutral-200" />
+                }
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-8">
+                    <span className="truncate">{r.name}</span>
+                    {r.classLabel && (
+                      <span className="px-8 py-2 rounded-full text-xs bg-neutral-100 text-neutral-700">{r.classLabel}</span>
+                    )}
+                  </div>
+                </div>
+                <span className="font-medium">{r.value.toFixed(1)}</span>
+                {i < 3 && <span className="ml-8">{["🥇","🥈","🥉"][i]}</span>}
+              </li>
+            ))}
+          </ol>
         )}
       </div>
-
-      {state.error && items.length ? (
-        <p className="text-xs text-rose-500">Não foi possível atualizar os rankings agora. Exibindo dados em cache.</p>
-      ) : null}
-
-      {!state.loading && !state.error && state.data ? (
-        <p className="text-xs text-slate-400">
-          Métrica selecionada: <span className="font-medium text-slate-500">{metricLabel(state.data.context.metric)}</span>
-        </p>
-      ) : null}
-    </DashboardCard>
+    </section>
   );
 }
 
-function extractClassId(klass: ClassSummary): string | null {
-  if (!klass) return null;
-  const raw = (klass as any)?.id ?? (klass as any)?._id ?? null;
-  if (raw === null || raw === undefined) return null;
-  return normalizeRankingClassId(raw as string | number | null | undefined);
+function SkeletonList() {
+  return (
+    <ul className="animate-pulse space-y-10">
+      {Array.from({length:10}).map((_,i)=>(
+        <li key={i} className="h-8 bg-neutral-100 rounded" />
+      ))}
+    </ul>
+  );
 }
 
-function formatClassLabel(klass: ClassSummary): string {
-  if (!klass) return 'Turma';
-  if (klass.name) return klass.name;
-  const series = klass.series ? `${klass.series}º` : '';
-  const letter = klass.letter ?? '';
-  const grade = `${series}${letter}`.trim();
-  const subject = klass.discipline ?? klass.subject ?? '';
-  if (grade && subject) return `${grade} • ${subject}`;
-  return grade || subject || 'Turma';
+function ErrorBlock({ msg, onRetry }: { msg: string; onRetry: ()=>void }) {
+  return (
+    <div className="rounded-xl border border-red-200 bg-red-50 p-16 text-red-700">
+      <p className="mb-10">Não foi possível carregar os rankings.</p>
+      <pre className="text-xs opacity-70 mb-10 whitespace-pre-wrap">{msg}</pre>
+      <button onClick={onRetry} className="px-12 py-6 rounded-lg bg-red-600 text-white text-sm">Tentar novamente</button>
+    </div>
+  );
 }
