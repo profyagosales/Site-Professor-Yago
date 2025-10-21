@@ -38,11 +38,20 @@ export async function fetchRankings({
   signal,
   limit = 10,
 }: FetchRankingsArgs): Promise<RankingsResponse> {
-  const entity: Entity = entityMap[tabLabel];
-  const metric: Metric = metricMap[metricLabel];
+  let entity: Entity | undefined = entityMap[tabLabel];
+  let metric: Metric | undefined = metricMap[metricLabel];
+
+  if (!entity) {
+    if (typeof console !== 'undefined' && console.warn) console.warn('[Radar] Unmapped entity label:', tabLabel);
+    entity = 'student';
+  }
+  if (!metric) {
+    if (typeof console !== 'undefined' && console.warn) console.warn('[Radar] Unmapped metric label:', metricLabel);
+    metric = 'term_avg';
+  }
   const term: Term = parseTerm(termChip);
 
-  const url = buildRankingsURL(entity, metric, term, {
+  const url = buildRankingsURL(entity as Entity, metric as Metric, term, {
     classId: normalizeAnalyticsClassId(classId),
     limit,
   });
