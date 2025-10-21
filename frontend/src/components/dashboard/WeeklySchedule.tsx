@@ -140,20 +140,27 @@ function TimeCell({ title, time }: TimeCellProps) {
 }
 
 export function WeeklyScheduleTabs({ days, className = '', size = 'md' }: WeeklyScheduleTabsProps) {
-  const containerClass = ['flex flex-wrap gap-[var(--sched-chip-gap)]', className]
+  const containerClass = ['grid mb-2 gap-x-[var(--sched-gap-x)]', className]
     .filter(Boolean)
     .join(' ');
 
-  const textSize = size === 'sm' ? 'text-xs' : 'text-sm';
+  const textSize =
+    size === 'sm' ? 'text-[10px] sm:text-xs' : 'text-xs sm:text-sm';
 
   return (
-    <div className={containerClass}>
+    <div
+      className={containerClass}
+      style={{
+        gridTemplateColumns: `var(--sched-leftcol-w) repeat(${days.length}, minmax(0, 1fr))`,
+      }}
+    >
+      <div />
       {days.map((day) => (
         <span
           key={day.id}
-          className={`inline-flex h-[var(--sched-chip-h)] items-center justify-center rounded-full bg-slate-100 px-4 font-medium text-slate-700 ${textSize}`}
+          className={`inline-flex h-[var(--sched-chip-h)] w-full items-center justify-center rounded-full bg-slate-100 text-slate-700 font-semibold uppercase tracking-wide ${textSize}`}
         >
-          {day.label.toLowerCase()}
+          {day.label}
         </span>
       ))}
     </div>
