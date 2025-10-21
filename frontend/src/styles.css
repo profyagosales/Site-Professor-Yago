@@ -232,13 +232,14 @@ html, body, #root { height: 100%; background: var(--c-bg); }
     display: grid;
     grid-template-columns: 1fr;
     align-items: center;
-    gap: 24px;
-    padding: 24px;
+    gap: 16px;
+    padding-inline: 24px;
+    padding-block: var(--hero-py);
     border-radius: 32px;
     background: linear-gradient(135deg, #d97a3f 0%, #cf763b 52%, #c46531 100%);
     color: #fff;
     position: relative;
-    min-height: 170px;
+    min-height: var(--hero-min-h);
     box-shadow: 0 20px 50px rgba(12, 22, 38, 0.18);
   }
   .hero-left {
@@ -285,7 +286,7 @@ html, body, #root { height: 100%; background: var(--c-bg); }
   .hero-title {
     margin: 0;
     font-weight: 800;
-    line-height: 1.1;
+    line-height: 1.05;
     font-size: clamp(1.5rem, 5vw, 2.75rem);
     text-transform: uppercase;
     letter-spacing: 0.12em;
@@ -303,22 +304,26 @@ html, body, #root { height: 100%; background: var(--c-bg); }
   }
   .hero-stats {
     display: flex;
-    gap: 12px;
+    gap: var(--hero-stat-gap);
     justify-content: center;
     align-items: stretch;
     flex-wrap: wrap;
   }
   .hero-stat {
-    display: grid;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     gap: 8px;
     border-radius: 22px;
-    padding: 16px 22px;
+    padding: 8px 16px;
     background: rgba(255, 255, 255, 0.12);
     border: 1px solid rgba(255, 255, 255, 0.18);
     backdrop-filter: blur(6px);
     box-shadow: 0 14px 30px rgba(12, 22, 38, 0.2);
     min-width: min(180px, 100%);
     text-align: center;
+    height: var(--hero-stat-h);
   }
   .hero-stat__label {
     font-size: 10px;
@@ -357,10 +362,11 @@ html, body, #root { height: 100%; background: var(--c-bg); }
   @media (min-width: 768px) {
     .hero {
       grid-template-columns: auto 1fr auto;
-      gap: 32px;
-      padding: 32px 40px;
+      gap: 24px;
+      padding-inline: 40px;
+      padding-block: var(--hero-py);
       border-radius: 40px;
-      min-height: 190px;
+      min-height: var(--hero-min-h);
     }
     .hero-left {
       justify-content: flex-start;
@@ -372,7 +378,7 @@ html, body, #root { height: 100%; background: var(--c-bg); }
     }
     .hero-stats {
       flex-direction: column;
-      gap: 16px;
+      gap: var(--hero-stat-gap);
       align-items: stretch;
       width: 190px;
     }
