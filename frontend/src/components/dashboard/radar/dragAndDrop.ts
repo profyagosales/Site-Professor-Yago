@@ -1,8 +1,9 @@
 import type { DragEvent } from 'react';
+import type { EntityKey } from '@/features/radar/constants';
 
 export const RADAR_ITEM_MIME = 'application/x-radar-item';
 
-export type RadarDraggableKind = 'student' | 'class' | 'activity';
+export type RadarDraggableKind = EntityKey;
 
 export type RadarDraggablePayload = {
   id: string;
