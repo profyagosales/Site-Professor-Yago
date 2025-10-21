@@ -45,9 +45,12 @@ type TurmaCellProps = {
   disciplinaLabel: string;
   color: string;
   textColor: string;
-  isEmpty?: boolean;
   ariaLabel?: string;
   className?: string;
+};
+
+type PlaceholderCellProps = {
+  ariaLabel?: string;
 };
 
 type TimeCellProps = {
@@ -77,21 +80,10 @@ function mapToCellData(item: WeeklyScheduleCellItem) {
   };
 }
 
-function TurmaCell({ turmaLabel, disciplinaLabel, color, textColor, isEmpty, ariaLabel, className = '' }: TurmaCellProps) {
-  if (isEmpty) {
-    return (
-      <div
-        className={`flex h-full w-full items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 text-xl text-slate-300 ${className}`.trim()}
-        aria-label={ariaLabel}
-      >
-        —
-      </div>
-    );
-  }
-
+function TurmaCell({ turmaLabel, disciplinaLabel, color, textColor, ariaLabel, className = '' }: TurmaCellProps) {
   const hasColor = Boolean(color && color !== '#ffffff');
   const containerClasses = [
-    'flex h-full w-full flex-col items-center justify-center rounded-[18px] px-3 py-2 text-center leading-tight',
+    'flex h-full w-full items-center justify-center rounded-2xl px-4 text-center shadow-[0_1px_8px_rgba(0,0,0,.06)]',
     className,
   ]
     .filter(Boolean)
@@ -101,58 +93,65 @@ function TurmaCell({ turmaLabel, disciplinaLabel, color, textColor, isEmpty, ari
     ? { backgroundColor: color ?? undefined, color: textColor ?? undefined }
     : undefined;
 
-  const titleClasses = ['font-semibold', hasColor ? '' : 'text-slate-900']
+  const gradeClasses = ['font-bold', hasColor ? '' : 'text-slate-900']
     .filter(Boolean)
     .join(' ');
 
-  const subtitleClasses = [hasColor ? 'opacity-80' : 'text-slate-700']
+  const subjectClasses = [hasColor ? 'opacity-90' : 'text-slate-600']
     .filter(Boolean)
     .join(' ');
 
   return (
     <div className={containerClasses} style={containerStyle} aria-label={ariaLabel}>
-      <div className={titleClasses} style={{ fontSize: 'var(--sched-grade-title)' }}>
-        {turmaLabel}
+      <div className="leading-tight">
+        <div className={gradeClasses} style={{ fontSize: 'var(--sched-grade-fz)' }}>
+          {turmaLabel}
+        </div>
+        {disciplinaLabel ? (
+          <div className={subjectClasses} style={{ fontSize: 'var(--sched-subj-fz)' }}>
+            {disciplinaLabel}
+          </div>
+        ) : null}
       </div>
-      <div className={subtitleClasses} style={{ fontSize: 'var(--sched-grade-sub)' }}>
-        {disciplinaLabel}
-      </div>
+    </div>
+  );
+}
+
+function PlaceholderCell({ ariaLabel }: PlaceholderCellProps) {
+  return (
+    <div
+      className="flex h-[var(--sched-slot-h)] items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 text-slate-400"
+      aria-label={ariaLabel}
+    >
+      —
     </div>
   );
 }
 
 function TimeCell({ title, time }: TimeCellProps) {
-  const normalizedTitle =
-    title.toLowerCase().includes('horário') || !/\d/.test(title)
-      ? title
-      : `${title} horário`;
-
   return (
-    <div className="flex h-[var(--sched-cell-h)] flex-col justify-center rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-700">
-      <div className="font-medium" style={{ fontSize: 'var(--sched-time-size)' }}>
-        {normalizedTitle}
+    <div className="flex h-[var(--sched-slot-h)] flex-col items-start justify-center rounded-2xl border border-slate-100 bg-slate-50 px-4 text-left text-slate-700">
+      <div className="font-semibold text-slate-700" style={{ fontSize: 'var(--sched-grade-fz)' }}>
+        {title}
       </div>
-      <div className="text-[11px] leading-tight text-slate-500">{time}</div>
+      <div className="text-sm text-slate-500">{time}</div>
     </div>
   );
 }
 
 export function WeeklyScheduleTabs({ days, className = '', size = 'md' }: WeeklyScheduleTabsProps) {
-  const containerClass = ['flex items-center gap-[var(--sched-chip-gap)]', className]
+  const containerClass = ['flex flex-wrap gap-[var(--sched-chip-gap)]', className]
     .filter(Boolean)
     .join(' ');
 
-  const baseClass =
-    size === 'sm'
-      ? 'text-[var(--sched-daychip-size)]'
-      : 'text-[var(--sched-daychip-size)]';
+  const textSize = size === 'sm' ? 'text-xs' : 'text-sm';
 
   return (
-    <div className={containerClass} aria-hidden>
+    <div className={containerClass}>
       {days.map((day) => (
         <span
           key={day.id}
-          className={`px-2 py-[2px] rounded-full border border-slate-200 bg-slate-50 text-slate-600 ${baseClass}`}
+          className={`inline-flex h-[var(--sched-chip-h)] items-center justify-center rounded-full bg-slate-100 px-4 font-medium text-slate-700 ${textSize}`}
         >
           {day.label.toLowerCase()}
         </span>
@@ -168,31 +167,16 @@ type ScheduleCellProps = {
 };
 
 function ScheduleCell({ items, dayLabel, timeInfo }: ScheduleCellProps) {
-  const baseClass = 'h-[var(--sched-cell-h)] rounded-2xl border border-slate-200 bg-white';
-
   if (!items.length) {
     return (
-      <div className={`${baseClass} flex items-center justify-center`}>
-        <TurmaCell
-          turmaLabel=""
-          disciplinaLabel=""
-          color="#ffffff"
-          textColor="#64748b"
-          isEmpty
-          ariaLabel={`Sem aula em ${dayLabel} / ${timeInfo}`}
-          className="h-full"
-        />
-      </div>
+      <PlaceholderCell ariaLabel={`Sem aula em ${dayLabel} / ${timeInfo}`} />
     );
   }
 
   const multiple = items.length > 1;
-  const containerClass = multiple
-    ? `${baseClass} flex flex-col gap-2 p-2`
-    : `${baseClass} flex items-center justify-center`;
 
   return (
-    <div className={containerClass}>
+    <div className={`h-[var(--sched-slot-h)] ${multiple ? 'flex flex-col gap-2' : ''}`}>
       {items.map((item, index) => {
         const palette = resolveClassColors(item.color ?? null, item.classId ?? item.label);
         const { turmaLabel, disciplinaLabel } = mapToCellData(item);
@@ -219,26 +203,13 @@ function ScheduleCell({ items, dayLabel, timeInfo }: ScheduleCellProps) {
 }
 
 export function WeeklyScheduleGrid({ slots, days, cells }: WeeklyScheduleProps) {
-  const columnTemplate = `var(--sched-timecol-w) repeat(${days.length}, minmax(0, 1fr))`;
+  const columnTemplate = `var(--sched-leftcol-w) repeat(${days.length}, minmax(0, 1fr))`;
 
   return (
     <div
-      className="grid"
-      style={{
-        gridTemplateColumns: columnTemplate,
-        gap: 'var(--sched-gap)',
-        rowGap: 'var(--sched-row-gap)',
-      }}
+      className="grid gap-x-[var(--sched-gap-x)] gap-y-[var(--sched-gap-y)]"
+      style={{ gridTemplateColumns: columnTemplate }}
     >
-      <div aria-hidden />
-      {days.map((day) => (
-        <div
-          key={`day-${day.id}`}
-          className="text-[var(--sched-daychip-size)] text-slate-600 md:hidden"
-        >
-          {day.label.toLowerCase()}
-        </div>
-      ))}
       {slots.map((slot) => (
         <Fragment key={`slot-${slot.id}`}>
           <TimeCell title={slot.label} time={slot.time} />
@@ -268,14 +239,14 @@ export default function WeeklyScheduleCard({
   children,
 }: WeeklyScheduleCardProps) {
   const containerClass = [
-    'schedule-card flex flex-col rounded-[var(--sched-card-radius)] border border-slate-100 bg-white px-[var(--sched-card-pad-x)] py-[var(--sched-card-pad-y)] shadow-sm',
+    'schedule-card rounded-3xl bg-white px-[var(--sched-card-px)] py-[var(--sched-card-py)] shadow-sm',
     className,
   ]
     .filter(Boolean)
     .join(' ');
 
   const resolvedTabsClassName = [
-    'hidden md:flex items-center gap-[var(--sched-chip-gap)]',
+    'mb-2',
     tabsClassName,
   ]
     .filter(Boolean)
@@ -283,18 +254,19 @@ export default function WeeklyScheduleCard({
 
   return (
     <section className={containerClass}>
-      <div className="flex items-center justify-between gap-4">
-        {title ? (
+      {title ? (
+        <header className="mb-2">
           <h2
-            className="m-0 font-semibold text-slate-900"
-            style={{ fontSize: 'var(--sched-title-size)' }}
+            className="font-semibold leading-tight text-slate-900"
+            style={{ fontSize: 'var(--sched-title-fz)' }}
           >
             {title}
           </h2>
-        ) : null}
+        </header>
+      ) : null}
+      {days.length ? (
         <WeeklyScheduleTabs days={days} className={resolvedTabsClassName} size={tabsSize} />
-      </div>
-      <div className="mt-3" />
+      ) : null}
       {children ?? <WeeklyScheduleGrid slots={slots} days={days} cells={cells} />}
     </section>
   );
