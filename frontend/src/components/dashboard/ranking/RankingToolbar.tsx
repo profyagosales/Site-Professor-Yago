@@ -2,18 +2,13 @@ import type { RankingEntity, RankingMetric, RankingTerm } from '@/types/analytic
 
 const TERM_OPTIONS: RankingTerm[] = [1, 2, 3, 4];
 
-const ENTITY_TABS: Array<{ id: RankingEntity; label: string }> = [
-  { id: 'student', label: 'Alunos' },
-  { id: 'class', label: 'Turmas' },
-  { id: 'activity', label: 'Atividades' },
-];
+const ENTITY_TABS: Array<{ id: RankingEntity; label: RadarEntityLabel }> = (
+  Object.entries(entityMap) as Array<[RadarEntityLabel, RankingEntity]>
+).map(([label, id]) => ({ id, label }));
 
-const METRIC_OPTIONS: Array<{ id: RankingMetric; label: string }> = [
-  { id: 'term_avg', label: 'Maior média no bimestre' },
-  { id: 'activity_peak', label: 'Maior nota de uma atividade' },
-  { id: 'year_avg', label: 'Maior média no ano' },
-  { id: 'term_delta', label: 'Maior crescimento no bimestre' },
-];
+const METRIC_OPTIONS: Array<{ id: RankingMetric; label: RadarMetricLabel }> = (
+  Object.entries(metricMap) as Array<[RadarMetricLabel, RankingMetric]>
+).map(([label, id]) => ({ id, label }));
 
 export interface RankingToolbarProps {
   term: RankingTerm;

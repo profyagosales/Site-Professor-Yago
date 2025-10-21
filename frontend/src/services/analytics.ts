@@ -13,6 +13,7 @@ export interface FetchRankingsParams {
   metric: RankingMetric;
   term: number | string;
   classId?: string | null;
+  limit?: number;
   signal?: AbortSignal;
 }
 
@@ -28,10 +29,12 @@ export async function fetchRankings(params: FetchRankingsParams): Promise<Rankin
     signal: params.signal,
     headers: { Accept: 'application/json' },
   });
+
   return response.data;
 }
 
-export function createFiltersKey(filters: RankingsFilters): string {
+export function createFiltersKey(filters: RankingsFilters, limit = 10): string {
   const { entity, metric, term, classId } = filters;
-  return `${entity}|${metric}|${term}|${classId ?? ''}`;
+  const normalizedClassId = normalizeClassId(classId);
+  return `${entity}|${metric}|${term}|${normalizedClassId ?? ''}|${limit}`;
 }
