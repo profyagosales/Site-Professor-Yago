@@ -38,16 +38,32 @@ export async function fetchRankings({
   signal,
   limit = 10,
 }: FetchRankingsArgs): Promise<RankingsResponse> {
-  let entity: Entity | undefined = entityMap[tabLabel];
-  let metric: Metric | undefined = metricMap[metricLabel];
+  const normalizedTabLabel = (tabLabel ?? '').trim();
+  const normalizedMetricLabel = (metricLabel ?? '').trim();
+
+  let entity: Entity | undefined = entityMap[normalizedTabLabel];
+  let metric: Metric | undefined = metricMap[normalizedMetricLabel];
 
   if (!entity) {
-    if (typeof console !== 'undefined' && console.warn) console.warn('[Radar] Unmapped entity label:', tabLabel);
-    entity = 'student';
+    const directEntity = (['student', 'class', 'activity'] as const).find((key) => key === normalizedTabLabel);
+    if (directEntity) {
+      entity = directEntity;
+    } else {
+      if (typeof console !== 'undefined' && console.warn) console.warn('[Radar] Unmapped entity label:', tabLabel);
+      entity = 'student';
+    }
   }
+
   if (!metric) {
-    if (typeof console !== 'undefined' && console.warn) console.warn('[Radar] Unmapped metric label:', metricLabel);
-    metric = 'term_avg';
+    const directMetric = (
+      ['term_avg', 'activity_peak', 'year_avg', 'term_delta'] as const
+    ).find((key) => key === normalizedMetricLabel);
+    if (directMetric) {
+      metric = directMetric;
+    } else {
+      if (typeof console !== 'undefined' && console.warn) console.warn('[Radar] Unmapped metric label:', metricLabel);
+      metric = 'term_avg';
+    }
   }
   const term: Term = parseTerm(termChip);
 
