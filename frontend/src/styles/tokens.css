@@ -4,6 +4,10 @@
   --h-stack:360px;          /* altura padrão dos cards empilhados à esquerda */
   --ws-row-h:108px;         /* altura das linhas do horário */
   --ws-gap-y:10px;          /* espaçamento vertical entre linhas */
+  --hero-min-h:200px;       /* altura mínima do hero card */
+  --hero-py:18px;           /* padding vertical do hero */
+  --hero-stat-h:92px;       /* altura dos mini cards de estatística */
+  --hero-stat-gap:12px;     /* espaçamento entre os mini cards */
 
   /* BRAND */
   --c-brand-50:#FFF6EE;
@@ -89,6 +93,15 @@
 @media (min-width: 1280px){
   :root{
     --h-stack:380px;
+  }
+}
+
+@media (min-width: 1024px){
+  :root{
+    --hero-min-h:210px;
+    --hero-py:20px;
+    --hero-stat-h:96px;
+    --hero-stat-gap:14px;
   }
 }
 
