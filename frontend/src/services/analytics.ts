@@ -1,62 +1,86 @@
-import { api } from '@/services/api';
-import type { RankingEntity, RankingMetric, RankingsFilters, RankingsResponse } from '@/types/analytics';
+import api from '@/services/api';
+import { buildRankingsURL, type Entity, type Metric, type Term } from '@/api/rankings';
+import type {
+  RankingEntity,
+  RankingMetric,
+  RankingTerm,
+  RankingsFilters,
+  RankingsResponse,
+} from '@/types/analytics';
 
 export interface FetchRankingsParams {
   entity: RankingEntity;
   metric: RankingMetric;
   term: number | string;
   classId?: string | null;
+  limit?: number;
   signal?: AbortSignal;
 }
 
-function normalizeTerm(term: number | string): string {
-  const parsed =
+function coerceTerm(term: number | string): RankingTerm {
+  const numeric =
     typeof term === 'string'
       ? Number.parseInt(term.replace(/\D+/g, ''), 10)
       : Number(term);
 
-  if (!Number.isFinite(parsed)) return '1';
-  const rounded = Math.round(parsed);
-  const bounded = Math.min(Math.max(rounded, 1), 4);
-  return String(bounded);
+  if (numeric === 1 || numeric === 2 || numeric === 3 || numeric === 4) {
+    return numeric as RankingTerm;
+  }
+
+  if (!Number.isFinite(numeric)) {
+    return 1;
+  }
+
+  const bounded = Math.min(Math.max(Math.round(numeric), 1), 4);
+  if (bounded === 1 || bounded === 2 || bounded === 3 || bounded === 4) {
+    return bounded as RankingTerm;
+  }
+
+  return 1;
 }
 
-function normalizeClassId(classId?: string | null): string | null {
-  if (!classId) return null;
+function stripDiacritics(value: string): string {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+export function normalizeClassId(classId?: string | null): string | undefined {
+  if (!classId) return undefined;
   const trimmed = classId.trim();
-  if (!trimmed) return null;
-  const lower = trimmed.toLowerCase();
-  if (lower === 'all') return null;
-  if (lower === 'todas') return null;
-  if (lower.startsWith('todas ')) return null;
+  if (!trimmed) return undefined;
+
+  const normalized = stripDiacritics(trimmed).toLowerCase();
+  if (normalized === 'todas') return undefined;
+  if (normalized === 'todas as turmas') return undefined;
+  if (normalized === 'all') return undefined;
+  if (normalized === 'all classes') return undefined;
+
   return trimmed;
 }
 
-function buildQuery({ entity, metric, term, classId }: FetchRankingsParams) {
-  const params = new URLSearchParams({
-    entity,
-    metric,
-    term: normalizeTerm(term),
+export async function fetchRankings({
+  entity,
+  metric,
+  term,
+  classId,
+  limit = 10,
+  signal,
+}: FetchRankingsParams): Promise<RankingsResponse> {
+  const rankingTerm = coerceTerm(term) as Term;
+  const url = buildRankingsURL(entity as Entity, metric as Metric, rankingTerm, {
+    classId: normalizeClassId(classId),
+    limit,
   });
 
-  const normalizedClassId = normalizeClassId(classId);
-  if (normalizedClassId) {
-    params.set('class_id', normalizedClassId);
-  }
-
-  return params;
-}
-
-export async function fetchRankings(params: FetchRankingsParams): Promise<RankingsResponse> {
-  const response = await api.get<RankingsResponse>('/analytics/rankings', {
-    params: buildQuery(params),
-    signal: params.signal,
+  const response = await api.get<RankingsResponse>(url, {
+    signal,
     headers: { Accept: 'application/json' },
   });
+
   return response.data;
 }
 
-export function createFiltersKey(filters: RankingsFilters): string {
+export function createFiltersKey(filters: RankingsFilters, limit = 10): string {
   const { entity, metric, term, classId } = filters;
-  return `${entity}|${metric}|${term}|${classId ?? ''}`;
+  const normalizedClassId = normalizeClassId(classId);
+  return `${entity}|${metric}|${term}|${normalizedClassId ?? ''}|${limit}`;
 }

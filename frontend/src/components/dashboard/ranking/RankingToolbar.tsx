@@ -1,28 +1,29 @@
-import type { RankingEntity, RankingMetric } from '@/types/analytics';
+import type { RankingEntity, RankingMetric, RankingTerm } from '@/types/analytics';
+import {
+  entityMap,
+  metricMap,
+  type RadarEntityLabel,
+  type RadarMetricLabel,
+} from '@/features/radar/maps';
 
-const TERM_OPTIONS = [1, 2, 3, 4];
+const TERM_OPTIONS: RankingTerm[] = [1, 2, 3, 4];
 
-const ENTITY_TABS: Array<{ id: RankingEntity; label: string }> = [
-  { id: 'student', label: 'Alunos' },
-  { id: 'class', label: 'Turmas' },
-  { id: 'activity', label: 'Atividades' },
-];
+const ENTITY_TABS: Array<{ id: RankingEntity; label: RadarEntityLabel }> = (
+  Object.entries(entityMap) as Array<[RadarEntityLabel, RankingEntity]>
+).map(([label, id]) => ({ id, label }));
 
-const METRIC_OPTIONS: Array<{ id: RankingMetric; label: string }> = [
-  { id: 'term_avg', label: 'Maior média no bimestre' },
-  { id: 'activity_peak', label: 'Maior nota de uma atividade' },
-  { id: 'year_avg', label: 'Maior média no ano' },
-  { id: 'term_delta', label: 'Maior crescimento no bimestre' },
-];
+const METRIC_OPTIONS: Array<{ id: RankingMetric; label: RadarMetricLabel }> = (
+  Object.entries(metricMap) as Array<[RadarMetricLabel, RankingMetric]>
+).map(([label, id]) => ({ id, label }));
 
 export interface RankingToolbarProps {
-  term: number;
+  term: RankingTerm;
   metric: RankingMetric;
   entity: RankingEntity;
   classId?: string | null;
   classOptions: Array<{ value: string; label: string }>;
   classOptionsLoading?: boolean;
-  onTermChange(term: number): void;
+  onTermChange(term: RankingTerm): void;
   onMetricChange(metric: RankingMetric): void;
   onEntityChange(entity: RankingEntity): void;
   onClassChange(classId: string | null): void;
