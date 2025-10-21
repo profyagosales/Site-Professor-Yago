@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { getEntityLabel } from '@/features/radar/constants';
 import type { RadarFilters, RadarCompareSlot } from '@/types/radar';
 import { classColor } from '@/utils/classColor';
 import { RADAR_ITEM_MIME, readRadarDragData, type RadarDraggablePayload } from './dragAndDrop';
@@ -100,6 +101,7 @@ function CompareSlot({
           {values.map((id) => {
             const info = compareLabels[id];
             const label = info?.label ?? id;
+            const kindLabel = info?.kind ? getEntityLabel(info.kind) : 'item';
             return (
               <button
                 key={id}
@@ -109,7 +111,7 @@ function CompareSlot({
               >
                 <span>{label}</span>
                 <span className="rounded-full bg-slate-300 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                  {info?.kind ?? 'item'}
+                  {kindLabel}
                 </span>
                 <span className="text-slate-500">×</span>
               </button>

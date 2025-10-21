@@ -18,6 +18,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { APP_VERSION } from './version';
 import { AuthProvider } from '@/store/AuthContext';
 import { GerencialAuthProvider } from '@/store/GerencialAuthContext';
+import { AppErrorBoundary } from '@/AppErrorBoundary';
 
 console.info('[app] version:', APP_VERSION);
 
@@ -29,12 +30,14 @@ const { StrictMode } = React;
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthProvider>
-      <GerencialAuthProvider>
-        <div className="ys-noise" />
-        <RouterProvider router={router} />
-        <ToastContainer aria-label="notificações" position="top-right" autoClose={3000} hideProgressBar theme="light" />
-      </GerencialAuthProvider>
-    </AuthProvider>
+    <AppErrorBoundary>
+      <AuthProvider>
+        <GerencialAuthProvider>
+          <div className="ys-noise" />
+          <RouterProvider router={router} />
+          <ToastContainer aria-label="notificações" position="top-right" autoClose={3000} hideProgressBar theme="light" />
+        </GerencialAuthProvider>
+      </AuthProvider>
+    </AppErrorBoundary>
   </StrictMode>
 );
