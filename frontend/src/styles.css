@@ -511,6 +511,10 @@ html, body, #root { height: 100%; background: var(--c-bg); }
   min-height: 420px;
 }
 
+.schedule-card h2 {
+  margin-top: 0;
+}
+
 .dash-grid .notices {
   grid-column: 2;
   grid-row: span 2;
