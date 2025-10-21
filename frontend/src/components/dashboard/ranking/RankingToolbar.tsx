@@ -1,3 +1,4 @@
+import { entityMap, metricMap, type RadarEntityLabel, type RadarMetricLabel } from '@/features/radar/maps';
 import type { RankingEntity, RankingMetric, RankingTerm } from '@/types/analytics';
 
 const TERM_OPTIONS: RankingTerm[] = [1, 2, 3, 4];
