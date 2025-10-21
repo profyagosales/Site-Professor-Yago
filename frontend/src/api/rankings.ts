@@ -34,11 +34,13 @@ export function buildRankingsURL(
   qs.set('metric', metric);
   qs.set('term', String(term));
 
-  if (opts?.classId) {
-    qs.set('class_id', opts.classId);
+  const classId = typeof opts?.classId === 'string' ? opts.classId.trim() : '';
+  if (classId) {
+    qs.set('class_id', classId);
   }
 
-  qs.set('limit', String(opts?.limit ?? 10));
+  const limit = Number.isFinite(opts?.limit) ? Math.max(1, Math.trunc(Number(opts?.limit))) : 10;
+  qs.set('limit', String(limit));
 
   url.search = qs.toString();
 
