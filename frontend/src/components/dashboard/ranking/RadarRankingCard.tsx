@@ -12,6 +12,7 @@ import RankingToolbar, { entityLabel, metricLabel } from './RankingToolbar';
 import RankingList, { RankingSkeleton } from './RankingList';
 import ConfettiBurst from './ConfettiBurst';
 import { listMyClasses, type ClassSummary } from '@/services/classes.service';
+import { resolveEntityLabel, entityMap } from "@/shared/analytics/entities";
 import { getCurrentUser } from '@/services/auth';
 
 const CONFETTI_FLAG = String((import.meta as any)?.env?.VITE_FEATURE_RANKING_CONFETTI ?? '1') !== '0';
