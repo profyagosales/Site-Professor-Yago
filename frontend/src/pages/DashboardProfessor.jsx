@@ -5,7 +5,7 @@ import AnnouncementModal from '@/components/AnnouncementModal'
 import { getCurrentUser } from '@/services/auth'
 import { listMyClasses, getClassDetails } from '@/services/classes.service'
 import RadarCard from '@/components/dashboard/radar/RadarCard'
-import AgendaCalendarCard from '@/components/dashboard/AgendaCalendarCard'
+import AgendaCard from '@/components/dashboard/AgendaCard'
 import WeeklyScheduleCard from '@/components/dashboard/WeeklySchedule'
 import AvisosCard from '@/components/dashboard/AvisosCard'
 import DivisaoNotasCard from '@/components/dashboard/DivisaoNotasCard'
@@ -521,7 +521,7 @@ function DashboardProfessor(){
         </div>
 
         <div className="mt-6">
-          <AgendaCalendarCard
+          <AgendaCard
             refreshToken={agendaRefreshKey}
             onOpenEditor={handleOpenAgendaEditor}
             editorLoading={agendaEditorLoading}
