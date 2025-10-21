@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DashboardCard from '@/components/dashboard/DashboardCard';
-import { fetchRankings, createFiltersKey } from '@/services/analytics';
+import { fetchRankings, createFiltersKey, normalizeClassId as normalizeRankingClassId } from '@/services/analytics';
 import type {
   RankingsFilters,
   RankingsResponse,
@@ -59,7 +59,7 @@ export default function RadarRankingCard() {
         setClassOptions(
           classes
             .map((klass) => {
-              const value = normalizeClassId(klass);
+              const value = extractClassId(klass);
               if (!value) return null;
               return {
                 value,
@@ -269,12 +269,11 @@ export default function RadarRankingCard() {
   );
 }
 
-function normalizeClassId(klass: ClassSummary): string | null {
+function extractClassId(klass: ClassSummary): string | null {
   if (!klass) return null;
-  const raw = (klass as any)?.id ?? (klass as any)?._id;
-  if (!raw) return null;
-  const value = String(raw).trim();
-  return value || null;
+  const raw = (klass as any)?.id ?? (klass as any)?._id ?? null;
+  if (raw === null || raw === undefined) return null;
+  return normalizeRankingClassId(raw as string | number | null | undefined);
 }
 
 function formatClassLabel(klass: ClassSummary): string {

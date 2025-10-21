@@ -1,4 +1,5 @@
 import type { RankingEntity, RankingMetric, RankingTerm } from '@/types/analytics';
+import { normalizeClassId as normalizeClassIdentifier } from '@/utils/normalizers';
 
 const DEFAULT_API_BASE = 'https://api.professoryagosales.com.br';
 
@@ -15,15 +16,6 @@ function resolveApiBase(): string {
 
 const API_BASE = resolveApiBase();
 
-function normalizeClassId(classId?: string | null): string | null {
-  if (!classId) return null;
-  const trimmed = classId.trim();
-  if (!trimmed) return null;
-  if (/^todas(\s+as\s+turmas)?$/i.test(trimmed)) return null;
-  if (/^all$/i.test(trimmed)) return null;
-  return trimmed;
-}
-
 export function buildRankingURL(
   entity: RankingEntity,
   metric: RankingMetric,
@@ -37,9 +29,11 @@ export function buildRankingURL(
   params.set('metric', metric);
   params.set('term', String(term));
 
-  const normalizedClassId = normalizeClassId(classId);
-  if (normalizedClassId) {
-    params.set('class_id', normalizedClassId);
+  if (classId != null) {
+    const normalizedClassId = normalizeClassIdentifier(classId);
+    if (normalizedClassId && normalizedClassId !== '—') {
+      params.set('class_id', normalizedClassId);
+    }
   }
 
   url.search = params.toString();
