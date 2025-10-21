@@ -4,7 +4,6 @@ import SendEmailModal from '@/components/SendEmailModal'
 import AnnouncementModal from '@/components/AnnouncementModal'
 import { getCurrentUser } from '@/services/auth'
 import { listMyClasses, getClassDetails } from '@/services/classes.service'
-import RadarRankingCard from '@/components/dashboard/ranking/RadarRankingCard'
 import AgendaCard from '@/components/dashboard/AgendaCard'
 import WeeklyScheduleCard from '@/components/dashboard/WeeklySchedule'
 import AvisosCard from '@/components/dashboard/AvisosCard'
@@ -548,7 +547,7 @@ function DashboardProfessor(){
         </div>
 
         <div className="mt-6">
-          <RadarRankingCard />
+          {/* TODO(remove/radar-ranking): Radar/Ranking card removido do dashboard */}
         </div>
       </section>
       <DivisaoNotasModal

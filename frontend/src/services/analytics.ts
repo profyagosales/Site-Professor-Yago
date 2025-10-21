@@ -1,5 +1,6 @@
 import { api } from '@/services/api';
-import { buildRankingURL, parseTerm } from '@/api/radar';
+// TODO(remove/radar-ranking): funções de ranking removidas
+// import { buildRankingURL, parseTerm } from '@/api/radar';
 import { normalizeClassId as normalizeClassIdentifier } from '@/utils/normalizers';
 import type {
   RankingEntity,

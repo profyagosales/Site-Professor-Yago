@@ -27,7 +27,8 @@ export function buildRankingsURL(
   term: Term,
   opts?: { classId?: string; limit?: number },
 ) {
-  const url = new URL('/api/analytics/rankings', API_BASE);
+  // TODO(remove/radar-ranking): rankings descontinuado no frontend
+  // const url = new URL('/api/analytics/rankings', API_BASE);
   const qs = new URLSearchParams();
 
   qs.set('entity', entity);
@@ -42,11 +43,10 @@ export function buildRankingsURL(
   const limit = Number.isFinite(opts?.limit) ? Math.max(1, Math.trunc(Number(opts?.limit))) : 10;
   qs.set('limit', String(limit));
 
-  url.search = qs.toString();
+  // url.search = qs.toString();
 
-  if (!url.pathname.endsWith('/api/analytics/rankings')) {
-    throw new Error(`Rota inválida: ${url.toString()}`);
-  }
-
-  return url.toString();
+  // if (!url.pathname.endsWith('/api/analytics/rankings')) {
+  //   throw new Error(`Rota inválida: ${url.toString()}`);
+  // }
+  return '';
 }
