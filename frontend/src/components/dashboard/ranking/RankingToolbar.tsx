@@ -1,6 +1,6 @@
-import type { RankingEntity, RankingMetric } from '@/types/analytics';
+import type { RankingEntity, RankingMetric, RankingTerm } from '@/types/analytics';
 
-const TERM_OPTIONS = [1, 2, 3, 4];
+const TERM_OPTIONS: RankingTerm[] = [1, 2, 3, 4];
 
 const ENTITY_TABS: Array<{ id: RankingEntity; label: string }> = [
   { id: 'student', label: 'Alunos' },
@@ -16,13 +16,13 @@ const METRIC_OPTIONS: Array<{ id: RankingMetric; label: string }> = [
 ];
 
 export interface RankingToolbarProps {
-  term: number;
+  term: RankingTerm;
   metric: RankingMetric;
   entity: RankingEntity;
   classId?: string | null;
   classOptions: Array<{ value: string; label: string }>;
   classOptionsLoading?: boolean;
-  onTermChange(term: number): void;
+  onTermChange(term: RankingTerm): void;
   onMetricChange(metric: RankingMetric): void;
   onEntityChange(entity: RankingEntity): void;
   onClassChange(classId: string | null): void;
