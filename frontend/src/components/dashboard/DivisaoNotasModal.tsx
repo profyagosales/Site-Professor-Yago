@@ -213,8 +213,23 @@ export default function DivisaoNotasModal({
       }
       toast.success('Bimestre padrão atualizado!');
     } catch (error: any) {
+      const status = error?.status ?? error?.response?.status ?? null;
+      const code = error?.code ?? error?.response?.data?.code ?? null;
       const message = error?.message ?? 'Não foi possível salvar o bimestre padrão.';
-      toast.error(message);
+      const fallbackMessage = 'Bimestre padrão salvo neste navegador.';
+      const shouldFallback =
+        code === 'ROUTE_NOT_FOUND' ||
+        code === 'ERR_NETWORK' ||
+        status === 0 ||
+        status === 404 ||
+        /rota da api não encontrada/i.test(message) ||
+        /divisão de notas indisponível/i.test(message);
+      if (typeof window !== 'undefined' && shouldFallback) {
+        localStorage.setItem(GRADE_SCHEME_DEFAULT_STORAGE_KEY, String(defaultChoice));
+        toast.success(fallbackMessage);
+      } else {
+        toast.error(message);
+      }
     } finally {
       setSavingDefault(false);
     }

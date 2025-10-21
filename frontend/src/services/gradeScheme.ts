@@ -32,7 +32,7 @@ export type GradeScheme = {
 
 const BIMESTERS: Bimestre[] = [1, 2, 3, 4];
 
-export const GRADE_SCHEME_DEFAULT_STORAGE_KEY = 'divisaoNotas.bimestrePadrao';
+export const GRADE_SCHEME_DEFAULT_STORAGE_KEY = 'gradeSplit:defaultTerm';
 
 type ApiListResponse = {
   success?: boolean;
@@ -45,6 +45,7 @@ type ApiError = {
     data?: { message?: string } | undefined;
   };
   message?: string;
+  code?: string;
 };
 
 const DEFAULT_COLOR = '#EB7A28';
@@ -61,6 +62,69 @@ export function DEFAULT_SCHEME(classId: string, year: number): GradeScheme {
       { 1: createEmptyBimester(classId, year, 1), 2: createEmptyBimester(classId, year, 2), 3: createEmptyBimester(classId, year, 3), 4: createEmptyBimester(classId, year, 4) }
     ),
   };
+}
+
+export async function fetchTeacherGradeSplitSettings({
+  teacherId,
+}: {
+  teacherId: string;
+}): Promise<Bimestre | null> {
+  if (!teacherId) {
+    throw new Error('teacherId é obrigatório.');
+  }
+  try {
+    const response = await api.get(`/teachers/${teacherId}/grade-split/settings`, {
+      meta: { noCache: true },
+    });
+    const payload: any = response?.data?.data ?? response?.data ?? null;
+    if (!payload) {
+      return null;
+    }
+    const candidate =
+      payload?.defaultTerm ??
+      payload?.defaultBimester ??
+      payload?.bimestrePadrao ??
+      payload?.default ??
+      payload?.bimester ??
+      payload?.bimestre ??
+      payload?.value ??
+      null;
+    if (candidate === null || candidate === undefined) {
+      return null;
+    }
+    return ensureBimester(candidate);
+  } catch (err) {
+    const error = err as ApiError;
+    const status = error?.response?.status;
+    if (status === 404) {
+      return null;
+    }
+    throw normalizeSettingsError(err);
+  }
+}
+
+export async function saveTeacherGradeSplitSettings({
+  teacherId,
+  defaultBimester,
+}: {
+  teacherId: string;
+  defaultBimester: Bimestre;
+}): Promise<void> {
+  if (!teacherId) {
+    throw new Error('teacherId é obrigatório.');
+  }
+  try {
+    await api.put(
+      `/teachers/${teacherId}/grade-split/settings`,
+      {
+        defaultTerm: defaultBimester,
+        defaultBimester,
+      },
+      { meta: { noCache: true } },
+    );
+  } catch (err) {
+    throw normalizeSettingsError(err);
+  }
 }
 
 export async function fetchGradeScheme({
@@ -94,63 +158,6 @@ export async function fetchGradeScheme({
     });
 
     return result;
-  } catch (err) {
-    throw normalizeError(err);
-  }
-}
-
-export async function fetchGradeSchemeConfig({
-  classId,
-  year,
-}: {
-  classId: string;
-  year: number;
-}): Promise<Bimestre | null> {
-  try {
-    const response = await api.get('/grade-scheme/config', {
-      params: { classId, year },
-      meta: { noCache: true },
-    });
-    const payload: any = response?.data?.data ?? response?.data ?? null;
-    const candidate =
-      payload?.defaultBimester ??
-      payload?.bimestrePadrao ??
-      payload?.bimester ??
-      payload?.bimestre ??
-      payload?.value ??
-      payload?.default ??
-      null;
-    if (candidate === null || candidate === undefined) {
-      return null;
-    }
-    return ensureBimester(candidate);
-  } catch (err) {
-    const error = err as ApiError;
-    const status = error?.response?.status;
-    if (status === 404) {
-      return null;
-    }
-    throw normalizeError(err);
-  }
-}
-
-export async function saveGradeSchemeConfig({
-  classId,
-  year,
-  defaultBimester,
-}: {
-  classId: string;
-  year: number;
-  defaultBimester: Bimestre;
-}): Promise<void> {
-  const payload = {
-    classId,
-    year,
-    defaultBimester,
-    bimestrePadrao: defaultBimester,
-  };
-  try {
-    await api.put('/grade-scheme/config', payload, { meta: { noCache: true } });
   } catch (err) {
     throw normalizeError(err);
   }
@@ -327,6 +334,22 @@ function normalizeError(err: unknown, bimester?: Bimestre) {
   }
   if (status === 404 || /route not found/i.test(message)) {
     normalized.message = 'Divisão de notas indisponível no momento (rota da API não encontrada)';
+    (normalized as any).code = 'ROUTE_NOT_FOUND';
+  }
+  return normalized;
+}
+
+function normalizeSettingsError(err: unknown) {
+  const error = err as ApiError;
+  const status = error?.response?.status;
+  const message = error?.response?.data?.message ?? error?.message ?? '';
+  const normalized = new Error(message || 'Não foi possível atualizar o bimestre padrão.');
+  (normalized as any).status = status;
+  if (error?.code) {
+    (normalized as any).code = error.code;
+  }
+  if (status === 404 || /rota da api não encontrada/i.test(message)) {
+    normalized.message = 'Rota da API não encontrada';
     (normalized as any).code = 'ROUTE_NOT_FOUND';
   }
   return normalized;
