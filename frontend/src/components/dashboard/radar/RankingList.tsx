@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ENTITY_KEYS, ENTITY_MAP } from '@/features/radar/constants';
+import { ENTITY_MAP, toEntityKey } from '@/features/radar/constants';
 import type { RadarDataset, RadarFilters } from '@/types/radar';
 import { RADAR_ITEM_MIME, type RadarDraggablePayload, type RadarDraggableKind } from './dragAndDrop';
 
@@ -12,7 +12,9 @@ interface RankingListProps {
   role?: string;
 }
 
-const TABS: Array<{ id: RadarDraggableKind; label: string }> = ENTITY_KEYS.map((key) => ({
+const RADAR_ENTITIES = Object.keys(ENTITY_MAP).map((key) => toEntityKey(key));
+
+const TABS: Array<{ id: RadarDraggableKind; label: string }> = RADAR_ENTITIES.map((key) => ({
   id: key as RadarDraggableKind,
   label: ENTITY_MAP[key],
 }));
