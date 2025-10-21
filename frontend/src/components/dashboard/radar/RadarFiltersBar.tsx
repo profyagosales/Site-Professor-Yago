@@ -101,7 +101,7 @@ function CompareSlot({
           {values.map((id) => {
             const info = compareLabels[id];
             const label = info?.label ?? id;
-            const kindLabel = info?.kind ? getEntityLabel(info.kind) : 'item';
+            const kindLabel = getEntityLabel(info?.kind);
             return (
               <button
                 key={id}
