@@ -9,6 +9,7 @@ import type {
   RankingTerm,
 } from '@/types/analytics';
 import RankingToolbar, { entityLabel, metricLabel } from './RankingToolbar';
+import { resolveMetricLabel } from '@/features/radar/maps';
 import RankingList, { RankingSkeleton } from './RankingList';
 import ConfettiBurst from './ConfettiBurst';
 import { listMyClasses, type ClassSummary } from '@/services/classes.service';
