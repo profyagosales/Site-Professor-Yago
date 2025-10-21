@@ -64,8 +64,8 @@ export async function fetchRankings({
   return response.data;
 }
 
-export function createFiltersKey(filters: RankingsFilters): string {
+export function createFiltersKey(filters: RankingsFilters, limit = 10): string {
   const { entity, metric, term, classId } = filters;
-  return `${entity}|${metric}|${term}|${classId ?? ''}`;
+  return `${entity}|${metric}|${term}|${classId ?? ''}|${limit}`;
 }
 

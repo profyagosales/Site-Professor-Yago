@@ -16,6 +16,7 @@ import { listMyClasses, type ClassSummary } from '@/services/classes.service';
 import { getCurrentUser } from '@/services/auth';
 
 const CONFETTI_FLAG = String((import.meta as any)?.env?.VITE_FEATURE_RANKING_CONFETTI ?? '1') !== '0';
+const RANKING_LIMIT = 10;
 
 const INITIAL_FILTERS: RankingsFilters = {
   term: 1,
@@ -104,7 +105,7 @@ export default function RadarRankingCard() {
       ...filters,
       classId: filters.entity === 'class' ? null : filters.classId ?? null,
     };
-    const cacheKey = createFiltersKey(normalizedFilters);
+    const cacheKey = createFiltersKey(normalizedFilters, RANKING_LIMIT);
     const cached = cacheRef.current.get(cacheKey);
 
     setState((prev) => ({
@@ -123,6 +124,7 @@ export default function RadarRankingCard() {
       termChip,
       classId: normalizedFilters.classId ?? undefined,
       signal: controller.signal,
+      limit: RANKING_LIMIT,
     })
       .then((response) => {
         if (controller.signal.aborted) return;
@@ -159,7 +161,7 @@ export default function RadarRankingCard() {
   }, [state.data, state.loading, state.error]);
 
   const title = useMemo(() => {
-    return `Top 10 do ${filters.term}º bimestre — ${entityLabel(filters.entity)}`;
+    return `Top ${RANKING_LIMIT} do ${filters.term}º bimestre — ${entityLabel(filters.entity)}`;
   }, [filters.term, filters.entity]);
 
   const subtitle = useMemo(() => {
