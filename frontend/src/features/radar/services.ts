@@ -41,15 +41,16 @@ export async function fetchRankings({
   const normalizedTabLabel = (tabLabel ?? '').trim();
   const normalizedMetricLabel = (metricLabel ?? '').trim();
 
-  let entity: Entity | undefined = entityMap[normalizedTabLabel];
-  let metric: Metric | undefined = metricMap[normalizedMetricLabel];
+  // Resolve labels defensively to avoid undefined params in the request
+  let entity: Entity | undefined = entityMap[normalizedTabLabel as keyof typeof entityMap];
+  let metric: Metric | undefined = metricMap[normalizedMetricLabel as keyof typeof metricMap];
 
   if (!entity) {
     const directEntity = (['student', 'class', 'activity'] as const).find((key) => key === normalizedTabLabel);
     if (directEntity) {
       entity = directEntity;
     } else {
-      if (typeof console !== 'undefined' && console.warn) console.warn('[Radar] Unmapped entity label:', tabLabel);
+      // Fallback to a safe default
       entity = 'student';
     }
   }
@@ -61,13 +62,17 @@ export async function fetchRankings({
     if (directMetric) {
       metric = directMetric;
     } else {
-      if (typeof console !== 'undefined' && console.warn) console.warn('[Radar] Unmapped metric label:', metricLabel);
+      // Fallback to a safe default
       metric = 'term_avg';
     }
   }
   const term: Term = parseTerm(termChip);
 
-  const url = buildRankingsURL(entity as Entity, metric as Metric, term, {
+  // Final safety net to guarantee defined values
+  const safeEntity: Entity = (entity ?? 'student');
+  const safeMetric: Metric = (metric ?? 'term_avg');
+
+  const url = buildRankingsURL(safeEntity, safeMetric, term, {
     classId: normalizeAnalyticsClassId(classId),
     limit,
   });
