@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DashboardCard from '@/components/dashboard/DashboardCard';
 import { fetchRankings, createFiltersKey } from '@/services/analytics';
-import type { RankingsFilters, RankingsResponse, RankingMetric, RankingEntity } from '@/types/analytics';
+import type {
+  RankingsFilters,
+  RankingsResponse,
+  RankingMetric,
+  RankingEntity,
+  RankingTerm,
+} from '@/types/analytics';
 import RankingToolbar, { entityLabel, metricLabel } from './RankingToolbar';
 import RankingList, { RankingSkeleton } from './RankingList';
 import ConfettiBurst from './ConfettiBurst';
@@ -176,7 +182,7 @@ export default function RadarRankingCard() {
 
   const items = state.data?.items ?? [];
 
-  const handleTermChange = useCallback((term: number) => {
+  const handleTermChange = useCallback((term: RankingTerm) => {
     setFilters((prev) => ({ ...prev, term }));
   }, []);
 
