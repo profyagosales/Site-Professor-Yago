@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DashboardCard from '@/components/dashboard/DashboardCard';
-import { fetchRankings, createFiltersKey } from '@/services/analytics';
-import type { RankingsFilters, RankingsResponse, RankingMetric, RankingEntity } from '@/types/analytics';
+import { fetchRankings, createFiltersKey } from '@/features/radar/services';
+import { resolveEntityLabel, resolveMetricLabel } from '@/features/radar/maps';
+import type {
+  RankingsFilters,
+  RankingsResponse,
+  RankingMetric,
+  RankingEntity,
+  RankingTerm,
+} from '@/types/analytics';
 import RankingToolbar, { entityLabel, metricLabel } from './RankingToolbar';
 import RankingList, { RankingSkeleton } from './RankingList';
 import ConfettiBurst from './ConfettiBurst';
@@ -106,10 +113,14 @@ export default function RadarRankingCard() {
       error: null,
     }));
 
+    const tabLabel = resolveEntityLabel(normalizedFilters.entity);
+    const metricLabelName = resolveMetricLabel(normalizedFilters.metric);
+    const termChip = `${normalizedFilters.term}º bimestre`;
+
     fetchRankings({
-      entity: normalizedFilters.entity,
-      metric: normalizedFilters.metric,
-      term: normalizedFilters.term,
+      tabLabel,
+      metricLabel: metricLabelName,
+      termChip,
       classId: normalizedFilters.classId ?? undefined,
       signal: controller.signal,
     })
@@ -176,7 +187,7 @@ export default function RadarRankingCard() {
 
   const items = state.data?.items ?? [];
 
-  const handleTermChange = useCallback((term: number) => {
+  const handleTermChange = useCallback((term: RankingTerm) => {
     setFilters((prev) => ({ ...prev, term }));
   }, []);
 

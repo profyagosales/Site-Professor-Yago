@@ -2,10 +2,12 @@ export type RankingEntity = 'student' | 'class' | 'activity';
 
 export type RankingMetric = 'term_avg' | 'activity_peak' | 'year_avg' | 'term_delta';
 
+export type RankingTerm = 1 | 2 | 3 | 4;
+
 export interface RankingContext {
   entity: RankingEntity;
   metric: RankingMetric;
-  term: number;
+  term: RankingTerm;
   class_id?: string | null;
   base_students?: number | null;
   base_classes?: number | null;
@@ -29,7 +31,7 @@ export interface RankingsResponse {
 }
 
 export interface RankingsFilters {
-  term: number;
+  term: RankingTerm;
   entity: RankingEntity;
   metric: RankingMetric;
   classId?: string | null;

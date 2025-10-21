@@ -1,0 +1,71 @@
+import api from '@/services/api';
+import type {
+  RankingsFilters,
+  RankingsResponse,
+} from '@/types/analytics';
+import { buildRankingsURL, type Entity, type Metric, type Term } from '@/api/rankings';
+import { entityMap, metricMap, parseTerm, type RadarEntityLabel, type RadarMetricLabel } from './maps';
+
+type FetchRankingsArgs = {
+  tabLabel: RadarEntityLabel;
+  metricLabel: RadarMetricLabel;
+  termChip: string;
+  classId?: string;
+  signal?: AbortSignal;
+  limit?: number;
+};
+
+function normalizeClassId(classId?: string): string | undefined {
+  if (!classId) return undefined;
+  const trimmed = classId.trim();
+  if (!trimmed) return undefined;
+  if (/^todas(\s+as\s+turmas)?$/i.test(trimmed)) return undefined;
+  if (/^all$/i.test(trimmed)) return undefined;
+  return trimmed;
+}
+
+function isProduction(): boolean {
+  if (typeof process !== 'undefined' && typeof process.env?.NODE_ENV === 'string') {
+    return process.env.NODE_ENV === 'production';
+  }
+  if (typeof import.meta !== 'undefined' && typeof (import.meta as any)?.env?.MODE === 'string') {
+    return (import.meta as any).env.MODE === 'production';
+  }
+  return false;
+}
+
+export async function fetchRankings({
+  tabLabel,
+  metricLabel,
+  termChip,
+  classId,
+  signal,
+  limit = 10,
+}: FetchRankingsArgs): Promise<RankingsResponse> {
+  const entity: Entity = entityMap[tabLabel];
+  const metric: Metric = metricMap[metricLabel];
+  const term: Term = parseTerm(termChip);
+
+  const url = buildRankingsURL(entity, metric, term, {
+    classId: normalizeClassId(classId),
+    limit,
+  });
+
+  if (!isProduction()) {
+    // eslint-disable-next-line no-console
+    console.log('[Radar] GET', url);
+  }
+
+  const response = await api.get<RankingsResponse>(url, {
+    signal,
+    headers: { Accept: 'application/json' },
+  });
+
+  return response.data;
+}
+
+export function createFiltersKey(filters: RankingsFilters): string {
+  const { entity, metric, term, classId } = filters;
+  return `${entity}|${metric}|${term}|${classId ?? ''}`;
+}
+
