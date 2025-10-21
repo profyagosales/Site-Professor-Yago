@@ -8,8 +8,8 @@ import {
   createFiltersKey as createAnalyticsFiltersKey,
   normalizeClassId as normalizeAnalyticsClassId,
 } from '@/services/analytics';
-import { metricMap, parseTerm, type RadarEntityLabel, type RadarMetricLabel } from './maps';
-import { resolveEntityLabel, entityMap } from "../../../../src/shared/analytics/entities";
+import { metricMap, parseTerm, type RadarEntityLabel, type RadarMetricLabel, entityMap } from './maps';
+import { resolveEntityLabel } from "@/shared/analytics/entities";
 
 type FetchRankingsArgs = {
   tabLabel: RadarEntityLabel;

@@ -12,7 +12,7 @@ import RankingToolbar, { entityLabel, metricLabel } from './RankingToolbar';
 import RankingList, { RankingSkeleton } from './RankingList';
 import ConfettiBurst from './ConfettiBurst';
 import { listMyClasses, type ClassSummary } from '@/services/classes.service';
-import { resolveEntityLabel, entityMap } from "../../../../../src/shared/analytics/entities";
+import { resolveEntityLabel, entityMap } from "@/shared/analytics/entities";
 import { getCurrentUser } from '@/services/auth';
 
 const _FALLBACK_ENTITY_LABEL = { student:"Alunos", class:"Turmas", activity:"Atividades" } as const;

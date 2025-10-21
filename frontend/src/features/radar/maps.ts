@@ -1,11 +1,5 @@
 import type { RankingEntity, RankingMetric } from '@/types/analytics';
-import { resolveEntityLabel, entityMap } from "../../../../src/shared/analytics/entities";
-
-export const entityMap = {
-  Alunos: 'student',
-  Turmas: 'class',
-  Atividades: 'activity',
-} as const;
+import { resolveEntityLabel, ENTITY_BY_LABEL as entityMap } from "@/shared/analytics/entities";
 
 export const metricMap = {
   'Maior média no bimestre': 'term_avg',
