@@ -32,6 +32,8 @@ export type GradeScheme = {
 
 const BIMESTERS: Bimestre[] = [1, 2, 3, 4];
 
+export const GRADE_SCHEME_DEFAULT_STORAGE_KEY = 'divisaoNotas.bimestrePadrao';
+
 type ApiListResponse = {
   success?: boolean;
   data?: unknown;
@@ -92,6 +94,63 @@ export async function fetchGradeScheme({
     });
 
     return result;
+  } catch (err) {
+    throw normalizeError(err);
+  }
+}
+
+export async function fetchGradeSchemeConfig({
+  classId,
+  year,
+}: {
+  classId: string;
+  year: number;
+}): Promise<Bimestre | null> {
+  try {
+    const response = await api.get('/grade-scheme/config', {
+      params: { classId, year },
+      meta: { noCache: true },
+    });
+    const payload: any = response?.data?.data ?? response?.data ?? null;
+    const candidate =
+      payload?.defaultBimester ??
+      payload?.bimestrePadrao ??
+      payload?.bimester ??
+      payload?.bimestre ??
+      payload?.value ??
+      payload?.default ??
+      null;
+    if (candidate === null || candidate === undefined) {
+      return null;
+    }
+    return ensureBimester(candidate);
+  } catch (err) {
+    const error = err as ApiError;
+    const status = error?.response?.status;
+    if (status === 404) {
+      return null;
+    }
+    throw normalizeError(err);
+  }
+}
+
+export async function saveGradeSchemeConfig({
+  classId,
+  year,
+  defaultBimester,
+}: {
+  classId: string;
+  year: number;
+  defaultBimester: Bimestre;
+}): Promise<void> {
+  const payload = {
+    classId,
+    year,
+    defaultBimester,
+    bimestrePadrao: defaultBimester,
+  };
+  try {
+    await api.put('/grade-scheme/config', payload, { meta: { noCache: true } });
   } catch (err) {
     throw normalizeError(err);
   }

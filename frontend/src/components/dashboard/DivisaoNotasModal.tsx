@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import {
   DEFAULT_SCHEME,
+  GRADE_SCHEME_DEFAULT_STORAGE_KEY,
   saveGradeScheme,
   type Bimestre,
   type GradeScheme,
@@ -16,6 +17,9 @@ type Props = {
   isOpen: boolean;
   onClose: () => void;
   onSaved?: () => void;
+  defaultBimester: Bimestre;
+  currentBimester: Bimestre;
+  onSaveDefaultBimester?: (bimester: Bimestre) => Promise<void>;
 };
 
 type EditableItem = GradeSchemeItem & { pointsText: string };
@@ -38,20 +42,33 @@ const TYPES: Array<{ value: string; label: string }> = [
 
 const makeId = () => globalThis.crypto?.randomUUID?.() ?? `id_${Math.random().toString(36).slice(2, 10)}`;
 
-export default function DivisaoNotasModal({ ano, classId, initial, isOpen, onClose, onSaved }: Props) {
+export default function DivisaoNotasModal({
+  ano,
+  classId,
+  initial,
+  isOpen,
+  onClose,
+  onSaved,
+  defaultBimester,
+  currentBimester,
+  onSaveDefaultBimester,
+}: Props) {
   const [active, setActive] = useState<Bimestre>(1);
   const [saving, setSaving] = useState(false);
   const [invalidBimester, setInvalidBimester] = useState<Bimestre | null>(null);
   const [localScheme, setLocalScheme] = useState<EditableScheme>(() =>
     createEditableScheme(initial, classId, ano),
   );
+  const [defaultChoice, setDefaultChoice] = useState<Bimestre>(defaultBimester);
+  const [savingDefault, setSavingDefault] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
-    setActive(1);
+    setActive(currentBimester);
     setInvalidBimester(null);
     setLocalScheme(createEditableScheme(initial, classId, ano));
-  }, [ano, classId, initial, isOpen]);
+    setDefaultChoice(defaultBimester);
+  }, [ano, classId, currentBimester, defaultBimester, initial, isOpen]);
 
   const itens = useMemo(() => localScheme.byBimester[active]?.items ?? [], [localScheme, active]);
 
@@ -186,6 +203,23 @@ export default function DivisaoNotasModal({ ano, classId, initial, isOpen, onClo
 
   if (!isOpen) return null;
 
+  const handleSaveDefaultBimester = async () => {
+    if (!onSaveDefaultBimester) return;
+    try {
+      setSavingDefault(true);
+      await onSaveDefaultBimester(defaultChoice);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(GRADE_SCHEME_DEFAULT_STORAGE_KEY, String(defaultChoice));
+      }
+      toast.success('Bimestre padrão atualizado!');
+    } catch (error: any) {
+      const message = error?.message ?? 'Não foi possível salvar o bimestre padrão.';
+      toast.error(message);
+    } finally {
+      setSavingDefault(false);
+    }
+  };
+
   return (
     <div className="modal-overlay">
       <div className="modal max-h-[90vh]">
@@ -197,6 +231,44 @@ export default function DivisaoNotasModal({ ano, classId, initial, isOpen, onClo
         </header>
 
         <div className="modal-body space-y-5" style={{ maxHeight: '70vh', overflowY: 'auto', paddingRight: '8px' }}>
+          <div className="rounded-2xl border border-slate-200 p-4">
+            <div className="text-sm font-medium text-slate-700">Bimestre padrão no card</div>
+            <p className="mt-1 text-xs text-slate-500">
+              Escolha qual bimestre será exibido por padrão no card da divisão de notas.
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {BIMESTERS.map((bim) => (
+                <label
+                  key={bim}
+                  className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm ${
+                    defaultChoice === bim
+                      ? 'border-orange-300 bg-orange-50 text-orange-700'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="grade-scheme-default"
+                    value={bim}
+                    checked={defaultChoice === bim}
+                    onChange={() => setDefaultChoice(bim)}
+                  />
+                  <span>{bim}º bimestre</span>
+                </label>
+              ))}
+            </div>
+            <div className="mt-3">
+              <button
+                className="btn btn-outline"
+                type="button"
+                onClick={handleSaveDefaultBimester}
+                disabled={!onSaveDefaultBimester || savingDefault}
+              >
+                {savingDefault ? 'Salvando…' : 'Salvar como padrão'}
+              </button>
+            </div>
+          </div>
+
           <div className="flex flex-col gap-2">
             <span className="text-sm text-slate-600">Selecione o bimestre para editar</span>
             <div className="flex flex-wrap gap-2">

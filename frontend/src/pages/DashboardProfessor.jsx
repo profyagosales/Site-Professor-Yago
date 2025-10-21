@@ -13,6 +13,7 @@ import DivisaoNotasModal from '@/components/dashboard/DivisaoNotasModal'
 import AgendaEditorModal from '@/components/dashboard/AgendaEditorModal'
 import { listAgenda } from '@/services/agenda'
 import LogoYS from '@/components/LogoYS'
+import { saveGradeSchemeConfig } from '@/services/gradeScheme'
 
 /*
 // Snippet opcional para habilitar o widget da agenda semanal
@@ -111,6 +112,8 @@ function DashboardProfessor(){
   const [divisaoNotasOpen, setDivisaoNotasOpen] = useState(false)
   const [gradeSchemeDraft, setGradeSchemeDraft] = useState(/** @type {import('@/services/gradeScheme').GradeScheme | null} */(null))
   const [gradeSchemeRefreshKey, setGradeSchemeRefreshKey] = useState(0)
+  const [gradeSchemeDefaultBimester, setGradeSchemeDefaultBimester] = useState(/** @type {import('@/services/gradeScheme').Bimestre} */(1))
+  const [gradeSchemeActiveBimester, setGradeSchemeActiveBimester] = useState(/** @type {import('@/services/gradeScheme').Bimestre} */(1))
   const [agendaEditorOpen, setAgendaEditorOpen] = useState(false)
   const [agendaEditorItems, setAgendaEditorItems] = useState([])
   const [agendaEditorLoading, setAgendaEditorLoading] = useState(false)
@@ -122,8 +125,11 @@ function DashboardProfessor(){
   const teacherId = user?.id ?? ''
   const gradeSchemeYear = new Date().getFullYear()
 
-  const handleOpenGradeScheme = useCallback((scheme) => {
-    setGradeSchemeDraft(scheme)
+  const handleOpenGradeScheme = useCallback((payload) => {
+    if (!payload) return
+    setGradeSchemeDraft(payload.scheme)
+    setGradeSchemeDefaultBimester(payload.defaultBimester)
+    setGradeSchemeActiveBimester(payload.currentBimester)
     setDivisaoNotasOpen(true)
   }, [])
 
@@ -319,6 +325,18 @@ function DashboardProfessor(){
     const first = classSummaries.find((summary) => coalesceId(summary))
     return first ? coalesceId(first) : ''
   }, [classSummaries])
+
+  const handleSaveGradeSchemeDefault = useCallback(
+    async (bimester) => {
+      if (!primaryClassId) {
+        throw new Error('Selecione uma turma para salvar o bimestre padrão.')
+      }
+      await saveGradeSchemeConfig({ classId: primaryClassId, year: gradeSchemeYear, defaultBimester: bimester })
+      setGradeSchemeDefaultBimester(bimester)
+      setGradeSchemeRefreshKey((prev) => prev + 1)
+    },
+    [primaryClassId, gradeSchemeYear],
+  )
 
   const totalClasses = classSummaries.length
 
@@ -541,6 +559,9 @@ function DashboardProfessor(){
         onSaved={() => {
           setGradeSchemeRefreshKey((prev) => prev + 1)
         }}
+        defaultBimester={gradeSchemeDefaultBimester}
+        currentBimester={gradeSchemeActiveBimester}
+        onSaveDefaultBimester={handleSaveGradeSchemeDefault}
       />
       <AgendaEditorModal
         open={agendaEditorOpen}
