@@ -12,8 +12,12 @@ import RankingToolbar, { entityLabel, metricLabel } from './RankingToolbar';
 import RankingList, { RankingSkeleton } from './RankingList';
 import ConfettiBurst from './ConfettiBurst';
 import { listMyClasses, type ClassSummary } from '@/services/classes.service';
-import { resolveEntityLabel, entityMap } from "@/shared/analytics/entities";
+import { resolveEntityLabel, entityMap } from "../../../../../src/shared/analytics/entities";
 import { getCurrentUser } from '@/services/auth';
+
+const _FALLBACK_ENTITY_LABEL = { student:"Alunos", class:"Turmas", activity:"Atividades" } as const;
+const safeResolveEntityLabel = (k: string) =>
+  (typeof resolveEntityLabel === "function" ? resolveEntityLabel(k) : _FALLBACK_ENTITY_LABEL[k as keyof typeof _FALLBACK_ENTITY_LABEL] ?? k);
 
 const CONFETTI_FLAG = String((import.meta as any)?.env?.VITE_FEATURE_RANKING_CONFETTI ?? '1') !== '0';
 const RANKING_LIMIT = 10;
@@ -114,7 +118,7 @@ export default function RadarRankingCard() {
       error: null,
     }));
 
-    const tabLabel = resolveEntityLabel(normalizedFilters.entity);
+    const tabLabel = safeResolveEntityLabel(normalizedFilters.entity);
     const metricLabelName = resolveMetricLabel(normalizedFilters.metric);
     const termChip = `${normalizedFilters.term}º bimestre`;
 

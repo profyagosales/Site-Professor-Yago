@@ -8,7 +8,8 @@ import {
   createFiltersKey as createAnalyticsFiltersKey,
   normalizeClassId as normalizeAnalyticsClassId,
 } from '@/services/analytics';
-import { entityMap, metricMap, parseTerm, type RadarEntityLabel, type RadarMetricLabel } from './maps';
+import { metricMap, parseTerm, type RadarEntityLabel, type RadarMetricLabel } from './maps';
+import { resolveEntityLabel, entityMap } from "../../../../src/shared/analytics/entities";
 
 type FetchRankingsArgs = {
   tabLabel: RadarEntityLabel;
@@ -62,4 +63,3 @@ export async function fetchRankings({
 export function createFiltersKey(filters: RankingsFilters, limit = 10): string {
   return createAnalyticsFiltersKey(filters, limit);
 }
-

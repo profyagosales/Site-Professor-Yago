@@ -1,4 +1,5 @@
 import type { RankingEntity, RankingMetric } from '@/types/analytics';
+import { resolveEntityLabel, entityMap } from "../../../../src/shared/analytics/entities";
 
 export const entityMap = {
   Alunos: 'student',
