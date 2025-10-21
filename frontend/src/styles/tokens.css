@@ -5,6 +5,21 @@
   --ws-row-h:108px;         /* altura das linhas do horário */
   --ws-gap-y:10px;          /* espaçamento vertical entre linhas */
 
+  /* WEEKLY SCHEDULE CARD */
+  --sched-card-radius:24px;
+  --sched-card-pad-x:20px;
+  --sched-card-pad-y:16px;
+  --sched-title-size:clamp(16px, 1.25vw, 20px);
+  --sched-daychip-size:12px;
+  --sched-time-size:13px;
+  --sched-grade-title:clamp(14px, 1.2vw, 16px);
+  --sched-grade-sub:12px;
+  --sched-gap:10px;
+  --sched-row-gap:12px;
+  --sched-chip-gap:6px;
+  --sched-timecol-w:150px;
+  --sched-cell-h:88px;
+
   /* BRAND */
   --c-brand-50:#FFF6EE;
   --c-brand-100:#FFE7D3;
