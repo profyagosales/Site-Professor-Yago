@@ -339,12 +339,14 @@ export default function NewEssayModal({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#111827]">Bimestre</label>
+              <label className="block text-sm font-medium text-[#111827]">
+                Bimestre
+                {type === 'ENEM' && <span className="ml-1 text-xs font-normal text-slate-500">(opcional)</span>}
+              </label>
               <select
                 value={bimester}
                 onChange={(event) => setBimester(event.target.value)}
                 className="w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                disabled={type !== 'PAS'}
               >
                 <option value="">Selecione…</option>
                 <option value="1">1º</option>
@@ -352,6 +354,9 @@ export default function NewEssayModal({
                 <option value="3">3º</option>
                 <option value="4">4º</option>
               </select>
+              {type === 'ENEM' && (
+                <p className="mt-1 text-xs text-slate-500">Defina apenas se precisar organizar os envios por bimestre.</p>
+              )}
             </div>
           </div>
 

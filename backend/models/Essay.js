@@ -28,7 +28,14 @@ const essaySchema = new mongoose.Schema({
   type: { type: String, enum: ['ENEM', 'PAS'], required: true },
   themeId: { type: mongoose.Schema.Types.ObjectId, ref: 'EssayTheme', default: null },
   customTheme: { type: String, default: null },
-  bimester: { type: Number, enum: [1, 2, 3, 4], required: true },
+  bimester: {
+    type: Number,
+    enum: [1, 2, 3, 4],
+    default: null,
+    required() {
+      return this.type === 'PAS';
+    },
+  },
   originalUrl: { type: String, required: true },
   // MimeType original do arquivo (ajuda a decidir viewer inline)
   originalMimeType: { type: String, default: null },
