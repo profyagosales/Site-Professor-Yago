@@ -30,6 +30,11 @@ interface Submission {
   weightOnBimester: number;
   status?: string;
   createdAt?: string;
+  fileUrl?: string | null;
+  originalUrl?: string | null;
+  correctedUrl?: string | null;
+  correctionPdfUrl?: string | null;
+  correctedPdfUrl?: string | null;
 }
 
 function RedacaoPage() {
@@ -301,20 +306,50 @@ function RedacaoPage() {
               s.themeText ||
               themes.find((t) => (t._id || t.id) === s.themeId)?.name ||
               '';
+            const correctedLink =
+              s.correctedUrl ||
+              s.correctedPdfUrl ||
+              s.correctionPdfUrl ||
+              (typeof (s as any)?.correctionPdf === 'string' ? (s as any).correctionPdf : null);
+            const originalLink = s.originalUrl || s.fileUrl || null;
             return (
               <div
                 key={s._id || s.id}
-                className="ys-card flex items-center justify-between p-sm"
+                className="ys-card flex flex-col gap-sm p-sm sm:flex-row sm:items-center sm:justify-between"
               >
-                <div>
+                <div className="space-y-1">
                   <p className="font-semibold">{student?.name || s.studentId}</p>
                   <p className="text-sm text-black/70">{theme}</p>
                 </div>
-                <span
-                  className={`px-2 py-1 rounded text-xs ${statusClass(s.status)}`}
-                >
-                  {s.status || '—'}
-                </span>
+                <div className="flex flex-col items-start gap-2 sm:items-end sm:text-right">
+                  <span
+                    className={`inline-flex px-2 py-1 rounded text-xs ${statusClass(s.status)}`}
+                  >
+                    {s.status || '—'}
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {originalLink && (
+                      <a
+                        href={originalLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ys-btn-ghost text-xs"
+                      >
+                        Ver original
+                      </a>
+                    )}
+                    {correctedLink && (
+                      <a
+                        href={correctedLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ys-btn-primary text-xs"
+                      >
+                        Ver corrigida
+                      </a>
+                    )}
+                  </div>
+                </div>
               </div>
             );
           })}
