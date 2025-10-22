@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { getStudentProfile } from '@/services/student';
-import { listThemes, uploadEssay, listEssays } from '@/services/essays';
+import { listThemes, uploadEssay, listEssays } from '@/services/essays.service';
 import { toast } from 'react-toastify';
 
 function EnviarRedacao() {

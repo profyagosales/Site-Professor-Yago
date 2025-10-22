@@ -485,6 +485,73 @@ export async function updateEssayAnnotations(
   return data?.data ?? data;
 }
 
+/** -------- nova API de anotações + espelho -------- */
+export type EssayAnnotationRectPayload = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+};
+
+export type EssayAnnotationPayload = {
+  id?: string;
+  page: number;
+  rects: EssayAnnotationRectPayload[];
+  color: string;
+  category: string;
+  comment: string;
+  number: number;
+};
+
+export async function getEssayAnnotations(essayId: string) {
+  const res = await api.get(`/essays/${essayId}/annotations`);
+  const payload = res?.data?.data ?? res?.data ?? [];
+  return Array.isArray(payload) ? (payload as EssayAnnotationPayload[]) : [];
+}
+
+export async function saveEssayAnnotations(essayId: string, annotations: EssayAnnotationPayload[]) {
+  const res = await api.post(`/essays/${essayId}/annotations`, { annotations });
+  const payload = res?.data?.data ?? res?.data ?? [];
+  return Array.isArray(payload) ? (payload as EssayAnnotationPayload[]) : [];
+}
+
+export async function deleteEssayAnnotation(essayId: string, annotationId: string) {
+  await api.delete(`/essays/${essayId}/annotations/${annotationId}`);
+}
+
+export type EssayScorePayload = {
+  type: 'PAS' | 'ENEM' | string;
+  annulled: boolean;
+  reasons?: string[];
+  otherReason?: string | null;
+  pas?: {
+    NC?: number | null;
+    NL?: number | null;
+    NE?: number | null;
+    NR?: number | null;
+  };
+  enem?: {
+    levels?: number[];
+    points?: number[];
+    total?: number;
+  };
+};
+
+export async function getEssayScore(id: string) {
+  const res = await api.get(`/essays/${id}/score`);
+  return res?.data?.data ?? res?.data ?? null;
+}
+
+export async function saveEssayScore(id: string, payload: EssayScorePayload) {
+  const res = await api.post(`/essays/${id}/score`, payload);
+  return res?.data?.data ?? res?.data ?? payload;
+}
+
+export async function generateCorrectedPdf(id: string) {
+  const res = await api.post(`/essays/${id}/final-pdf`);
+  return res?.data?.data ?? res?.data ?? null;
+}
+
 /** -------- util compat (ainda usado em alguns pontos do UI) -------- */
 export type EssayTheme = {
   id: string;

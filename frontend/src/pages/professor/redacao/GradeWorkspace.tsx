@@ -16,12 +16,12 @@ import {
   peekEssayFile,
 } from '@/services/essays.service';
 import {
-  getAnnotations as fetchAnnotations,
-  saveAnnotations as persistAnnotations,
+  getEssayAnnotations as fetchAnnotations,
+  saveEssayAnnotations as persistAnnotations,
   getEssayScore,
   saveEssayScore,
   generateCorrectedPdf,
-} from '@/services/essays';
+} from '@/services/essays.service';
 
 type PasState = {
   NC: string;
