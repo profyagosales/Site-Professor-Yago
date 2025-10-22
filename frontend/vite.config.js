@@ -30,7 +30,7 @@ export default defineConfig({
       },
       output: {
         manualChunks: {
-          pdf: ['react-pdf', 'pdfjs-dist', 'react-pdf-highlighter'],
+          pdf: ['react-pdf', 'pdfjs-dist'],
           ReactKonva: ['react-konva', 'konva'],
         },
         // Garante que react/react-dom ficam no vendor separado
@@ -45,7 +45,7 @@ export default defineConfig({
   },
   optimizeDeps: {
     // evita pré-bundle dessas libs no dev, o que costuma “grudar” na entry
-    exclude: ['react-pdf', 'react-pdf-highlighter', 'pdfjs-dist', 'react-konva', 'konva'],
+    exclude: ['react-pdf', 'pdfjs-dist', 'react-konva', 'konva'],
     include: ['react', 'react-dom'],
   },
 });

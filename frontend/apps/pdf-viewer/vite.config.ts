@@ -12,7 +12,7 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['react', 'react-dom'],
-    exclude: ['react-pdf', 'react-pdf-highlighter', 'pdfjs-dist'],
+    exclude: ['react-pdf', 'pdfjs-dist'],
   },
   build: {
     outDir: 'dist',
@@ -20,7 +20,7 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (/(^|\/)react-pdf(\/|$)|pdfjs-dist|react-pdf-highlighter/.test(id)) {
+            if (/(^|\/)react-pdf(\/|$)|pdfjs-dist/.test(id)) {
               return 'pdf';
             }
             if (/(^|\/)(react|react-dom|react-router)(\/|$)|react\/jsx-runtime/.test(id)) {

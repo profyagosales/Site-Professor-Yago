@@ -7,7 +7,6 @@ const ROOT = path.resolve(__dirname, '..', 'src');
 const ALLOW_FILES = new Set([
   path.join('components','redacao','PdfAnnotator.tsx'),
   path.join('components','redacao','PdfAnnotator.lazy.tsx'),
-  path.join('components','redacao','PdfHighlighter.tsx'),
   path.join('lib','pdf.ts'),
 ]);
 
