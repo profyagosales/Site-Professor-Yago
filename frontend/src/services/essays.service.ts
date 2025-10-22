@@ -641,18 +641,27 @@ export async function peekEssayFile(
   options: { token: string; signal?: AbortSignal }
 ): Promise<{ url: string; contentType?: string; contentLength?: number }> {
   const url = buildEssayPdfUrl(essayId, options.token);
-  const res = await api.head(`/essays/${essayId}/file`, {
-    params: { 'file-token': options.token },
-    signal: options.signal,
-    validateStatus: (status) => status >= 200 && status < 400,
-  });
-  const headers = res?.headers || {};
-  const contentType = headers['content-type'];
-  const lengthValue = headers['content-length'];
-  const parsedLength = typeof lengthValue === 'string' ? Number(lengthValue) : undefined;
-  return {
-    url,
-    contentType,
-    contentLength: parsedLength && !Number.isNaN(parsedLength) ? parsedLength : undefined,
-  };
+  try {
+    const res = await api.head(`/essays/${essayId}/file`, {
+      params: { 'file-token': options.token },
+      signal: options.signal,
+      validateStatus: (status) => status >= 200 && status < 400,
+      meta: { suppressErrorToast: true },
+    });
+    const headers = res?.headers || {};
+    const contentType = headers['content-type'];
+    const lengthValue = headers['content-length'];
+    const parsedLength = typeof lengthValue === 'string' ? Number(lengthValue) : undefined;
+    return {
+      url,
+      contentType,
+      contentLength: parsedLength && !Number.isNaN(parsedLength) ? parsedLength : undefined,
+    };
+  } catch (err: any) {
+    const status = err?.response?.status;
+    if (status && status >= 400 && status < 500 && status !== 401) {
+      return { url };
+    }
+    throw err;
+  }
 }

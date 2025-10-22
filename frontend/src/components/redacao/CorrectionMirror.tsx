@@ -58,7 +58,7 @@ export function CorrectionMirror({
   const formattedPreviewScore = type === 'PAS' ? formattedPasResult : previewScore.toString();
 
   return (
-    <section className="mt-6 rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-slate-50 p-6 shadow-sm">
+    <section className="mt-6 rounded-xl border border-slate-200 bg-gradient-to-br from-white via-white to-slate-50 p-4 shadow-sm lg:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">Espelho de correção</h2>
@@ -79,8 +79,8 @@ export function CorrectionMirror({
         </div>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <div className="space-y-6">
+      <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <div className="space-y-4">
           <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4 shadow-sm">
             <h3 className="text-sm font-semibold text-slate-800">Anulação da redação</h3>
             <p className="mt-1 text-xs text-slate-500">

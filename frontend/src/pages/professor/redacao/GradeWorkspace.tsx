@@ -490,8 +490,8 @@ export default function GradeWorkspace() {
     .join('') || 'A';
 
   return (
-    <div className="mx-auto flex h-full max-w-7xl flex-col gap-6 p-4 lg:p-6">
-      <header className="flex flex-col gap-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+    <div className="container mx-auto flex h-full max-w-[1200px] flex-col gap-4 px-3 py-4 sm:px-4 lg:px-5">
+      <header className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between lg:p-5">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
             <div className="relative h-16 w-16 overflow-hidden rounded-full border-2 border-orange-400 bg-orange-50 text-lg font-semibold text-orange-600 shadow-sm sm:h-20 sm:w-20">
@@ -547,57 +547,58 @@ export default function GradeWorkspace() {
         </div>
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
-        <section className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-            <div className="lg:sticky lg:top-24 lg:w-52">
-              <div className="lg:hidden">
-                <AnnotationToolbar active={activeCategory} onChange={setActiveCategory} orientation="horizontal" />
-              </div>
-              <div className="hidden lg:flex">
-                <AnnotationToolbar
-                  active={activeCategory}
-                  onChange={setActiveCategory}
-                  orientation="vertical"
-                  className="sticky top-24"
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:p-5">
+        <div
+          className="grid grid-cols-1 gap-3 md:grid-cols-[200px_minmax(0,1fr)_280px] md:gap-4"
+          aria-label="Workspace de correção"
+        >
+          <aside className="order-1 md:order-none md:w-[200px] md:shrink-0">
+            <div className="mb-3 md:hidden">
+              <AnnotationToolbar active={activeCategory} onChange={setActiveCategory} orientation="horizontal" />
+            </div>
+            <div className="hidden md:block md:sticky md:top-24 md:space-y-2">
+              <AnnotationToolbar
+                active={activeCategory}
+                onChange={setActiveCategory}
+                orientation="vertical"
+              />
+            </div>
+          </aside>
+          <main className="order-2 min-w-0 md:order-none">
+            {pdfError && (
+              <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                {pdfError}
+              </p>
+            )}
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 shadow-inner">
+              <div className="h-[78vh] min-h-[560px] w-full overflow-auto rounded-xl border border-slate-200 bg-white">
+                <PdfCorrectionViewer
+                  fileUrl={pdfUrl}
+                  annotations={orderedAnnotations}
+                  selectedId={selectedAnnotationId}
+                  activeCategory={activeCategory}
+                  onCreateAnnotation={handleCreateAnnotation}
+                  onMoveAnnotation={handleMoveAnnotation}
+                  onSelectAnnotation={setSelectedAnnotationId}
                 />
               </div>
             </div>
-            <div className="flex-1">
-              {pdfError && (
-                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                  {pdfError}
-                </p>
-              )}
-              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-inner">
-                <div className="max-h-[82vh] min-h-[620px] overflow-y-auto rounded-xl border border-slate-200 bg-white p-3">
-                  <PdfCorrectionViewer
-                    fileUrl={pdfUrl}
-                    annotations={orderedAnnotations}
-                    selectedId={selectedAnnotationId}
-                    activeCategory={activeCategory}
-                    onCreateAnnotation={handleCreateAnnotation}
-                    onMoveAnnotation={handleMoveAnnotation}
-                    onSelectAnnotation={setSelectedAnnotationId}
-                  />
-                </div>
-              </div>
+          </main>
+          <aside className="order-3 hidden w-[280px] max-w-[280px] shrink-0 md:flex">
+            <div className="h-[78vh] min-h-[560px] w-full overflow-auto rounded-xl border border-slate-200 bg-white p-3">
+              <AnnotationSidebar
+                annotations={orderedAnnotations}
+                selectedId={selectedAnnotationId}
+                onSelect={setSelectedAnnotationId}
+                onDelete={handleDeleteAnnotation}
+                onCommentChange={handleCommentChange}
+                focusId={focusAnnotationId}
+                liveMessage={liveMessage}
+              />
             </div>
-          </div>
-        </section>
-
-        <section className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <AnnotationSidebar
-            annotations={orderedAnnotations}
-            selectedId={selectedAnnotationId}
-            onSelect={setSelectedAnnotationId}
-            onDelete={handleDeleteAnnotation}
-            onCommentChange={handleCommentChange}
-            focusId={focusAnnotationId}
-            liveMessage={liveMessage}
-          />
-        </section>
-      </div>
+          </aside>
+        </div>
+      </section>
 
       <CorrectionMirror
         type={essayType}

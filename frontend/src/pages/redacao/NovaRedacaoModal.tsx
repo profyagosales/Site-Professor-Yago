@@ -19,6 +19,7 @@ export default function NovaRedacaoModal({ isOpen, onClose, onCreated }: Props) 
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
   const [theme, setTheme] = useState<{ id?: string; name: string }>({ name: '' });
   const [type, setType] = useState<'ENEM' | 'PAS'>('ENEM');
+  const [bimester, setBimester] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,6 +31,7 @@ export default function NovaRedacaoModal({ isOpen, onClose, onCreated }: Props) 
       setSelectedStudent(null);
       setTheme({ name: '' });
       setType('ENEM');
+      setBimester('');
       setFile(null);
       setError(null);
       setTimeout(() => firstFieldRef.current?.focus(), 0);
@@ -73,6 +75,10 @@ export default function NovaRedacaoModal({ isOpen, onClose, onCreated }: Props) 
       setError('Selecione o tema');
       return;
     }
+    if (!bimester) {
+      setError('Selecione o bimestre');
+      return;
+    }
     setError(null);
     try {
       setLoading(true);
@@ -83,6 +89,7 @@ export default function NovaRedacaoModal({ isOpen, onClose, onCreated }: Props) 
         fd.append('classId', selectedStudent.class || selectedStudent.classId);
       }
       fd.append('type', type);
+      fd.append('bimester', bimester);
       if (theme?.id) fd.append('themeId', theme.id);
       else fd.append('customTheme', theme.name);
       fd.append('file', file);
@@ -141,21 +148,42 @@ export default function NovaRedacaoModal({ isOpen, onClose, onCreated }: Props) 
               )}
             </div>
           </div>
+
           <div>
             <label className="block text-sm font-medium text-[#111827]">Tema</label>
             <ThemeCombo allowCreate value={theme} onChange={setTheme} />
           </div>
+
           <div>
             <label className="block text-sm font-medium text-[#111827]">Tipo</label>
             <select
               value={type}
-              onChange={(e) => setType(e.target.value as 'ENEM' | 'PAS')}
+              onChange={(e) => {
+                setType(e.target.value as 'ENEM' | 'PAS');
+                setBimester('');
+              }}
               className="w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
             >
               <option value="ENEM">ENEM</option>
               <option value="PAS">PAS</option>
             </select>
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[#111827]">Bimestre</label>
+            <select
+              value={bimester}
+              onChange={(e) => setBimester(e.target.value)}
+              className="w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+            >
+              <option value="">Selecione</option>
+              <option value="1">1º Bimestre</option>
+              <option value="2">2º Bimestre</option>
+              <option value="3">3º Bimestre</option>
+              <option value="4">4º Bimestre</option>
+            </select>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-[#111827]">Upload PDF</label>
             <input
@@ -179,4 +207,3 @@ export default function NovaRedacaoModal({ isOpen, onClose, onCreated }: Props) 
     </Modal>
   );
 }
-
