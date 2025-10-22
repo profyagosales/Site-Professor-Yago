@@ -274,8 +274,6 @@ async function generateCorrectedEssayPdf({
   }
 
   const pdfDoc = await PDFDocument.create();
-  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
   const declaredMime = essay?.originalMimeType || null;
   const inferredMime = detectImageMimeFromBytes(originalBytes);
@@ -284,11 +282,18 @@ async function generateCorrectedEssayPdf({
   let originalPdf = null;
   let embeddedImage = null;
   let pagesCount = 0;
+  let embeddedPages = [];
 
   if (!treatAsImage) {
     try {
       originalPdf = await PDFDocument.load(originalBytes);
       pagesCount = originalPdf.getPageCount();
+      if (pagesCount > 0) {
+        embeddedPages = await pdfDoc.copyPages(
+          originalPdf,
+          Array.from({ length: pagesCount }, (_value, idx) => idx),
+        );
+      }
     } catch (err) {
       console.warn('[pdf] Failed to load original as PDF, falling back to image mode', err?.message || err);
       treatAsImage = true;
@@ -313,6 +318,9 @@ async function generateCorrectedEssayPdf({
   const commentColumnWidth = 220;
   const margin = 24;
 
+  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
   const logoImage = null;
   const studentPhotoUrl = student?.photo || student?.photoUrl || null;
   const studentPhotoImage = await embedRemoteImage(pdfDoc, studentPhotoUrl);
@@ -329,7 +337,6 @@ async function generateCorrectedEssayPdf({
   });
 
   for (let index = 0; index < pagesCount; index += 1) {
-    let origPage = null;
     let origWidth = 0;
     let origHeight = 0;
 
@@ -337,8 +344,10 @@ async function generateCorrectedEssayPdf({
       origWidth = embeddedImage.width;
       origHeight = embeddedImage.height;
     } else {
-      const copied = await pdfDoc.copyPages(originalPdf, [index]);
-      origPage = copied[0];
+      const origPage = embeddedPages[index];
+      if (!origPage) {
+        throw new Error(`Falha ao copiar página ${index + 1} do PDF original.`);
+      }
       origWidth = origPage.getWidth();
       origHeight = origPage.getHeight();
     }
@@ -351,6 +360,7 @@ async function generateCorrectedEssayPdf({
     if (treatAsImage) {
       currentPage.drawImage(embeddedImage, { x: 0, y: 0, width: origWidth, height: origHeight });
     } else {
+      const origPage = embeddedPages[index];
       currentPage.drawPage(origPage, { x: 0, y: 0, width: origWidth, height: origHeight });
     }
 
