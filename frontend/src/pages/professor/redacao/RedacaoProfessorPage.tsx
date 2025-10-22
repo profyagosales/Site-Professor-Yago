@@ -64,7 +64,7 @@ export default function RedacaoProfessorPage() {
   return (
     <Page title="Redação" subtitle="Gerencie as redações dos alunos">
       {/* Ações topo direito */}
-      <div className="mb-2 flex items-center justify-end gap-2">
+      <div className="mx-auto mb-2 flex w-full max-w-[1200px] items-center justify-end gap-2 px-3 sm:px-4 lg:px-5">
         <Button variant="ghost" onClick={() => setThemesOpen(true)}>
           Temas
         </Button>
@@ -73,10 +73,12 @@ export default function RedacaoProfessorPage() {
         </Button>
       </div>
       {/* Abas */}
-      <Tabs items={statusTabs} className="mb-4" />
+      <div className="mx-auto w-full max-w-[1200px] px-3 sm:px-4 lg:px-5">
+        <Tabs items={statusTabs} className="mb-4" />
+      </div>
 
       {/* Filtros */}
-      <div className="mb-4 grid gap-3 md:grid-cols-5">
+      <div className="mx-auto mb-4 grid w-full max-w-[1200px] gap-3 px-3 sm:px-4 lg:px-5 md:grid-cols-5">
         <input
           value={q}
           onChange={(e) => { setQ(e.target.value); setPage(1); }}
@@ -118,7 +120,7 @@ export default function RedacaoProfessorPage() {
       </div>
 
       {/* Tabela */}
-      <div className="overflow-hidden rounded-xl border border-[#E5E7EB] bg-white shadow-ys-md">
+      <div className="mx-auto w-full max-w-[1200px] overflow-hidden rounded-xl border border-[#E5E7EB] bg-white shadow-ys-md px-3 sm:px-4 lg:px-5">
         <table className="w-full text-sm text-[#111827]">
           <thead className="bg-[#F3F4F6] text-left text-[#374151]">
             <tr>
@@ -133,8 +135,7 @@ export default function RedacaoProfessorPage() {
               ) : (
                 <>
                   <th className="px-4 py-3 font-semibold">Nota</th>
-                  <th className="px-4 py-3 font-semibold">Comentários</th>
-                  <th className="px-4 py-3 font-semibold">Arquivo</th>
+                  <th className="px-4 py-3 font-semibold">Visualizar</th>
                 </>
               )}
               <th className="px-4 py-3 font-semibold">Ações</th>
@@ -154,6 +155,27 @@ export default function RedacaoProfessorPage() {
                 console.warn('Redação sem identificador válido para correção.', e);
               }
               const correctionUrl = essayId ? `/professor/redacao/${essayId}` : null;
+              const correctedCandidates = [
+                (e as any)?.correctedUrl,
+                (e as any)?.correctedPdfUrl,
+                (e as any)?.correctionPdfUrl,
+                (e as any)?.finalPdfUrl,
+                (e as any)?.raw?.correctedUrl,
+              ];
+              const correctedPdfUrl = (correctedCandidates.find((url) => typeof url === 'string' && url.trim()) as string | undefined)?.trim();
+              const openCorrectedPdf = async () => {
+                if (!essayId) return;
+                if (correctedPdfUrl) {
+                  window.open(correctedPdfUrl, '_blank', 'noopener');
+                  return;
+                }
+                try {
+                  const url = await fetchEssayPdfUrl(essayId);
+                  window.open(url, '_blank', 'noopener');
+                } catch (err) {
+                  toast.error('Não foi possível abrir o PDF corrigido.');
+                }
+              };
               return (
               <tr key={essayId ?? `${e.studentName}-${e.submittedAt}`} className="odd:bg-[#F9FAFB]">
                 <td className="px-4 py-3">{e.studentName}</td>
@@ -185,24 +207,15 @@ export default function RedacaoProfessorPage() {
                 ) : (
                   <>
                     <td className="px-4 py-3">{(e as any).score ?? '-'}</td>
-                    <td className="px-4 py-3">{(e as any).comments ?? '-'}</td>
                     <td className="px-4 py-3">
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={async () => {
-                          if (!essayId) return;
-                          try {
-                            const url = await fetchEssayPdfUrl(essayId);
-                            window.open(url, '_blank', 'noopener');
-                          } catch (err) {
-                            toast.error('Não foi possível abrir o PDF.');
-                          }
-                        }}
+                        onClick={openCorrectedPdf}
                         disabled={!essayId}
                       >
-                        Ver PDF
+                        Visualizar
                       </Button>
                     </td>
                   </>
@@ -223,22 +236,16 @@ export default function RedacaoProfessorPage() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={async () => {
-                          if (!essayId) return;
-                          try {
-                            const url = await fetchEssayPdfUrl(essayId);
-                            window.open(url, '_blank', 'noopener');
-                          } catch (err) {
-                            toast.error('Não foi possível abrir o PDF.');
-                          }
-                        }}
+                        onClick={openCorrectedPdf}
                         disabled={!essayId}
                       >
-                        Ver PDF
+                        Visualizar
                       </Button>
                     )}
                     {status === 'corrected' && (
                       <Button
+                        type="button"
+                        variant="ghost"
                         size="sm"
                         onClick={async () => {
                           if (!essayId) {
@@ -247,9 +254,9 @@ export default function RedacaoProfessorPage() {
                           }
                           try {
                             await reenviarPdf(essayId);
-                            toast.success('PDF reenviado');
-                          } catch (err:any) {
-                            toast.error(err?.response?.data?.message || 'Falha ao reenviar');
+                            toast.success('PDF corrigido reenviado.');
+                          } catch (err: any) {
+                            toast.error(err?.response?.data?.message || 'Falha ao reenviar PDF.');
                           }
                         }}
                         disabled={!essayId}
@@ -257,26 +264,38 @@ export default function RedacaoProfessorPage() {
                         Reenviar PDF
                       </Button>
                     )}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={async () => {
-                        if (!essayId) return;
-                        try {
-                          setEditLoadingId(essayId);
-                          const data = await fetchEssayById(essayId);
-                          setModalConfig({ mode: 'edit', essayId, data });
-                        } catch (err:any) {
-                          toast.error(err?.response?.data?.message || 'Erro ao carregar redação.');
-                        } finally {
-                          setEditLoadingId(null);
-                        }
-                      }}
-                      disabled={!essayId || editLoadingId === essayId || deletingId === essayId}
-                    >
-                      {editLoadingId === essayId ? 'Abrindo…' : 'Editar'}
-                    </Button>
+                    {status === 'corrected' && (
+                      <Button
+                        size="sm"
+                        onClick={() => correctionUrl && navigate(correctionUrl)}
+                        disabled={!correctionUrl}
+                        title={correctionUrl ? undefined : 'Identificador ausente'}
+                      >
+                        Recorrigir
+                      </Button>
+                    )}
+                    {status === 'pending' && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={async () => {
+                          if (!essayId) return;
+                          try {
+                            setEditLoadingId(essayId);
+                            const data = await fetchEssayById(essayId);
+                            setModalConfig({ mode: 'edit', essayId, data });
+                          } catch (err:any) {
+                            toast.error(err?.response?.data?.message || 'Erro ao carregar redação.');
+                          } finally {
+                            setEditLoadingId(null);
+                          }
+                        }}
+                        disabled={!essayId || editLoadingId === essayId || deletingId === essayId}
+                      >
+                        {editLoadingId === essayId ? 'Abrindo…' : 'Editar'}
+                      </Button>
+                    )}
                     <Button
                       type="button"
                       variant="ghost"
