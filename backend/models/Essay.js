@@ -48,6 +48,14 @@ const essaySchema = new mongoose.Schema({
     ],
     default: null
   },
+  annulReasons: {
+    type: [String],
+    default: []
+  },
+  annulOtherReason: {
+    type: String,
+    default: null
+  },
   rawScore: { type: Number, default: null },
   scaledScore: { type: Number, default: null },
   bimestreWeight: { type: Number, default: null },

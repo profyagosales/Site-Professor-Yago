@@ -1,6 +1,7 @@
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
+import AgendaReadOnlyCard from '@/components/dashboard/AgendaReadOnlyCard';
 import Modal from '@/components/ui/Modal';
 import { Tabs, type TabItem } from '@/components/ui/Tabs';
 import {
@@ -1606,14 +1607,7 @@ export default function ClassDetailPage() {
             <p className="text-sm text-slate-500">Ano letivo: {detail.year}</p>
           )}
         </div>
-        <div className="flex flex-wrap gap-3">
-          <Button onClick={handleOpenEmailModal}>
-            Enviar e-mail para a turma
-          </Button>
-          {activeTab === 'students' && (
-            <Button onClick={handleAddClick}>Adicionar aluno</Button>
-          )}
-        </div>
+        <div className="flex flex-wrap gap-3" />
       </div>
 
       <div className="border-b border-slate-200 pb-3">
@@ -1635,7 +1629,7 @@ export default function ClassDetailPage() {
 
       {activeTab === 'overview' && (
         <>
-          <section className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <section className="grid gap-4 grid-cols-1 md:grid-cols-2">
             <div className="grid gap-4">
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -1691,158 +1685,15 @@ export default function ClassDetailPage() {
                 )}
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="flex flex-col gap-4">
-                  <div>
-                    <h2 className="text-lg font-semibold text-slate-800">Calendário da turma</h2>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className={calendarView === 'week' ? 'border border-ys-amber bg-ys-amber/20 text-ys-ink' : ''}
-                        aria-pressed={calendarView === 'week'}
-                        onClick={() => setCalendarView('week')}
-                      >
-                        Semana
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className={calendarView === 'month' ? 'border border-ys-amber bg-ys-amber/20 text-ys-ink' : ''}
-                        aria-pressed={calendarView === 'month'}
-                        onClick={() => setCalendarView('month')}
-                      >
-                        Mês
-                      </Button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button onClick={handleOpenActivityModal}>Nova atividade</Button>
-                      <Button onClick={handleOpenMilestoneModal}>Nova data importante</Button>
-                    </div>
-                  </div>
-                </div>
-
-                {calendarLoading ? (
-                  <p className="mt-6 text-sm text-slate-500">Carregando calendário…</p>
-                ) : calendarError ? (
-                  <div className="mt-6 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600">
-                    {calendarError}
-                  </div>
-                ) : calendarGroups.length === 0 ? (
-                  <p className="mt-6 text-sm text-slate-500">Nenhum evento para o período selecionado.</p>
-                ) : (
-                  <ul className="mt-6 space-y-3 text-sm text-slate-800">
-                    {calendarGroups.map((group) => (
-                      <li key={group.dateISO} className="rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">{group.label}</p>
-                        <ul className="mt-2 space-y-2">
-                          {group.items.map((item) => {
-                            const badge = CALENDAR_ITEM_BADGES[item.type];
-                            const label = item.title?.trim() || badge.label;
-                            const createdLabel = formatDateTimeLabel(item.createdAt);
-                            return (
-                              <li
-                                key={`${group.dateISO}-${item.id}`}
-                                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm"
-                              >
-                                <div>
-                                  <p className="font-medium text-slate-800">{label}</p>
-                                  <div className="mt-1 flex flex-wrap items-center gap-2">
-                                    <span
-                                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${badge.className}`}
-                                    >
-                                      {badge.label}
-                                    </span>
-                                    {createdLabel && (
-                                      <span className="text-xs text-slate-500">Registrado em {createdLabel}</span>
-                                    )}
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  className="text-xs font-semibold text-rose-600 hover:underline"
-                                  onClick={() => handleCalendarItemRemove(item)}
-                                >
-                                  Remover
-                                </button>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+              <div>
+                {id ? <AgendaReadOnlyCard classId={id} /> : null}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-800">Avisos internos</h2>
-                </div>
-                <Button onClick={handleNotifyClass}>
-                  Registrar aviso
-                </Button>
-              </div>
-              <ul className="mt-6 space-y-3 text-sm text-slate-800">
-                {detail.notices.length === 0 && (
-                  <li className="text-xs text-slate-500">Nenhum aviso cadastrado.</li>
-                )}
-                {detail.notices.map((notice) => {
-                  const createdLabel = formatDateTimeLabel(notice.createdAt);
-                  return (
-                    <li key={notice.id} className="flex items-start justify-between gap-3">
-                      <div className="space-y-1">
-                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">{notice.message}</p>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {(() => {
-                            const badge = NOTICE_AUDIENCE_BADGES[notice.audience];
-                            return (
-                              <span
-                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${badge.className}`}
-                              >
-                                {badge.label}
-                              </span>
-                            );
-                          })()}
-                          {createdLabel && <p className="text-xs text-slate-500">Registrado em {createdLabel}</p>}
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        className="text-xs font-semibold text-rose-600 hover:underline"
-                        onClick={() => handleRemoveNotice(notice)}
-                      >
-                        Remover
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
+            
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-            <h2 className="text-lg font-semibold text-slate-800">Professores</h2>
-            {detail.teachers.length === 0 ? (
-              <p className="text-sm text-slate-500">Nenhum professor vinculado.</p>
-            ) : (
-              <ul className="space-y-3 text-sm text-slate-800">
-                {detail.teachers.map((teacher) => (
-                  <li key={teacher.id} className="flex flex-col">
-                    <span className="font-medium">{teacher.name}</span>
-                    <span className="text-slate-500">{teacher.email}</span>
-                    {teacher.subjects.length > 0 && (
-                      <span className="text-xs text-slate-500">{teacher.subjects.join(', ')}</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          
         </>
       )}
       {activeTab === 'students' && (

@@ -59,10 +59,11 @@ export function ClassCard({
     <button
       type="button"
       onClick={onClick}
-      className="class-card group relative flex w-full max-w-[360px] flex-col overflow-hidden rounded-3xl shadow-md transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+      aria-label={`Turma ${name} — ${seriesLabel ?? ''} — ${studentsCount} alunos`}
+      className="class-card group relative flex w-full flex-col overflow-hidden rounded-lg shadow-sm p-4 min-h-[120px] transition transform hover:shadow-md hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
       style={cardStyle}
     >
-      <div className="relative flex flex-1 flex-col gap-5 p-6 text-left">
+      <div className="relative flex flex-1 flex-col gap-4 text-left" style={{ background: 'var(--class-card-bg)', color: 'var(--class-card-text)' }}>
         <header className="flex items-start justify-between gap-4">
           <div className="space-y-1.5">
             <span className={`inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] ${badgeMutedClass}`}>

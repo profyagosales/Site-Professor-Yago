@@ -20,7 +20,8 @@ export type RankingFilters = {
   limit?: number; // default 10
 };
 
-const API = "https://api.professoryagosales.com.br/api/analytics/rankings";
+// TODO(remove/radar-ranking): endpoint de rankings não é mais utilizado pelo frontend
+// const API = "https://api.professoryagosales.com.br/api/analytics/rankings";
 
 export function normalizeFilters(f: RankingFilters) {
   return {
@@ -46,4 +47,3 @@ export async function fetchRankings(raw: RankingFilters): Promise<RankingItem[]>
   // Esperado do backend: [{id,name,value,avatarUrl?,classLabel?}, ...]
   return Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
 }
-

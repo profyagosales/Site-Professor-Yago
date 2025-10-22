@@ -73,18 +73,18 @@ export default function TurmasPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 py-12">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 md:px-10">
+      <div className="max-w-[1200px] mx-auto px-4 flex w-full flex-col gap-8">
         <div className="space-y-2 text-center md:text-left">
           <h1 className="text-3xl font-semibold text-slate-900">Turmas</h1>
           <p className="text-sm text-slate-500">Selecione uma turma para gerenciar alunos, agenda e avaliações.</p>
         </div>
 
         {loading && (
-          <div className="classes-grid" aria-hidden="true">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" aria-hidden="true">
             {Array.from({ length: 6 }).map((_, index) => (
               <div
                 key={`skeleton-${index}`}
-                className="h-64 w-full max-w-[360px] animate-pulse rounded-3xl bg-white/70 shadow-sm"
+                className="min-h-[120px] w-full animate-pulse rounded-lg bg-white/70 shadow-sm"
               />
             ))}
           </div>
@@ -101,7 +101,7 @@ export default function TurmasPage() {
         )}
 
         {!loading && !error && sortedItems.length > 0 && (
-          <div className="classes-grid">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {sortedItems.map((item) => (
               <ClassCard
                 key={item.id}

@@ -22,8 +22,14 @@ const {
   updateAnnotations,
   renderCorrection,
   sendCorrectionEmail,
+  listEssayAnnotations,
+  saveEssayAnnotationsBatch,
+  deleteEssayAnnotation,
+  getEssayScore,
+  saveEssayScore,
   getAnnotationsCompat,
   putAnnotationsCompat,
+  generateFinalPdf,
 } = require('../controllers/essaysController');
 
 const fileController = require('../controllers/fileController');
@@ -95,14 +101,22 @@ router.put('/:id', authRequired, ensureTeacher, upload.single('file'), updateEss
 router.patch('/:id/grade', authRequired, ensureTeacher, upload.single('correctedFile'), gradeEssay);
 
 /** --------- Anotações (somente usuário logado) --------- */
+router.get('/:id/annotations', authRequired, ensureTeacher, listEssayAnnotations);
+router.post('/:id/annotations', authRequired, ensureTeacher, saveEssayAnnotationsBatch);
+router.delete('/:id/annotations/:annotationId', authRequired, ensureTeacher, deleteEssayAnnotation);
 // Compat: estrutura { highlights:[], comments:[] }
-router.get('/:id/annotations', authRequired, ensureTeacher, getAnnotationsCompat);
+router.get('/:id/annotations/compat', authRequired, ensureTeacher, getAnnotationsCompat);
 router.put('/:id/annotations', authRequired, ensureTeacher, putAnnotationsCompat);
 router.patch('/:id/annotations', authRequired, ensureTeacher, updateAnnotations);
+
+/** --------- Espelho/nota --------- */
+router.get('/:id/score', authRequired, ensureTeacher, getEssayScore);
+router.post('/:id/score', authRequired, ensureTeacher, saveEssayScore);
 
 /** --------- Render / e-mail --------- */
 router.post('/:id/render-correction', authRequired, ensureTeacher, renderCorrection);
 router.post('/:id/send-email', authRequired, ensureTeacher, sendCorrectionEmail);
+router.post('/:id/final-pdf', authRequired, ensureTeacher, generateFinalPdf);
 
 /** --------- File-token curto --------- */
 // POST legacy (mantido) + GET (usado por loaders que não aceitam POST)

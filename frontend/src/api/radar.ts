@@ -22,7 +22,8 @@ export function buildRankingURL(
   term: RankingTerm,
   classId?: string | null,
 ): string {
-  const url = new URL('/api/analytics/rankings', API_BASE);
+  // TODO(remove/radar-ranking): rota de rankings descontinuada; manter comentário até remoção backend
+  // const url = new URL('/api/analytics/rankings', API_BASE);
   const params = new URLSearchParams();
 
   params.set('entity', entity);

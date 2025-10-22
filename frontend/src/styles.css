@@ -557,9 +557,6 @@ html, body, #root { height: 100%; background: var(--c-bg); }
   grid-column: 1 / -1;
 }
 
-.dash-grid .radar {
-  grid-column: 1 / -1;
-}
 
 @media (max-width: 1280px) {
   .dash-grid {
@@ -577,8 +574,7 @@ html, body, #root { height: 100%; background: var(--c-bg); }
   .dash-grid .agenda-panel,
   .dash-grid .notices,
   .dash-grid .atividades-panel,
-  .dash-grid .charts,
-  .dash-grid .radar {
+  .dash-grid .charts {
     grid-column: 1;
     grid-row: auto;
   }

@@ -11,6 +11,8 @@ const Class = require('../models/Class');
 const Student = require('../models/Student');
 const Teacher = require('../models/Teacher');
 const PDFDocument = require('pdfkit');
+const GradeActivity = require('../models/GradeActivity');
+const StudentActivityGrade = require('../models/StudentActivityGrade');
 const { sendEmail } = require('../services/emailService');
 const classesController = require('../controllers/classesController');
 const studentGradesController = require('../controllers/studentGradesController');
@@ -537,7 +539,9 @@ function createClassGradesPdf({ classInfo, students, year, terms, includeTotal }
       doc.restore();
 
       doc.font('Helvetica-Bold').fontSize(10);
-      const align = col.key === 'name' ? 'left' : 'center';
+      const isTerm = typeof col.key === 'string' && col.key.startsWith('term-');
+      const isSum = col.key === 'sum';
+      const align = col.key === 'name' ? 'left' : isTerm || isSum ? 'right' : 'center';
       const offsetX = col.key === 'name' ? x + 6 : x;
       const width = col.key === 'name' ? col.width - 6 : col.width;
       doc.fillColor('#0f172a').text(col.label, offsetX, y + 7, {
@@ -645,7 +649,7 @@ function createClassGradesPdf({ classInfo, students, year, terms, includeTotal }
 
       doc.text(scoreText, x, currentY + 18, {
         width: colWidth,
-        align: 'center',
+        align: 'right',
       });
 
       if (grade && grade.status && grade.status !== 'FREQUENTE') {
@@ -666,9 +670,133 @@ function createClassGradesPdf({ classInfo, students, year, terms, includeTotal }
       const sumText = hasScores ? formatScore(total) || '—' : '—';
       doc.text(sumText, x, currentY + 18, {
         width: sumColumn.width,
-        align: 'center',
+        align: 'right',
       });
     }
+
+    currentY += rowHeight;
+  });
+
+  return doc;
+}
+
+function createActivitiesPdf({ classInfo, studentsBase, year, term, activities, gradesByStudent }) {
+  const doc = new PDFDocument({ size: 'A4', margin: 40 });
+
+  const classLabel = formatClassDisplayName(classInfo);
+  const termLabel = `${term}º bimestre`;
+
+  doc.font('Helvetica-Bold').fontSize(16).text('Notas por atividade', { align: 'center' });
+  doc.moveDown(0.25);
+  doc.font('Helvetica').fontSize(12).text(classLabel, { align: 'center' });
+  doc.moveDown(0.25);
+  doc.fontSize(10).fillColor('#475569').text(`Ano: ${year} • Bimestre: ${termLabel}`, { align: 'center' });
+  doc.moveDown(1);
+  doc.fillColor('black');
+
+  const startX = doc.page.margins.left;
+  const headerY = doc.y;
+  const headerHeight = 24;
+  const rowHeight = 56;
+
+  const baseColumns = [
+    { key: 'photo', label: 'Foto', width: 48 },
+    { key: 'roll', label: 'Nº', width: 36 },
+    { key: 'name', label: 'Aluno', width: 170 },
+  ];
+  const actCols = activities.map((a) => ({ key: `a-${a.id}`, label: a.label, width: 50, id: a.id }));
+  const columns = [...baseColumns, ...actCols, { key: 'total', label: 'TOTAL', width: 58 }];
+  const tableWidth = columns.reduce((acc, col) => acc + col.width, 0);
+
+  const drawHeader = (y) => {
+    let x = startX;
+    columns.forEach((col) => {
+      doc.save();
+      doc.lineWidth(0.5);
+      doc.fillColor('#f8fafc');
+      doc.strokeColor('#cbd5f5');
+      doc.rect(x, y, col.width, headerHeight).fillAndStroke();
+      doc.restore();
+      doc.font('Helvetica-Bold').fontSize(10);
+      const isAct = typeof col.key === 'string' && col.key.startsWith('a-');
+      const isTotal = col.key === 'total';
+      const align = col.key === 'name' ? 'left' : isAct || isTotal ? 'right' : 'center';
+      const offsetX = col.key === 'name' ? x + 6 : x;
+      const width = col.key === 'name' ? col.width - 6 : col.width;
+      doc.fillColor('#0f172a').text(col.label, offsetX, y + 7, { width, align });
+      doc.fillColor('black').font('Helvetica');
+      x += col.width;
+    });
+    return y + headerHeight;
+  };
+
+  let currentY = drawHeader(headerY);
+  if (studentsBase.length === 0) {
+    doc.fontSize(11).text('Nenhum aluno encontrado para os filtros selecionados.', startX, currentY + 12);
+    return doc;
+  }
+  const maxY = () => doc.page.height - doc.page.margins.bottom;
+  const ensureSpace = () => {
+    if (currentY + rowHeight <= maxY()) return;
+    doc.addPage();
+    currentY = drawHeader(doc.page.margins.top);
+  };
+
+  studentsBase.forEach((student) => {
+    ensureSpace();
+    doc.save();
+    doc.lineWidth(0.5);
+    doc.strokeColor('#e2e8f0');
+    doc.rect(startX, currentY, tableWidth, rowHeight).stroke();
+    doc.restore();
+
+    let x = startX;
+    // photo
+    const photoColumn = columns[0];
+    const photoBuffer = resolvePhotoBuffer(student.photoUrl);
+    if (photoBuffer) {
+      const photoWidth = photoColumn.width - 14;
+      const photoHeight = rowHeight - 14;
+      doc.image(photoBuffer, x + 7, currentY + 7, { fit: [photoWidth, photoHeight], align: 'center', valign: 'center' });
+    } else {
+      doc.save();
+      doc.strokeColor('#cbd5f5');
+      const boxSize = Math.min(photoColumn.width - 18, rowHeight - 18);
+      const offsetX = x + (photoColumn.width - boxSize) / 2;
+      const offsetY = currentY + (rowHeight - boxSize) / 2;
+      doc.rect(offsetX, offsetY, boxSize, boxSize).stroke();
+      doc.fontSize(7).fillColor('#94a3b8').text('Sem foto', offsetX, offsetY + boxSize / 2 - 4, { width: boxSize, align: 'center' });
+      doc.restore();
+    }
+    x += photoColumn.width;
+    // roll
+    const rollColumn = columns[1];
+    doc.font('Helvetica-Bold').fontSize(11).text(student.roll ?? '—', x, currentY + 20, { width: rollColumn.width, align: 'center' });
+    doc.font('Helvetica').fontSize(11);
+    x += rollColumn.width;
+    // name/email
+    const nameColumn = columns[2];
+    const studentName = student.name || 'Sem nome';
+    doc.text(studentName, x + 4, currentY + 14, { width: nameColumn.width - 8, align: 'left' });
+    if (student.email) {
+      doc.fontSize(9).fillColor('#64748b').text(student.email, x + 4, currentY + 32, { width: nameColumn.width - 8, align: 'left' });
+      doc.fontSize(11).fillColor('black');
+    }
+    x += nameColumn.width;
+
+    // activities
+    const map = gradesByStudent.get(String(student.id)) || new Map();
+    let total = 0;
+    actCols.forEach((col) => {
+      const val = Number(map.get(col.id) ?? 0);
+      if (Number.isFinite(val)) total += val;
+      const text = formatScore(Number.isFinite(val) ? val : NaN) || '—';
+      doc.text(text, x, currentY + 18, { width: col.width, align: 'right' });
+      x += col.width;
+    });
+    const totalCapped = Math.min(10, total);
+    const totalCol = columns[columns.length - 1];
+    doc.text(formatScore(totalCapped) || '—', x, currentY + 18, { width: totalCol.width, align: 'right' });
 
     currentY += rowHeight;
   });
@@ -925,7 +1053,8 @@ router.get('/:id/grades/export.pdf', authRequired, ensureTeacher, ensureClassTea
 
     const year = parseYearParam(req.query?.year);
     const terms = parseTermsParam(req.query?.terms);
-  const includeTotal = toBoolean(req.query?.sum ?? req.query?.includeTotal);
+    const includeTotal = toBoolean(req.query?.sum ?? req.query?.includeTotal);
+    const view = String(req.query?.view || '').toLowerCase();
 
     const klass = await Class.findById(id)
       .select('name subject discipline series letter year')
@@ -945,13 +1074,30 @@ router.get('/:id/grades/export.pdf', authRequired, ensureTeacher, ensureClassTea
       return a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
     });
 
-    const doc = createClassGradesPdf({
-      classInfo: klass,
-      students: sortedStudents,
-      year,
-      terms,
-  includeTotal,
-    });
+    let doc;
+    if (terms.length === 1 && view === 'activities') {
+      const term = terms[0];
+      const activities = await GradeActivity.find({ classId: id, year, bimester: term, active: true })
+        .sort({ order: 1, label: 1 })
+        .lean();
+      const activityIds = activities.map((a) => a._id);
+      const grades = activityIds.length
+        ? await StudentActivityGrade.find({ classId: id, activityId: { $in: activityIds } })
+            .select('studentId activityId points')
+            .lean()
+        : [];
+      const gradesByStudent = new Map();
+      grades.forEach((g) => {
+        const sid = String(g.studentId);
+        const map = gradesByStudent.get(sid) || new Map();
+        map.set(String(g.activityId), Number(g.points ?? 0));
+        gradesByStudent.set(sid, map);
+      });
+      const activitiesPayload = activities.map((a) => ({ id: String(a._id), label: a.label, maxPoints: Number(a.value ?? 0) }));
+      doc = createActivitiesPdf({ classInfo: klass, studentsBase: sortedStudents, year, term, activities: activitiesPayload, gradesByStudent });
+    } else {
+      doc = createClassGradesPdf({ classInfo: klass, students: sortedStudents, year, terms, includeTotal });
+    }
 
     const rawName = formatClassDisplayName(klass).toLowerCase();
     const normalizedName = rawName

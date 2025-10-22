@@ -14,4 +14,9 @@ router.put('/grade-activities/:id', controller.updateGradeActivity);
 router.delete('/grade-activities/:id', controller.deleteGradeActivity);
 router.post('/grade-activities/:id/grades', controller.bulkSetActivityGrades);
 
+// Activity-based grading convenience endpoints
+router.get('/grades/activity-entries', controller.listActivityEntries);
+router.post('/grades/activity-entries/bulk', controller.bulkUpsertActivityEntries);
+router.get('/students/:id/grades', controller.getStudentTermGrades);
+
 module.exports = router;

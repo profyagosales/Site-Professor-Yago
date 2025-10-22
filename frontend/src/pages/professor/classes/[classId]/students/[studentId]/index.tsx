@@ -317,6 +317,36 @@ export function StudentGradesTab() {
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [modalSeed, setModalSeed] = useState<GradeModalSeed | null>(null);
   const [saving, setSaving] = useState(false);
+  const legacyGradesDisabled = true;
+  const [termForActivities, setTermForActivities] = useState<Term>(1);
+  const [activityEntries, setActivityEntries] = useState<Array<{ activityId: string; activityLabel: string; maxPoints: number; score: number }>>([]);
+  const [actLoading, setActLoading] = useState(false);
+  const [actError, setActError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      if (!classId) return;
+      setActLoading(true);
+      setActError(null);
+      try {
+        const data = await (await import('@/services/grades')).getStudentTermGrades({ studentId: student.id, classId, term: termForActivities });
+        if (cancelled) return;
+        const entries = Array.isArray(data?.entries) ? data.entries : [];
+        setActivityEntries(entries);
+      } catch (err) {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : 'Não foi possível carregar atividades.';
+        setActError(msg);
+      } finally {
+        if (!cancelled) setActLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [classId, student.id, termForActivities]);
 
   useEffect(() => {
     let cancelled = false;
@@ -480,11 +510,76 @@ export function StudentGradesTab() {
               ))}
             </select>
           </label>
-          <Button onClick={handleAddGradeClick} disabled={loading}>
-            Adicionar nota
-          </Button>
+          {!legacyGradesDisabled && (
+            <Button onClick={handleAddGradeClick} disabled={loading}>
+              Adicionar nota
+            </Button>
+          )}
         </div>
       </div>
+
+      <section className="rounded-2xl border border-ys-line bg-white p-4 shadow-ys-sm">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold text-ys-ink">Notas por atividade</h3>
+          <label className="flex items-center gap-2 text-xs text-ys-graphite">
+            Bimestre
+            <select
+              className="rounded-lg border border-ys-line px-3 py-1 text-sm text-ys-ink focus:border-ys-amber focus:outline-none"
+              value={termForActivities}
+              onChange={(e) => setTermForActivities(Number(e.target.value) as Term)}
+            >
+              {TERM_VALUES.map((term) => (
+                <option key={term} value={term}>
+                  {TERM_LABELS[term]}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {actError && <p className="mt-2 text-sm text-rose-600">{actError}</p>}
+        {actLoading ? (
+          <p className="mt-3 text-sm text-ys-graphite">Carregando…</p>
+        ) : activityEntries.length === 0 ? (
+          <p className="mt-3 text-sm text-ys-graphite">Sem atividades configuradas para o bimestre.</p>
+        ) : (
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {activityEntries.map((entry) => (
+              <label key={entry.activityId} className="flex flex-col gap-1 text-sm">
+                <span className="font-medium text-ys-ink">{entry.activityLabel} <span className="text-ys-graphite">(0..{entry.maxPoints})</span></span>
+                <input
+                  type="number"
+                  min={0}
+                  max={entry.maxPoints}
+                  step={0.1}
+                  className="rounded-xl border border-ys-line px-3 py-2 focus:border-ys-amber focus:outline-none"
+                  value={entry.score}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    const clamped = Math.max(0, Math.min(entry.maxPoints, Number.isFinite(v) ? Number(v.toFixed(1)) : 0));
+                    setActivityEntries((prev) => prev.map((it) => (it.activityId === entry.activityId ? { ...it, score: clamped } : it)));
+                  }}
+                />
+                <div className="flex justify-end">
+                  <Button
+                    onClick={async () => {
+                      try {
+                        const svc = await import('@/services/grades');
+                        await svc.upsertActivityEntriesBulk({ classId, term: termForActivities, activityId: entry.activityId, items: [{ studentId: student.id, score: entry.score }] });
+                      } catch (err) {
+                        const msg = err instanceof Error ? err.message : 'Falha ao salvar nota.';
+                        setActError(msg);
+                      }
+                    }}
+                  >
+                    Salvar
+                  </Button>
+                </div>
+              </label>
+            ))}
+          </div>
+        )}
+        <p className="mt-3 text-xs text-ys-graphite">Total do bimestre (cap 10): {Math.min(10, activityEntries.reduce((acc, e) => acc + (Number.isFinite(e.score) ? Number(e.score) : 0), 0)).toFixed(1)}</p>
+      </section>
 
       {feedback && (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700">
@@ -544,12 +639,12 @@ export function StudentGradesTab() {
 
                       return (
                         <td key={term} className="px-3 py-3 align-top">
-                          {hasGrade ? (
-                            <button
-                              type="button"
-                              className={`${buttonBase} ${buttonClasses}`}
-                              onClick={() => handleEditGrade(grade!)}
-                            >
+                      {hasGrade && !legacyGradesDisabled ? (
+                        <button
+                          type="button"
+                          className={`${buttonBase} ${buttonClasses}`}
+                          onClick={() => handleEditGrade(grade!)}
+                        >
                               <div className="flex items-baseline justify-between gap-2">
                                 <span className="text-lg font-semibold">{formatScore(grade!.score)}</span>
                                 <span className="text-xs font-medium uppercase tracking-wide text-ys-graphite">
@@ -564,10 +659,10 @@ export function StudentGradesTab() {
                               className={`${buttonBase} ${buttonClasses}`}
                               onClick={() => handleCreateForCell(year, term)}
                             >
-                              <span className="font-medium">Adicionar nota</span>
-                              <span className="mt-1 block text-xs text-ys-graphite">{TERM_LABELS[term]}</span>
-                            </button>
-                          )}
+                          {!legacyGradesDisabled && <span className="font-medium">Adicionar nota</span>}
+                          <span className="mt-1 block text-xs text-ys-graphite">{TERM_LABELS[term]}</span>
+                        </button>
+                      )}
                         </td>
                       );
                     })}

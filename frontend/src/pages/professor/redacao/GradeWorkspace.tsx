@@ -1,669 +1,515 @@
-import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { pasPreviewFrom } from '@/utils/pas';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { nanoid } from 'nanoid';
+import { toast } from 'react-toastify';
+import { Button } from '@/components/ui/Button';
+import { AnnotationToolbar } from '@/components/redacao/AnnotationToolbar';
+import { PdfCorrectionViewer } from '@/components/redacao/PdfCorrectionViewer';
+import { AnnotationSidebar } from '@/components/redacao/AnnotationSidebar';
+import { CorrectionMirror, ANNUL_OPTIONS } from '@/components/redacao/CorrectionMirror';
+import type { AnnotationItem, NormalizedRect } from '@/components/redacao/annotationTypes';
+import { HIGHLIGHT_CATEGORIES, type HighlightCategoryKey } from '@/constants/annotations';
+import { useAuth } from '@/components/AuthContext';
 import {
   fetchEssayById,
-  gradeEssay,
-  saveAnnotations,
-  renderCorrection,
-  updateEssayAnnotations,
-  fetchEssayPdfUrl,
+  issueFileToken,
+  peekEssayFile,
 } from '@/services/essays.service';
-import AnnotationEditor from '@/components/redacao/AnnotationEditor';
-import AnnotationEditorRich from '@/components/redacao/AnnotationEditorRich';
-import type { Highlight } from '@/components/redacao/types';
-import type { Anno } from '@/types/annotations';
-import { toast } from 'react-toastify';
-// Importante: usar wrapper lazy para evitar vincular o chunk de PDF ao chunk da rota
-import PdfAnnotatorLazy from '@/components/redacao/PdfAnnotator.lazy';
-import { joinClassAsTeacher } from '@/services/classes';
-import { Button } from '@/components/ui/Button';
+import {
+  getAnnotations as fetchAnnotations,
+  saveAnnotations as persistAnnotations,
+  getEssayScore,
+  saveEssayScore,
+  generateCorrectedPdf,
+} from '@/services/essays';
 
-const useRich = import.meta.env.VITE_USE_RICH_ANNOS === '1' || import.meta.env.VITE_USE_RICH_ANNOS === 'true';
+type PasState = {
+  NC: string;
+  NL: string;
+  NE: string;
+};
+
+const LEVEL_POINTS = [0, 40, 80, 120, 160, 200] as const;
+
+function pointsToLevel(value?: number | null) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return 0;
+  const level = Math.round(value / 40);
+  return Math.max(0, Math.min(level, 5));
+}
+
+function levelToPoints(level: number) {
+  const idx = Math.max(0, Math.min(level, 5));
+  return LEVEL_POINTS[idx] ?? 0;
+}
+
+function toInputValue(value?: number | null) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return '';
+  return value.toString();
+}
+
+function normalizeAnnotations(apiAnnos: any[]): AnnotationItem[] {
+  return apiAnnos
+    .map((raw, index) => {
+      const category = (raw?.category || 'argumentacao') as HighlightCategoryKey;
+      const palette = HIGHLIGHT_CATEGORIES[category] ?? HIGHLIGHT_CATEGORIES.argumentacao;
+      const rects = Array.isArray(raw?.rects) ? raw.rects : [];
+      const normalizedRects: NormalizedRect[] = rects
+        .filter((r: any) => typeof r?.x === 'number' && typeof r?.y === 'number')
+        .map((r: any) => ({
+          x: Number(r.x) || 0,
+          y: Number(r.y) || 0,
+          width: Number(r.w ?? r.width) || 0,
+          height: Number(r.h ?? r.height) || 0,
+        }));
+      if (normalizedRects.length === 0) return null;
+      return {
+        id: String(raw._id || raw.id || nanoid()),
+        page: Number(raw.page) || 1,
+        rects: normalizedRects,
+        category,
+        comment: typeof raw.comment === 'string' ? raw.comment : '',
+        color: palette.color,
+        number: Number(raw.number) || index + 1,
+        createdAt: raw.createdAt,
+        updatedAt: raw.updatedAt,
+      } satisfies AnnotationItem;
+    })
+    .filter(Boolean) as AnnotationItem[];
+}
+
+function renumber(list: AnnotationItem[]) {
+  return list
+    .slice()
+    .sort((a, b) => a.number - b.number)
+    .map((item, idx) => ({ ...item, number: idx + 1 }));
+}
 
 export default function GradeWorkspace() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string|null>(null);
+  const { user } = useAuth();
+
   const [essay, setEssay] = useState<any | null>(null);
-  const [annotations, setAnnotations] = useState<Highlight[]>([]);
-  const [richAnnos, setRichAnnos] = useState<Anno[]>([]);
-  const [comments, setComments] = useState('');
-  const [weight, setWeight] = useState('1');
-  const [annulReason, setAnnulReason] = useState('');
-  const [bimestralValue, setBimestralValue] = useState('1');
-  const [countInBimestral, setCountInBimestral] = useState(true);
-  // ENEM
-  const [c1, setC1] = useState('0');
-  const [c2, setC2] = useState('0');
-  const [c3, setC3] = useState('0');
-  const [c4, setC4] = useState('0');
-  const [c5, setC5] = useState('0');
-  // PAS
-  const [NC, setNC] = useState('0');
-  const [NL, setNL] = useState('1');
-  const [lastAddedIndex, setLastAddedIndex] = useState<number | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [autosaving, setAutosaving] = useState(false);
-  const [undoStack, setUndoStack] = useState<Array<{ idx: number; ann: Highlight }>>([]);
-  const [redoStack, setRedoStack] = useState<Array<{ idx: number; ann: Highlight }>>([]);
-  const [dirty, setDirty] = useState(false);
-  const [suppressDirty, setSuppressDirty] = useState(true);
-  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
-  const [snapshot, setSnapshot] = useState<null | {
-    annotations: Highlight[];
-    comments: string;
-    weight: string;
-    bimestralPointsValue: string;
-    countInBimestral: boolean;
-    annulmentReason: string;
-    c1: string; c2: string; c3: string; c4: string; c5: string;
-    NC: string; NL: string;
-  }>(null);
+  const [loadingEssay, setLoadingEssay] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
-  const [pdfErrorCode, setPdfErrorCode] = useState<number | undefined>(undefined);
-  const [pdfStatus, setPdfStatus] = useState<'idle' | 'loading' | 'refreshing'>('idle');
-  const [pdfRetryCount, setPdfRetryCount] = useState(0);
-  const [refreshTick, setRefreshTick] = useState(0);
-  const navigateRef = useRef(navigate);
+  const [annotations, setAnnotations] = useState<AnnotationItem[]>([]);
+  const [activeCategory, setActiveCategory] = useState<HighlightCategoryKey>('argumentacao');
+  const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
+  const [focusAnnotationId, setFocusAnnotationId] = useState<string | null>(null);
+  const [liveMessage, setLiveMessage] = useState<string | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
-  useEffect(() => {
-    navigateRef.current = navigate;
-  }, [navigate]);
+  const [annulState, setAnnulState] = useState<Record<string, boolean>>({});
+  const [annulOther, setAnnulOther] = useState('');
+  const [pasState, setPasState] = useState<PasState>({ NC: '', NL: '', NE: '' });
+  const [enemLevels, setEnemLevels] = useState<number[]>([0, 0, 0, 0, 0]);
 
-  const essayId = (essay as any)?._id || (essay as any)?.id;
-  const classId = (essay as any)?.classId
-    || (essay as any)?.classId?._id
-    || (essay as any)?.classId?.id
-    || (typeof (essay as any)?.classId === 'string' ? (essay as any).classId : undefined);
-  const studentInfo = (essay as any)?.student || (essay as any)?.studentId || null;
+  const essayType = (essay?.type || essay?.model || null) as 'PAS' | 'ENEM' | null;
+  const annulled = useMemo(
+    () => Object.values(annulState).some(Boolean),
+    [annulState]
+  );
 
-  const refreshPdfUrl = useCallback(() => {
-    setPdfRetryCount(0);
-    setPdfStatus('loading');
-    setRefreshTick((tick) => tick + 1);
-  }, []);
+  const pasResult = useMemo(() => {
+    const nc = Number(pasState.NC) || 0;
+    const nl = Number(pasState.NL) || 0;
+    const ne = Number(pasState.NE) || 0;
+    if (nl <= 0) return 0;
+    const value = nc - 2 * (ne / nl);
+    return Math.max(0, Number.isFinite(value) ? value : 0);
+  }, [pasState.NC, pasState.NE, pasState.NL]);
 
-  const handlePdfLoadError = useCallback(() => {
-    if (!essayId) return;
-    if (pdfRetryCount >= 1 || pdfStatus === 'refreshing') return;
-    setPdfStatus('refreshing');
-    setPdfRetryCount((count) => count + 1);
-    setRefreshTick((tick) => tick + 1);
-  }, [essayId, pdfRetryCount, pdfStatus]);
+  const enemTotal = useMemo(() => {
+    if (annulled) return 0;
+    return enemLevels.reduce((acc, level) => acc + levelToPoints(level), 0);
+  }, [annulled, enemLevels]);
 
-  useEffect(() => {
-    let aborted = false;
-    const controller = new AbortController();
+  const orderedAnnotations = useMemo(() => renumber(annotations), [annotations]);
 
-    if (!essayId) {
-      setPdfUrl(null);
-      setPdfError(null);
-      setPdfErrorCode(undefined);
-      setPdfStatus('idle');
-      return () => {
-        aborted = true;
-        controller.abort();
-      };
-    }
-
-    setPdfError(null);
-    setPdfErrorCode(undefined);
-    setPdfUrl(null);
-    setPdfStatus((status) => (status === 'refreshing' ? 'refreshing' : 'loading'));
-
-    (async () => {
-      try {
-        const signedUrl = await fetchEssayPdfUrl(String(essayId), { signal: controller.signal });
-        if (aborted) {
-          return;
-        }
-        setPdfUrl(signedUrl);
-        setPdfStatus('idle');
-      } catch (e: any) {
-        if (aborted || e?.name === 'AbortError') return;
-
-        const status = typeof e?.status === 'number'
-          ? e.status
-          : typeof e?.response?.status === 'number'
-            ? e.response.status
-            : undefined;
-        let message = e?.message || 'Falha ao preparar o PDF.';
-
-        setPdfErrorCode(typeof status === 'number' ? status : undefined);
-
-        if (status === 401) {
-          message = 'Sessão expirada. Faça login novamente.';
-          toast.error(message);
-          if (typeof window !== 'undefined') {
-            const next = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
-            navigateRef.current(`/login-professor?next=${next}`, { replace: true });
-          } else {
-            navigateRef.current('/login-professor', { replace: true });
-          }
-        } else if (status === 403) {
-          message = 'Seu usuário não está vinculado à turma desta redação.';
-          toast.error(message);
-        } else if (status === 404) {
-          message = 'Arquivo não encontrado. Reenvie o PDF da redação.';
-          toast.error(message);
-        } else {
-          console.error('fetchEssayPdfUrl failed', e);
-          toast.error(message);
-        }
-
-        setPdfError(message);
-        setPdfStatus('idle');
-      }
-    })();
-
-    return () => {
-      aborted = true;
-      controller.abort();
-    };
-  }, [essayId, refreshTick]);
-
-  useEffect(() => {
-    setPdfRetryCount(0);
-  }, [essayId]);
-
-  const joinClassAndRefresh = useCallback(async () => {
-    if (!classId) {
-      throw new Error('Turma desta redação não encontrada.');
-    }
-    await joinClassAsTeacher(classId);
-    toast.success('Você agora é professor desta turma.');
-    refreshPdfUrl();
-  }, [classId, refreshPdfUrl]);
-
-  // Debounce simples 600ms para autosave de anotações ricas
-  function useDebounce<T extends (...a:any[])=>any>(fn:T, ms:number) {
-    const t = useRef<number | undefined>(undefined);
-    return (...args:any[]) => {
-      if (t.current) window.clearTimeout(t.current);
-      t.current = window.setTimeout(()=>fn(...args), ms);
-    };
-  }
-  const debouncedSaveRich = useDebounce(async (list: Anno[]) => {
+  const handleLoadEssay = useCallback(async () => {
+    if (!id) return;
+    setLoadingEssay(true);
     try {
-      const eId = (essay as any)?._id || (essay as any)?.id;
-      if (!eId) return;
-      await updateEssayAnnotations(String(eId), { rich: list as any });
-    } catch (e) {
-      console.error('autosave annotations failed', e);
-    }
-  }, 600);
+      const data = await fetchEssayById(id);
+      setEssay(data);
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      if (!id) return;
-      try {
-        setLoading(true);
-        const data = await fetchEssayById(id);
-        if (!alive) return;
-    setEssay(data);
-  if (data?.annotations) setAnnotations(data.annotations as any);
-  if (data?.richAnnotations) setRichAnnos(data.richAnnotations);
-  if (data?.comments) setComments(data.comments);
-        if (data?.grade?.bimestreWeight != null) setWeight(String(data.grade.bimestreWeight));
-        if (data?.grade?.bimestralPointsValue != null) setBimestralValue(String(data.grade.bimestralPointsValue));
-        if (data?.grade?.considerInTerm !== undefined) setCountInBimestral(Boolean(data.grade.considerInTerm));
-        if (data?.type === 'ENEM' && data?.enemCompetencies) {
-          setC1(String(data.enemCompetencies.c1 || 0));
-          setC2(String(data.enemCompetencies.c2 || 0));
-          setC3(String(data.enemCompetencies.c3 || 0));
-          setC4(String(data.enemCompetencies.c4 || 0));
-          setC5(String(data.enemCompetencies.c5 || 0));
-        }
-        if (data?.type === 'PAS' && data?.pasBreakdown) {
-          setNC(String(data.pasBreakdown.NC || 0));
-          setNL(String(data.pasBreakdown.NL || 1));
-        }
-        setAnnulReason(data?.annulmentReason || '');
-        // initialize snapshot and clear dirty tracking
-        const snap = {
-          annotations: data?.annotations || [],
-          comments: data?.comments || '',
-          weight: String(data?.grade?.bimestreWeight ?? '1'),
-          bimestralPointsValue: String(data?.grade?.bimestralPointsValue ?? '1'),
-          countInBimestral: Boolean(data?.grade?.considerInTerm),
-          annulmentReason: String(data?.annulmentReason || ''),
-          c1: String(data?.enemCompetencies?.c1 || '0'),
-          c2: String(data?.enemCompetencies?.c2 || '0'),
-          c3: String(data?.enemCompetencies?.c3 || '0'),
-          c4: String(data?.enemCompetencies?.c4 || '0'),
-          c5: String(data?.enemCompetencies?.c5 || '0'),
-          NC: String(data?.pasBreakdown?.NC || '0'),
-          NL: String(data?.pasBreakdown?.NL || '1'),
-        };
-        setSnapshot(snap);
-        setDirty(false);
-        setSuppressDirty(false);
-      } catch (e:any) {
-        setErr(e?.response?.data?.message || 'Erro ao carregar redação');
-      } finally { setLoading(false); }
-    })();
-    return () => { alive = false };
-  }, [id]);
-
-  const enemTotal = useMemo(() => [c1,c2,c3,c4,c5].map(Number).reduce((a,b)=>a+(isNaN(b)?0:b),0), [c1,c2,c3,c4,c5]);
-  // NE automático a partir de anotações ricas: nº de highlights da categoria "ortografia"
-  const NE = useMemo(() => {
-    try {
-      return (Array.isArray(richAnnos) ? richAnnos : []).filter((a:any) => a?.type === 'highlight' && a?.category === 'ortografia').length;
-    } catch { return 0; }
-  }, [richAnnos]);
-  // PAS: NR = max(0, NC - 2*NE/NL)
-  const pasNR = useMemo(() => {
-    const nc = Number(NC) || 0;
-    const nl = Math.max(1, Number(NL) || 1);
-    return Math.max(0, nc - (2 * NE) / nl);
-  }, [NC, NL, NE]);
-  // Nota bruta considerando anulação
-  const rawScore = useMemo(() => {
-    if (annulReason) return 0;
-    return essay?.type === 'ENEM' ? enemTotal : pasNR;
-  }, [annulReason, enemTotal, pasNR, essay?.type]);
-  // Escala por tipo (ENEM: 1000, PAS: 10)
-  const scaleMax = useMemo(() => (essay?.type === 'ENEM' ? 1000 : 10), [essay?.type]);
-  // Valor bimestral computado (normalizado), respeitando o toggle
-  const computedBimester = useMemo(() => {
-    if (!countInBimestral) return 0;
-    const v = Number(bimestralValue) || 1;
-    return (rawScore / scaleMax) * v;
-  }, [countInBimestral, bimestralValue, rawScore, scaleMax]);
-  const [forceAnnotator, setForceAnnotator] = useState<null | 'rich' | 'legacy'>(null);
-  const useNewAnnotator = forceAnnotator ? forceAnnotator === 'rich' : Boolean((window as any).YS_USE_RICH_ANNOS);
-  const pasPreview = useMemo(() => {
-    if (!countInBimestral) return { raw: 0, scaled: 0 } as any;
-    const w = Number(weight) || 1;
-    const nc = Number(NC);
-    const nl = Number(NL);
-    if ([nc, nl, w].some(Number.isNaN)) return { raw: 0, scaled: 0 } as any;
-    const { raw, scaled } = pasPreviewFrom({ NC: nc, NL: Math.max(1, nl), annotations, weight: w });
-    return { raw, scaled } as any;
-  }, [NC, NL, annotations, weight, countInBimestral]);
-  const neCount = useMemo(() => annotations.filter(a => a.color === 'grammar' && (a.label||'').toLowerCase().includes('erro')).length, [annotations]);
-
-
-
-  // Mark form dirty on relevant changes
-  useEffect(() => { if (!loading && !suppressDirty) setDirty(true); }, [annotations, comments, c1, c2, c3, c4, c5, NC, NL, weight, annulReason, bimestralValue, countInBimestral, loading, suppressDirty]);
-  // beforeunload guard
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (!dirty) return;
-      e.preventDefault();
-      e.returnValue = '';
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [dirty]);
-  // navigation guard in-app
-  useEffect(() => {
-    const unblock = (navigate as any).block?.((tx: any) => {
-      if (!dirty) return;
-      if (window.confirm('Há alterações não salvas. Deseja sair mesmo assim?')) {
-        unblock();
-        tx.retry();
+      const annulInfo: Record<string, boolean> = {};
+      if (Array.isArray(data?.annulReasons)) {
+        data.annulReasons.forEach((reason: string) => {
+          annulInfo[reason] = true;
+        });
+      } else if (typeof data?.annulmentReason === 'string' && data.annulmentReason) {
+        annulInfo[data.annulmentReason] = true;
       }
-    });
-    return () => { if (typeof unblock === 'function') unblock(); };
-  }, [dirty]);
+      setAnnulState(annulInfo);
+      if (!annulInfo.OUTROS) setAnnulOther('');
 
-  // Undo/Redo keyboard: Ctrl+Z / Ctrl+Y (ou Ctrl+Shift+Z)
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      const isUndo = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey;
-      const isRedo = (e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey));
-      if (isUndo) {
-        e.preventDefault();
-        if (undoStack.length > 0) {
-          const last = undoStack[0];
-          setUndoStack((s)=> s.slice(1));
-          setRedoStack((s)=> [{ idx: last.idx, ann: last.ann }, ...s].slice(0, 20));
-          setAnnotations((prev)=> {
-            const next = prev.slice();
-            const insertAt = Math.min(last.idx, next.length);
-            next.splice(insertAt, 0, last.ann);
-            return next;
-          });
-          setSelectedIndex(Math.min(last.idx, annotations.length));
-        }
-      } else if (isRedo) {
-        e.preventDefault();
-        if (redoStack.length > 0) {
-          const last = redoStack[0];
-          setRedoStack((s)=> s.slice(1));
-          setUndoStack((s)=> [{ idx: last.idx, ann: last.ann }, ...s].slice(0, 20));
-          setAnnotations((prev)=> prev.filter((_, i) => i !== Math.min(last.idx, prev.length - 1)));
-          setSelectedIndex(null);
-        }
-      }
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [undoStack, redoStack, annotations.length]);
-
-  // Autosave: debounce rápido e timer de segurança
-  useEffect(() => {
-    if (!dirty || !essay) return;
-    const debounce = setTimeout(async () => {
-      try {
-        setAutosaving(true);
-    await saveAnnotations(essay._id || essay.id, annotations as any, { annos: useNewAnnotator ? richAnnos : undefined });
-        setLastSavedAt(new Date());
-      } catch {}
-      finally { setAutosaving(false); }
-    }, 1200);
-    const safety = setTimeout(async () => {
-      try {
-        setAutosaving(true);
-    await saveAnnotations(essay._id || essay.id, annotations as any, { annos: useNewAnnotator ? richAnnos : undefined });
-        setLastSavedAt(new Date());
-      } catch {}
-      finally { setAutosaving(false); }
-    }, 15000);
-    return () => { clearTimeout(debounce); clearTimeout(safety); };
-  }, [dirty, essay, annotations, richAnnos, useNewAnnotator]);
-
-  async function submit(generatePdf=false) {
-    if (!essay) return;
-    try {
-      setLoading(true);
-  await saveAnnotations(essay._id || essay.id, annotations as any, { annos: useNewAnnotator ? richAnnos : undefined });
-      if (essay.type === 'ENEM') {
-        await gradeEssay(essay._id || essay.id, {
-          essayType: 'ENEM',
-          weight: Number(weight)||1,
-          annul: Boolean(annulReason),
-          countInBimestral,
-          bimestralPointsValue: Number(bimestralValue)||0,
-          enemCompetencies: { c1: Number(c1), c2: Number(c2), c3: Number(c3), c4: Number(c4), c5: Number(c5) },
-          comments,
+      if ((data?.pasBreakdown || data?.pas) && data.type === 'PAS') {
+        const breakdown = data.pasBreakdown || data.pas;
+        setPasState({
+          NC: toInputValue(breakdown?.NC),
+          NL: toInputValue(breakdown?.NL),
+          NE: toInputValue(breakdown?.NE),
         });
       } else {
-        await gradeEssay(essay._id || essay.id, {
-          essayType: 'PAS',
-          weight: Number(weight)||1,
-          annul: Boolean(annulReason),
-          countInBimestral,
-          bimestralPointsValue: Number(bimestralValue)||0,
-          pas: { NC: Number(NC), NL: Number(NL) },
-          comments,
-        });
+        setPasState({ NC: '', NL: '', NE: '' });
       }
-      if (generatePdf) {
-        await renderCorrection(essay._id || essay.id);
+
+      if (data?.enemCompetencies && data.type === 'ENEM') {
+        const comps = data.enemCompetencies;
+        setEnemLevels([
+          pointsToLevel(comps?.c1),
+          pointsToLevel(comps?.c2),
+          pointsToLevel(comps?.c3),
+          pointsToLevel(comps?.c4),
+          pointsToLevel(comps?.c5),
+        ]);
+      } else {
+        setEnemLevels([0, 0, 0, 0, 0]);
       }
-  toast.success('Correção salva');
-  setDirty(false);
-  setLastSavedAt(new Date());
-  setSnapshot({ annotations, comments, weight, bimestralPointsValue: bimestralValue, countInBimestral, annulmentReason: annulReason, c1, c2, c3, c4, c5, NC, NL });
-      navigate('/professor/redacao');
-    } catch (e:any) {
-      toast.error(e?.response?.data?.message || 'Falha ao salvar');
-    } finally { setLoading(false); }
-  }
 
-  if (loading && !essay) return <div className="p-6">Carregando…</div>;
-  if (err) return <div className="p-6 text-red-600">{err}</div>;
-  if (!essay) return null;
+      try {
+        const annotationResponse = await fetchAnnotations(id);
+        setAnnotations(renumber(normalizeAnnotations(annotationResponse)));
+      } catch (err) {
+        console.error('[GradeWorkspace] Failed to load annotations', err);
+        setAnnotations([]);
+      }
 
+      try {
+        const score = await getEssayScore(id);
+        if (score) {
+          if (Array.isArray(score.reasons)) {
+            const map: Record<string, boolean> = {};
+            score.reasons.forEach((reason: string) => {
+              map[reason] = true;
+            });
+            setAnnulState(map);
+          } else {
+            setAnnulState({});
+          }
+          if (typeof score.otherReason === 'string') {
+            setAnnulOther(score.otherReason);
+          } else {
+            setAnnulOther('');
+          }
+          if (score.type === 'PAS' && score.pas) {
+            setPasState({
+              NC: toInputValue(score.pas.NC),
+              NL: toInputValue(score.pas.NL),
+              NE: toInputValue(score.pas.NE),
+            });
+          }
+          if (score.type === 'ENEM' && Array.isArray(score.enem?.levels)) {
+            const levels = score.enem.levels.map((lvl: number) => Math.max(0, Math.min(lvl, 5)));
+            while (levels.length < 5) levels.push(0);
+            setEnemLevels(levels.slice(0, 5));
+          }
+        }
+      } catch (err) {
+        console.warn('[GradeWorkspace] Failed to load essay score', err);
+      }
 
-  const isPdf = Boolean(pdfUrl);
-  const pdfStatusMessage = pdfError
-    ? pdfError
-    : pdfStatus === 'refreshing'
-      ? 'Gerando visualização…'
-      : pdfUrl
-        ? 'PDF pronto'
-        : 'Carregando PDF…';
+      setDirty(false);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || 'Erro ao carregar redação.');
+    } finally {
+      setLoadingEssay(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    handleLoadEssay();
+  }, [handleLoadEssay]);
+
+  useEffect(() => {
+    if (!focusAnnotationId) return;
+    const pendingId = focusAnnotationId;
+    const timer = window.setTimeout(() => {
+      setFocusAnnotationId((current) => (current === pendingId ? null : current));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [focusAnnotationId]);
+
+  useEffect(() => {
+    if (!liveMessage) return;
+    const timer = window.setTimeout(() => setLiveMessage(null), 2000);
+    return () => window.clearTimeout(timer);
+  }, [liveMessage]);
+
+  useEffect(() => {
+    if (!id) return;
+    const controller = new AbortController();
+    (async () => {
+      try {
+        setPdfError(null);
+        const token = await issueFileToken(id, { signal: controller.signal });
+        const meta = await peekEssayFile(id, { token, signal: controller.signal });
+        setPdfUrl(meta.url);
+      } catch (err) {
+        console.error('[GradeWorkspace] Failed to issue file token', err);
+        setPdfUrl(essay?.originalUrl || null);
+        setPdfError('Falha ao carregar PDF com token temporário.');
+      }
+    })();
+    return () => controller.abort();
+  }, [id, essay?.originalUrl]);
+
+  const handleCreateAnnotation = (page: number, rect: NormalizedRect) => {
+    const palette = HIGHLIGHT_CATEGORIES[activeCategory];
+    const newAnnotation: AnnotationItem = {
+      id: `local-${nanoid(8)}`,
+      page,
+      rects: [rect],
+      category: activeCategory,
+      comment: '',
+      color: palette.color,
+      number: annotations.length + 1,
+    };
+    setAnnotations((prev) => renumber([...prev, newAnnotation]));
+    setSelectedAnnotationId(newAnnotation.id);
+    setFocusAnnotationId(newAnnotation.id);
+    setLiveMessage(`Comentário ${palette.label} adicionado`);
+    setDirty(true);
+  };
+
+  const handleMoveAnnotation = (idAnn: string, rect: NormalizedRect) => {
+    setAnnotations((prev) =>
+      prev.map((ann) => (ann.id === idAnn ? { ...ann, rects: [{ ...ann.rects[0], ...rect }] } : ann))
+    );
+    setDirty(true);
+  };
+
+  const handleCommentChange = (idAnn: string, comment: string) => {
+    setAnnotations((prev) =>
+      prev.map((ann) => (ann.id === idAnn ? { ...ann, comment } : ann))
+    );
+    setDirty(true);
+  };
+
+  const handleDeleteAnnotation = (idAnn: string) => {
+    setAnnotations((prev) => renumber(prev.filter((ann) => ann.id !== idAnn)));
+    setDirty(true);
+    if (selectedAnnotationId === idAnn) {
+      setSelectedAnnotationId(null);
+    }
+    setLiveMessage('Comentário removido');
+  };
+
+  const handleToggleAnnul = (key: string, checked: boolean) => {
+    setAnnulState((prev) => {
+      const next = { ...prev, [key]: checked };
+      if (!checked && key === 'OUTROS') {
+        setAnnulOther('');
+      }
+      return next;
+    });
+    setDirty(true);
+  };
+
+  const handlePasChange = (field: keyof PasState, value: string) => {
+    setPasState((prev) => ({ ...prev, [field]: value }));
+    setDirty(true);
+  };
+
+  const handleEnemLevelChange = (index: number, level: number) => {
+    setEnemLevels((prev) => {
+      const next = prev.slice();
+      next[index] = Math.max(0, Math.min(level, 5));
+      return next;
+    });
+    setDirty(true);
+  };
+
+  const handleSave = async () => {
+    if (!id) return;
+    setSaving(true);
+    try {
+      const payloadAnnotations = orderedAnnotations.map((ann, idx) => ({
+        id: ann.id.startsWith('local-') ? undefined : ann.id,
+        page: ann.page,
+        rects: ann.rects.map((r) => ({ x: r.x, y: r.y, w: r.width, h: r.height })),
+        category: ann.category,
+        color: ann.color,
+        comment: ann.comment,
+        number: idx + 1,
+      }));
+
+      const saved = await persistAnnotations(id, payloadAnnotations);
+      if (Array.isArray(saved) && saved.length) {
+        setAnnotations(renumber(normalizeAnnotations(saved)));
+      }
+
+      const selectedReasons = ANNUL_OPTIONS.filter((opt) => annulState[opt.key]).map((opt) => opt.key);
+      const scorePayload = {
+        type: essayType || 'PAS',
+        annulled,
+        reasons: selectedReasons,
+        otherReason: annulOther || null,
+      } as any;
+
+      if ((essayType || essay?.model) === 'PAS') {
+        scorePayload.type = 'PAS';
+        scorePayload.pas = {
+          NC: pasState.NC ? Number(pasState.NC) : null,
+          NL: pasState.NL ? Number(pasState.NL) : null,
+          NE: pasState.NE ? Number(pasState.NE) : null,
+          NR: annulled ? 0 : Number(pasResult.toFixed(2)),
+        };
+      } else {
+        scorePayload.type = 'ENEM';
+        scorePayload.enem = {
+          levels: enemLevels,
+          points: enemLevels.map((lvl) => levelToPoints(lvl)),
+          total: enemTotal,
+        };
+      }
+
+      await saveEssayScore(id, scorePayload);
+      setDirty(false);
+      toast.success('Correção salva.');
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || 'Erro ao salvar correção.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleGeneratePdf = async () => {
+    if (!id) return;
+    if (dirty) {
+      toast.info('Salve as alterações antes de gerar o PDF corrigido.');
+      return;
+    }
+    setGenerating(true);
+    try {
+      const result = await generateCorrectedPdf(id);
+      if (result?.correctedUrl) {
+        toast.success('PDF corrigido gerado com sucesso.');
+        setEssay((prev: any) => ({
+          ...prev,
+          correctedUrl: result.correctedUrl,
+          status: 'GRADED',
+        }));
+      } else {
+        toast.success('PDF corrigido gerado.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || 'Erro ao gerar PDF corrigido.');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const backToList = () => navigate(-1);
+
+  const summaryItems = [
+    { label: 'Aluno', value: essay?.student?.name || essay?.studentName || '-' },
+    { label: 'Turma', value: essay?.className || '-' },
+    { label: 'Tema', value: essay?.theme || essay?.topic || '-' },
+    { label: 'Tipo', value: essayType || '-' },
+    { label: 'Bimestre', value: essay?.term ?? essay?.bimester ?? essay?.bimestre ?? '-' },
+  ];
+
   return (
-    <div className="p-4 md:p-6 space-y-4">
-      {import.meta.env.DEV && (
-        <div className="text-xs text-ys-ink-2">Flag rich: {String((window as any).YS_USE_RICH_ANNOS)} • isPdf: {String(isPdf)} • mime: {essay.originalMimeType || '-'}</div>
-      )}
-  <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          {studentInfo?.photo ? (
-            <img src={studentInfo.photo} alt={studentInfo.name} className="h-16 w-16 rounded-full object-cover" />
-          ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#E5E7EB] text-[#6B7280]">
-              {(studentInfo?.name || 'A').slice(0, 1)}
-            </div>
-          )}
-          <div>
-            <h2 className="text-lg font-semibold">{studentInfo?.name || '-'}</h2>
-            <p className="text-sm text-ys-ink-2">
-              {essay.className || '-'}
-              {studentInfo?.rollNumber != null ? ` • Nº ${studentInfo.rollNumber}` : ''}
-            </p>
-            <p className="text-sm text-ys-ink-2">Tema: {essay.customTheme || essay.theme?.name || essay.theme || '-'}</p>
-            <p className="text-sm text-ys-ink-2">Modelo: {essay.type}</p>
-          </div>
+    <div className="mx-auto flex h-full max-w-7xl flex-col gap-6 p-4 lg:p-6">
+      <header className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">Correção de redação</h1>
+          <p className="text-sm text-slate-600">
+            Professor(a): {user?.name || '—'}
+          </p>
+          <dl className="mt-2 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
+            {summaryItems.map((item) => (
+              <div key={item.label} className="flex gap-2">
+                <dt className="text-slate-500">{item.label}:</dt>
+                <dd className="font-medium text-slate-800">{item.value ?? '-'}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
-        <div className="flex items-center gap-2">
-          {dirty && (
-            <span className="mr-2 inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800">
-              <span className="inline-block h-2 w-2 rounded-full bg-yellow-500" />
-              Não salvo
-            </span>
-          )}
-          {!dirty && autosaving && (
-            <span className="mr-2 inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-[#374151]">
-              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-[#9CA3AF] border-t-transparent" />
-              Salvando…
-            </span>
-          )}
-          {!dirty && lastSavedAt && (
-            <span className="mr-2 text-xs text-ys-ink-2">Salvo às {lastSavedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-          )}
-          <Button variant="ghost" size="sm" onClick={() => navigate('/professor/redacao')}>
+        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+          <Button variant="ghost" onClick={backToList}>
             Voltar
           </Button>
-          {import.meta.env.DEV && (
-            <div className="ml-2 flex items-center gap-1 text-xs text-ys-ink-2">
-              <span>Annotator:</span>
-              <select
-                className="rounded border p-1"
-                value={forceAnnotator || 'auto'}
-                onChange={(e)=> setForceAnnotator(e.target.value as any)}
-              >
-                <option value="auto">auto</option>
-                <option value="rich">rich</option>
-                <option value="legacy">legacy</option>
-              </select>
-            </div>
-          )}
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={loading}
-              onClick={() => submit(false)}
-              className="gap-2"
-            >
-              {loading && (
-                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-[#9CA3AF] border-t-transparent" />
-              )}
-              <span>Salvar</span>
-            </Button>
-            <Button
-              size="sm"
-              disabled={loading}
-              onClick={() => submit(true)}
-              className="gap-2"
-            >
-              {loading && (
-                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/80 border-t-transparent" />
-              )}
-              <span>Gerar PDF corrigido</span>
-            </Button>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              if (essay?.originalUrl) {
+                window.open(essay.originalUrl, '_blank', 'noopener,noreferrer');
+              } else if (pdfUrl) {
+                window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+              } else {
+                toast.info('Nenhum PDF disponível para abrir.');
+              }
+            }}
+          >
+            Abrir original
+          </Button>
+          <Button onClick={handleSave} disabled={saving || !dirty}>
+            {saving ? 'Salvando…' : 'Salvar'}
+          </Button>
+          <Button onClick={handleGeneratePdf} disabled={generating}>
+            {generating ? 'Gerando…' : 'Gerar PDF corrigido'}
+          </Button>
         </div>
+      </header>
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+        <section className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <AnnotationToolbar active={activeCategory} onChange={setActiveCategory} />
+          {pdfError && (
+            <p className="mt-2 text-sm text-amber-600">{pdfError}</p>
+          )}
+          <div className="mt-4 max-h-[70vh] space-y-4 overflow-y-auto pr-1">
+            <PdfCorrectionViewer
+              fileUrl={pdfUrl}
+              annotations={orderedAnnotations}
+              selectedId={selectedAnnotationId}
+              activeCategory={activeCategory}
+              onCreateAnnotation={handleCreateAnnotation}
+              onMoveAnnotation={handleMoveAnnotation}
+              onSelectAnnotation={setSelectedAnnotationId}
+            />
+          </div>
+        </section>
+
+        <section className="flex h-full flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <AnnotationSidebar
+            annotations={orderedAnnotations}
+            selectedId={selectedAnnotationId}
+            onSelect={setSelectedAnnotationId}
+            onDelete={handleDeleteAnnotation}
+            onCommentChange={handleCommentChange}
+            focusId={focusAnnotationId}
+            liveMessage={liveMessage}
+          />
+        </section>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4">
-        <div className="min-h-[420px] overflow-hidden rounded-lg border border-[#E5E7EB] bg-[#F9FAFB]">
-          {/* Mini toolbar do visualizador */}
-          <div className="flex items-center justify-between px-3 py-2 border-b bg-white/60">
-            <div className="text-xs text-ys-ink-2">
-              {pdfStatusMessage}
-            </div>
-            {pdfUrl && !pdfError && (
-              <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="text-xs underline">Abrir original</a>
-            )}
-          </div>
-          {/* PDF inline obrigatório */}
-          {pdfError ? (
-            <div className="p-4 space-y-2 text-sm text-red-600">
-              <p>{pdfError}</p>
-              {pdfErrorCode === 403 && classId && (
-                <button
-                  onClick={() => joinClassAndRefresh().catch((err) => toast.error(err?.response?.data?.message || 'Falha ao entrar na turma'))}
-                  className="rounded border border-orange-300 bg-orange-100 px-3 py-1 text-sm font-medium text-orange-800 hover:bg-orange-200"
-                >
-                  Entrar como professor desta turma
-                </button>
-              )}
-              <button
-                onClick={refreshPdfUrl}
-                className="rounded border border-red-300 bg-white px-2 py-1 text-sm hover:bg-red-100"
-              >
-                Tentar novamente
-              </button>
-            </div>
-          ) : pdfUrl ? (
-            <Suspense fallback={<div className="p-4 text-sm text-ys-ink-2">Carregando visualizador…</div>}>
-              <PdfAnnotatorLazy
-                fileUrl={pdfUrl}
-                essayId={essayId}
-                palette={[
-                  { key:'apresentacao', label:'Apresentação',          color:'#f97316', rgba:'rgba(249,115,22,0.60)' },
-                  { key:'ortografia',   label:'Ortografia/gramática',  color:'#22c55e', rgba:'rgba(34,197,94,0.60)'  },
-                  { key:'argumentacao', label:'Argumentação/estrutura',color:'#eab308', rgba:'rgba(234,179,8,0.60)'  },
-                  { key:'comentario',   label:'Comentário geral',      color:'#ef4444', rgba:'rgba(239,68,68,0.60)'  },
-                  { key:'coesao',       label:'Coesão/coerência',      color:'#0ea5e9', rgba:'rgba(14,165,233,0.60)' },
-                ]}
-                onError={handlePdfLoadError}
-                onChange={(list: any)=> { setRichAnnos(list as any); debouncedSaveRich(list as any); }}
-              />
-            </Suspense>
-          ) : (
-            <div className="p-4 text-sm text-ys-ink-2">
-              {pdfStatus === 'refreshing' ? 'Gerando visualização…' : 'Carregando PDF…'}
-            </div>
-          )}
-        </div>
-        <div className="space-y-3">
-          <div className="grid gap-3 md:grid-cols-4">
-            <div>
-              <label className="block text-sm font-medium text-[#111827]">Peso</label>
-              <input value={weight} onChange={(e)=>setWeight(e.target.value)} type="number" min={0} max={10} className="w-full rounded border p-2" disabled={!countInBimestral} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-[#111827]">Valor bimestral</label>
-              <input value={bimestralValue} onChange={(e)=>setBimestralValue(e.target.value)} type="number" min={0} className="w-full rounded border p-2" disabled={!countInBimestral} />
-            </div>
-            <label className="inline-flex items-center gap-2 mt-6 text-sm text-[#111827]"><input type="checkbox" checked={countInBimestral} onChange={(e)=>setCountInBimestral(e.target.checked)} /> Contar no bimestre</label>
-            <div className="mt-6">
-              <label className="block text-sm font-medium text-[#111827]">Anular</label>
-              <select className="rounded border p-2 text-sm" value={annulReason} onChange={e=>setAnnulReason(e.target.value)}>
-                <option value="">—</option>
-                <option value="Menos de 7 linhas">Menos de 7 linhas</option>
-                <option value="Fuga ao tema">Fuga ao tema</option>
-                <option value="Cópia">Cópia</option>
-                <option value="Ilegível/sem identificação">Ilegível/sem identificação</option>
-                <option value="Outros">Outros</option>
-              </select>
-            </div>
-          </div>
-
-          {essay.type === 'ENEM' ? (
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-[#111827]">Competências ENEM</label>
-              <div className="grid grid-cols-5 gap-2">
-                {[{v:c1,s:setC1},{v:c2,s:setC2},{v:c3,s:setC3},{v:c4,s:setC4},{v:c5,s:setC5}].map((o,i)=> (
-                  <select key={i} value={o.v} onChange={e=> o.s(e.target.value)} className="rounded border p-2">
-                    {[0,40,80,120,160,200].map(n=> <option key={n} value={n}>{n}</option>)}
-                  </select>
-                ))}
-              </div>
-              <p className="text-sm text-ys-ink-2">Total ENEM: <span className="font-medium text-[#111827]">{enemTotal}</span> / 1000 {annulReason && '(anulada)'}</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <div className="grid gap-2 md:grid-cols-2">
-                <div>
-                  <label className="block text-sm font-medium text-[#111827]">NC (0–10)</label>
-                  <input type="number" min={0} max={10} value={NC} onChange={e=> setNC(e.target.value)} className="w-full rounded border p-2" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[#111827]">NL (≥1)</label>
-                  <input type="number" min={1} value={NL} onChange={e=> setNL(e.target.value)} className="w-full rounded border p-2" />
-                </div>
-              </div>
-              <p className="text-sm text-ys-ink-2">Prévia PAS: nota <span className="font-medium text-[#111827]">{pasNR.toFixed(2)}</span>/10 • bimestral <span className="font-medium text-[#111827]">{computedBimester.toFixed(2)}</span> / {bimestralValue} • NE: <span className="font-medium text-[#111827]">{NE}</span></p>
-            </div>
-          )}
-
-          <label className="block text-sm font-medium text-[#111827]">Comentários</label>
-          <textarea value={comments} onChange={(e)=>setComments(e.target.value)} className="h-28 w-full rounded border p-2" placeholder="Feedback opcional" />
-
-          {useNewAnnotator ? (
-            <AnnotationEditorRich
-              value={richAnnos}
-              onChange={setRichAnnos}
-              currentPage={currentPage}
-              onSelect={(id)=>{
-                if (!id) { setSelectedIndex(null); return; }
-                const idx = richAnnos.findIndex(a=> a.id===id);
-                if (idx>=0) {
-                  setSelectedIndex(idx);
-                  const p = richAnnos[idx]?.page; if (typeof p === 'number') setCurrentPage(p);
-                }
-              }}
-              selectedId={selectedIndex!=null ? richAnnos[selectedIndex]?.id || null : null}
-              onJump={(p)=> setCurrentPage(p)}
-            />
-          ) : (
-            <AnnotationEditor
-              value={annotations}
-              onChange={(next:any)=> setAnnotations(next as any)}
-              focusIndex={lastAddedIndex}
-              selectedIndex={selectedIndex}
-              currentPage={currentPage}
-              onSelect={(i)=>{ setSelectedIndex(i); const p = (annotations[i] as any)?.bbox?.page; if (typeof p === 'number') setCurrentPage(p+1); }}
-              onRemove={(idx)=>{
-                setAnnotations((prev) => {
-                  const ann = prev[idx];
-                  setUndoStack((s)=> [{ idx, ann }, ...s].slice(0, 20));
-                  return prev.filter((_, i) => i !== idx);
-                });
-                if (selectedIndex === idx) setSelectedIndex(null);
-              }}
-            />
-          )}
-          {undoStack.length > 0 && (
-            <div className="text-xs text-ys-ink-2">
-              Anotação removida. <button className="underline" onClick={()=>{
-                const last = undoStack[0];
-                setUndoStack((s)=> s.slice(1));
-                setAnnotations((prev)=> {
-                  const next = prev.slice();
-                  const insertAt = Math.min(last.idx, next.length);
-                  next.splice(insertAt, 0, last.ann);
-                  return next;
-                });
-                setSelectedIndex((prevSel)=> Math.min(last.idx, (annotations.length)));
-              }}>Desfazer</button>
-            </div>
-          )}
-        </div>
-      </div>
+      <CorrectionMirror
+        type={essayType}
+        annulState={annulState}
+        annulOther={annulOther}
+        onToggleAnnul={handleToggleAnnul}
+        onAnnulOtherChange={(value) => {
+          setAnnulOther(value);
+          setDirty(true);
+        }}
+        annulled={annulled}
+        pasState={pasState}
+        onPasChange={handlePasChange}
+        pasResult={annulled ? 0 : pasResult}
+        enemLevels={enemLevels}
+        onEnemLevelChange={handleEnemLevelChange}
+        enemTotal={enemTotal}
+      />
     </div>
   );
 }
