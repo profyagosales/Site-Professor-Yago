@@ -171,6 +171,7 @@ function clamp01(value) {
   return number;
 }
 
+const LEVEL_POINTS = [0, 40, 80, 120, 160, 200];
 const LEGACY_ANNUL_REASONS = new Set([
   'IDENTIFICACAO',
   'DESENHOS',
