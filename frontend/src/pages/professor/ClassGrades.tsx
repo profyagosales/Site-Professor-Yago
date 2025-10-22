@@ -532,6 +532,7 @@ export default function ClassGradesPage() {
           </div>
         </div>
       )}
+      <section className="rounded-2xl border border-ys-line bg-white p-4 shadow-ys-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold text-ys-ink">Filtros</h2>
