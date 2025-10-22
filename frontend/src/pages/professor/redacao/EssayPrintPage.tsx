@@ -43,35 +43,53 @@ const POINTS_PER_LEVEL = [0, 40, 80, 120, 160, 200];
 type PasMacroKey = 'apresentacao' | 'consistencia' | 'generoTextual' | 'coesaoCoerencia';
 type PasErrorKey = 'grafiaAcentuacao' | 'pontuacaoMorfossintaxe' | 'propriedadeVocabular';
 
-const PAS_MACRO_CONFIG: Array<{
-  key: PasMacroKey;
-  label: string;
-  range: string;
-  min: number;
-  max: number;
-  decimals: number;
-}> = [
-  { key: 'apresentacao', label: 'Apresentação', range: '0,00 – 0,50', min: 0, max: 0.5, decimals: 2 },
+const PAS_MACRO_CONFIG: Array<
+  | {
+      type?: 'metric';
+      key: PasMacroKey;
+      label: string;
+      range: string;
+      min: number;
+      max: number;
+      decimals: number;
+    }
+  | {
+      type: 'group';
+      label: string;
+    }
+> = [
+  {
+    key: 'apresentacao',
+    label: '1. Apresentação (legibilidade, respeito às margens e indicação de parágrafo)',
+    range: '0,00 a 0,50',
+    min: 0,
+    max: 0.5,
+    decimals: 2,
+  },
+  {
+    type: 'group',
+    label: '2. Desenvolvimento do tema',
+  },
   {
     key: 'consistencia',
-    label: 'Consistência da argumentação e progressão temática',
-    range: '0,00 – 4,50',
+    label: '2.1 Consistência da argumentação e progressão temática',
+    range: '0,00 a 4,50',
     min: 0,
     max: 4.5,
     decimals: 2,
   },
   {
     key: 'generoTextual',
-    label: 'Adequação ao tipo/gênero textual',
-    range: '0,00 – 2,00',
+    label: '2.2 Adequação ao tipo e ao gênero textual',
+    range: '0,00 a 2,00',
     min: 0,
     max: 2,
     decimals: 2,
   },
   {
     key: 'coesaoCoerencia',
-    label: 'Coesão e coerência',
-    range: '0,00 – 3,00',
+    label: '2.3 Coesão e coerência',
+    range: '0,00 a 3,00',
     min: 0,
     max: 3,
     decimals: 2,
@@ -325,9 +343,13 @@ function extractEnemSelections(score: EssayScorePayload | null): EnemSelections 
   return { levels, reasons };
 }
 
-type PasComputation = {
-  macros: Array<
-    {
+type PasMacroEntry =
+  | {
+      type: 'group';
+      label: string;
+    }
+  | {
+      type: 'metric';
       key: PasMacroKey;
       label: string;
       range: string;
@@ -335,8 +357,10 @@ type PasComputation = {
       raw: number | null;
       outOfRange: boolean;
       decimals: number;
-    }
-  >;
+    };
+
+type PasComputation = {
+  macros: PasMacroEntry[];
   nc: number | null;
   errors: Array<{ key: PasErrorKey; label: string; value: number }>;
   ne: number;
@@ -386,10 +410,17 @@ function extractPasComputation(score: EssayScorePayload | null, essay: any | nul
   };
 
   const nlRaw = parseNumber(pasScore?.NL, pasScore?.TL, breakdown?.NL, breakdown?.TL);
-  const macros = PAS_MACRO_CONFIG.map((config) => {
+  const macros: PasMacroEntry[] = PAS_MACRO_CONFIG.map((config) => {
+    if ('type' in config && config.type === 'group') {
+      return {
+        type: 'group',
+        label: config.label,
+      };
+    }
     const raw = macroRaw[config.key];
     if (raw == null) {
       return {
+        type: 'metric',
         key: config.key,
         label: config.label,
         range: config.range,
@@ -402,6 +433,7 @@ function extractPasComputation(score: EssayScorePayload | null, essay: any | nul
     const clamped = clamp(raw, config.min, config.max);
     const outOfRange = raw < config.min - 1e-4 || raw > config.max + 1e-4;
     return {
+      type: 'metric',
       key: config.key,
       label: config.label,
       range: config.range,
@@ -412,7 +444,12 @@ function extractPasComputation(score: EssayScorePayload | null, essay: any | nul
     };
   });
 
-  const ncSum = macros.reduce((acc, item) => acc + (item.value ?? 0), 0);
+  const ncSum = macros.reduce((acc, item) => {
+    if (item.type === 'metric') {
+      return acc + (item.value ?? 0);
+    }
+    return acc;
+  }, 0);
   const nc = Number(clamp(ncSum, 0, 10).toFixed(2));
 
   const errors = PAS_ERROR_CONFIG.map((config) => {
@@ -718,19 +755,42 @@ export default function EssayPrintPage() {
     return levels.reduce((sum, level) => sum + (POINTS_PER_LEVEL[clampLevel(level)] ?? 0), 0);
   }, [enemSelections.levels, isEnem, score?.annulled]);
 
-  const headerScoreLabel = useMemo(() => {
+  const pasData = useMemo(
+    () => (isPas ? extractPasComputation(score, essay) : null),
+    [isPas, score, essay],
+  );
+
+  const formattedScore = useMemo(() => {
     if (score?.annulled) return 'ANULADA';
     if (isEnem) {
-      return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 0 }).format(totalEnemPoints);
+      const value = Number.isFinite(score?.enem?.total) ? score?.enem?.total : totalEnemPoints;
+      return formatNumber(value ?? 0, 0);
     }
+    if (isPas) {
+      if (pasData?.nr != null) return formatNumber(pasData.nr, 2);
+      const candidate = parseNumber(score?.pas?.NR, fallbackScore);
+      if (candidate != null) return formatNumber(candidate, 2);
+      return fallbackScore != null ? formatNumber(fallbackScore, 2) : '—';
+    }
+    if (fallbackScore != null) return formatNumber(fallbackScore, 2);
+    return '—';
+  }, [score, isEnem, totalEnemPoints, isPas, pasData?.nr, fallbackScore]);
+
+  const headerScoreLabel = useMemo(() => {
+    if (score?.annulled) return 'ANULADA';
     return formattedScore;
-  }, [formattedScore, isEnem, score?.annulled, totalEnemPoints]);
+  }, [formattedScore, score?.annulled]);
 
   const finalBannerContent = useMemo(() => {
-    if (!isEnem) return null;
     if (score?.annulled) return 'Redação anulada';
-    return `${totalEnemPoints} / 1000`;
-  }, [isEnem, score?.annulled, totalEnemPoints]);
+    if (isEnem) {
+      return `${formatNumber(totalEnemPoints, 0)} / 1000`;
+    }
+    if (isPas && pasData) {
+      return `${formatNumber(pasData.nr, 2)} / 10`;
+    }
+    return null;
+  }, [isEnem, isPas, pasData, score?.annulled, totalEnemPoints]);
 
   if (loading && !essay) {
     return (
@@ -757,43 +817,42 @@ export default function EssayPrintPage() {
   const competencyReasons =
     enemSelections.reasons.length === 5 ? enemSelections.reasons : new Array<string[]>(5).fill([]).map(() => []);
 
+  const lineOne = `Nº chamada: ${callNumber}  /  Turma: ${classLabel}  /  Bimestre: ${bimestreLabel}  /  Entrega: ${submittedAt}`;
+  const lineTwo = `${modelLabel}  /  ${themeLabel}`;
+
   return (
     <div className="print-wrapper">
       <article className="print-page print-page--summary">
-        <header className="summary-header">
-          <div className="summary-teacher">
-            <div className="summary-teacher-avatar">{teacherInitials}</div>
-            <div className="summary-teacher-info">
-              <strong>{teacherName}</strong>
-              <span>Colegio Yago Sales • Plataforma de Correção</span>
+        <header className="page-banner">
+          <div className="page-banner__grid">
+            <div className="teacher-card">
+              <span className="teacher-card__initials">{teacherInitials}</span>
+              <div className="teacher-card__details">
+                <span className="teacher-card__role">Professor</span>
+                <span className="teacher-card__name">{teacherName}</span>
+              </div>
             </div>
-          </div>
-          <div className="summary-badge">
-            NOTA:
-            <span>{headerScoreLabel}</span>
+            <div className="student-card">
+              <div className="student-card__photo">
+                {studentPhoto ? <img src={studentPhoto} alt={studentName} /> : 'Foto aluno'}
+              </div>
+              <div className="student-card__info">
+                <span className="student-card__name">{studentName.toUpperCase()}</span>
+                <div className="student-card__meta">
+                  <span>{lineOne}</span>
+                  <span>{lineTwo}</span>
+                </div>
+              </div>
+            </div>
+            <div className="score-card">
+              <span className="score-card__label">NOTA:</span>
+              <span className="score-card__value">{headerScoreLabel}</span>
+            </div>
           </div>
         </header>
 
-        <section className="student-strip">
-          <div className="student-photo">
-            {studentPhoto ? <img src={studentPhoto} alt={studentName} /> : studentInitials}
-          </div>
-          <div className="student-info">
-            <h1>{studentName.toUpperCase()}</h1>
-            <div className="student-meta">
-              <span data-label="Nº chamada:">{callNumber}</span>
-              <span data-label="Turma:">{classLabel}</span>
-              <span data-label="Bimestre:">{bimestreLabel}</span>
-              <span data-label="Entrega:">{submittedAt}</span>
-            </div>
-            <div className="student-model-theme">
-              <strong>Modelo:</strong> {modelLabel} &nbsp;•&nbsp; <strong>Tema:</strong> {themeLabel}
-            </div>
-          </div>
-        </section>
-
-        <section className="summary-grid">
-          <div className="essay-pane">
+        <section className="page-columns">
+          <div className="essay-frame">
             {pdfUrl ? (
               <PdfPrintPreview
                 fileUrl={pdfUrl}
@@ -811,11 +870,11 @@ export default function EssayPrintPage() {
               <div className="pdf-placeholder">Redação não disponível.</div>
             )}
           </div>
-          <aside className="comments-pane">
-            <h2>COMENTÁRIOS</h2>
+          <aside className="comment-column">
+            <div className="comment-column__title">COMENTÁRIOS</div>
             <div className="comment-list">
               {page1Comments.length === 0 ? (
-                <p className="no-comments">Nenhum comentário registrado.</p>
+                <p className="no-comments">Sem comentários nesta página.</p>
               ) : (
                 page1Comments.map((comment) => <CommentCard key={comment.id} comment={comment} />)
               )}
@@ -851,10 +910,128 @@ export default function EssayPrintPage() {
               )}
             </div>
             <aside className="mirror-comments">
-              <h2>COMENTÁRIOS (continuação)</h2>
+              <div className="comment-column__title">COMENTÁRIOS (continuação)</div>
               <div className="comment-list">
                 {page2Comments.length === 0 ? (
                   <p className="no-comments">Nenhum comentário adicional.</p>
+                ) : (
+                  page2Comments.map((comment) => <CommentCard key={comment.id} comment={comment} />)
+                )}
+              </div>
+            </aside>
+          </section>
+        </article>
+      )}
+
+    {isPas && pasData && (
+        <article className="print-page print-page--pas">
+          <header className="pas-banner">
+            <div className="pas-banner__grid">
+              <div className="pas-banner__teacher">
+                <span className="pas-banner__initials">{teacherInitials}</span>
+                <div className="pas-banner__teacher-info">
+                  <span className="pas-banner__teacher-role">Professor</span>
+                  <span className="pas-banner__teacher-name">{teacherName}</span>
+                </div>
+              </div>
+              <div className="pas-banner__title">ESPELHO DE CORREÇÃO — Pas/UnB</div>
+            </div>
+          </header>
+          <div className="pas-subheading">Detalhamento da correção</div>
+          <section className="pas-grid">
+            <div className="pas-left">
+              <div className="pas-macro-card">
+                <div className="pas-card-title">ASPECTOS MACROESTRUTURAIS</div>
+                <table className="pas-macro-table">
+                  <thead>
+                    <tr>
+                      <th>QUESITOS AVALIADOS</th>
+                      <th>FAIXA DE VALOR</th>
+                      <th>NOTA</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pasData.macros.map((item, index) => {
+                      if (item.type === 'group') {
+                        return (
+                          <tr key={`pas-macro-group-${index}`} className="pas-macro-row pas-macro-row--group">
+                            <td colSpan={3}>{item.label}</td>
+                          </tr>
+                        );
+                      }
+                      return (
+                        <tr key={item.key} className="pas-macro-row">
+                          <td>{item.label}</td>
+                          <td>{item.range}</td>
+                          <td className={item.outOfRange ? 'pas-macro-value is-out-of-range' : 'pas-macro-value'}>
+                            {item.value != null ? formatNumber(item.value, item.decimals) : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td className="pas-macro-total-label">NOTA DE CONTEÚDO (NC)</td>
+                      <td>0,00 a 10,00</td>
+                      <td className="pas-macro-total-value">{formatNumber(pasData.nc, 2)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              <div className="pas-micro-grid">
+                <div className="pas-micro-card">
+                  <div className="pas-card-title pas-card-title--micro">ASPECTOS MICROESTRUTURAIS</div>
+                  <div className="pas-micro-lines">
+                    <span>NÚMERO DE LINHAS (NL)</span>
+                    <strong>
+                      {pasData.nl != null ? formatNumber(pasData.nl, 0) : '—'}
+                      <span className="pas-micro-range"> (8…30)</span>
+                    </strong>
+                  </div>
+                  <table className="pas-micro-table">
+                    <thead>
+                      <tr>
+                        <th>TIPO DE ERRO</th>
+                        <th>QUANTIDADE</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pasData.errors.map((error) => (
+                        <tr key={error.key}>
+                          <td>{error.label}</td>
+                          <td>{error.value}</td>
+                        </tr>
+                      ))}
+                      <tr className="pas-micro-total">
+                        <td>NE — Número total de erros</td>
+                        <td>{formatNumber(pasData.ne, 0)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  {pasData.nlWarning && <p className="pas-warning">NL mínimo é 8 linhas.</p>}
+                </div>
+
+                <div className="pas-nr-card">
+                  <div className="pas-card-title pas-card-title--nr">NOTA FINAL DA REDAÇÃO (NR)</div>
+                  <div className="pas-nr-formula">NR = NC − 2 × (NE / NL)</div>
+                  <div className="pas-nr-details">{pasData.formulaText}</div>
+                  <div className="pas-nr-score">{formatNumber(pasData.nr, 2)}</div>
+                  <div className="pas-nr-range">0 … 10</div>
+                  <div className="pas-nr-note">A nota final é limitada ao mínimo 0.</div>
+                </div>
+              </div>
+            </div>
+
+            <aside className="comment-column pas-comments">
+              <div className="comment-column__title">COMENTÁRIOS (continuação)</div>
+              <p className="comment-column__hint">
+                Comentários que não couberem na página 1 continuam aqui, com as mesmas cores dos marca-textos.
+              </p>
+              <div className="comment-list">
+                {page2Comments.length === 0 ? (
+                  <p className="no-comments">Sem comentários adicionais.</p>
                 ) : (
                   page2Comments.map((comment) => <CommentCard key={comment.id} comment={comment} />)
                 )}

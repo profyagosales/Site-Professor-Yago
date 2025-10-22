@@ -23,8 +23,9 @@ import {
   saveEssayAnnotations as persistAnnotations,
   getEssayScore,
   saveEssayScore,
-  generateCorrectedPdf,
 } from '@/services/essays.service';
+import { generateCorrectedPdf } from '@/features/redacao/pdf/generateCorrectedPdf';
+import type { AnnotationKind, EssayPdfData, EssayModel } from '@/features/redacao/pdf/types';
 
 type PasState = {
   NC: string;
@@ -108,6 +109,23 @@ function renumber(list: AnnotationItem[]) {
     .slice()
     .sort((a, b) => a.number - b.number)
     .map((item, idx) => ({ ...item, number: idx + 1 }));
+}
+
+const HIGHLIGHT_TO_KIND: Record<HighlightCategoryKey, AnnotationKind> = {
+  argumentacao: 'argument',
+  ortografia: 'grammar',
+  coesao: 'cohesion',
+  apresentacao: 'presentation',
+  comentarios: 'general',
+};
+
+function getInitialsFromName(name: string) {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((piece) => piece[0]?.toUpperCase() ?? '')
+    .join('');
 }
 
 export default function GradeWorkspace() {
@@ -542,24 +560,73 @@ export default function GradeWorkspace() {
   };
 
   const handleGeneratePdf = async () => {
-    if (!id) return;
+    if (!essay) {
+      toast.info('Carregando dados da redação. Tente novamente em instantes.');
+      return;
+    }
     if (dirty) {
       toast.info('Salve as alterações antes de gerar o PDF corrigido.');
       return;
     }
     setGenerating(true);
     try {
-      const result = await generateCorrectedPdf(id);
-      if (result?.correctedUrl) {
-        toast.success('PDF corrigido gerado com sucesso.');
-        setEssay((prev: any) => ({
-          ...prev,
-          correctedUrl: result.correctedUrl,
-          status: 'GRADED',
+      const model: EssayModel = essayType === 'PAS' ? 'PAS/UnB' : 'ENEM';
+      const finalScore =
+        model === 'PAS/UnB'
+          ? pasDerived.nr != null
+            ? Number(pasDerived.nr).toFixed(1).replace('.', ',')
+            : '0,0'
+          : Math.max(0, Math.round(Number(enemTotal) || 0)).toString();
+      const professorNameRaw = typeof user?.name === 'string' ? user.name.trim() : '';
+      const professorName = professorNameRaw || 'Professor Yago Sales';
+      const professorInitials = getInitialsFromName(professorName) || 'YS';
+      const deliveredAtRaw =
+        (essay as any)?.deliveredAt ??
+        (essay as any)?.delivered_at ??
+        (essay as any)?.deliveryDate ??
+        (essay as any)?.submittedAt ??
+        (essay as any)?.submitted_at ??
+        null;
+      const deliveredAt = typeof deliveredAtRaw === 'string' && deliveredAtRaw ? deliveredAtRaw : undefined;
+      const pagesPng = Array.isArray((essay as any)?.pagesPng)
+        ? (essay as any).pagesPng.filter((src: unknown): src is string => typeof src === 'string' && src.length > 0)
+        : [];
+      const annotationsForPdf = orderedAnnotations.flatMap((ann) => {
+        if (!Array.isArray(ann.rects) || ann.rects.length === 0) return [];
+        return ann.rects.map((rect, idx) => ({
+          id: `${ann.id}-${idx}`,
+          page: ann.page,
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height,
+          kind: HIGHLIGHT_TO_KIND[ann.category] ?? 'general',
+          text: ann.comment ?? '',
         }));
-      } else {
-        toast.success('PDF corrigido gerado.');
-      }
+      });
+
+      const pdfData: EssayPdfData = {
+        student: { name: studentName, avatarUrl: studentPhoto ?? undefined },
+        professor: { name: professorName, initials: professorInitials },
+        klass: { label: turmaLabel || '-' },
+        termLabel: bimestreLabel || '',
+        deliveredAt,
+        theme: (essay as any)?.theme || (essay as any)?.topic || undefined,
+        model,
+        finalScore,
+        pagesPng,
+        annotations: annotationsForPdf,
+      };
+
+      const bytes = await generateCorrectedPdf(pdfData);
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `redacao-corrigida-${pdfData.student.name.replace(/\s+/g, '-')}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success('PDF corrigido gerado.');
     } catch (err: any) {
       console.error(err);
       toast.error(err?.response?.data?.message || 'Erro ao gerar PDF corrigido.');
