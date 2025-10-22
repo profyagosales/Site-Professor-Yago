@@ -49,11 +49,15 @@ const SITE_LOGO_SVG = `
 </svg>`;
 
 const COLOR_ORANGE = hexToRgb('#ff8a00');
+const COLOR_ORANGE_ACCENT = hexToRgb('#fb923c');
+const COLOR_ORANGE_DEEP = hexToRgb('#ea580c');
 const COLOR_SAGE = hexToRgb('#f9fafb');
 const COLOR_MUTED = hexToRgb('#6b7280');
 const COLOR_SLATE = hexToRgb('#1f2937');
+const COLOR_SLATE_DARK = hexToRgb('#0f172a');
 const COLOR_NOTE_BG = hexToRgb('#fef3c7');
 const COLOR_RED = hexToRgb('#dc2626');
+const COLOR_WHITE = { r: 1, g: 1, b: 1 };
 
 const HEADER_HEIGHT = 120;
 const HEADER_PADDING = 24;
@@ -71,6 +75,23 @@ function detectImageMimeFromBytes(buffer) {
   if (byte0 === 0x89 && byte1 === 0x50 && byte2 === 0x4e && byte3 === 0x47) return 'image/png';
   if (byte0 === 0xff && byte1 === 0xd8) return 'image/jpeg';
   return null;
+}
+
+function blendColor(base, target, ratio = 0.5) {
+  const clamp = (value) => Math.max(0, Math.min(1, value));
+  const r = clamp(base.r + (target.r - base.r) * ratio);
+  const g = clamp(base.g + (target.g - base.g) * ratio);
+  const b = clamp(base.b + (target.b - base.b) * ratio);
+  return { r, g, b };
+}
+
+function lightenColor(color, ratio = 0.25) {
+  return blendColor(color, COLOR_WHITE, ratio);
+}
+
+function normalizeHexColor(color, fallback = '#ff8a00') {
+  if (typeof color !== 'string' || !/^#?[0-9a-f]{3,6}$/i.test(color)) return hexToRgb(fallback);
+  return hexToRgb(color.startsWith('#') ? color : `#${color}`);
 }
 
 function asPdfColor(color) {
@@ -326,6 +347,14 @@ async function generateCorrectedEssayPdf({
   const classLabel = resolveClassLabel(classInfo) || '-';
   const themeName = resolveThemeName(essay);
   const finalScore = resolveFinalScore(score);
+  const submissionDate =
+    essay?.submittedAt ||
+    essay?.sentAt ||
+    essay?.sent_at ||
+    essay?.createdAt ||
+    essay?.updatedAt ||
+    null;
+  const bimesterLabel = essay?.bimester ?? essay?.term ?? essay?.bimestre ?? '-';
 
   const annotationsByPage = new Map();
   (Array.isArray(annotations) ? annotations : []).forEach((ann) => {
@@ -369,151 +398,246 @@ async function generateCorrectedEssayPdf({
         y: headerBaseY,
         width: pageWidth,
         height: HEADER_HEIGHT,
-        color: asPdfColor(COLOR_SAGE),
+        color: asPdfColor(COLOR_ORANGE_DEEP),
+      });
+      currentPage.drawRectangle({
+        x: 0,
+        y: headerBaseY,
+        width: pageWidth,
+        height: HEADER_HEIGHT,
+        color: asPdfColor(COLOR_ORANGE_ACCENT),
+        opacity: 0.92,
+      });
+      currentPage.drawRectangle({
+        x: 0,
+        y: headerBaseY,
+        width: pageWidth,
+        height: HEADER_HEIGHT,
+        color: asPdfColor(lightenColor(COLOR_ORANGE_ACCENT, 0.65)),
+        opacity: 0.2,
       });
 
-      let contentX = HEADER_PADDING;
-      if (logoImage) {
-        const maxLogoSize = HEADER_HEIGHT - HEADER_PADDING * 2;
-        const logoScale = maxLogoSize / Math.max(logoImage.width, logoImage.height);
-        const logoDims = logoImage.scale(logoScale);
-        const logoY = headerBaseY + HEADER_HEIGHT - logoDims.height - HEADER_PADDING;
-        currentPage.drawImage(logoImage, {
-          x: contentX,
-          y: logoY,
-          width: logoDims.width,
-          height: logoDims.height,
-        });
-        contentX += logoDims.width + 16;
-      }
+      const noteBoxWidth = 160;
+      const noteBoxHeight = HEADER_HEIGHT - HEADER_PADDING;
+      const noteBoxX = HEADER_PADDING;
+      const noteBoxY = headerBaseY + HEADER_PADDING / 2;
+      currentPage.drawRectangle({
+        x: noteBoxX,
+        y: noteBoxY,
+        width: noteBoxWidth,
+        height: noteBoxHeight,
+        color: asPdfColor(COLOR_WHITE),
+        borderColor: asPdfColor(COLOR_ORANGE_DEEP),
+        borderWidth: 1.6,
+        borderRadius: 16,
+      });
+      currentPage.drawText('Nota final', {
+        x: noteBoxX + 16,
+        y: noteBoxY + noteBoxHeight - 18,
+        font: fontBold,
+        size: 11,
+        color: asPdfColor(COLOR_ORANGE_DEEP),
+      });
+      currentPage.drawText(finalScore.value, {
+        x: noteBoxX + 16,
+        y: noteBoxY + noteBoxHeight / 2 + 2,
+        font: fontBold,
+        size: 26,
+        color: finalScore.annulled ? asPdfColor(COLOR_RED) : asPdfColor(COLOR_SLATE_DARK),
+      });
+      const noteCaption = finalScore.annulled
+        ? 'Redação anulada'
+        : finalScore.caption || (essay.type === 'PAS' ? 'PAS/UnB' : essay.type || 'ENEM');
+      currentPage.drawText(noteCaption, {
+        x: noteBoxX + 16,
+        y: noteBoxY + 18,
+        font: fontRegular,
+        size: 9,
+        color: finalScore.annulled ? asPdfColor(COLOR_RED) : asPdfColor(COLOR_MUTED),
+      });
 
-      const photoSize = 52;
-      let textStartX = contentX;
-      const photoY = headerBaseY + HEADER_HEIGHT - photoSize - HEADER_PADDING;
+      const logoBoxWidth = 150;
+      const infoBoxX = noteBoxX + noteBoxWidth + 20;
+      const infoBoxY = noteBoxY;
+      const infoBoxHeight = noteBoxHeight;
+      const logoBoxX = pageWidth - logoBoxWidth - HEADER_PADDING;
+      const infoBoxWidth = Math.max(220, logoBoxX - infoBoxX - 16);
+
+      currentPage.drawRectangle({
+        x: infoBoxX,
+        y: infoBoxY,
+        width: infoBoxWidth,
+        height: infoBoxHeight,
+        color: asPdfColor(COLOR_WHITE),
+        borderColor: asPdfColor(lightenColor(COLOR_ORANGE_ACCENT, 0.55)),
+        borderWidth: 1.2,
+        borderRadius: 16,
+      });
+
+      const photoSize = 58;
+      const photoX = infoBoxX + 16;
+      const photoY = infoBoxY + infoBoxHeight - photoSize - 16;
       if (studentPhotoImage) {
         const scale = photoSize / Math.max(studentPhotoImage.width, studentPhotoImage.height);
         const photoDims = studentPhotoImage.scale(scale);
-        const drawnY = headerBaseY + HEADER_HEIGHT - photoDims.height - HEADER_PADDING;
+        const drawY = infoBoxY + infoBoxHeight - photoDims.height - 16;
         currentPage.drawImage(studentPhotoImage, {
-          x: contentX,
-          y: drawnY,
+          x: photoX,
+          y: drawY,
           width: photoDims.width,
           height: photoDims.height,
         });
         currentPage.drawEllipse({
-          x: contentX + photoDims.width / 2,
-          y: drawnY + photoDims.height / 2,
+          x: photoX + photoDims.width / 2,
+          y: drawY + photoDims.height / 2,
           xScale: photoDims.width / 2,
           yScale: photoDims.height / 2,
-          borderColor: asPdfColor(COLOR_ORANGE),
-          borderWidth: 1.5,
+          borderColor: asPdfColor(COLOR_ORANGE_ACCENT),
+          borderWidth: 1.2,
         });
-        textStartX = contentX + photoDims.width + 14;
       } else {
-        const placeholderColor = asPdfColor(hexToRgb('#ffedd5'));
+        const placeholderColor = asPdfColor(lightenColor(COLOR_ORANGE_ACCENT, 0.65));
         currentPage.drawEllipse({
-          x: contentX + photoSize / 2,
+          x: photoX + photoSize / 2,
           y: photoY + photoSize / 2,
           xScale: photoSize / 2,
           yScale: photoSize / 2,
           color: placeholderColor,
-          borderColor: asPdfColor(COLOR_ORANGE),
-          borderWidth: 1.5,
+          borderColor: asPdfColor(COLOR_ORANGE_ACCENT),
+          borderWidth: 1.2,
         });
         const initials = studentName.trim().charAt(0).toUpperCase() || 'A';
         currentPage.drawText(initials, {
-          x: contentX + photoSize / 2 - 5,
-          y: photoY + photoSize / 2 - 6,
+          x: photoX + photoSize / 2 - 8,
+          y: photoY + photoSize / 2 - 10,
           font: fontBold,
-          size: 12,
-          color: asPdfColor(COLOR_ORANGE),
+          size: 18,
+          color: asPdfColor(COLOR_ORANGE_DEEP),
         });
-        textStartX = contentX + photoSize + 14;
       }
 
-      let textY = headerBaseY + HEADER_HEIGHT - HEADER_PADDING - 6;
+      const infoTextX = photoX + photoSize + 18;
+      const infoTextMaxWidth = infoBoxX + infoBoxWidth - infoTextX - 16;
+      let infoTextY = infoBoxY + infoBoxHeight - 18;
+      const infoColor = asPdfColor(COLOR_SLATE_DARK);
       currentPage.drawText(studentName, {
-        x: textStartX,
-        y: textY,
+        x: infoTextX,
+        y: infoTextY,
         font: fontBold,
-        size: 14,
-        color: asPdfColor(COLOR_SLATE),
+        size: 13,
+        color: infoColor,
       });
-      textY -= 14;
-      currentPage.drawText(`Turma: ${classLabel}`, {
-        x: textStartX,
-        y: textY,
-        font: fontRegular,
-        size: 10,
-        color: asPdfColor(COLOR_MUTED),
-      });
-      textY -= 12;
-      currentPage.drawText(`Tipo: ${essay.type || '-'}`, {
-        x: textStartX,
-        y: textY,
-        font: fontRegular,
-        size: 10,
-        color: asPdfColor(COLOR_MUTED),
-      });
-      textY -= 12;
+      infoTextY -= 14;
       const bimesterLabel = essay.bimester ?? essay.term ?? essay.bimestre ?? '-';
-      currentPage.drawText(`Bimestre: ${bimesterLabel}`, {
-        x: textStartX,
-        y: textY,
+      const submissionLabel = submissionDate
+        ? new Date(submissionDate).toLocaleDateString('pt-BR')
+        : '-';
+      currentPage.drawText(`Turma: ${classLabel || '-'}`, {
+        x: infoTextX,
+        y: infoTextY,
         font: fontRegular,
         size: 10,
         color: asPdfColor(COLOR_MUTED),
       });
-      textY -= 12;
-      const themeLines = wrapText(`Tema: ${themeName}`, 260, fontRegular, 10);
+      infoTextY -= 12;
+      currentPage.drawText(`Modelo: ${essay.type || '-'}`, {
+        x: infoTextX,
+        y: infoTextY,
+        font: fontRegular,
+        size: 10,
+        color: asPdfColor(COLOR_MUTED),
+      });
+      infoTextY -= 12;
+      currentPage.drawText(`Bimestre: ${bimesterLabel}`, {
+        x: infoTextX,
+        y: infoTextY,
+        font: fontRegular,
+        size: 10,
+        color: asPdfColor(COLOR_MUTED),
+      });
+      infoTextY -= 12;
+      currentPage.drawText(`Entregue: ${submissionLabel}`, {
+        x: infoTextX,
+        y: infoTextY,
+        font: fontRegular,
+        size: 10,
+        color: asPdfColor(COLOR_MUTED),
+      });
+      infoTextY -= 12;
+      const themeLines = wrapText(`Tema: ${themeName}`, infoTextMaxWidth, fontRegular, 10);
       themeLines.forEach((line) => {
         currentPage.drawText(line, {
-          x: textStartX,
-          y: textY,
+          x: infoTextX,
+          y: infoTextY,
           font: fontRegular,
           size: 10,
           color: asPdfColor(COLOR_MUTED),
         });
-        textY -= 12;
+        infoTextY -= 12;
       });
 
-      const noteBoxWidth = 150;
-      const noteBoxHeight = 64;
-      const noteX = pageWidth - noteBoxWidth - HEADER_PADDING;
-      const noteY = headerBaseY + HEADER_PADDING / 2;
       currentPage.drawRectangle({
-        x: noteX,
-        y: noteY,
-        width: noteBoxWidth,
-        height: noteBoxHeight,
-        color: asPdfColor(COLOR_NOTE_BG),
-        borderColor: asPdfColor(COLOR_ORANGE),
-        borderWidth: 1.4,
-        borderRadius: 12,
+        x: logoBoxX,
+        y: infoBoxY,
+        width: logoBoxWidth,
+        height: infoBoxHeight,
+        color: asPdfColor(COLOR_WHITE),
+        borderColor: asPdfColor(lightenColor(COLOR_ORANGE_ACCENT, 0.55)),
+        borderWidth: 1.2,
+        borderRadius: 16,
       });
-      currentPage.drawText('Nota', {
-        x: noteX + 12,
-        y: noteY + noteBoxHeight - 16,
-        font: fontBold,
-        size: 10,
-        color: asPdfColor(COLOR_ORANGE),
-      });
-      currentPage.drawText(finalScore.value, {
-        x: noteX + 12,
-        y: noteY + 24,
-        font: fontBold,
-        size: 22,
-        color: finalScore.annulled ? asPdfColor(COLOR_RED) : asPdfColor(COLOR_SLATE),
-      });
-      if (finalScore.caption) {
-        currentPage.drawText(finalScore.caption, {
-          x: noteX + 12,
-          y: noteY + 8,
-          font: fontRegular,
-          size: 9,
-          color: finalScore.annulled ? asPdfColor(COLOR_RED) : asPdfColor(COLOR_MUTED),
+
+      if (logoImage) {
+        const maxLogoSize = Math.min(60, infoBoxHeight - 36);
+        const scale = maxLogoSize / Math.max(logoImage.width, logoImage.height);
+        const dims = logoImage.scale(scale);
+        currentPage.drawImage(logoImage, {
+          x: logoBoxX + (logoBoxWidth - dims.width) / 2,
+          y: infoBoxY + infoBoxHeight - dims.height - 18,
+          width: dims.width,
+          height: dims.height,
+        });
+      } else {
+        const emblemSize = 48;
+        const emblemX = logoBoxX + (logoBoxWidth - emblemSize) / 2;
+        const emblemY = infoBoxY + infoBoxHeight - emblemSize - 22;
+        currentPage.drawEllipse({
+          x: emblemX + emblemSize / 2,
+          y: emblemY + emblemSize / 2,
+          xScale: emblemSize / 2,
+          yScale: emblemSize / 2,
+          color: asPdfColor(COLOR_ORANGE_DEEP),
+        });
+        currentPage.drawText('YS', {
+          x: emblemX + emblemSize / 2 - 12,
+          y: emblemY + emblemSize / 2 - 12,
+          font: fontBold,
+          size: 20,
+          color: rgb(1, 1, 1),
         });
       }
+
+      currentPage.drawText('Professor Yago Sales', {
+        x: logoBoxX + 18,
+        y: infoBoxY + 30,
+        font: fontBold,
+        size: 10,
+        color: asPdfColor(COLOR_SLATE_DARK),
+      });
+      currentPage.drawText('professoryagosales.com.br', {
+        x: logoBoxX + 18,
+        y: infoBoxY + 18,
+        font: fontRegular,
+        size: 8,
+        color: asPdfColor(COLOR_MUTED),
+      });
+      currentPage.drawText('@professoryagosales', {
+        x: logoBoxX + 18,
+        y: infoBoxY + 8,
+        font: fontRegular,
+        size: 8,
+        color: asPdfColor(lightenColor(COLOR_SLATE, 0.4)),
+      });
     }
 
     const pageNumber = index + 1;
@@ -565,149 +689,476 @@ async function generateCorrectedEssayPdf({
     }
     const categories = (title) => CATEGORY_LABELS[title] || 'Comentário';
 
-    const createCommentsPage = (label) => {
-      currentPage = pdfDoc.addPage([pageWidth, origHeight]);
-      cursorY = origHeight - margin;
+    const drawCommentsHeading = (label) => {
       currentPage.drawText(label, {
         x: columnX,
         y: cursorY,
         size: 12,
         font: fontBold,
-        color: rgb(0.2, 0.2, 0.2),
+        color: asPdfColor(COLOR_SLATE_DARK),
       });
-      cursorY -= 18;
+      cursorY -= 20;
+    };
+
+    const createCommentsPage = (label) => {
+      currentPage = pdfDoc.addPage([pageWidth, origHeight]);
+      cursorY = origHeight - margin;
+      drawCommentsHeading(label);
     };
 
     const ensureSpace = (estimatedHeight, continuation = false) => {
-      if (cursorY - estimatedHeight > margin) return;
+      if (cursorY - estimatedHeight > margin + 10) return;
       createCommentsPage(`Comentários — página ${pageNumber}${continuation ? ' (cont.)' : ''}`);
     };
 
     if (pageAnnotations.length) {
-      currentPage.drawText(`Comentários — página ${pageNumber}`, {
-        x: columnX,
-        y: cursorY,
-        size: 12,
-        font: fontBold,
-        color: rgb(0.2, 0.2, 0.2),
-      });
-      cursorY -= 18;
+      drawCommentsHeading(`Comentários — página ${pageNumber}`);
     }
 
     pageAnnotations.forEach((ann, idx) => {
+      const baseColor = normalizeHexColor(ann.color, '#f97316');
+      const cardColor = lightenColor(baseColor, 0.78);
       const heading = `#${ann.number} ${categories(ann.category)}`;
-      const textLines = wrapText(ann.comment, columnWidth, fontRegular, 10);
-      const estimatedHeight = 18 + textLines.length * 12 + 8;
-      ensureSpace(estimatedHeight, idx > 0);
+      const textLines = wrapText(
+        ann.comment || 'Sem comentário.',
+        columnWidth - 24,
+        fontRegular,
+        10
+      );
+      const cardPaddingX = 12;
+      const cardPaddingY = 10;
+      const contentHeight = 14 + textLines.length * 12;
+      const cardHeight = cardPaddingY * 2 + contentHeight;
 
-      currentPage.drawText(heading, {
+      ensureSpace(cardHeight + 12, idx > 0);
+      const cardTop = cursorY;
+      const cardBottom = cardTop - cardHeight;
+
+      currentPage.drawRectangle({
         x: columnX,
-        y: cursorY,
+        y: cardBottom,
+        width: columnWidth,
+        height: cardHeight,
+        color: asPdfColor(cardColor),
+        borderColor: asPdfColor(baseColor),
+        borderWidth: 1,
+        borderRadius: 12,
+        opacity: 0.96,
+      });
+
+      const chipSize = 9;
+      currentPage.drawEllipse({
+        x: columnX + columnWidth - cardPaddingX - chipSize / 2,
+        y: cardTop - cardPaddingY - chipSize / 2,
+        xScale: chipSize / 2,
+        yScale: chipSize / 2,
+        color: asPdfColor(baseColor),
+      });
+
+      let textY = cardTop - cardPaddingY - 2;
+      currentPage.drawText(heading, {
+        x: columnX + cardPaddingX,
+        y: textY,
         size: 11,
         font: fontBold,
-        color: rgb(0.1, 0.1, 0.1),
+        color: asPdfColor(COLOR_SLATE_DARK),
       });
-      cursorY -= 16;
+      textY -= 14;
       textLines.forEach((line) => {
         currentPage.drawText(line, {
-          x: columnX,
-          y: cursorY,
+          x: columnX + cardPaddingX,
+          y: textY,
           size: 10,
           font: fontRegular,
-          color: rgb(0.2, 0.2, 0.2),
+          color: asPdfColor(COLOR_SLATE),
         });
-        cursorY -= 12;
+        textY -= 12;
       });
-      cursorY -= 8;
+      cursorY = cardBottom - 12;
     });
   }
 
   const summaryPage = pdfDoc.addPage([612, 792]);
-  const summaryMargin = 50;
-  let summaryCursor = 792 - summaryMargin;
+  const summaryWidth = summaryPage.getWidth();
+  const summaryHeight = summaryPage.getHeight();
+  const summaryMargin = 48;
 
-  const drawSummaryText = (text, options = {}) => {
-    summaryPage.drawText(text, {
-      x: summaryMargin,
-      y: summaryCursor,
-      size: options.size || 12,
-      font: options.bold ? fontBold : fontRegular,
-      color: options.color || rgb(0.2, 0.2, 0.2),
-    });
-    summaryCursor -= (options.lineHeight || 16);
-  };
-
-  drawSummaryText('Espelho de correção', { size: 18, bold: true, color: rgb(0.1, 0.1, 0.1), lineHeight: 28 });
-  drawSummaryText(`Aluno: ${studentName}`, { lineHeight: 18 });
-  drawSummaryText(`Turma: ${classLabel}`, { lineHeight: 18 });
-  drawSummaryText(`Modelo: ${essay.type || '—'}`, { lineHeight: 18 });
-  drawSummaryText(`Tema: ${themeName}`, { lineHeight: 18 });
-  drawSummaryText(`Nota final: ${finalScore.value}${finalScore.caption ? ` (${finalScore.caption})` : ''}`, {
-    lineHeight: 20,
-    bold: true,
+  summaryPage.drawRectangle({
+    x: 0,
+    y: summaryHeight - 92,
+    width: summaryWidth,
+    height: 92,
+    color: asPdfColor(COLOR_ORANGE_DEEP),
+  });
+  summaryPage.drawRectangle({
+    x: 0,
+    y: summaryHeight - 92,
+    width: summaryWidth,
+    height: 92,
+    color: asPdfColor(COLOR_ORANGE_ACCENT),
+    opacity: 0.92,
+  });
+  summaryPage.drawRectangle({
+    x: 0,
+    y: summaryHeight - 92,
+    width: summaryWidth,
+    height: 92,
+    color: asPdfColor(lightenColor(COLOR_ORANGE_ACCENT, 0.6)),
+    opacity: 0.25,
   });
 
-  if (score?.annulled) {
-    drawSummaryText('ANULADA (nota 0)', { size: 16, bold: true, color: rgb(0.7, 0.1, 0.1), lineHeight: 24 });
-  }
+  summaryPage.drawText('Espelho de correção', {
+    x: summaryMargin,
+    y: summaryHeight - 48,
+    font: fontBold,
+    size: 22,
+    color: rgb(1, 1, 1),
+  });
+  summaryPage.drawText('Professor Yago Sales', {
+    x: summaryMargin,
+    y: summaryHeight - 70,
+    font: fontRegular,
+    size: 10,
+    color: rgb(1, 1, 1),
+  });
 
-  if (score?.type === 'PAS' && score?.pas) {
-    const pas = score.pas;
-    drawSummaryText('PAS/UnB', { bold: true, lineHeight: 22 });
-    drawSummaryText(`NC: ${pas.NC ?? '—'}`);
-    drawSummaryText(`NL: ${pas.NL ?? '—'}`);
-    drawSummaryText(`NE: ${pas.NE ?? '—'}`);
-    drawSummaryText(`NR: ${score.annulled ? 0 : pas.NR ?? '—'}`);
-    drawSummaryText('Fórmula: NR = NC - 2 × (NE / NL)', { lineHeight: 20 });
-  }
+  const cardWidth = summaryWidth - summaryMargin * 2;
+  const infoCardHeight = 120;
+  const infoCardX = summaryMargin;
+  const infoCardY = summaryHeight - 92 - 24 - infoCardHeight;
 
-  if (score?.type === 'ENEM' && score?.enem) {
-    drawSummaryText('ENEM', { bold: true, lineHeight: 22 });
-    ENEM_RUBRIC.forEach((competency, idx) => {
-      const selection = score.enem.competencies?.[competency.key] || {};
-      const levelValue = typeof selection.level === 'number' ? selection.level : score.enem.levels?.[idx];
-      const levelData = getEnemLevelData(competency.key, levelValue) || competency.levels[0];
-      const points = score.enem.points?.[idx] ?? levelData?.points ?? 0;
-      drawSummaryText(`Competência ${idx + 1} — Nível ${levelData.level} (${points} pts)`, {
-        bold: true,
-        lineHeight: 18,
-      });
-      summaryCursor = drawHighlightedParagraph(summaryPage, levelData.summary, {
-        x: summaryMargin,
-        y: summaryCursor,
-        maxWidth: 512,
-        font: fontRegular,
-        fontSize: 11,
-      });
-      summaryCursor -= 4;
-      const reasons = Array.isArray(selection.reasonIds) ? selection.reasonIds : [];
-      reasons.forEach((reasonId) => {
-        const label = ENEM_REASON_LABELS.get(reasonId);
-        if (!label) return;
-        summaryCursor = drawHighlightedParagraph(summaryPage, `• ${label}`, {
-          x: summaryMargin,
-          y: summaryCursor,
-          maxWidth: 512,
-          font: fontRegular,
-          fontSize: 10,
-          baseColor: rgb(0.35, 0.35, 0.35),
-        });
-        summaryCursor += 2;
-      });
-      summaryCursor -= 6;
+  summaryPage.drawRectangle({
+    x: infoCardX,
+    y: infoCardY,
+    width: cardWidth,
+    height: infoCardHeight,
+    color: asPdfColor(COLOR_WHITE),
+    borderColor: asPdfColor(lightenColor(COLOR_ORANGE_ACCENT, 0.6)),
+    borderWidth: 1.2,
+    borderRadius: 16,
+  });
+
+  const labelColor = asPdfColor(COLOR_MUTED);
+  const valueColor = asPdfColor(COLOR_SLATE_DARK);
+  const infoLeftX = infoCardX + 20;
+  const infoRightX = infoCardX + cardWidth / 2 + 16;
+
+  const drawLabelValue = (x, topY, label, value, options = {}) => {
+    summaryPage.drawText(label.toUpperCase(), {
+      x,
+      y: topY,
+      font: fontBold,
+      size: 8,
+      color: labelColor,
     });
-    drawSummaryText(`Total: ${score.annulled ? 0 : score.enem.total ?? 0} pts`, { bold: true, lineHeight: 20 });
-  }
+    const text = value != null && value !== '' ? String(value) : '—';
+    summaryPage.drawText(text, {
+      x,
+      y: topY - 14,
+      font: options.bold ? fontBold : fontRegular,
+      size: options.size || 12,
+      color: valueColor,
+    });
+    return topY - 28;
+  };
 
+  let infoLeftY = infoCardY + infoCardHeight - 24;
+  infoLeftY = drawLabelValue(infoLeftX, infoLeftY, 'Aluno', studentName, { bold: true });
+  infoLeftY = drawLabelValue(infoLeftX, infoLeftY, 'Turma', classLabel || '-');
+  infoLeftY = drawLabelValue(infoLeftX, infoLeftY, 'Modelo', essay.type || '-');
+
+  const submissionLabel = submissionDate
+    ? new Date(submissionDate).toLocaleDateString('pt-BR')
+    : '-';
+
+  let infoRightY = infoCardY + infoCardHeight - 24;
+  infoRightY = drawLabelValue(infoRightX, infoRightY, 'Bimestre', bimesterLabel);
+  infoRightY = drawLabelValue(infoRightX, infoRightY, 'Entregue em', submissionLabel);
+  summaryPage.drawText('TEMA', {
+    x: infoRightX,
+    y: infoRightY,
+    font: fontBold,
+    size: 8,
+    color: labelColor,
+  });
+  infoRightY -= 14;
+  const themeWrapped = wrapText(themeName || '-', cardWidth / 2 - 36, fontRegular, 11);
+  themeWrapped.forEach((line) => {
+    summaryPage.drawText(line, {
+      x: infoRightX,
+      y: infoRightY,
+      font: fontRegular,
+      size: 11,
+      color: valueColor,
+    });
+    infoRightY -= 13;
+  });
+
+  const sectionSpacing = 28;
+  const drawSectionCard = (title, height, renderContent) => {
+    const cardY = currentY - height;
+    summaryPage.drawRectangle({
+      x: summaryMargin,
+      y: cardY,
+      width: cardWidth,
+      height: height,
+      color: asPdfColor(COLOR_WHITE),
+      borderColor: asPdfColor(lightenColor(COLOR_ORANGE_ACCENT, 0.6)),
+      borderWidth: 1.1,
+      borderRadius: 16,
+    });
+    summaryPage.drawText(title, {
+      x: summaryMargin + 18,
+      y: cardY + height - 24,
+      font: fontBold,
+      size: 13,
+      color: valueColor,
+    });
+    renderContent({
+      x: summaryMargin + 18,
+      y: cardY + height - 42,
+      width: cardWidth - 36,
+      bottom: cardY + 16,
+    });
+    currentY = cardY - sectionSpacing;
+  };
+
+  let currentY = infoCardY - sectionSpacing;
+
+  const noteCardHeight = score?.type === 'ENEM' ? 240 : 180;
+  drawSectionCard('Resumo da nota', noteCardHeight, ({ x, y, width }) => {
+    const pillWidth = 150;
+    const pillHeight = 56;
+    summaryPage.drawRectangle({
+      x,
+      y: y - pillHeight + 6,
+      width: pillWidth,
+      height: pillHeight,
+      color: asPdfColor(lightenColor(COLOR_ORANGE_ACCENT, 0.7)),
+      borderColor: asPdfColor(COLOR_ORANGE_ACCENT),
+      borderWidth: 1.2,
+      borderRadius: 14,
+    });
+    summaryPage.drawText('Nota final', {
+      x: x + 14,
+      y: y - 12,
+      font: fontBold,
+      size: 10,
+      color: asPdfColor(COLOR_ORANGE_DEEP),
+    });
+    summaryPage.drawText(finalScore.value, {
+      x: x + 14,
+      y: y - 32,
+      font: fontBold,
+      size: 22,
+      color: finalScore.annulled ? asPdfColor(COLOR_RED) : asPdfColor(COLOR_SLATE_DARK),
+    });
+    const caption = finalScore.annulled
+      ? 'Redação anulada'
+      : finalScore.caption || (essay.type === 'PAS' ? 'PAS/UnB' : 'ENEM');
+    summaryPage.drawText(caption, {
+      x: x + 14,
+      y: y - 48,
+      font: fontRegular,
+      size: 9,
+      color: finalScore.annulled ? asPdfColor(COLOR_RED) : labelColor,
+    });
+
+    if (score?.type === 'PAS' && score?.pas) {
+      const pasBoxWidth = (width - pillWidth - 20) / 3;
+      const metrics = [
+        { label: 'NC', value: score.pas.NC ?? '—' },
+        { label: 'NL', value: score.pas.NL ?? '—' },
+        { label: 'NE', value: score.pas.NE ?? '—' },
+        { label: 'NR', value: finalScore.annulled ? '0' : score.pas.NR ?? '—', accent: true },
+      ];
+      const metricHeight = 52;
+      let metricX = x + pillWidth + 20;
+      let metricY = y - 4;
+      metrics.forEach((metric, idx) => {
+        if (idx === 3) {
+          metricX = x;
+          metricY = y - pillHeight - 22;
+        }
+        summaryPage.drawRectangle({
+          x: metricX,
+          y: metricY - metricHeight,
+          width: pasBoxWidth,
+          height: metricHeight,
+          color: asPdfColor(metric.accent ? lightenColor(COLOR_ORANGE_ACCENT, 0.7) : lightenColor(COLOR_SAGE, 0.3)),
+          borderColor: asPdfColor(metric.accent ? COLOR_ORANGE_ACCENT : lightenColor(COLOR_MUTED, 0.5)),
+          borderRadius: 12,
+          borderWidth: 1,
+        });
+        summaryPage.drawText(metric.label, {
+          x: metricX + 12,
+          y: metricY - 16,
+          font: fontBold,
+          size: 10,
+          color: metric.accent ? asPdfColor(COLOR_ORANGE_DEEP) : labelColor,
+        });
+        summaryPage.drawText(String(metric.value), {
+          x: metricX + 12,
+          y: metricY - 34,
+          font: fontBold,
+          size: 18,
+          color: valueColor,
+        });
+        metricX += pasBoxWidth + 12;
+      });
+      summaryPage.drawText('Fórmula: NR = NC - 2 × (NE / NL)', {
+        x,
+        y: y - pillHeight - 60,
+        font: fontRegular,
+        size: 9,
+        color: labelColor,
+      });
+    }
+
+    if (score?.type === 'ENEM' && score?.enem) {
+      const competencies = ENEM_RUBRIC.map((competency, idx) => {
+        const selection = score.enem.competencies?.[competency.key] || {};
+        const levelValue = typeof selection.level === 'number' ? selection.level : score.enem.levels?.[idx];
+        const levelData = getEnemLevelData(competency.key, levelValue) || competency.levels[0];
+        const points = score.enem.points?.[idx] ?? levelData?.points ?? 0;
+        return {
+          key: competency.key,
+          title: competency.title,
+          level: levelData.level,
+          points,
+          reasons: Array.isArray(selection.reasonIds) ? selection.reasonIds : [],
+        };
+      });
+
+      const gridCols = 3;
+      const gridPaddingTop = 12;
+      const gridCellWidth = (width - 12) / gridCols - 8;
+      const gridCellHeight = 64;
+      let cellX = x;
+      let cellY = y - pillHeight - gridPaddingTop;
+
+      competencies.forEach((comp, idx) => {
+        if (idx > 0 && idx % gridCols === 0) {
+          cellX = x;
+          cellY -= gridCellHeight + 10;
+        }
+        summaryPage.drawRectangle({
+          x: cellX,
+          y: cellY - gridCellHeight,
+          width: gridCellWidth,
+          height: gridCellHeight,
+          color: asPdfColor(lightenColor(COLOR_SAGE, 0.35)),
+          borderColor: asPdfColor(lightenColor(COLOR_MUTED, 0.3)),
+          borderRadius: 12,
+          borderWidth: 1,
+        });
+        summaryPage.drawText(comp.key, {
+          x: cellX + 12,
+          y: cellY - 16,
+          font: fontBold,
+          size: 10,
+          color: asPdfColor(COLOR_ORANGE_DEEP),
+        });
+        summaryPage.drawText(`Nível ${comp.level}`, {
+          x: cellX + 12,
+          y: cellY - 30,
+          font: fontBold,
+          size: 12,
+          color: valueColor,
+        });
+        summaryPage.drawText(`${comp.points} pts`, {
+          x: cellX + 12,
+          y: cellY - 44,
+          font: fontRegular,
+          size: 10,
+          color: labelColor,
+        });
+        cellX += gridCellWidth + 12;
+      });
+
+      summaryPage.drawText(`Total ENEM: ${score.annulled ? 0 : score.enem.total ?? 0} pts`, {
+        x,
+        y: cellY - gridCellHeight - 18,
+        font: fontBold,
+        size: 12,
+        color: valueColor,
+      });
+
+      const reasonLabels = [];
+      ENEM_RUBRIC.forEach((competency, idx) => {
+        const selection = score.enem.competencies?.[competency.key] || {};
+        const reasons = Array.isArray(selection.reasonIds) ? selection.reasonIds : [];
+        reasons.forEach((reasonId) => {
+          const label = ENEM_REASON_LABELS.get(reasonId);
+          if (label) reasonLabels.push(`• ${label}`);
+        });
+      });
+      if (reasonLabels.length) {
+        let reasonsY = cellY - gridCellHeight - 36;
+        summaryPage.drawText('Justificativas selecionadas:', {
+          x,
+          y: reasonsY,
+          font: fontBold,
+          size: 10,
+          color: labelColor,
+        });
+        reasonsY -= 14;
+        reasonLabels.slice(0, 8).forEach((text) => {
+          summaryPage.drawText(text, {
+            x,
+            y: reasonsY,
+            font: fontRegular,
+            size: 9,
+            color: asPdfColor(COLOR_SLATE),
+          });
+          reasonsY -= 12;
+        });
+      }
+    }
+  });
+
+  const reasonEntries = [];
   if (Array.isArray(score?.reasons) && score.reasons.length) {
-    drawSummaryText('Motivos da anulação:', { bold: true, lineHeight: 20 });
     score.reasons.forEach((reason) => {
-      drawSummaryText(`• ${reason}`);
+      reasonEntries.push(`• ${reason}`);
     });
   }
   if (score?.otherReason) {
-    drawSummaryText(`Observações: ${score.otherReason}`, { lineHeight: 18 });
+    reasonEntries.push(`• ${score.otherReason}`);
   }
+
+  drawSectionCard(
+    finalScore.annulled ? 'Motivos da anulação' : 'Observações',
+    Math.max(110, 60 + reasonEntries.length * 14),
+    ({ x, y, width }) => {
+      if (!reasonEntries.length) {
+        summaryPage.drawText(finalScore.annulled ? 'Nenhum motivo informado.' : 'Sem observações adicionais.', {
+          x,
+          y,
+          font: fontRegular,
+          size: 10,
+          color: asPdfColor(COLOR_SLATE),
+        });
+        return;
+      }
+      let lineY = y;
+      const wrapWidth = width;
+      reasonEntries.forEach((entry) => {
+        const lines = wrapText(entry, wrapWidth, fontRegular, 10);
+        lines.forEach((line) => {
+          summaryPage.drawText(line, {
+            x,
+            y: lineY,
+            font: fontRegular,
+            size: 10,
+            color: asPdfColor(COLOR_SLATE),
+          });
+          lineY -= 12;
+        });
+        lineY -= 4;
+      });
+    }
+  );
 
   const pdfBytes = await pdfDoc.save();
   return Buffer.from(pdfBytes);

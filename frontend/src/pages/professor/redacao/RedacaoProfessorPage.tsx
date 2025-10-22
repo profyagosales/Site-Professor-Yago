@@ -28,6 +28,7 @@ export default function RedacaoProfessorPage() {
   const [bimester, setBimester] = useState<string>('');
   const [type, setType] = useState<string>('');
   const navigate = useNavigate();
+  const containerCls = 'mx-auto w-full max-w-none px-2 sm:px-3 lg:px-4';
 
   useEffect(() => {
     (async () => {
@@ -63,8 +64,7 @@ export default function RedacaoProfessorPage() {
 
   return (
     <Page title="Redação" subtitle="Gerencie as redações dos alunos">
-      {/* Ações topo direito */}
-      <div className="mx-auto mb-2 flex w-full max-w-[1200px] items-center justify-end gap-2 px-3 sm:px-4 lg:px-5">
+      <div className={`${containerCls} mb-2 flex items-center justify-end gap-2`}>
         <Button variant="ghost" onClick={() => setThemesOpen(true)}>
           Temas
         </Button>
@@ -72,13 +72,10 @@ export default function RedacaoProfessorPage() {
           Nova Redação
         </Button>
       </div>
-      {/* Abas */}
-      <div className="mx-auto w-full max-w-[1200px] px-3 sm:px-4 lg:px-5">
-        <Tabs items={statusTabs} className="mb-4" />
-      </div>
 
-      {/* Filtros */}
-      <div className="mx-auto mb-4 grid w-full max-w-[1200px] gap-3 px-3 sm:px-4 lg:px-5 md:grid-cols-5">
+      <div className={`${containerCls} mb-4`}>
+        <Tabs items={statusTabs} className="mb-4" />
+        <div className="mb-4 grid gap-3 md:grid-cols-5">
         <input
           value={q}
           onChange={(e) => { setQ(e.target.value); setPage(1); }}
@@ -117,10 +114,10 @@ export default function RedacaoProfessorPage() {
           <option value="PAS">PAS</option>
           <option value="ENEM">ENEM</option>
         </select>
+        </div>
       </div>
 
-      {/* Tabela */}
-      <div className="mx-auto w-full max-w-[1200px] overflow-hidden rounded-xl border border-[#E5E7EB] bg-white shadow-ys-md px-3 sm:px-4 lg:px-5">
+      <div className={`${containerCls} overflow-hidden rounded-xl border border-[#E5E7EB] bg-white shadow-ys-md`}>
         <table className="w-full text-sm text-[#111827]">
           <thead className="bg-[#F3F4F6] text-left text-[#374151]">
             <tr>
@@ -231,16 +228,6 @@ export default function RedacaoProfessorPage() {
                       >
                         Corrigir
                       </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={openCorrectedPdf}
-                        disabled={!essayId}
-                      >
-                        Visualizar
-                      </Button>
                     )}
                     {status === 'corrected' && (
                       <Button
@@ -329,7 +316,7 @@ export default function RedacaoProfessorPage() {
       </div>
 
       {/* Paginação */}
-      <div className="mt-4 flex items-center justify-between">
+      <div className={`${containerCls} mt-4 flex items-center justify-between`}>
         <div className="flex items-center gap-2">
           <button
             className="rounded border border-[#E5E7EB] px-3 py-1 disabled:opacity-50"
