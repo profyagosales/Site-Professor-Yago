@@ -16,6 +16,34 @@ const https = require('https');
 const http = require('http');
 const { assertUserCanAccessEssay } = require('../utils/assertUserCanAccessEssay');
 
+const ENEM_RUBRIC_BY_KEY = ENEM_RUBRIC.reduce((acc, competency) => {
+  acc[competency.key] = competency;
+  return acc;
+}, {});
+
+function getEnemLevelData(key, level) {
+  const competency = ENEM_RUBRIC_BY_KEY[key];
+  if (!competency) return null;
+  return competency.levels.find((lvl) => lvl.level === level) || competency.levels[0] || null;
+}
+
+function collectRubricReasonIds(node) {
+  if (!node) return [];
+  const stack = Array.isArray(node) ? [...node] : [node];
+  const set = new Set();
+  while (stack.length) {
+    const current = stack.pop();
+    if (!current || typeof current !== 'object') continue;
+    if (typeof current.id === 'string') {
+      set.add(current.id);
+    }
+    if (Array.isArray(current.items)) {
+      current.items.forEach((child) => stack.push(child));
+    }
+  }
+  return Array.from(set);
+}
+
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,

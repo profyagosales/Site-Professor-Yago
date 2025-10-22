@@ -490,7 +490,7 @@ export default function GradeWorkspace() {
     .join('') || 'A';
 
   return (
-    <div className="container mx-auto flex h-full max-w-[1200px] flex-col gap-4 px-3 py-4 sm:px-4 lg:px-5">
+    <div className="mx-auto flex h-full w-full max-w-none flex-col gap-3 px-2 py-4 sm:px-3 lg:px-4">
       <header className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between lg:p-5">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
@@ -549,10 +549,10 @@ export default function GradeWorkspace() {
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:p-5">
         <div
-          className="grid grid-cols-1 gap-3 md:grid-cols-[200px_minmax(0,1fr)_280px] md:gap-4"
+          className="grid grid-cols-1 gap-2 md:grid-cols-[110px_minmax(0,1fr)_220px] md:gap-3"
           aria-label="Workspace de correção"
         >
-          <aside className="order-1 md:order-none md:w-[200px] md:shrink-0">
+          <aside className="order-1 md:order-none md:w-[110px] md:shrink-0">
             <div className="mb-3 md:hidden">
               <AnnotationToolbar active={activeCategory} onChange={setActiveCategory} orientation="horizontal" />
             </div>
@@ -570,7 +570,7 @@ export default function GradeWorkspace() {
                 {pdfError}
               </p>
             )}
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 shadow-inner">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-2 shadow-inner">
               <div className="h-[78vh] min-h-[560px] w-full overflow-auto rounded-xl border border-slate-200 bg-white">
                 <PdfCorrectionViewer
                   fileUrl={pdfUrl}
@@ -584,8 +584,8 @@ export default function GradeWorkspace() {
               </div>
             </div>
           </main>
-          <aside className="order-3 hidden w-[280px] max-w-[280px] shrink-0 md:flex">
-            <div className="h-[78vh] min-h-[560px] w-full overflow-auto rounded-xl border border-slate-200 bg-white p-3">
+          <aside className="order-3 hidden w-[220px] max-w-[220px] shrink-0 md:flex">
+            <div className="h-[78vh] min-h-[560px] w-full overflow-auto rounded-xl border border-slate-200 bg-white p-2">
               <AnnotationSidebar
                 annotations={orderedAnnotations}
                 selectedId={selectedAnnotationId}

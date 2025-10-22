@@ -11,8 +11,8 @@ type AnnotationToolbarProps = {
 export function AnnotationToolbar({ active, onChange, orientation = 'horizontal', className }: AnnotationToolbarProps) {
   const isVertical = orientation === 'vertical';
   const baseClasses = isVertical
-    ? 'flex flex-col items-stretch space-y-2'
-    : 'flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2';
+    ? 'flex flex-col items-stretch space-y-1.5'
+    : 'flex flex-wrap items-center gap-1.5 border-b border-slate-200 pb-2';
 
   return (
     <div className={`${baseClasses}${className ? ` ${className}` : ''}`}>
@@ -25,8 +25,8 @@ export function AnnotationToolbar({ active, onChange, orientation = 'horizontal'
             key={key}
             type="button"
             onClick={() => onChange(key)}
-            className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition shadow-sm ${
-              isActive ? 'ring-2 ring-offset-2 ring-orange-500' : 'ring-1 ring-transparent'
+            className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition shadow-sm ${
+              isActive ? 'ring-2 ring-offset-1 ring-orange-500' : 'ring-1 ring-transparent'
             } ${isVertical ? 'justify-start text-left' : ''}`}
             style={{
               backgroundColor: hexToRgba(meta.color, HIGHLIGHT_ALPHA),
@@ -34,7 +34,7 @@ export function AnnotationToolbar({ active, onChange, orientation = 'horizontal'
             aria-pressed={isActive}
           >
             <span
-              className="inline-block h-2.5 w-2.5 flex-none rounded-full"
+              className="inline-block h-2 w-2 flex-none rounded-full"
               style={{ backgroundColor: meta.color }}
               aria-hidden
             />
