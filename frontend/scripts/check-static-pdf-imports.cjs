@@ -8,6 +8,7 @@ const ALLOW_FILES = new Set([
   path.join('components','redacao','PdfAnnotator.tsx'),
   path.join('components','redacao','PdfAnnotator.lazy.tsx'),
   path.join('components','redacao','PdfHighlighter.tsx'),
+  path.join('lib','pdf.ts'),
 ]);
 
 /** @type {Array<{file:string,line:number,match:string}>} */
