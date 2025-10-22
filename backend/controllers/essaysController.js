@@ -1168,16 +1168,66 @@ function normalizeEssayScoreResponse(essay) {
 
   const enemTotal = enemPoints.reduce((acc, value) => acc + value, 0);
 
+  const pasBreakdown = pas || {};
+  const pasErrors = pasBreakdown.erros || {};
+  const macroKeys = ['apresentacao', 'argumentacao', 'adequacao', 'coesao'];
+  const macroSum = macroKeys.reduce(
+    (acc, key) => acc + (Number.isFinite(pasBreakdown[key]) ? Number(pasBreakdown[key]) : 0),
+    0
+  );
+  const inferredNc =
+    Number.isFinite(pasBreakdown.NC) && pasBreakdown.NC != null
+      ? Number(pasBreakdown.NC)
+      : roundToTwoDecimals(macroSum);
+  const tlValue =
+    Number.isFinite(pasBreakdown.TL) && pasBreakdown.TL != null
+      ? Number(pasBreakdown.TL)
+      : Number.isFinite(pasBreakdown.NL)
+        ? Number(pasBreakdown.NL)
+        : null;
+  const inferredNe =
+    Number.isFinite(pasBreakdown.NE) && pasBreakdown.NE != null
+      ? Number(pasBreakdown.NE)
+      : (Number.isFinite(pasErrors.grafia) ? pasErrors.grafia : 0) +
+        (Number.isFinite(pasErrors.pontuacao) ? pasErrors.pontuacao : 0) +
+        (Number.isFinite(pasErrors.propriedade) ? pasErrors.propriedade : 0);
+  const pasDiscount =
+    Number.isFinite(pasBreakdown.descontoPorErro) && pasBreakdown.descontoPorErro > 0
+      ? pasBreakdown.descontoPorErro
+      : tlValue && tlValue > 0
+        ? Number((2 / tlValue).toFixed(3))
+        : null;
+  const pasNr =
+    pasBreakdown.NR != null
+      ? pasBreakdown.NR
+      : essay.rawScore != null
+        ? essay.rawScore
+        : annulled
+          ? 0
+          : null;
+
   return {
     type: essay.type || null,
     annulled,
     reasons: reasons.length ? reasons : (essay.annulmentReason ? [essay.annulmentReason] : []),
     otherReason: essay.annulOtherReason || null,
     pas: {
-      NC: pas.NC ?? null,
-      NL: pas.NL ?? null,
-      NE: pas.NE ?? null,
-      NR: pas.NR ?? essay.rawScore ?? null,
+      apresentacao: Number.isFinite(pasBreakdown.apresentacao) ? pasBreakdown.apresentacao : null,
+      argumentacao: Number.isFinite(pasBreakdown.argumentacao) ? pasBreakdown.argumentacao : null,
+      adequacao: Number.isFinite(pasBreakdown.adequacao) ? pasBreakdown.adequacao : null,
+      coesao: Number.isFinite(pasBreakdown.coesao) ? pasBreakdown.coesao : null,
+      NC: inferredNc != null ? inferredNc : null,
+      TL: tlValue != null ? tlValue : null,
+      NL: tlValue != null ? tlValue : null,
+      NE: inferredNe != null ? inferredNe : null,
+      descontoPorErro: pasDiscount,
+      NR: annulled ? 0 : pasNr,
+      erros: {
+        grafia: Number.isFinite(pasErrors.grafia) ? pasErrors.grafia : 0,
+        pontuacao: Number.isFinite(pasErrors.pontuacao) ? pasErrors.pontuacao : 0,
+        propriedade: Number.isFinite(pasErrors.propriedade) ? pasErrors.propriedade : 0,
+        observacao: pasErrors.observacao || null,
+      },
     },
     enem: {
       levels: enemLevels,
@@ -1243,21 +1293,126 @@ async function saveEssayScoreController(req, res) {
       essay.type = 'PAS';
       essay.enemRubric = undefined;
       essay.enemCompetencies = undefined;
-      essay.pasBreakdown = essay.pasBreakdown || {};
-      const NC = body?.pas?.NC != null ? Number(body.pas.NC) : essay.pasBreakdown.NC;
-      const NL = body?.pas?.NL != null ? Number(body.pas.NL) : essay.pasBreakdown.NL;
-      const NE = body?.pas?.NE != null ? Number(body.pas.NE) : essay.pasBreakdown.NE;
-      let NR = body?.pas?.NR != null ? Number(body.pas.NR) : essay.pasBreakdown.NR;
-      if (!Number.isFinite(NR)) {
-        const normalizedNL = Number.isFinite(NL) && NL > 0 ? NL : 1;
-        NR = Number(NC) - 2 * (Number(NE) / normalizedNL);
+
+      const pasBody = body?.pas || {};
+      const existing = essay.pasBreakdown || {};
+
+      const toNumber = (value) => {
+        if (value === '' || value === null || value === undefined) return null;
+        const num = Number(value);
+        return Number.isFinite(num) ? num : null;
+      };
+
+      const clampRange = (incoming, fallback, min, max) => {
+        const parsed = toNumber(incoming);
+        const base = parsed != null ? parsed : fallback != null ? Number(fallback) : null;
+        if (base == null) return null;
+        return clamp(base, min, max);
+      };
+
+      const macroDefs = [
+        { key: 'apresentacao', max: 0.5 },
+        { key: 'argumentacao', max: 4.5 },
+        { key: 'adequacao', max: 2 },
+        { key: 'coesao', max: 3 },
+      ];
+
+      const macros = {};
+      macroDefs.forEach(({ key, max }) => {
+        macros[key] = clampRange(pasBody[key], existing[key], 0, max);
+      });
+
+      const hasMacroInput = macroDefs.some(({ key }) => pasBody[key] != null);
+      const macroTotal = macroDefs.reduce(
+        (acc, { key }) => acc + (Number.isFinite(macros[key]) ? Number(macros[key]) : 0),
+        0
+      );
+      const providedNC = toNumber(pasBody.NC);
+      let nc = hasMacroInput ? roundToTwoDecimals(macroTotal) : null;
+      if (nc == null) {
+        if (providedNC != null) {
+          nc = roundToTwoDecimals(clamp(providedNC, 0, 10));
+        } else if (Number.isFinite(existing.NC)) {
+          nc = Number(existing.NC);
+        } else {
+          nc = roundToTwoDecimals(macroTotal);
+        }
       }
-      NR = Math.max(0, Number.isFinite(NR) ? NR : 0);
-      essay.pasBreakdown.NC = Number.isFinite(NC) ? NC : null;
-      essay.pasBreakdown.NL = Number.isFinite(NL) ? NL : null;
-      essay.pasBreakdown.NE = Number.isFinite(NE) ? NE : null;
-      essay.pasBreakdown.NR = annulled ? 0 : NR;
-      essay.rawScore = annulled ? 0 : NR;
+
+      const tl = clampRange(pasBody.TL ?? pasBody.NL, existing.TL ?? existing.NL, 8, 30);
+
+      const errosBody = pasBody.erros || {};
+      const parseCount = (incoming, fallback) => {
+        const parsed = toNumber(incoming);
+        const base = parsed != null ? parsed : fallback != null ? Number(fallback) : 0;
+        const normalized = Number.isFinite(base) ? Math.max(0, Math.floor(base)) : 0;
+        return normalized;
+      };
+
+      const grafia = parseCount(errosBody.grafia, existing?.erros?.grafia);
+      const pontuacao = parseCount(errosBody.pontuacao, existing?.erros?.pontuacao);
+      const propriedade = parseCount(errosBody.propriedade, existing?.erros?.propriedade);
+      const observacao =
+        typeof errosBody.observacao === 'string'
+          ? errosBody.observacao.trim()
+          : existing?.erros?.observacao || null;
+
+      const hasErrorInput =
+        errosBody.grafia != null ||
+        errosBody.pontuacao != null ||
+        errosBody.propriedade != null;
+
+      const neFromCategories = grafia + pontuacao + propriedade;
+      const providedNE = toNumber(pasBody.NE);
+      const ne =
+        hasErrorInput
+          ? neFromCategories
+          : providedNE != null
+            ? Math.max(0, Math.floor(providedNE))
+            : existing.NE ?? neFromCategories;
+
+      const descontoPorErro =
+        Number.isFinite(tl) && tl > 0
+          ? Number((2 / tl).toFixed(3))
+          : existing.descontoPorErro ?? null;
+
+      let nr = null;
+      if (!annulled && nc != null && ne != null && descontoPorErro != null) {
+        nr = roundToTwoDecimals(Math.max(0, nc - ne * descontoPorErro));
+      }
+      if (!annulled && nr == null) {
+        const providedNR = toNumber(pasBody.NR);
+        nr =
+          providedNR != null
+            ? roundToTwoDecimals(Math.max(0, providedNR))
+            : existing.NR != null
+              ? Number(existing.NR)
+              : essay.rawScore ?? null;
+      }
+      if (annulled) nr = 0;
+
+      essay.pasBreakdown = {
+        apresentacao: Number.isFinite(macros.apresentacao) ? macros.apresentacao : null,
+        argumentacao: Number.isFinite(macros.argumentacao) ? macros.argumentacao : null,
+        adequacao: Number.isFinite(macros.adequacao) ? macros.adequacao : null,
+        coesao: Number.isFinite(macros.coesao) ? macros.coesao : null,
+        NC: nc != null ? roundToTwoDecimals(nc) : null,
+        NL: Number.isFinite(tl) ? tl : null,
+        TL: Number.isFinite(tl) ? tl : null,
+        NE: Number.isFinite(ne) ? ne : null,
+        descontoPorErro: descontoPorErro != null ? descontoPorErro : null,
+        NR: nr != null ? nr : null,
+        erros: {
+          grafia,
+          pontuacao,
+          propriedade,
+          observacao,
+        },
+      };
+
+      essay.rawScore = annulled ? 0 : nr != null ? nr : existing.NR ?? 0;
+      essay.enemRubric = undefined;
+      essay.enemCompetencies = undefined;
     } else {
       essay.type = 'ENEM';
       const incoming = body?.enem?.competencies;

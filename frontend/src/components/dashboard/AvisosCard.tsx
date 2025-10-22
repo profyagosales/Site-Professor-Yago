@@ -204,7 +204,7 @@ export default function AvisosCard({
   onEdit = noop,
   onCreate = noop,
 }: AvisosCardProps) {
-  const containerClassName = ['card flex h-full flex-col', className].filter(Boolean).join(' ');
+  const containerClassName = ['dash-card h-full', className].filter(Boolean).join(' ');
   const hasEditAction = onEdit !== noop;
   const hasCreateAction = onCreate !== noop;
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -459,9 +459,9 @@ export default function AvisosCard({
   return (
     <>
       <section className={containerClassName}>
-        <header className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-lg font-semibold text-slate-900">Avisos</h3>
-          <div className="flex flex-wrap items-center gap-2">
+        <header className="dash-card__header">
+          <h3 className="dash-card__title">Avisos</h3>
+          <div className="dash-card__actions">
             {hasCreateAction ? (
               <Button type="button" size="sm" variant="ghost" onClick={onCreate}>
                 Registrar aviso

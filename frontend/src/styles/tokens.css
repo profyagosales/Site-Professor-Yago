@@ -4,14 +4,19 @@
   --h-stack:360px;          /* altura padrão dos cards empilhados à esquerda */
   --ws-row-h:108px;         /* altura das linhas do horário */
   --ws-gap-y:10px;          /* espaçamento vertical entre linhas */
-  --hero-min-h:200px;       /* altura mínima do hero card */
-  --hero-py:18px;           /* padding vertical do hero */
-  --hero-stat-h:92px;       /* altura dos mini cards de estatística */
-  --hero-stat-gap:12px;     /* espaçamento entre os mini cards */
+  --hero-min-h:150px;       /* altura mínima do hero card */
+  --hero-py:14px;           /* padding vertical do hero */
+  --hero-stat-h:72px;       /* altura dos mini cards de estatística */
+  --hero-stat-gap:10px;     /* espaçamento entre os mini cards */
+  --dash-card-radius:26px;  /* raio padrão dos cards */
+  --dash-card-px:24px;      /* padding horizontal dos cards */
+  --dash-card-py:22px;      /* padding vertical dos cards */
+  --dash-card-header-gap:18px;
+  --dash-card-title-fz:20px;
 
   /* WEEKLY SCHEDULE CARD */
-  --sched-card-px:18px;
-  --sched-card-py:16px;
+  --sched-card-px:var(--dash-card-px);
+  --sched-card-py:var(--dash-card-py);
   --sched-chip-h:36px;
   --sched-chip-gap:8px;
   --sched-leftcol-w:162px;
@@ -20,7 +25,7 @@
   --sched-gap-y:10px;
   --sched-grade-fz:20px;
   --sched-subj-fz:14px;
-  --sched-title-fz:22px;
+  --sched-title-fz:var(--dash-card-title-fz);
 
   /* BRAND */
   --c-brand-50:#FFF6EE;
@@ -54,6 +59,9 @@
   --agenda-type-atividade:#3b82f6;
   --agenda-type-conteudo:#22c55e;
   --agenda-type-data:#f59e0b;
+  --agenda-type-atividade-bg:rgba(59,130,246,.15);
+  --agenda-type-conteudo-bg:rgba(34,197,94,.16);
+  --agenda-type-data-bg:rgba(245,158,11,.18);
   --agenda-today-ring:2px solid rgba(24,119,242,.35);
 
   /* STATES */
@@ -111,10 +119,12 @@
 
 @media (min-width: 1024px){
   :root{
-    --hero-min-h:210px;
-    --hero-py:20px;
-    --hero-stat-h:96px;
-    --hero-stat-gap:14px;
+    --hero-min-h:160px;
+    --hero-py:16px;
+    --hero-stat-h:76px;
+    --hero-stat-gap:12px;
+    --dash-card-px:26px;
+    --dash-card-py:24px;
   }
 }
 

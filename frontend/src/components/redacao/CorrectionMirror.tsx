@@ -1,4 +1,4 @@
-import type { FormEvent } from 'react';
+import { useMemo, type FormEvent } from 'react';
 import { ENEM_2024 } from '@/features/essay/rubrics/enem2024';
 import EnemScoringForm, {
   type EnemSelectionsMap,
@@ -13,11 +13,28 @@ export const ANNUL_OPTIONS = [
   { key: 'OUTROS', label: 'Outros (especificar)', hasInput: true },
 ] as const;
 
-type PasState = {
-  NC: string;
-  NL: string;
-  NE: string;
+export type PasState = {
+  apresentacao: string;
+  argumentacao: string;
+  adequacao: string;
+  coesao: string;
+  TL: string;
+  erros: {
+    grafia: string;
+    pontuacao: string;
+    propriedade: string;
+  };
 };
+
+export type PasFieldKey =
+  | 'apresentacao'
+  | 'argumentacao'
+  | 'adequacao'
+  | 'coesao'
+  | 'TL'
+  | 'erros.grafia'
+  | 'erros.pontuacao'
+  | 'erros.propriedade';
 
 type CorrectionMirrorProps = {
   type: 'PAS' | 'ENEM' | null | undefined;
@@ -27,8 +44,7 @@ type CorrectionMirrorProps = {
   onAnnulOtherChange: (value: string) => void;
   annulled: boolean;
   pasState: PasState;
-  onPasChange: (field: keyof PasState, value: string) => void;
-  pasResult: number;
+  onPasChange: (field: PasFieldKey, value: string) => void;
   enemSelections: EnemSelectionsMap;
   onEnemSelectionChange: (key: keyof EnemSelectionsMap, selection: { level: number; reasonIds: string[] }) => void;
   enemTotal: number;
@@ -43,19 +59,126 @@ export function CorrectionMirror({
   annulled,
   pasState,
   onPasChange,
-  pasResult,
   enemSelections,
   onEnemSelectionChange,
   enemTotal,
 }: CorrectionMirrorProps) {
-  const handlePasInput = (field: keyof PasState) => (event: FormEvent<HTMLInputElement>) => {
-    onPasChange(field, event.currentTarget.value);
-  };
+  type MacroKey = 'apresentacao' | 'argumentacao' | 'adequacao' | 'coesao';
+  type MacroRow =
+    | { type: 'group'; id: string; label: string }
+    | { type: 'item'; id: string; label: string; range: string; key: MacroKey; max: number; step: number };
+  const macroRows: MacroRow[] = [
+    {
+      type: 'item',
+      id: '1',
+      label: 'Apresentação (legibilidade, respeito às margens e indicação de parágrafo)',
+      range: '0,00 a 0,50',
+      key: 'apresentacao',
+      max: 0.5,
+      step: 0.1,
+    },
+    { type: 'group', id: '2', label: 'Desenvolvimento do tema' },
+    {
+      type: 'item',
+      id: '2.1',
+      label: 'Consistência da argumentação e progressão temática',
+      range: '0,00 a 4,50',
+      key: 'argumentacao',
+      max: 4.5,
+      step: 0.1,
+    },
+    {
+      type: 'item',
+      id: '2.2',
+      label: 'Adequação ao tipo e ao gênero textual',
+      range: '0,00 a 2,00',
+      key: 'adequacao',
+      max: 2,
+      step: 0.1,
+    },
+    {
+      type: 'item',
+      id: '2.3',
+      label: 'Coesão e coerências',
+      range: '0,00 a 3,00',
+      key: 'coesao',
+      max: 3,
+      step: 0.1,
+    },
+  ];
+  const macroItemRows = macroRows.filter((row): row is Extract<MacroRow, { type: 'item' }> => row.type === 'item');
+  const errorRows: Array<{ key: keyof PasState['erros']; label: string }> = [
+    { key: 'grafia', label: 'Grafia / Acentuação' },
+    { key: 'pontuacao', label: 'Pontuação / Morfossintaxe' },
+    { key: 'propriedade', label: 'Propriedade vocabular' },
+  ];
 
-  const previewScore = annulled ? 0 : type === 'PAS' ? pasResult : type === 'ENEM' ? enemTotal : 0;
+  const handlePasFieldChange =
+    (field: PasFieldKey) =>
+    (event: FormEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      onPasChange(field, event.currentTarget.value);
+    };
+
+  const pasComputed = useMemo(() => {
+    const parseMacro = (value: string, max: number) => {
+      const num = Number(value);
+      if (!Number.isFinite(num)) return null;
+      return Math.min(Math.max(num, 0), max);
+    };
+    const macros = {
+      apresentacao: parseMacro(pasState.apresentacao, 0.5),
+      argumentacao: parseMacro(pasState.argumentacao, 4.5),
+      adequacao: parseMacro(pasState.adequacao, 2),
+      coesao: parseMacro(pasState.coesao, 3),
+    };
+    const macroSum = Object.values(macros).reduce((acc, value) => acc + (value ?? 0), 0);
+    const nc = Number(macroSum.toFixed(2));
+
+    const tlRaw = Number(pasState.TL);
+    const tl = Number.isFinite(tlRaw) ? Math.min(Math.max(tlRaw, 8), 30) : null;
+
+    const parseError = (value: string) => {
+      const num = Number(value);
+      if (!Number.isFinite(num)) return 0;
+      return Math.max(0, Math.floor(num));
+    };
+    const errorCounts = {
+      grafia: parseError(pasState.erros.grafia),
+      pontuacao: parseError(pasState.erros.pontuacao),
+      propriedade: parseError(pasState.erros.propriedade),
+    };
+    const errors = { ...errorCounts };
+    const ne = errorCounts.grafia + errorCounts.pontuacao + errorCounts.propriedade;
+    const discount = tl && tl > 0 ? Number((2 / tl).toFixed(3)) : null;
+    let nr: number | null = null;
+    if (!annulled && discount != null) {
+      nr = Number(Math.max(0, nc - ne * discount).toFixed(2));
+    }
+    if (annulled) {
+      nr = 0;
+    }
+
+    return {
+      macros,
+      nc,
+      tl,
+      errors,
+      ne,
+      discount,
+      nr,
+    };
+  }, [annulled, pasState]);
+
+  const formatNumber = (value: number | null | undefined, fraction = 2) =>
+    value != null && Number.isFinite(value) ? value.toFixed(fraction) : '—';
+
+  const previewPasScore = pasComputed.nr != null ? pasComputed.nr : 0;
+  const previewScore = annulled ? 0 : type === 'PAS' ? previewPasScore : type === 'ENEM' ? enemTotal : 0;
   const previewLabel = annulled ? 'Redação anulada' : type === 'PAS' ? 'NR prevista' : 'Total ENEM';
-  const formattedPasResult = pasResult.toFixed(2);
-  const formattedPreviewScore = type === 'PAS' ? formattedPasResult : previewScore.toString();
+  const formattedPasResult = formatNumber(pasComputed.nr);
+  const formattedPreviewScore = type === 'PAS'
+    ? (pasComputed.nr != null ? formattedPasResult : '—')
+    : previewScore.toString();
 
   return (
     <section className="mt-6 rounded-2xl border border-orange-100 bg-white/90 p-4 shadow-sm ring-1 ring-orange-50/60 backdrop-blur-sm lg:p-6">
@@ -135,72 +258,144 @@ export function CorrectionMirror({
 
           {!annulled && type === 'PAS' && (
             <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <h3 className="text-base font-semibold text-slate-800">Espelho PAS/UnB</h3>
-                <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-600">Fórmula NR</span>
+                <p className="text-xs text-slate-500">NR = NC − 2 × (NE / TL)</p>
               </div>
-              <div className="grid gap-4 md:grid-cols-3">
-                <label className="flex flex-col text-sm text-slate-700">
-                  NC (0 a 10)
-                  <input
-                    type="number"
-                    min={0}
-                    max={10}
-                    step={0.1}
-                    value={pasState.NC}
-                    onInput={handlePasInput('NC')}
-                    className="mt-1 rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
-                  />
-                </label>
-                <label className="flex flex-col text-sm text-slate-700">
-                  NL (8 a 30)
-                  <input
-                    type="number"
-                    min={8}
-                    max={30}
-                    step={1}
-                    value={pasState.NL}
-                    onInput={handlePasInput('NL')}
-                    className="mt-1 rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
-                  />
-                </label>
-                <label className="flex flex-col text-sm text-slate-700">
-                  NE (erros)
-                  <input
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={pasState.NE}
-                    onInput={handlePasInput('NE')}
-                    className="mt-1 rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
-                  />
-                </label>
+              <div className="overflow-hidden rounded-lg border border-slate-200">
+                <table className="w-full text-sm text-slate-700">
+                  <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-medium">Quesitos avaliados</th>
+                      <th className="px-3 py-2 text-left font-medium">Faixa de valor</th>
+                      <th className="px-3 py-2 text-left font-medium">Nota</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {macroRows.map((row) =>
+                      row.type === 'group' ? (
+                        <tr key={row.id} className="bg-slate-50">
+                          <td className="px-3 py-2 font-semibold text-slate-600">{`${row.id}. ${row.label}`}</td>
+                          <td className="px-3 py-2 text-slate-400" colSpan={2}>
+                            —
+                          </td>
+                        </tr>
+                      ) : (
+                        <tr key={row.id}>
+                          <td className="px-3 py-2">
+                            <span className="mr-1 font-semibold text-slate-800">{row.id}</span>
+                            {row.label}
+                          </td>
+                          <td className="px-3 py-2 text-slate-500">{row.range}</td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              min={0}
+                              max={row.max}
+                              step={row.step}
+                              value={pasState[row.key]}
+                              onInput={handlePasFieldChange(row.key)}
+                              className="w-24 rounded-lg border border-slate-300 px-2 py-1 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
+                            />
+                          </td>
+                        </tr>
+                      )
+                    )}
+                    <tr>
+                      <td className="px-3 py-2 font-semibold text-slate-800">Nota de conteúdo (NC)</td>
+                      <td className="px-3 py-2 text-slate-500">0,00 a 10,00</td>
+                      <td className="px-3 py-2 font-semibold text-slate-900">{formatNumber(pasComputed.nc)}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                <p>
-                  NR = NC - 2 × (NE / NL) ➜ <strong>{formattedPasResult}</strong>
-                </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  A nota final é limitada ao mínimo 0. Atualize os campos para recalcular automaticamente.
-                </p>
-                <dl className="mt-3 grid gap-3 text-xs text-slate-600 md:grid-cols-2">
-                  <div className="space-y-1 rounded-lg border border-white bg-white px-3 py-2 shadow-sm">
-                    <dt className="text-[11px] uppercase tracking-wide text-slate-500">NC</dt>
-                    <dd className="text-sm font-medium text-slate-700">{pasState.NC || '—'}</dd>
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                  <h4 className="text-sm font-semibold text-slate-800">Aspectos microestruturais</h4>
+                  <label className="flex flex-col text-xs font-medium text-slate-600">
+                    TL (número total de linhas)
+                    <input
+                      type="number"
+                      min={8}
+                      max={30}
+                      step={1}
+                      value={pasState.TL}
+                      onInput={handlePasFieldChange('TL')}
+                      className="mt-1 w-24 rounded-lg border border-slate-300 px-2 py-1 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
+                    />
+                  </label>
+                  <p className="text-xs text-slate-600">
+                    Desconto por erro: <strong>{pasComputed.discount != null ? pasComputed.discount.toFixed(3) : '—'}</strong>
+                  </p>
+                  <div className="overflow-hidden rounded-lg border border-slate-200">
+                    <table className="w-full text-xs text-slate-700">
+                      <thead className="bg-white text-[11px] uppercase tracking-wide text-slate-500">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium">Tipo de erro</th>
+                          <th className="px-3 py-2 text-left font-medium">Quantidade</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {errorRows.map((row) => (
+                          <tr key={row.key}>
+                            <td className="px-3 py-2">{row.label}</td>
+                            <td className="px-3 py-2">
+                              <input
+                                type="number"
+                                min={0}
+                                step={1}
+                                value={pasState.erros[row.key]}
+                                onInput={handlePasFieldChange(`erros.${row.key}` as PasFieldKey)}
+                                className="w-20 rounded-lg border border-slate-300 px-2 py-1 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                  <div className="space-y-1 rounded-lg border border-white bg-white px-3 py-2 shadow-sm">
-                    <dt className="text-[11px] uppercase tracking-wide text-slate-500">NL</dt>
-                    <dd className="text-sm font-medium text-slate-700">{pasState.NL || '—'}</dd>
+                </div>
+                <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                  <h4 className="text-sm font-semibold text-slate-800">Resumo calculado</h4>
+                  <div className="space-y-2">
+                    <p className="flex items-center justify-between">
+                      <span>NC</span>
+                      <span className="font-semibold text-slate-900">{formatNumber(pasComputed.nc)}</span>
+                    </p>
+                    <p className="flex items-center justify-between">
+                      <span>TL</span>
+                      <span className="font-semibold text-slate-900">{pasComputed.tl ?? '—'}</span>
+                    </p>
+                    <p className="flex items-center justify-between">
+                      <span>NE total</span>
+                      <span className="font-semibold text-slate-900">{pasComputed.ne}</span>
+                    </p>
+                    <p className="flex items-center justify-between">
+                      <span>Desconto por erro</span>
+                      <span className="font-semibold text-slate-900">
+                        {pasComputed.discount != null ? pasComputed.discount.toFixed(3) : '—'}
+                      </span>
+                    </p>
+                    <p className="flex items-center justify-between text-base font-semibold text-orange-600">
+                      <span>NR previsto</span>
+                      <span>{formattedPasResult}</span>
+                    </p>
                   </div>
-                  <div className="space-y-1 rounded-lg border border-white bg-white px-3 py-2 shadow-sm">
-                    <dt className="text-[11px] uppercase tracking-wide text-slate-500">NE</dt>
-                    <dd className="text-sm font-medium text-slate-700">{pasState.NE || '—'}</dd>
+                  <div className="mt-3 space-y-1">
+                    <p className="text-[11px] uppercase tracking-wide text-slate-500">Distribuição de erros</p>
+                    <div className="space-y-1">
+                      {errorRows.map((row) => (
+                        <p key={row.key} className="flex items-center justify-between text-xs">
+                          <span>{row.label}</span>
+                          <span className="font-semibold text-slate-900">{pasComputed.errors[row.key]}</span>
+                        </p>
+                      ))}
+                    </div>
                   </div>
-                  <div className="space-y-1 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 shadow-sm">
-                    <dt className="text-[11px] uppercase tracking-wide text-orange-600">NR</dt>
-                    <dd className="text-sm font-semibold text-orange-700">{formattedPasResult}</dd>
-                  </div>
-                </dl>
+                  <p className="text-xs text-slate-500">
+                    Valores são sincronizados automaticamente com o PDF corrigido após salvar.
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -234,22 +429,58 @@ export function CorrectionMirror({
               </div>
             )}
             {!annulled && type === 'PAS' && (
-              <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
-                <div className="rounded-xl border border-white bg-white/80 px-3 py-2 shadow-sm">
-                  <p className="text-[11px] uppercase tracking-wide text-orange-500">NC</p>
-                  <p className="mt-1 font-semibold text-orange-600">{pasState.NC || '—'}</p>
+              <div className="mt-3 space-y-3 text-xs">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-xl border border-white bg-white/80 px-3 py-2 shadow-sm">
+                    <p className="text-[11px] uppercase tracking-wide text-orange-500">NC</p>
+                    <p className="mt-1 font-semibold text-orange-600">{formatNumber(pasComputed.nc)}</p>
+                  </div>
+                  <div className="rounded-xl border border-orange-200 bg-white px-3 py-2 shadow-sm">
+                    <p className="text-[11px] uppercase tracking-wide text-orange-500">NR previsto</p>
+                    <p className="mt-1 text-lg font-bold text-orange-600">{formattedPasResult}</p>
+                  </div>
                 </div>
-                <div className="rounded-xl border border-white bg-white/80 px-3 py-2 shadow-sm">
-                  <p className="text-[11px] uppercase tracking-wide text-orange-500">NL</p>
-                  <p className="mt-1 font-semibold text-orange-600">{pasState.NL || '—'}</p>
+                <div className="space-y-1">
+                  <p className="text-[11px] uppercase tracking-wide text-orange-500">Aspectos macro</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {macroItemRows.map((row) => (
+                      <div key={row.id} className="rounded-lg border border-white bg-white/80 px-3 py-2 shadow-sm">
+                        <p className="text-[11px] uppercase tracking-wide text-slate-500">
+                          {`${row.id}. ${row.label}`}
+                        </p>
+                        <p className="mt-1 font-semibold text-orange-600">
+                          {formatNumber(pasComputed.macros[row.key], 2)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="rounded-xl border border-white bg-white/80 px-3 py-2 shadow-sm">
-                  <p className="text-[11px] uppercase tracking-wide text-orange-500">NE</p>
-                  <p className="mt-1 font-semibold text-orange-600">{pasState.NE || '—'}</p>
-                </div>
-                <div className="rounded-xl border border-orange-200 bg-white px-3 py-2 shadow-sm">
-                  <p className="text-[11px] uppercase tracking-wide text-orange-500">NR previsto</p>
-                  <p className="mt-1 font-semibold text-orange-600">{formattedPasResult}</p>
+                <div className="space-y-1">
+                  <p className="text-[11px] uppercase tracking-wide text-orange-500">Aspectos micro</p>
+                  <div className="grid gap-2">
+                    <p className="flex items-center justify-between">
+                      <span>TL</span>
+                      <span className="font-semibold text-orange-600">{pasComputed.tl ?? '—'}</span>
+                    </p>
+                    <p className="flex items-center justify-between">
+                      <span>NE total</span>
+                      <span className="font-semibold text-orange-600">{pasComputed.ne}</span>
+                    </p>
+                    <p className="flex items-center justify-between">
+                      <span>Desconto por erro</span>
+                      <span className="font-semibold text-orange-600">
+                        {pasComputed.discount != null ? pasComputed.discount.toFixed(3) : '—'}
+                      </span>
+                    </p>
+                    <div className="space-y-1">
+                      {errorRows.map((row) => (
+                        <p key={row.key} className="flex items-center justify-between">
+                          <span>{row.label}</span>
+                          <span className="font-semibold text-orange-600">{pasComputed.errors[row.key]}</span>
+                        </p>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

@@ -9,6 +9,7 @@ import {
   type GradeScheme,
   type GradeSchemeItem,
 } from '@/services/gradeScheme';
+import { Button } from '@/components/ui/Button';
 
 const BIMESTERS: Bimestre[] = [1, 2, 3, 4];
 
@@ -169,48 +170,40 @@ export default function DivisaoNotasCard({
       </div>
     );
   } else {
-    bodyContent = (
-      <div className="flex h-full flex-col">
-        <div className="grid grid-cols-2 gap-4 px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-          <div className="grid grid-cols-[1fr,84px] items-center">
-            <span>Item</span>
-            <span className="text-right">Pontos</span>
-          </div>
-          <div className="grid grid-cols-[1fr,84px] items-center">
-            <span>Item</span>
-            <span className="text-right">Pontos</span>
-          </div>
-        </div>
-        <div className="relative mt-2 flex-1">
-          <div className="max-h-[320px] overflow-y-auto pr-1">
-            {itens.length ? (
-              <div className="grid grid-cols-2 gap-4 pb-2">
-                <div className="space-y-3">
-                  {leftItems.map((item) => (
-                    <LinhaItem key={item.id} item={item} />
-                  ))}
-                </div>
-                <div className="space-y-3">
-                  {rightItems.map((item) => (
-                    <LinhaItem key={item.id} item={item} />
-                  ))}
-                </div>
+    bodyContent = itens.length ? (
+      <div className="grade-columns-scroll">
+        <div className="grade-columns-container">
+          {[leftItems, rightItems].map((columnItems, index) => (
+            <div className="grade-column" key={`grade-column-${index}`}>
+              <div className="grade-column__header">
+                <span>Item</span>
+                <span className="text-right">Pontos</span>
               </div>
-            ) : (
-              <div className="flex min-h-[180px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-6 py-8 text-center">
-                <p className="text-sm text-slate-500">Sem itens no bimestre selecionado.</p>
-                <button
-                  type="button"
-                  onClick={handleEdit}
-                  className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
-                  disabled={!classId}
-                >
-                  Adicionar itens
-                </button>
+              <div className="grade-column__body">
+                {columnItems.length ? (
+                  columnItems.map((item) => <LinhaItem key={item.id} item={item} />)
+                ) : (
+                  <p className="grade-column__empty" aria-hidden="true">
+                    —
+                  </p>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          ))}
         </div>
+      </div>
+    ) : (
+      <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-6 py-10 text-center">
+        <p className="text-sm text-slate-500">Sem itens no bimestre selecionado.</p>
+        <Button
+          variant="ghost"
+          size="sm"
+          type="button"
+          onClick={handleEdit}
+          disabled={!classId}
+        >
+          Adicionar itens
+        </Button>
       </div>
     );
   }
@@ -218,19 +211,19 @@ export default function DivisaoNotasCard({
   return (
     <section
       className={cn(
-        'flex h-full flex-col rounded-3xl bg-white p-6 shadow-[0_1px_0_rgba(10,10,10,.04)] ring-1 ring-black/5 md:p-7',
+        'dash-card h-full',
         className,
       )}
     >
-      <header className="mb-4 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <h2 className="card-title text-slate-900">Divisão de notas</h2>
+      <header className="dash-card__header">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="dash-card__title">Divisão de notas</h2>
           <div className="hidden items-center gap-2 md:flex">
             {BIMESTERS.map((bim) => (
               <button
                 key={bim}
                 className={cn(
-                  'rounded-full px-3 py-1.5 text-[13px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300',
+                  'rounded-full px-3 py-1 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300',
                   selectedBimester === bim
                     ? 'bg-orange-100 text-orange-700 ring-1 ring-orange-200'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
@@ -248,14 +241,17 @@ export default function DivisaoNotasCard({
           </div>
         </div>
 
-        <button
-          className="inline-flex h-9 items-center justify-center rounded-full border border-slate-200 px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:cursor-not-allowed disabled:opacity-60"
-          type="button"
-          onClick={handleEdit}
-          disabled={!classId}
-        >
-          Editar
-        </button>
+        <div className="dash-card__actions">
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            onClick={handleEdit}
+            disabled={!classId}
+          >
+            Editar
+          </Button>
+        </div>
       </header>
 
       <div className="flex-1 min-h-0">
@@ -273,14 +269,11 @@ function LinhaItem({ item }: { item: GradeSchemeItem }) {
   const background = `${baseColor}1A`;
 
   return (
-    <div className="grid grid-cols-[1fr,84px] items-center gap-3">
-      <div
-        className="rounded-2xl px-4 py-3 font-semibold text-slate-900 shadow-[0_1px_0_rgba(15,23,42,0.08)] ring-1 ring-black/5 md:px-5 md:py-3.5"
-        style={{ backgroundColor: background }}
-      >
-        <span className="block truncate text-[15px] md:text-[16px]">{name}</span>
+    <div className="grade-row">
+      <div className="grade-row__item" style={{ backgroundColor: background }}>
+        <span className="grade-row__item-text">{name}</span>
       </div>
-      <span className="text-right text-sm font-semibold tabular-nums text-slate-900/90 md:text-base">{points} pts</span>
+      <span className="grade-row__points">{points} pts</span>
     </div>
   );
 }

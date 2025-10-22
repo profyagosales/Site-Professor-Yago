@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { AnnotationToolbar } from '@/components/redacao/AnnotationToolbar';
 import { PdfCorrectionViewer } from '@/components/redacao/PdfCorrectionViewer';
 import { AnnotationSidebar } from '@/components/redacao/AnnotationSidebar';
-import { CorrectionMirror, ANNUL_OPTIONS } from '@/components/redacao/CorrectionMirror';
+import { CorrectionMirror, ANNUL_OPTIONS, type PasState, type PasFieldKey } from '@/components/redacao/CorrectionMirror';
 import type { AnnotationItem, NormalizedRect } from '@/components/redacao/annotationTypes';
 import { HIGHLIGHT_CATEGORIES, type HighlightCategoryKey } from '@/constants/annotations';
 import { useAuth } from '@/components/AuthContext';
@@ -130,7 +130,19 @@ export default function GradeWorkspace() {
 
   const [annulState, setAnnulState] = useState<Record<string, boolean>>({});
   const [annulOther, setAnnulOther] = useState('');
-  const [pasState, setPasState] = useState<PasState>({ NC: '', NL: '', NE: '' });
+  const createEmptyPasState = (): PasState => ({
+    apresentacao: '',
+    argumentacao: '',
+    adequacao: '',
+    coesao: '',
+    TL: '',
+    erros: {
+      grafia: '',
+      pontuacao: '',
+      propriedade: '',
+    },
+  });
+  const [pasState, setPasState] = useState<PasState>(() => createEmptyPasState());
   const [enemSelections, setEnemSelections] = useState<EnemSelectionsMap>(() => createInitialEnemSelections());
 
   const essayType = (essay?.type || essay?.model || null) as 'PAS' | 'ENEM' | null;
@@ -139,14 +151,55 @@ export default function GradeWorkspace() {
     [annulState]
   );
 
-  const pasResult = useMemo(() => {
-    const nc = Number(pasState.NC) || 0;
-    const nl = Number(pasState.NL) || 0;
-    const ne = Number(pasState.NE) || 0;
-    if (nl <= 0) return 0;
-    const value = nc - 2 * (ne / nl);
-    return Math.max(0, Number.isFinite(value) ? value : 0);
-  }, [pasState.NC, pasState.NE, pasState.NL]);
+  const pasDerived = useMemo(() => {
+    const parseMacro = (value: string, max: number) => {
+      const num = Number(value);
+      if (!Number.isFinite(num)) return null;
+      return Math.min(Math.max(num, 0), max);
+    };
+    const macros = {
+      apresentacao: parseMacro(pasState.apresentacao, 0.5),
+      argumentacao: parseMacro(pasState.argumentacao, 4.5),
+      adequacao: parseMacro(pasState.adequacao, 2),
+      coesao: parseMacro(pasState.coesao, 3),
+    };
+    const macroSum = Object.values(macros).reduce((acc, value) => acc + (value ?? 0), 0);
+    const nc = Number(macroSum.toFixed(2));
+
+    const tlRaw = Number(pasState.TL);
+    const tl = Number.isFinite(tlRaw) ? Math.min(Math.max(tlRaw, 8), 30) : null;
+
+    const parseError = (value: string) => {
+      const num = Number(value);
+      if (!Number.isFinite(num)) return 0;
+      return Math.max(0, Math.floor(num));
+    };
+    const errorCounts = {
+      grafia: parseError(pasState.erros.grafia),
+      pontuacao: parseError(pasState.erros.pontuacao),
+      propriedade: parseError(pasState.erros.propriedade),
+    };
+    const errors = { ...errorCounts };
+    const ne = errorCounts.grafia + errorCounts.pontuacao + errorCounts.propriedade;
+    const discount = tl && tl > 0 ? Number((2 / tl).toFixed(3)) : null;
+    let nr: number | null = null;
+    if (!annulled && discount != null) {
+      nr = Number(Math.max(0, nc - ne * discount).toFixed(2));
+    }
+    if (annulled) {
+      nr = 0;
+    }
+
+    return {
+      macros,
+      nc,
+      tl,
+      errors,
+      ne,
+      discount,
+      nr,
+    };
+  }, [annulled, pasState]);
 
   const enemTotal = useMemo(() => {
     if (annulled) return 0;
@@ -174,14 +227,22 @@ export default function GradeWorkspace() {
       if (!annulInfo.OUTROS) setAnnulOther('');
 
       if ((data?.pasBreakdown || data?.pas) && data.type === 'PAS') {
-        const breakdown = data.pasBreakdown || data.pas;
+        const breakdown = data.pasBreakdown || data.pas || {};
+        const errors = breakdown.erros || {};
         setPasState({
-          NC: toInputValue(breakdown?.NC),
-          NL: toInputValue(breakdown?.NL),
-          NE: toInputValue(breakdown?.NE),
+          apresentacao: toInputValue(breakdown?.apresentacao),
+          argumentacao: toInputValue(breakdown?.argumentacao ?? breakdown?.conteudo),
+          adequacao: toInputValue(breakdown?.adequacao ?? breakdown?.genero),
+          coesao: toInputValue(breakdown?.coesao),
+          TL: toInputValue(breakdown?.TL ?? breakdown?.NL),
+          erros: {
+            grafia: toInputValue(errors?.grafia ?? errors?.ortografia),
+            pontuacao: toInputValue(errors?.pontuacao ?? errors?.gramatica),
+            propriedade: toInputValue(errors?.propriedade ?? errors?.inadequacao),
+          },
         });
       } else {
-        setPasState({ NC: '', NL: '', NE: '' });
+        setPasState(createEmptyPasState());
       }
 
       if (data.type === 'ENEM' && data.enemRubric) {
@@ -222,10 +283,18 @@ export default function GradeWorkspace() {
             setAnnulOther('');
           }
           if (score.type === 'PAS' && score.pas) {
+            const errors = score.pas.erros || {};
             setPasState({
-              NC: toInputValue(score.pas.NC),
-              NL: toInputValue(score.pas.NL),
-              NE: toInputValue(score.pas.NE),
+              apresentacao: toInputValue(score.pas.apresentacao),
+              argumentacao: toInputValue(score.pas.argumentacao ?? score.pas.conteudo),
+              adequacao: toInputValue(score.pas.adequacao ?? score.pas.genero),
+              coesao: toInputValue(score.pas.coesao),
+              TL: toInputValue(score.pas.TL ?? score.pas.NL),
+              erros: {
+                grafia: toInputValue(errors?.grafia ?? errors?.ortografia),
+                pontuacao: toInputValue(errors?.pontuacao ?? errors?.gramatica),
+                propriedade: toInputValue(errors?.propriedade ?? errors?.inadequacao),
+              },
             });
           }
           if (score.type === 'ENEM') {
@@ -359,8 +428,26 @@ export default function GradeWorkspace() {
     setDirty(true);
   };
 
-  const handlePasChange = (field: keyof PasState, value: string) => {
-    setPasState((prev) => ({ ...prev, [field]: value }));
+  const handlePasChange = (field: PasFieldKey, value: string) => {
+    setPasState((prev) => {
+      if (field.startsWith('erros.')) {
+        const [, key] = field.split('.') as ['erros', keyof PasState['erros']];
+        return {
+          ...prev,
+          erros: {
+            ...prev.erros,
+            [key]: value,
+          },
+        };
+      }
+      if (field === 'TL') {
+        return { ...prev, TL: value };
+      }
+      return {
+        ...prev,
+        [field]: value,
+      } as PasState;
+    });
     setDirty(true);
   };
 
@@ -402,10 +489,21 @@ export default function GradeWorkspace() {
       if ((essayType || essay?.model) === 'PAS') {
         scorePayload.type = 'PAS';
         scorePayload.pas = {
-          NC: pasState.NC ? Number(pasState.NC) : null,
-          NL: pasState.NL ? Number(pasState.NL) : null,
-          NE: pasState.NE ? Number(pasState.NE) : null,
-          NR: annulled ? 0 : Number(pasResult.toFixed(2)),
+          apresentacao: pasDerived.macros.apresentacao,
+          argumentacao: pasDerived.macros.argumentacao,
+          adequacao: pasDerived.macros.adequacao,
+          coesao: pasDerived.macros.coesao,
+          NC: pasDerived.nc,
+          TL: pasDerived.tl,
+          NL: pasDerived.tl,
+          NE: pasDerived.ne,
+          descontoPorErro: pasDerived.discount,
+          NR: annulled ? 0 : pasDerived.nr != null ? pasDerived.nr : null,
+          erros: {
+            grafia: pasDerived.errors.grafia,
+            pontuacao: pasDerived.errors.pontuacao,
+            propriedade: pasDerived.errors.propriedade,
+          },
         };
       } else {
         scorePayload.type = 'ENEM';
@@ -618,7 +716,6 @@ export default function GradeWorkspace() {
         annulled={annulled}
         pasState={pasState}
         onPasChange={handlePasChange}
-        pasResult={annulled ? 0 : pasResult}
         enemSelections={enemSelections}
         onEnemSelectionChange={handleEnemSelectionChange}
         enemTotal={enemTotal}

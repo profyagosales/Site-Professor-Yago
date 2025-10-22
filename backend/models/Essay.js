@@ -87,9 +87,22 @@ const essaySchema = new mongoose.Schema({
     default: undefined
   },
   pasBreakdown: {
-    NC: Number,
-    NE: Number,
-    NL: Number
+    apresentacao: { type: Number, default: null },
+    argumentacao: { type: Number, default: null },
+    adequacao: { type: Number, default: null },
+    coesao: { type: Number, default: null },
+    NC: { type: Number, default: null },
+    NL: { type: Number, default: null },
+    TL: { type: Number, default: null },
+    NE: { type: Number, default: null },
+    descontoPorErro: { type: Number, default: null },
+    NR: { type: Number, default: null },
+    erros: {
+      grafia: { type: Number, default: null },
+      pontuacao: { type: Number, default: null },
+      propriedade: { type: Number, default: null },
+      observacao: { type: String, default: null },
+    },
   },
   annotations: { type: [annotationSchema], default: [] },
   // Anotações ricas (novo annotator): normalizadas por página com coordenadas 0..1

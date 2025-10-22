@@ -144,12 +144,7 @@ export default function AgendaCard({
     return `${startLabel} – ${endLabel}`
   }, [currentWeekStart, weekEnd])
 
-  const containerClass = [
-    'w-full rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm md:p-6',
-    className,
-  ]
-    .filter(Boolean)
-    .join(' ')
+  const containerClass = ['dash-card w-full', className].filter(Boolean).join(' ')
 
   const handlePrevWeek = useCallback(() => {
     setCurrentWeekStart((prev) => addWeeks(prev, -1))
@@ -200,77 +195,75 @@ export default function AgendaCard({
 
   return (
     <section className={containerClass} aria-label="Agenda semanal">
-      <header className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-semibold text-slate-900">Agenda</h2>
-            <nav aria-label="Filtros da agenda" className="flex flex-wrap items-center gap-2">
-              {(Object.keys(FILTER_LABELS) as FilterOption[]).map((option) => {
-                const active = filter === option
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => setFilter(option)}
-                    className={[
-                      'rounded-full px-3 py-1 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-200 focus-visible:ring-offset-0',
-                      active
-                        ? 'bg-slate-900 text-white shadow-sm'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-                    ].join(' ')}
-                    aria-pressed={active}
-                  >
-                    {FILTER_LABELS[option]}
-                  </button>
-                )
-              })}
-            </nav>
-          </div>
+      <header className="dash-card__header">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="dash-card__title">Agenda</h2>
+          <nav aria-label="Filtros da agenda" className="flex flex-wrap items-center gap-2">
+            {(Object.keys(FILTER_LABELS) as FilterOption[]).map((option) => {
+              const active = filter === option
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => setFilter(option)}
+                  className={[
+                    'rounded-full px-3 py-1 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-200 focus-visible:ring-offset-0',
+                    active
+                      ? 'bg-slate-900 text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                  ].join(' ')}
+                  aria-pressed={active}
+                >
+                  {FILTER_LABELS[option]}
+                </button>
+              )
+            })}
+          </nav>
+        </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              aria-label="Semana anterior"
-              onClick={handlePrevWeek}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-lg text-slate-600 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-200 focus-visible:ring-offset-0"
-            >
-              ←
-            </button>
+        <div className="dash-card__actions">
+          <button
+            type="button"
+            aria-label="Semana anterior"
+            onClick={handlePrevWeek}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-lg text-slate-600 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-200 focus-visible:ring-offset-0"
+          >
+            ←
+          </button>
 
-            <span className="text-sm font-medium uppercase tracking-wide text-slate-600">{weekLabel}</span>
+          <span className="text-sm font-medium uppercase tracking-wide text-slate-600">{weekLabel}</span>
 
-            <button
-              type="button"
-              aria-label="Próxima semana"
-              onClick={handleNextWeek}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-lg text-slate-600 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-200 focus-visible:ring-offset-0"
-            >
-              →
-            </button>
+          <button
+            type="button"
+            aria-label="Próxima semana"
+            onClick={handleNextWeek}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-lg text-slate-600 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-200 focus-visible:ring-offset-0"
+          >
+            →
+          </button>
 
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => onOpenEditor?.()}
-              disabled={editorLoading}
-              className="hidden md:inline-flex"
-            >
-              Editar
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleQuickNew}
-              disabled={editorLoading}
-            >
-              + Novo
-            </Button>
-          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => onOpenEditor?.()}
+            disabled={editorLoading}
+            className="hidden md:inline-flex"
+          >
+            Editar
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleQuickNew}
+            disabled={editorLoading}
+          >
+            + Novo
+          </Button>
         </div>
       </header>
 
-      <div className="mt-4">
+      <div className="flex-1 min-h-0">
         {loading ? (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-7">
             {weekDays.map((day) => (

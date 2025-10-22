@@ -27,6 +27,7 @@ import {
 
 type StudentProfileContextValue = {
   classId: string;
+  classDetail: Pick<ClassDetails, 'id' | 'name' | 'subject' | 'year'> | null;
   className?: string;
   student: ClassStudent;
 };
@@ -269,6 +270,7 @@ export default function StudentProfilePage() {
   const photoUrl = resolvePhotoUrl(student.photo);
   const contextValue: StudentProfileContextValue = {
     classId,
+    classDetail,
     className: classDetail?.name,
     student,
   };
@@ -314,7 +316,7 @@ export default function StudentProfilePage() {
 }
 
 export function StudentGradesTab() {
-  const { classId, student } = useOutletContext<StudentProfileContextValue>();
+  const { classId, student, classDetail } = useOutletContext<StudentProfileContextValue>();
   const [grades, setGrades] = useState<StudentGrade[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

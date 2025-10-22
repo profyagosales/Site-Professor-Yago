@@ -247,7 +247,7 @@ export default function WeeklyScheduleCard({
   children,
 }: WeeklyScheduleCardProps) {
   const containerClass = [
-    'schedule-card rounded-3xl bg-white px-[var(--sched-card-px)] py-[var(--sched-card-py)] shadow-sm',
+    'dash-card schedule-card h-full',
     className,
   ]
     .filter(Boolean)
@@ -263,19 +263,18 @@ export default function WeeklyScheduleCard({
   return (
     <section className={containerClass}>
       {title ? (
-        <header className="mb-2">
-          <h2
-            className="font-semibold leading-tight text-slate-900"
-            style={{ fontSize: 'var(--sched-title-fz)' }}
-          >
-            {title}
-          </h2>
+        <header className="dash-card__header">
+          <h2 className="dash-card__title">{title}</h2>
         </header>
       ) : null}
-      {days.length ? (
-        <WeeklyScheduleTabs days={days} className={resolvedTabsClassName} size={tabsSize} />
-      ) : null}
-      {children ?? <WeeklyScheduleGrid slots={slots} days={days} cells={cells} />}
+      <div className="flex-1 min-h-0">
+        {days.length ? (
+          <WeeklyScheduleTabs days={days} className={resolvedTabsClassName} size={tabsSize} />
+        ) : null}
+        <div className="mt-3 flex-1 min-h-0 pb-3">
+          {children ?? <WeeklyScheduleGrid slots={slots} days={days} cells={cells} />}
+        </div>
+      </div>
     </section>
   );
 }

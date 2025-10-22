@@ -491,7 +491,7 @@ function DashboardProfessor(){
         </div>
 
         <div className="hero-center">
-          <LogoYS size={140} />
+          <LogoYS size={116} />
           <h1 className="hero-title">PAINEL DO PROFESSOR</h1>
         </div>
 
