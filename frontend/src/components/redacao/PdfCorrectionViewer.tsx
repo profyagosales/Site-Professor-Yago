@@ -63,59 +63,81 @@ export function PdfCorrectionViewer({
 
   const pageRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const canvasRefs = useRef<Record<number, HTMLCanvasElement | null>>({});
+  const loadingTaskRef = useRef<any>(null);
+  const destroyPromiseRef = useRef<Promise<void> | null>(null);
+  const pdfDocRef = useRef<any>(null);
+  const renderTasksRef = useRef<Record<number, any>>({});
 
   useEffect(() => {
     let cancelled = false;
     if (!fileUrl) {
       setPdfDoc(null);
       setNumPages(0);
+      pdfDocRef.current = null;
       setError(null);
       return;
     }
     setLoading(true);
     setError(null);
-    const task = pdfjsLib.getDocument({ url: fileUrl, withCredentials: true });
-    task.promise
-      .then((doc) => {
+    const load = async () => {
+      try {
+        if (destroyPromiseRef.current) {
+          try {
+            await destroyPromiseRef.current;
+          } catch (err) {
+            console.warn('[PdfCorrectionViewer] Failed to finalize previous PDF task', err);
+          }
+        }
+        if (pdfDocRef.current && typeof pdfDocRef.current.destroy === 'function') {
+          destroyPromiseRef.current = pdfDocRef.current.destroy().catch(() => {});
+          pdfDocRef.current = null;
+          if (destroyPromiseRef.current) {
+            try {
+              await destroyPromiseRef.current;
+            } catch (err) {
+              console.warn('[PdfCorrectionViewer] Failed to destroy previous document', err);
+            }
+          }
+        }
+        const task = pdfjsLib.getDocument({ url: fileUrl, withCredentials: true });
+        loadingTaskRef.current = task;
+        const doc = await task.promise;
+        loadingTaskRef.current = null;
         if (cancelled) {
-          doc.destroy();
+          destroyPromiseRef.current = doc.destroy().catch(() => {});
+          await destroyPromiseRef.current;
           return;
         }
+        pdfDocRef.current = doc;
         setPdfDoc(doc);
         setNumPages(doc.numPages);
-      })
-      .catch((err) => {
+      } catch (err) {
+        if (cancelled) return;
         console.error('[PdfCorrectionViewer] Failed to load document', err);
-        if (!cancelled) {
-          setError('Não foi possível carregar o PDF. Use o botão “Abrir original”.');
-        }
-      })
-      .finally(() => {
+        setError('Não foi possível carregar o PDF. Use o botão “Abrir original”.');
+        setPdfDoc(null);
+        setNumPages(0);
+      } finally {
         if (!cancelled) {
           setLoading(false);
         }
-      });
+      }
+    };
+
+    load();
 
     return () => {
       cancelled = true;
-      try {
-        task?.destroy?.();
-      } catch {
-        /* ignore */
+      const task = loadingTaskRef.current;
+      loadingTaskRef.current = null;
+      if (task && typeof task.destroy === 'function') {
+        destroyPromiseRef.current = task.destroy().catch(() => {});
+      } else if (pdfDocRef.current && typeof pdfDocRef.current.destroy === 'function') {
+        destroyPromiseRef.current = pdfDocRef.current.destroy().catch(() => {});
+        pdfDocRef.current = null;
       }
     };
   }, [fileUrl]);
-
-  useEffect(
-    () => () => {
-      try {
-        pdfDoc?.destroy?.();
-      } catch {
-        /* ignore cleanup errors */
-      }
-    },
-    [pdfDoc]
-  );
 
   useEffect(() => {
     if (!pdfDoc || numPages === 0) return;
@@ -135,6 +157,7 @@ export function PdfCorrectionViewer({
         canvas.style.width = `${viewport.width}px`;
         canvas.style.height = `${viewport.height}px`;
         const renderTask = page.render({ canvasContext: context, viewport });
+        renderTasksRef.current[pageNumber] = renderTask;
         await renderTask.promise;
       } catch (err) {
         if (!cancelled) {
@@ -149,6 +172,14 @@ export function PdfCorrectionViewer({
 
     return () => {
       cancelled = true;
+      Object.values(renderTasksRef.current).forEach((task) => {
+        try {
+          task?.cancel?.();
+        } catch {
+          /* ignore */
+        }
+      });
+      renderTasksRef.current = {};
     };
   }, [pdfDoc, numPages, fileUrl]);
 
