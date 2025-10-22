@@ -28,7 +28,7 @@ export default function RedacaoProfessorPage() {
   const [bimester, setBimester] = useState<string>('');
   const [type, setType] = useState<string>('');
   const navigate = useNavigate();
-  const containerCls = 'mx-auto w-full max-w-none px-2 sm:px-3 lg:px-4';
+  const containerCls = 'mx-auto w-full max-w-[1200px] px-3 sm:px-4 lg:px-5';
 
   useEffect(() => {
     (async () => {
@@ -228,7 +228,7 @@ export default function RedacaoProfessorPage() {
                       >
                         Corrigir
                       </Button>
-                    )}
+                    ) : null}
                     {status === 'corrected' && (
                       <Button
                         type="button"
