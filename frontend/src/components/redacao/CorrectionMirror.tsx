@@ -58,28 +58,38 @@ export function CorrectionMirror({
   const formattedPreviewScore = type === 'PAS' ? formattedPasResult : previewScore.toString();
 
   return (
-    <section className="mt-6 rounded-xl border border-slate-200 bg-gradient-to-br from-white via-white to-slate-50 p-4 shadow-sm lg:p-5">
+    <section className="mt-6 rounded-2xl border border-orange-100 bg-white/90 p-4 shadow-sm ring-1 ring-orange-50/60 backdrop-blur-sm lg:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-900">Espelho de correção</h2>
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold text-slate-900">Espelho do aluno</h2>
           <p className="text-sm text-slate-600">
-            Ajuste os detalhes abaixo para gerar o espelho final compartilhado com o aluno.
+            Revise motivos de anulação e notas antes de gerar o PDF final.
           </p>
         </div>
-        <div
-          className={`rounded-xl border px-4 py-3 text-right shadow-sm ${
-            annulled ? 'border-red-200 bg-red-50 text-red-600' : 'border-orange-200 bg-orange-50 text-orange-600'
-          }`}
-        >
-          <p className="text-xs uppercase tracking-wide">{previewLabel}</p>
-          <p className="text-xl font-semibold text-slate-900">
-            {annulled ? '0' : formattedPreviewScore}
-            {!annulled && type === 'ENEM' ? <span className="ml-1 text-sm text-slate-500">/ 1000</span> : null}
-          </p>
+        <div className="grid gap-2 text-xs text-slate-600 sm:grid-cols-2 sm:text-sm">
+          <div
+            className={`min-w-[160px] rounded-xl border px-4 py-3 text-right shadow-sm transition ${
+              annulled
+                ? 'border-red-200 bg-red-50 text-red-600'
+                : 'border-orange-200 bg-gradient-to-br from-orange-50 to-white text-orange-600'
+            }`}
+          >
+            <p className="text-[11px] uppercase tracking-wide">{previewLabel}</p>
+            <p className="text-xl font-semibold text-slate-900">
+              {annulled ? '0' : formattedPreviewScore}
+              {!annulled && type === 'ENEM' ? <span className="ml-1 text-sm text-slate-500">/ 1000</span> : null}
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm">
+            <p className="text-[11px] uppercase tracking-wide text-slate-500">Status</p>
+            <p className="text-base font-semibold text-slate-800">
+              {annulled ? 'Anulada' : type === 'PAS' ? 'PAS/UnB' : type === 'ENEM' ? 'ENEM' : '—'}
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+      <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,0.9fr)]">
         <div className="space-y-4">
           <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4 shadow-sm">
             <h3 className="text-sm font-semibold text-slate-800">Anulação da redação</h3>
@@ -200,41 +210,60 @@ export function CorrectionMirror({
           )}
         </div>
 
-        <div className="flex h-full flex-col justify-between gap-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h4 className="text-sm font-semibold text-slate-800">Dicas rápidas</h4>
-            <ul className="mt-2 space-y-2 text-xs text-slate-600">
-              <li>• Use os motivos de anulação para orientar a devolutiva ao aluno.</li>
-              <li>• No modelo PAS/UnB, valide o número de linhas antes de atribuir NE.</li>
-              <li>• No modelo ENEM, siga a rubrica oficial ao selecionar nível e justificativas.</li>
-            </ul>
+        <div className="flex h-full flex-col gap-4">
+          <div className="rounded-2xl border border-orange-100 bg-gradient-to-br from-orange-50 via-white to-orange-50/40 p-5 text-sm text-orange-700 shadow-sm">
+            <p className="text-xs uppercase tracking-wide text-orange-500">Resumo do espelho</p>
+            <p className="mt-1 text-3xl font-bold text-orange-600">
+              {annulled ? '0' : type === 'PAS' ? formattedPasResult : enemTotal}
+              {!annulled && type === 'ENEM' ? <span className="ml-1 text-sm text-orange-500">/ 1000</span> : null}
+            </p>
+            <p className="mt-2 text-xs text-orange-600">
+              Os dados são sincronizados automaticamente com o PDF corrigido após salvar.
+            </p>
+            {!annulled && type === 'ENEM' && (
+              <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                {ENEM_2024.map((competency) => (
+                  <div key={competency.key} className="rounded-xl border border-orange-200/60 bg-white/80 px-3 py-2 shadow-sm">
+                    <p className="text-[11px] uppercase tracking-wide text-orange-500">{competency.title}</p>
+                    <p className="mt-1 font-semibold text-orange-600">
+                      N{enemSelections[competency.key]?.level ?? '-'} •{' '}
+                      {levelPoints(competency.key, enemSelections[competency.key]?.level ?? 0)} pts
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!annulled && type === 'PAS' && (
+              <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                <div className="rounded-xl border border-white bg-white/80 px-3 py-2 shadow-sm">
+                  <p className="text-[11px] uppercase tracking-wide text-orange-500">NC</p>
+                  <p className="mt-1 font-semibold text-orange-600">{pasState.NC || '—'}</p>
+                </div>
+                <div className="rounded-xl border border-white bg-white/80 px-3 py-2 shadow-sm">
+                  <p className="text-[11px] uppercase tracking-wide text-orange-500">NL</p>
+                  <p className="mt-1 font-semibold text-orange-600">{pasState.NL || '—'}</p>
+                </div>
+                <div className="rounded-xl border border-white bg-white/80 px-3 py-2 shadow-sm">
+                  <p className="text-[11px] uppercase tracking-wide text-orange-500">NE</p>
+                  <p className="mt-1 font-semibold text-orange-600">{pasState.NE || '—'}</p>
+                </div>
+                <div className="rounded-xl border border-orange-200 bg-white px-3 py-2 shadow-sm">
+                  <p className="text-[11px] uppercase tracking-wide text-orange-500">NR previsto</p>
+                  <p className="mt-1 font-semibold text-orange-600">{formattedPasResult}</p>
+                </div>
+              </div>
+            )}
           </div>
-          {!annulled && (
-            <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-700 shadow-sm">
-              <p className="font-semibold">Resumo da nota</p>
-              <p className="mt-1 text-2xl font-bold text-orange-600">
-                {type === 'PAS' ? formattedPasResult : enemTotal}
-                {type === 'ENEM' ? <span className="ml-1 text-sm text-orange-500">/ 1000</span> : null}
-              </p>
-              <p className="mt-1 text-xs text-orange-600">
-                Os dados do espelho são sincronizados automaticamente com a geração do PDF corrigido.
-              </p>
-              {type === 'ENEM' && (
-                <p className="mt-1 text-xs text-orange-600">
-                  Nível base de cada competência: {ENEM_2024.map((c) => selectionsSummary(enemSelections, c.key)).join(' • ')}
-                </p>
-              )}
-            </div>
-          )}
+          <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 text-xs text-slate-600 shadow-sm">
+            <p className="font-medium text-slate-700">Lembrete rápido</p>
+            <p className="mt-1">
+              Salve antes de gerar o PDF corrigido. Ajustes de anulação ou notas são aplicados imediatamente ao espelho.
+            </p>
+          </div>
         </div>
       </div>
     </section>
   );
-}
-
-function selectionsSummary(selections: EnemSelectionsMap, key: keyof EnemSelectionsMap) {
-  const selection = selections[key];
-  return `${key}: N${selection?.level ?? '-'} (${selection?.level != null ? levelPoints(key, selection.level) : 0} pts)`;
 }
 
 function levelPoints(key: keyof EnemSelectionsMap, level: number) {

@@ -473,52 +473,58 @@ export default function GradeWorkspace() {
   const backToList = () => navigate(-1);
 
   const studentName = essay?.student?.name || essay?.studentName || '-';
-  const studentPhoto = (essay?.student as any)?.photo || (essay?.student as any)?.photoUrl || null;
-  const summaryItems = [
-    { label: 'Aluno', value: studentName },
-    { label: 'Turma', value: essay?.className || '-' },
-    { label: 'Tema', value: essay?.theme || essay?.topic || '-' },
-    { label: 'Tipo', value: essayType || '-' },
-    { label: 'Bimestre', value: essay?.term ?? essay?.bimester ?? essay?.bimestre ?? '-' },
-  ];
-
+  const rawPhoto =
+    (essay?.student as any)?.photo ||
+    (essay?.student as any)?.photoUrl ||
+    (essay?.student as any)?.avatar ||
+    null;
+  const studentPhoto = useMemo(() => {
+    if (!rawPhoto || typeof rawPhoto !== 'string') return null;
+    if (rawPhoto.startsWith('http') || rawPhoto.startsWith('data:')) return rawPhoto;
+    const cleaned = rawPhoto.trim();
+    if (!cleaned) return null;
+    const looksBase64 = /^[A-Za-z0-9+/=\s]+$/.test(cleaned);
+    if (looksBase64) {
+      return `data:image/jpeg;base64,${cleaned.replace(/\s+/g, '')}`;
+    }
+    return cleaned;
+  }, [rawPhoto]);
   const studentInitials = studentName
     .split(' ')
     .filter(Boolean)
     .slice(0, 2)
     .map((piece) => piece[0]?.toUpperCase())
     .join('') || 'A';
+  const bimestreRaw = essay?.term ?? essay?.bimester ?? essay?.bimestre ?? essay?.bimesterNumber ?? null;
+  const bimestreLabel =
+    bimestreRaw != null && bimestreRaw !== ''
+      ? Number.isFinite(Number(bimestreRaw))
+        ? `${Number(bimestreRaw)}º bimestre`
+        : String(bimestreRaw)
+      : null;
+  const turmaLabel = essay?.className || '-';
+  const firstInfoLine = studentName;
+  const secondInfoLine = [turmaLabel, bimestreLabel].filter(Boolean).join(', ') || '-';
+  const typeLabel = essayType || '-';
+  const themeLabel = essay?.theme || essay?.topic || '-';
+  const thirdInfoLine = [typeLabel, themeLabel].filter(Boolean).join(', ') || '-';
 
   return (
     <div className="mx-auto flex h-full w-full max-w-none flex-col gap-3 px-2 py-4 sm:px-3 lg:px-4">
-      <header className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between lg:p-5">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
-            <div className="relative h-16 w-16 overflow-hidden rounded-full border-2 border-orange-400 bg-orange-50 text-lg font-semibold text-orange-600 shadow-sm sm:h-20 sm:w-20">
-              {studentPhoto ? (
-                <img src={studentPhoto} alt={studentName} className="h-full w-full object-cover" />
-              ) : (
-                <span className="flex h-full w-full items-center justify-center">{studentInitials}</span>
-              )}
-            </div>
-            <div>
-              <h1 className="text-2xl font-semibold text-slate-900">Correção de redação</h1>
-              <p className="text-sm text-slate-600">
-                Professor(a): {user?.name || '—'}
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                Ajuste os destaques e comentários para orientar o aluno na revisão da redação.
-              </p>
-            </div>
+      <header className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-start gap-4">
+          <div className="relative h-16 w-16 overflow-hidden rounded-full border border-orange-300 bg-orange-50 text-lg font-semibold text-orange-600 shadow-sm sm:h-20 sm:w-20">
+            {studentPhoto ? (
+              <img src={studentPhoto} alt={studentName} className="h-full w-full object-cover" />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center">{studentInitials}</span>
+            )}
           </div>
-          <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
-            {summaryItems.map((item) => (
-              <div key={item.label} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <dt className="text-xs uppercase tracking-wide text-slate-500">{item.label}</dt>
-                <dd className="mt-1 text-sm font-medium text-slate-800 break-words">{item.value ?? '-'}</dd>
-              </div>
-            ))}
-          </dl>
+          <div className="flex flex-col gap-1 text-sm leading-snug text-slate-700">
+            <p className="text-base font-semibold text-slate-900">{firstInfoLine}</p>
+            <p>{secondInfoLine}</p>
+            <p>{thirdInfoLine}</p>
+          </div>
         </div>
         <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
           <Button variant="ghost" onClick={backToList}>

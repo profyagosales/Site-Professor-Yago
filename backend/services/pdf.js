@@ -58,6 +58,21 @@ const COLOR_RED = hexToRgb('#dc2626');
 const HEADER_HEIGHT = 120;
 const HEADER_PADDING = 24;
 
+function isImageMimeType(mime) {
+  return typeof mime === 'string' && mime.trim().toLowerCase().startsWith('image/');
+}
+
+function detectImageMimeFromBytes(buffer) {
+  if (!buffer || buffer.length < 4) return null;
+  const byte0 = buffer[0];
+  const byte1 = buffer[1];
+  const byte2 = buffer[2];
+  const byte3 = buffer[3];
+  if (byte0 === 0x89 && byte1 === 0x50 && byte2 === 0x4e && byte3 === 0x47) return 'image/png';
+  if (byte0 === 0xff && byte1 === 0xd8) return 'image/jpeg';
+  return null;
+}
+
 function asPdfColor(color) {
   return rgb(color.r, color.g, color.b);
 }
@@ -161,16 +176,6 @@ function resolveFinalScore(score) {
   return { value: fallback != null ? String(fallback) : '-', caption: score?.type || null, annulled: false };
 }
 
-async function embedSvgLogo(pdfDoc) {
-  try {
-    const logo = await pdfDoc.embedSvg(SITE_LOGO_SVG);
-    return logo;
-  } catch (err) {
-    console.warn('[pdf] Failed to embed logo SVG', err?.message || err);
-    return null;
-  }
-}
-
 function parseBase64Image(dataUri) {
   if (typeof dataUri !== 'string') return null;
   const match = dataUri.match(/^data:(image\/(?:png|jpeg|jpg));base64,(.+)$/i);
@@ -264,16 +269,51 @@ async function generateCorrectedEssayPdf({
   }
 
   const originalBytes = await fetchRemoteBytes(essay.originalUrl);
-  const originalPdf = await PDFDocument.load(originalBytes);
+  if (!originalBytes || !originalBytes.length) {
+    throw new Error('Arquivo original indisponível para gerar o PDF corrigido.');
+  }
+
   const pdfDoc = await PDFDocument.create();
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  const pagesCount = originalPdf.getPageCount();
+  const declaredMime = essay?.originalMimeType || null;
+  const inferredMime = detectImageMimeFromBytes(originalBytes);
+  let treatAsImage = isImageMimeType(declaredMime) || (!declaredMime && inferredMime);
+
+  let originalPdf = null;
+  let embeddedImage = null;
+  let pagesCount = 0;
+
+  if (!treatAsImage) {
+    try {
+      originalPdf = await PDFDocument.load(originalBytes);
+      pagesCount = originalPdf.getPageCount();
+    } catch (err) {
+      console.warn('[pdf] Failed to load original as PDF, falling back to image mode', err?.message || err);
+      treatAsImage = true;
+    }
+  }
+
+  if (treatAsImage) {
+    const mime = (declaredMime || inferredMime || 'image/jpeg').toLowerCase();
+    try {
+      embeddedImage = mime.includes('png') ? await pdfDoc.embedPng(originalBytes) : await pdfDoc.embedJpg(originalBytes);
+    } catch (err) {
+      console.error('[pdf] Failed to embed image for corrected PDF', err);
+      throw new Error('Formato de arquivo da redação não suportado para gerar o PDF corrigido.');
+    }
+    pagesCount = 1;
+  }
+
+  if (!pagesCount) {
+    throw new Error('Não foi possível determinar o conteúdo da redação para gerar o PDF.');
+  }
+
   const commentColumnWidth = 220;
   const margin = 24;
 
-  const logoImage = await embedSvgLogo(pdfDoc);
+  const logoImage = null;
   const studentPhotoUrl = student?.photo || student?.photoUrl || null;
   const studentPhotoImage = await embedRemoteImage(pdfDoc, studentPhotoUrl);
   const studentName = student?.name || 'Aluno';
@@ -289,15 +329,30 @@ async function generateCorrectedEssayPdf({
   });
 
   for (let index = 0; index < pagesCount; index += 1) {
-    const [origPage] = await pdfDoc.copyPages(originalPdf, [index]);
-    const origWidth = origPage.getWidth();
-    const origHeight = origPage.getHeight();
+    let origPage = null;
+    let origWidth = 0;
+    let origHeight = 0;
+
+    if (treatAsImage) {
+      origWidth = embeddedImage.width;
+      origHeight = embeddedImage.height;
+    } else {
+      const copied = await pdfDoc.copyPages(originalPdf, [index]);
+      origPage = copied[0];
+      origWidth = origPage.getWidth();
+      origHeight = origPage.getHeight();
+    }
+
     const pageWidth = origWidth + commentColumnWidth;
     const headerExtra = index === 0 ? HEADER_HEIGHT : 0;
     const pageHeight = origHeight + headerExtra;
 
     let currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
-    currentPage.drawPage(origPage, { x: 0, y: 0, width: origWidth, height: origHeight });
+    if (treatAsImage) {
+      currentPage.drawImage(embeddedImage, { x: 0, y: 0, width: origWidth, height: origHeight });
+    } else {
+      currentPage.drawPage(origPage, { x: 0, y: 0, width: origWidth, height: origHeight });
+    }
 
     if (index === 0) {
       const headerBaseY = pageHeight - HEADER_HEIGHT;
