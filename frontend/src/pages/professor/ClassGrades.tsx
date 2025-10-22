@@ -1,5 +1,5 @@
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getActivityEntries, getGradeScheme, upsertActivityEntriesBulk } from '@/services/grades';
+import { getActivityEntries, getGradeScheme, upsertActivityEntriesBulk } from '@/services/grades.service';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import {
