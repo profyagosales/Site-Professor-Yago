@@ -19,6 +19,7 @@ import GerencialTeachersPage from '@/pages/gerencial/GerencialTeachersPage';
 import StudentGuard from '@/routes/StudentGuard';
 const RedacaoProfessorPage = lazy(() => import(/* @vite-ignore */ '@/pages/professor/redacao/RedacaoProfessorPage'));
 const GradeWorkspace = lazy(() => import(/* @vite-ignore */ '@/pages/professor/redacao/GradeWorkspace'));
+const EssayPrintPage = lazy(() => import(/* @vite-ignore */ '@/pages/professor/redacao/EssayPrintPage'));
 import NotFound from '@/pages/NotFound';
 import TurmaAlunosPage from '@/pages/professor/TurmaAlunos';
 import ClassesPage from '@/pages/professor/classes';
@@ -96,6 +97,7 @@ export const router = createBrowserRouter([
           { path: '/dev/telemetry', element: <TeacherGuard><Suspense fallback={<div className="p-6">Carregando…</div>}><DevTelemetryConsole /></Suspense></TeacherGuard> },
         ],
       },
+      { path: '/professor/redacao/:id/print', element: <TeacherGuard><Suspense fallback={<div className="p-6">Carregando…</div>}><EssayPrintPage /></Suspense></TeacherGuard> },
       {
         element: <AppShellLayout />,
         children: [

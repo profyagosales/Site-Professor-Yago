@@ -1239,7 +1239,7 @@ async function generateCorrectedEssayPdf({
       });
 
       sectionY -= 10;
-      summaryPage.drawText('Fórmula aplicada: NR = NC − 2 × (NE ÷ TL)', {
+      summaryPage.drawText('Fórmula aplicada: NR = NC - 2 × (NE ÷ TL)', {
         x,
         y: sectionY,
         font: fontRegular,
