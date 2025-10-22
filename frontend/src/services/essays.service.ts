@@ -407,6 +407,11 @@ export async function updateEssay(id: string, form: FormData) {
   return data?.data ?? data;
 }
 
+export async function deleteEssay(id: string) {
+  const { data } = await api.delete(`/essays/${id}`);
+  return data?.data ?? data ?? { success: true };
+}
+
 /** -------- notas/correção -------- */
 export async function gradeEssay(id: EssayId, payload: GradeEssayPayload) {
   const body: Record<string, any> = {
@@ -534,6 +539,7 @@ export type EssayScorePayload = {
     levels?: number[];
     points?: number[];
     total?: number;
+    competencies?: Record<string, { level: number; reasonIds: string[] }>;
   };
 };
 

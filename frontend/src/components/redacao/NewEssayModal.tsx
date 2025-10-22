@@ -3,19 +3,36 @@ import { toast } from 'react-toastify';
 import Modal from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { listClasses, listStudents } from '@/services/classes';
-import { fetchThemes, createEssay, type EssayTheme } from '@/services/essays.service';
+import {
+  fetchThemes,
+  createEssay,
+  updateEssay,
+  type EssayTheme,
+} from '@/services/essays.service';
 
 type Props = {
   open: boolean;
   onClose: () => void;
+  onSuccess: () => void;
   defaultStudentId?: string;
   defaultClassId?: string;
-  onSuccess: () => void;
+  mode?: 'create' | 'edit';
+  essayId?: string | null;
+  initialEssay?: any | null;
 };
 
 const CUSTOM_THEME_ID = '__custom__';
 
-export default function NewEssayModal({ open, onClose, defaultStudentId, defaultClassId, onSuccess }: Props) {
+export default function NewEssayModal({
+  open,
+  onClose,
+  onSuccess,
+  defaultStudentId,
+  defaultClassId,
+  mode = 'create',
+  essayId,
+  initialEssay,
+}: Props) {
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
 
@@ -36,6 +53,7 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const isEditMode = mode === 'edit' && Boolean(essayId);
   const requiresBimester = type === 'PAS';
 
   useEffect(() => {
@@ -53,7 +71,7 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
         if (cancelled) return;
         setClasses(Array.isArray(cls) ? cls : []);
       } catch (err) {
-        console.error('[new-essay] Falha ao carregar turmas', err);
+        console.error('[essay-modal] Falha ao carregar turmas', err);
         if (!cancelled) toast.error('Não foi possível carregar as turmas.');
       }
     })();
@@ -79,7 +97,7 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
         const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
         setStudents(list);
       } catch (err) {
-        console.error('[new-essay] Falha ao carregar alunos', err);
+        console.error('[essay-modal] Falha ao carregar alunos', err);
         if (!cancelled) {
           toast.error('Não foi possível carregar os alunos da turma.');
           setStudents([]);
@@ -103,7 +121,7 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
         if (cancelled) return;
         setThemes(list);
       } catch (err) {
-        console.error('[new-essay] Falha ao carregar temas', err);
+        console.error('[essay-modal] Falha ao carregar temas', err);
         if (!cancelled) toast.error('Não foi possível carregar os temas.');
         setThemes([]);
       } finally {
@@ -128,12 +146,59 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
     }
   }, [open, defaultClassId, defaultStudentId]);
 
-  const selectedTheme = useMemo(() => themes.find((t) => t.id === themeId), [themes, themeId]);
+  useEffect(() => {
+    if (!open || !isEditMode || !initialEssay) return;
 
+    const initialClassId =
+      initialEssay.classId?._id ||
+      initialEssay.classId?.id ||
+      initialEssay.classId ||
+      initialEssay.class?.id ||
+      initialEssay.class ||
+      defaultClassId;
+    const initialStudentId =
+      initialEssay.student?.id ||
+      initialEssay.studentId?._id ||
+      initialEssay.studentId?.id ||
+      initialEssay.studentId ||
+      defaultStudentId;
+
+    setClassId(initialClassId || undefined);
+    setStudentId(initialStudentId || undefined);
+
+    if (initialEssay.type === 'ENEM' || initialEssay.type === 'PAS') {
+      setType(initialEssay.type);
+    } else {
+      setType('PAS');
+    }
+
+    const bimesterValue =
+      initialEssay.term ?? initialEssay.bimester ?? initialEssay.bimestre ?? initialEssay.bimesterNumber ?? '';
+    setBimester(bimesterValue != null && bimesterValue !== '' ? String(bimesterValue) : '');
+
+    if (initialEssay.customTheme && initialEssay.customTheme.trim()) {
+      setThemeId(CUSTOM_THEME_ID);
+      setCustomTheme(initialEssay.customTheme.trim());
+    } else if (initialEssay.themeId?._id || initialEssay.themeId?.id || initialEssay.themeId) {
+      const themeValue = initialEssay.themeId._id || initialEssay.themeId.id || initialEssay.themeId;
+      setThemeId(themeValue);
+      setCustomTheme('');
+    } else {
+      setThemeId(CUSTOM_THEME_ID);
+      setCustomTheme(initialEssay.theme || initialEssay.topic || '');
+    }
+
+    setFile(null);
+    setError(null);
+  }, [open, isEditMode, initialEssay, defaultClassId, defaultStudentId]);
+
+  const selectedTheme = useMemo(() => themes.find((t) => t.id === themeId), [themes, themeId]);
   const showCustomThemeInput = themeId === CUSTOM_THEME_ID;
+  const modalTitle = isEditMode ? 'Editar Redação' : 'Nova Redação';
+  const primaryButtonLabel = isEditMode ? 'Salvar alterações' : 'Enviar';
 
   async function handleSubmit() {
-    if (!file) {
+    if (!isEditMode && !file) {
       setError('Anexe o arquivo da redação.');
       return;
     }
@@ -157,6 +222,7 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
     try {
       setSubmitting(true);
       setError(null);
+
       const form = new FormData();
       if (file) {
         form.append('file', file);
@@ -172,12 +238,20 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
       } else if (themeId && themeId !== CUSTOM_THEME_ID) {
         form.append('themeId', themeId);
       }
-      await createEssay(form);
-      toast.success('Redação enviada com sucesso.');
+
+      if (isEditMode && essayId) {
+        await updateEssay(essayId, form);
+        toast.success('Redação atualizada com sucesso.');
+      } else {
+        await createEssay(form);
+        toast.success('Redação enviada com sucesso.');
+      }
+
       onSuccess();
       onClose();
     } catch (err: any) {
-      const message = err?.response?.data?.message || err?.message || 'Erro ao enviar redação.';
+      const message =
+        err?.response?.data?.message || err?.message || (isEditMode ? 'Erro ao atualizar redação.' : 'Erro ao enviar redação.');
       setError(message);
       toast.error(message);
     } finally {
@@ -189,7 +263,7 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
     <Modal open={open} onClose={onClose} className="max-w-3xl">
       <div className="p-6">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-[#111827]">Nova Redação</h3>
+          <h3 className="text-lg font-semibold text-[#111827]">{modalTitle}</h3>
           <Button variant="ghost" onClick={onClose} size="sm" type="button">
             Fechar
           </Button>
@@ -197,7 +271,9 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
 
         <div className="grid gap-4">
           <div>
-            <label className="block text-sm font-medium text-[#111827]">Arquivo (PDF/Imagem)</label>
+            <label className="block text-sm font-medium text-[#111827]">
+              Arquivo (PDF/Imagem) {isEditMode ? '— opcional' : ''}
+            </label>
             <input
               ref={firstFieldRef}
               type="file"
@@ -205,6 +281,11 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
               onChange={(event) => setFile(event.target.files?.[0] || null)}
               className="w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
+            {isEditMode && (
+              <p className="mt-1 text-xs text-slate-500">
+                Selecione um arquivo apenas se desejar substituir o original enviado pelo aluno.
+              </p>
+            )}
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
@@ -242,27 +323,18 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
                   </option>
                 ))}
               </select>
-              {loadingStudents && <p className="mt-1 text-xs text-ys-ink-2">Carregando alunos…</p>}
             </div>
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium text-[#111827]">Tipo</label>
+              <label className="block text-sm font-medium text-[#111827]">Modelo</label>
               <select
                 value={type}
-                onChange={(event) => {
-                  const nextType = event.target.value as 'ENEM' | 'PAS';
-                  setType(nextType);
-                  if (nextType === 'ENEM') {
-                    setBimester('');
-                  }
-                  setThemeId(CUSTOM_THEME_ID);
-                  setCustomTheme('');
-                }}
+                onChange={(event) => setType(event.target.value as 'ENEM' | 'PAS')}
                 className="w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
               >
-                <option value="PAS">PAS</option>
+                <option value="PAS">PAS/UnB</option>
                 <option value="ENEM">ENEM</option>
               </select>
             </div>
@@ -272,9 +344,9 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
                 value={bimester}
                 onChange={(event) => setBimester(event.target.value)}
                 className="w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                disabled={!requiresBimester}
+                disabled={type !== 'PAS'}
               >
-                <option value="">{requiresBimester ? 'Selecione…' : 'Opcional'}</option>
+                <option value="">Selecione…</option>
                 <option value="1">1º</option>
                 <option value="2">2º</option>
                 <option value="3">3º</option>
@@ -283,58 +355,61 @@ export default function NewEssayModal({ open, onClose, defaultStudentId, default
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-[#111827]">Tema</label>
-            <select
-              value={themeId}
-              onChange={(event) => setThemeId(event.target.value)}
-              className="w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
-              disabled={loadingThemes}
-            >
-              <option value={CUSTOM_THEME_ID}>Tema não encontrado (informar manualmente)</option>
-              {themes.map((theme) => (
-                <option key={theme.id} value={theme.id}>
-                  {theme.title}
-                </option>
-              ))}
-            </select>
-            {loadingThemes && <p className="mt-1 text-xs text-ys-ink-2">Carregando temas…</p>}
+          <div className="grid gap-3 md:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-[#111827]">Tema</label>
+              <select
+                value={showCustomThemeInput ? CUSTOM_THEME_ID : themeId}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (value === CUSTOM_THEME_ID) {
+                    setThemeId(CUSTOM_THEME_ID);
+                  } else {
+                    setThemeId(value);
+                    setCustomTheme('');
+                  }
+                }}
+                className="w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                disabled={loadingThemes}
+              >
+                <option value={CUSTOM_THEME_ID}>Tema personalizado…</option>
+                {themes.map((theme) => (
+                  <option key={theme.id} value={theme.id}>
+                    {theme.title}
+                  </option>
+                ))}
+              </select>
+              {selectedTheme && (
+                <p className="mt-1 text-xs text-slate-500">
+                  Tipo: {selectedTheme.type === 'PAS' ? 'PAS/UnB' : 'ENEM'} • {selectedTheme.description || 'sem descrição'}
+                </p>
+              )}
+            </div>
+            {showCustomThemeInput && (
+              <div>
+                <label className="block text-sm font-medium text-[#111827]">Descrição do tema</label>
+                <textarea
+                  value={customTheme}
+                  onChange={(event) => setCustomTheme(event.target.value)}
+                  rows={3}
+                  className="w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+              </div>
+            )}
           </div>
+        </div>
 
-          {showCustomThemeInput ? (
-            <input
-              value={customTheme}
-              onChange={(event) => setCustomTheme(event.target.value)}
-              placeholder="Descreva o tema solicitado ao aluno"
-              className="w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
-            />
-          ) : selectedTheme?.description ? (
-            <p className="rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] p-3 text-sm text-[#374151]">
-              {selectedTheme.description}
-            </p>
-          ) : null}
+        {error && (
+          <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
+        )}
 
-          {!showCustomThemeInput && selectedTheme?.promptFileUrl && (
-            <a
-              href={selectedTheme.promptFileUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-sm font-medium text-orange-600 hover:text-orange-700"
-            >
-              Ver proposta anexada
-            </a>
-          )}
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
-
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={onClose} disabled={submitting}>
-              Cancelar
-            </Button>
-            <Button type="button" onClick={handleSubmit} disabled={submitting}>
-              {submitting ? 'Enviando…' : 'Enviar'}
-            </Button>
-          </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose} type="button">
+            Cancelar
+          </Button>
+          <Button onClick={handleSubmit} disabled={submitting} type="button">
+            {submitting ? 'Salvando…' : primaryButtonLabel}
+          </Button>
         </div>
       </div>
     </Modal>

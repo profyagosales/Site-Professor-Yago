@@ -69,6 +69,16 @@ const essaySchema = new mongoose.Schema({
     c4: Number,
     c5: Number
   },
+  enemRubric: {
+    type: new mongoose.Schema({
+      C1: { level: { type: Number }, reasonIds: [{ type: String }] },
+      C2: { level: { type: Number }, reasonIds: [{ type: String }] },
+      C3: { level: { type: Number }, reasonIds: [{ type: String }] },
+      C4: { level: { type: Number }, reasonIds: [{ type: String }] },
+      C5: { level: { type: Number }, reasonIds: [{ type: String }] },
+    }, { _id: false }),
+    default: undefined
+  },
   pasBreakdown: {
     NC: Number,
     NE: Number,

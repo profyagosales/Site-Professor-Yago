@@ -87,6 +87,9 @@ export default function ClassGradesPage() {
   const hasSyncedYearRef = useRef(false);
   const [liveUpdateMessage, setLiveUpdateMessage] = useState<string>('');
   const [selectedTerms, setSelectedTerms] = useState<number[]>(() => [...DEFAULT_TERMS]);
+  const visibleTerms = useMemo(() => {
+    return [...selectedTerms].sort((a, b) => a - b);
+  }, [selectedTerms]);
   const [activityTerm, setActivityTerm] = useState<number>(() => DEFAULT_TERMS[0]);
   const [activities, setActivities] = useState<Array<{ id: string; label: string; maxPoints: number }>>([]);
   const [activityModal, setActivityModal] = useState<{ open: boolean; activityId: string | null; maxPoints: number; label: string }>(() => ({ open: false, activityId: null, maxPoints: 10, label: '' }));
@@ -212,10 +215,6 @@ export default function ClassGradesPage() {
       ignore = true;
     };
   }, [id, activityTerm, filters.year]);
-
-  const visibleTerms = useMemo(() => {
-    return [...selectedTerms].sort((a, b) => a - b);
-  }, [selectedTerms]);
 
   const showTotal = filters.sum;
 

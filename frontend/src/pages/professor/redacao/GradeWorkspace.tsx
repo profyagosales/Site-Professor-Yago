@@ -10,6 +10,9 @@ import { CorrectionMirror, ANNUL_OPTIONS } from '@/components/redacao/Correction
 import type { AnnotationItem, NormalizedRect } from '@/components/redacao/annotationTypes';
 import { HIGHLIGHT_CATEGORIES, type HighlightCategoryKey } from '@/constants/annotations';
 import { useAuth } from '@/components/AuthContext';
+import { ENEM_2024 } from '@/features/essay/rubrics/enem2024';
+import type { RubricGroup, RubricCriterion } from '@/features/essay/rubrics/enem2024';
+import type { EnemSelectionsMap } from '@/components/essay/EnemScoringForm';
 import {
   fetchEssayById,
   issueFileToken,
@@ -29,17 +32,40 @@ type PasState = {
   NE: string;
 };
 
-const LEVEL_POINTS = [0, 40, 80, 120, 160, 200] as const;
-
-function pointsToLevel(value?: number | null) {
-  if (typeof value !== 'number' || Number.isNaN(value)) return 0;
-  const level = Math.round(value / 40);
-  return Math.max(0, Math.min(level, 5));
+function createInitialEnemSelections(): EnemSelectionsMap {
+  return ENEM_2024.reduce(
+    (acc, competency) => {
+      const defaultLevel = competency.levels[0]?.level ?? 0;
+      acc[competency.key] = { level: defaultLevel, reasonIds: [] };
+      return acc;
+    },
+    {} as EnemSelectionsMap
+  );
 }
 
-function levelToPoints(level: number) {
-  const idx = Math.max(0, Math.min(level, 5));
-  return LEVEL_POINTS[idx] ?? 0;
+function calculateEnemTotal(selections: EnemSelectionsMap) {
+  return ENEM_2024.reduce((sum, competency) => {
+    const selection = selections[competency.key];
+    const levelData = competency.levels.find((level) => level.level === selection?.level);
+    return sum + (levelData?.points ?? 0);
+  }, 0);
+}
+
+function collectReasonIds(node: RubricGroup | RubricCriterion): string[] {
+  if ('id' in node) return [node.id];
+  return node.items.flatMap((child) => collectReasonIds(child));
+}
+
+function sanitizeEnemSelection(key: keyof EnemSelectionsMap, selection: { level: number; reasonIds: string[] }) {
+  const competency = ENEM_2024.find((comp) => comp.key === key);
+  if (!competency) return { level: selection.level, reasonIds: [] };
+  const levelData =
+    competency.levels.find((level) => level.level === selection.level) ?? competency.levels[0];
+  const validReasonIds = levelData?.rationale ? collectReasonIds(levelData.rationale) : [];
+  const reasonIds = Array.isArray(selection.reasonIds)
+    ? selection.reasonIds.filter((id) => validReasonIds.includes(id))
+    : [];
+  return { level: levelData.level, reasonIds };
 }
 
 function toInputValue(value?: number | null) {
@@ -105,7 +131,7 @@ export default function GradeWorkspace() {
   const [annulState, setAnnulState] = useState<Record<string, boolean>>({});
   const [annulOther, setAnnulOther] = useState('');
   const [pasState, setPasState] = useState<PasState>({ NC: '', NL: '', NE: '' });
-  const [enemLevels, setEnemLevels] = useState<number[]>([0, 0, 0, 0, 0]);
+  const [enemSelections, setEnemSelections] = useState<EnemSelectionsMap>(() => createInitialEnemSelections());
 
   const essayType = (essay?.type || essay?.model || null) as 'PAS' | 'ENEM' | null;
   const annulled = useMemo(
@@ -124,8 +150,8 @@ export default function GradeWorkspace() {
 
   const enemTotal = useMemo(() => {
     if (annulled) return 0;
-    return enemLevels.reduce((acc, level) => acc + levelToPoints(level), 0);
-  }, [annulled, enemLevels]);
+    return calculateEnemTotal(enemSelections);
+  }, [annulled, enemSelections]);
 
   const orderedAnnotations = useMemo(() => renumber(annotations), [annotations]);
 
@@ -156,19 +182,6 @@ export default function GradeWorkspace() {
         });
       } else {
         setPasState({ NC: '', NL: '', NE: '' });
-      }
-
-      if (data?.enemCompetencies && data.type === 'ENEM') {
-        const comps = data.enemCompetencies;
-        setEnemLevels([
-          pointsToLevel(comps?.c1),
-          pointsToLevel(comps?.c2),
-          pointsToLevel(comps?.c3),
-          pointsToLevel(comps?.c4),
-          pointsToLevel(comps?.c5),
-        ]);
-      } else {
-        setEnemLevels([0, 0, 0, 0, 0]);
       }
 
       try {
@@ -203,10 +216,33 @@ export default function GradeWorkspace() {
               NE: toInputValue(score.pas.NE),
             });
           }
-          if (score.type === 'ENEM' && Array.isArray(score.enem?.levels)) {
-            const levels = score.enem.levels.map((lvl: number) => Math.max(0, Math.min(lvl, 5)));
-            while (levels.length < 5) levels.push(0);
-            setEnemLevels(levels.slice(0, 5));
+          if (score.type === 'ENEM') {
+            const nextSelections = createInitialEnemSelections();
+            const competencies = score.enem?.competencies || {};
+            ENEM_2024.forEach((competency, idx) => {
+              const key = competency.key;
+              const fromPayload = competencies?.[key];
+              const levelFromPayload = typeof fromPayload?.level === 'number' ? fromPayload.level : undefined;
+              const fallbackLevel = Array.isArray(score.enem?.levels)
+                ? score.enem.levels[idx]
+                : undefined;
+              const level = Math.max(
+                0,
+                Math.min(
+                  competency.levels.find((lvl) => lvl.level === levelFromPayload)?.level ?? fallbackLevel ?? nextSelections[key].level,
+                  5,
+                ),
+              );
+              const levelData = competency.levels.find((lvl) => lvl.level === level) ?? competency.levels[0];
+              const validReasonIds = levelData?.rationale ? collectReasonIds(levelData.rationale) : [];
+              const reasonIds = Array.isArray(fromPayload?.reasonIds)
+                ? fromPayload.reasonIds.filter((id: string) => validReasonIds.includes(id))
+                : [];
+              nextSelections[key] = { level, reasonIds };
+            });
+            setEnemSelections(nextSelections);
+          } else {
+            setEnemSelections(createInitialEnemSelections());
           }
         }
       } catch (err) {
@@ -316,12 +352,11 @@ export default function GradeWorkspace() {
     setDirty(true);
   };
 
-  const handleEnemLevelChange = (index: number, level: number) => {
-    setEnemLevels((prev) => {
-      const next = prev.slice();
-      next[index] = Math.max(0, Math.min(level, 5));
-      return next;
-    });
+  const handleEnemSelectionChange = (key: keyof EnemSelectionsMap, selection: { level: number; reasonIds: string[] }) => {
+    setEnemSelections((prev) => ({
+      ...prev,
+      [key]: sanitizeEnemSelection(key, selection),
+    }));
     setDirty(true);
   };
 
@@ -362,10 +397,26 @@ export default function GradeWorkspace() {
         };
       } else {
         scorePayload.type = 'ENEM';
+        const levels: number[] = [];
+        const points: number[] = [];
+        const competencyPayload: Record<string, { level: number; reasonIds: string[] }> = {};
+        ENEM_2024.forEach((competency) => {
+          const selection = enemSelections[competency.key];
+          const levelData = competency.levels.find((lvl) => lvl.level === selection?.level) ?? competency.levels[0];
+          const validReasonIds = levelData?.rationale ? collectReasonIds(levelData.rationale) : [];
+          const reasonIds = (selection?.reasonIds ?? []).filter((id) => validReasonIds.includes(id));
+          levels.push(levelData.level);
+          points.push(levelData.points);
+          competencyPayload[competency.key] = {
+            level: levelData.level,
+            reasonIds,
+          };
+        });
         scorePayload.enem = {
-          levels: enemLevels,
-          points: enemLevels.map((lvl) => levelToPoints(lvl)),
+          levels,
+          points,
           total: enemTotal,
+          competencies: competencyPayload,
         };
       }
 
@@ -409,27 +460,50 @@ export default function GradeWorkspace() {
 
   const backToList = () => navigate(-1);
 
+  const studentName = essay?.student?.name || essay?.studentName || '-';
+  const studentPhoto = (essay?.student as any)?.photo || (essay?.student as any)?.photoUrl || null;
   const summaryItems = [
-    { label: 'Aluno', value: essay?.student?.name || essay?.studentName || '-' },
+    { label: 'Aluno', value: studentName },
     { label: 'Turma', value: essay?.className || '-' },
     { label: 'Tema', value: essay?.theme || essay?.topic || '-' },
     { label: 'Tipo', value: essayType || '-' },
     { label: 'Bimestre', value: essay?.term ?? essay?.bimester ?? essay?.bimestre ?? '-' },
   ];
 
+  const studentInitials = studentName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((piece) => piece[0]?.toUpperCase())
+    .join('') || 'A';
+
   return (
     <div className="mx-auto flex h-full max-w-7xl flex-col gap-6 p-4 lg:p-6">
-      <header className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Correção de redação</h1>
-          <p className="text-sm text-slate-600">
-            Professor(a): {user?.name || '—'}
-          </p>
-          <dl className="mt-2 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
+      <header className="flex flex-col gap-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
+            <div className="relative h-16 w-16 overflow-hidden rounded-full border-2 border-orange-400 bg-orange-50 text-lg font-semibold text-orange-600 shadow-sm sm:h-20 sm:w-20">
+              {studentPhoto ? (
+                <img src={studentPhoto} alt={studentName} className="h-full w-full object-cover" />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center">{studentInitials}</span>
+              )}
+            </div>
+            <div>
+              <h1 className="text-2xl font-semibold text-slate-900">Correção de redação</h1>
+              <p className="text-sm text-slate-600">
+                Professor(a): {user?.name || '—'}
+              </p>
+              <p className="mt-1 text-sm text-slate-500">
+                Ajuste os destaques e comentários para orientar o aluno na revisão da redação.
+              </p>
+            </div>
+          </div>
+          <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
             {summaryItems.map((item) => (
-              <div key={item.label} className="flex gap-2">
-                <dt className="text-slate-500">{item.label}:</dt>
-                <dd className="font-medium text-slate-800">{item.value ?? '-'}</dd>
+              <div key={item.label} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <dt className="text-xs uppercase tracking-wide text-slate-500">{item.label}</dt>
+                <dd className="mt-1 text-sm font-medium text-slate-800 break-words">{item.value ?? '-'}</dd>
               </div>
             ))}
           </dl>
@@ -462,25 +536,45 @@ export default function GradeWorkspace() {
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
-        <section className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <AnnotationToolbar active={activeCategory} onChange={setActiveCategory} />
-          {pdfError && (
-            <p className="mt-2 text-sm text-amber-600">{pdfError}</p>
-          )}
-          <div className="mt-4 max-h-[70vh] space-y-4 overflow-y-auto pr-1">
-            <PdfCorrectionViewer
-              fileUrl={pdfUrl}
-              annotations={orderedAnnotations}
-              selectedId={selectedAnnotationId}
-              activeCategory={activeCategory}
-              onCreateAnnotation={handleCreateAnnotation}
-              onMoveAnnotation={handleMoveAnnotation}
-              onSelectAnnotation={setSelectedAnnotationId}
-            />
+        <section className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+            <div className="lg:sticky lg:top-24 lg:w-52">
+              <div className="lg:hidden">
+                <AnnotationToolbar active={activeCategory} onChange={setActiveCategory} orientation="horizontal" />
+              </div>
+              <div className="hidden lg:flex">
+                <AnnotationToolbar
+                  active={activeCategory}
+                  onChange={setActiveCategory}
+                  orientation="vertical"
+                  className="sticky top-24"
+                />
+              </div>
+            </div>
+            <div className="flex-1">
+              {pdfError && (
+                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                  {pdfError}
+                </p>
+              )}
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-inner">
+                <div className="max-h-[82vh] min-h-[620px] overflow-y-auto rounded-xl border border-slate-200 bg-white p-3">
+                  <PdfCorrectionViewer
+                    fileUrl={pdfUrl}
+                    annotations={orderedAnnotations}
+                    selectedId={selectedAnnotationId}
+                    activeCategory={activeCategory}
+                    onCreateAnnotation={handleCreateAnnotation}
+                    onMoveAnnotation={handleMoveAnnotation}
+                    onSelectAnnotation={setSelectedAnnotationId}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
-        <section className="flex h-full flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <section className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <AnnotationSidebar
             annotations={orderedAnnotations}
             selectedId={selectedAnnotationId}
@@ -506,8 +600,8 @@ export default function GradeWorkspace() {
         pasState={pasState}
         onPasChange={handlePasChange}
         pasResult={annulled ? 0 : pasResult}
-        enemLevels={enemLevels}
-        onEnemLevelChange={handleEnemLevelChange}
+        enemSelections={enemSelections}
+        onEnemSelectionChange={handleEnemSelectionChange}
         enemTotal={enemTotal}
       />
     </div>

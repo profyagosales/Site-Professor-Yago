@@ -1,3 +1,5 @@
+const http = require('http');
+const https = require('https');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 
 function hexToRgb(color) {
@@ -38,13 +40,120 @@ const CATEGORY_LABELS = {
   comentarios: 'Comentários gerais',
 };
 
-async function fetchPdfBytes(url) {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Não foi possível baixar o PDF original (${response.status})`);
+const SITE_LOGO_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect x="10" y="10" width="80" height="80" rx="22" ry="22" fill="#fff2e5" stroke="#ff8a00" stroke-width="8" />
+  <path d="M32 28 L46 48 L46 72" stroke="#ff8a00" stroke-width="10" stroke-linecap="round" fill="none" />
+  <path d="M60 28 C78 28 78 46 60 46 C42 46 42 64 60 64 C76 64 76 72 62 74" stroke="#ff8a00" stroke-width="9" stroke-linecap="round" fill="none" />
+</svg>`;
+
+const COLOR_ORANGE = hexToRgb('#ff8a00');
+const COLOR_SAGE = hexToRgb('#f9fafb');
+const COLOR_MUTED = hexToRgb('#6b7280');
+const COLOR_SLATE = hexToRgb('#1f2937');
+const COLOR_NOTE_BG = hexToRgb('#fef3c7');
+const COLOR_RED = hexToRgb('#dc2626');
+
+const HEADER_HEIGHT = 120;
+const HEADER_PADDING = 24;
+
+function asPdfColor(color) {
+  return rgb(color.r, color.g, color.b);
+}
+
+function resolveClassLabel(classInfo) {
+  if (!classInfo) return null;
+  const parts = [];
+  if (classInfo.series) {
+    const letter = classInfo.letter ? String(classInfo.letter).toUpperCase() : '';
+    parts.push(`${classInfo.series}${letter}`.trim());
   }
-  const arrayBuffer = await response.arrayBuffer();
-  return arrayBuffer;
+  if (classInfo.discipline) parts.push(classInfo.discipline);
+  if (!parts.length && classInfo.name) parts.push(classInfo.name);
+  return parts.filter(Boolean).join(' • ') || null;
+}
+
+function resolveThemeName(essay) {
+  if (!essay) return 'Tema não informado';
+  if (essay.customTheme) return essay.customTheme;
+  if (essay.themeId && typeof essay.themeId.name === 'string') return essay.themeId.name;
+  if (essay.theme) return essay.theme;
+  if (essay.topic) return essay.topic;
+  return 'Tema não informado';
+}
+
+function resolveFinalScore(score) {
+  if (!score) return { value: '-', caption: null, annulled: false };
+  if (score.annulled) {
+    return { value: '0', caption: 'Anulada', annulled: true };
+  }
+  if (score.type === 'PAS') {
+    const nr = typeof score.pas?.NR === 'number' ? score.pas.NR : null;
+    return { value: nr != null ? nr.toFixed(2) : '-', caption: 'PAS/UnB', annulled: false };
+  }
+  if (score.type === 'ENEM') {
+    const total = typeof score.enem?.total === 'number' ? score.enem.total : null;
+    return { value: total != null ? String(total) : '-', caption: 'ENEM', annulled: false };
+  }
+  const fallback = typeof score?.enem?.total === 'number'
+    ? score.enem.total
+    : typeof score?.pas?.NR === 'number'
+      ? score.pas.NR
+      : null;
+  return { value: fallback != null ? String(fallback) : '-', caption: score?.type || null, annulled: false };
+}
+
+async function embedSvgLogo(pdfDoc) {
+  try {
+    const logo = await pdfDoc.embedSvg(SITE_LOGO_SVG);
+    return logo;
+  } catch (err) {
+    console.warn('[pdf] Failed to embed logo SVG', err?.message || err);
+    return null;
+  }
+}
+
+async function embedRemoteImage(pdfDoc, url) {
+  if (!url) return null;
+  try {
+    const data = await fetchRemoteBytes(url);
+    if (!data || !data.length) return null;
+    if (data[0] === 0x89 && data[1] === 0x50) {
+      return await pdfDoc.embedPng(data);
+    }
+    if (data[0] === 0xff && data[1] === 0xd8) {
+      return await pdfDoc.embedJpg(data);
+    }
+    return null;
+  } catch (err) {
+    console.warn('[pdf] Failed to embed remote image', url, err?.message || err);
+    return null;
+  }
+}
+
+async function fetchRemoteBytes(url) {
+  return new Promise((resolve, reject) => {
+    try {
+      const client = url.startsWith('https') ? https : http;
+      const request = client.get(url, { timeout: 30000 }, (response) => {
+        if (response.statusCode && response.statusCode >= 400) {
+          response.resume();
+          reject(new Error(`Não foi possível baixar o PDF original (status ${response.statusCode}).`));
+          return;
+        }
+        const chunks = [];
+        response.on('data', (chunk) => chunks.push(chunk));
+        response.on('end', () => resolve(Buffer.concat(chunks)));
+        response.on('error', (err) => reject(err));
+      });
+      request.on('error', (err) => reject(err));
+      request.on('timeout', () => {
+        request.destroy(new Error('Timeout ao baixar o PDF original.'));
+      });
+    } catch (err) {
+      reject(err);
+    }
+  });
 }
 
 async function generateCorrectedEssayPdf({
@@ -58,7 +167,7 @@ async function generateCorrectedEssayPdf({
     throw new Error('Redação sem arquivo original.');
   }
 
-  const originalBytes = await fetchPdfBytes(essay.originalUrl);
+  const originalBytes = await fetchRemoteBytes(essay.originalUrl);
   const originalPdf = await PDFDocument.load(originalBytes);
   const pdfDoc = await PDFDocument.create();
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -67,6 +176,14 @@ async function generateCorrectedEssayPdf({
   const pagesCount = originalPdf.getPageCount();
   const commentColumnWidth = 220;
   const margin = 24;
+
+  const logoImage = await embedSvgLogo(pdfDoc);
+  const studentPhotoUrl = student?.photo || student?.photoUrl || null;
+  const studentPhotoImage = await embedRemoteImage(pdfDoc, studentPhotoUrl);
+  const studentName = student?.name || 'Aluno';
+  const classLabel = resolveClassLabel(classInfo) || '-';
+  const themeName = resolveThemeName(essay);
+  const finalScore = resolveFinalScore(score);
 
   const annotationsByPage = new Map();
   (Array.isArray(annotations) ? annotations : []).forEach((ann) => {
@@ -79,8 +196,166 @@ async function generateCorrectedEssayPdf({
     const [origPage] = await pdfDoc.copyPages(originalPdf, [index]);
     const origWidth = origPage.getWidth();
     const origHeight = origPage.getHeight();
-    let currentPage = pdfDoc.addPage([origWidth + commentColumnWidth, origHeight]);
+    const pageWidth = origWidth + commentColumnWidth;
+    const headerExtra = index === 0 ? HEADER_HEIGHT : 0;
+    const pageHeight = origHeight + headerExtra;
+
+    let currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
     currentPage.drawPage(origPage, { x: 0, y: 0, width: origWidth, height: origHeight });
+
+    if (index === 0) {
+      const headerBaseY = pageHeight - HEADER_HEIGHT;
+      currentPage.drawRectangle({
+        x: 0,
+        y: headerBaseY,
+        width: pageWidth,
+        height: HEADER_HEIGHT,
+        color: asPdfColor(COLOR_SAGE),
+      });
+
+      let contentX = HEADER_PADDING;
+      if (logoImage) {
+        const maxLogoSize = HEADER_HEIGHT - HEADER_PADDING * 2;
+        const logoScale = maxLogoSize / Math.max(logoImage.width, logoImage.height);
+        const logoDims = logoImage.scale(logoScale);
+        const logoY = headerBaseY + HEADER_HEIGHT - logoDims.height - HEADER_PADDING;
+        currentPage.drawImage(logoImage, {
+          x: contentX,
+          y: logoY,
+          width: logoDims.width,
+          height: logoDims.height,
+        });
+        contentX += logoDims.width + 16;
+      }
+
+      const photoSize = 52;
+      let textStartX = contentX;
+      const photoY = headerBaseY + HEADER_HEIGHT - photoSize - HEADER_PADDING;
+      if (studentPhotoImage) {
+        const scale = photoSize / Math.max(studentPhotoImage.width, studentPhotoImage.height);
+        const photoDims = studentPhotoImage.scale(scale);
+        const drawnY = headerBaseY + HEADER_HEIGHT - photoDims.height - HEADER_PADDING;
+        currentPage.drawImage(studentPhotoImage, {
+          x: contentX,
+          y: drawnY,
+          width: photoDims.width,
+          height: photoDims.height,
+        });
+        currentPage.drawEllipse({
+          x: contentX + photoDims.width / 2,
+          y: drawnY + photoDims.height / 2,
+          xScale: photoDims.width / 2,
+          yScale: photoDims.height / 2,
+          borderColor: asPdfColor(COLOR_ORANGE),
+          borderWidth: 1.5,
+        });
+        textStartX = contentX + photoDims.width + 14;
+      } else {
+        const placeholderColor = asPdfColor(hexToRgb('#ffedd5'));
+        currentPage.drawEllipse({
+          x: contentX + photoSize / 2,
+          y: photoY + photoSize / 2,
+          xScale: photoSize / 2,
+          yScale: photoSize / 2,
+          color: placeholderColor,
+          borderColor: asPdfColor(COLOR_ORANGE),
+          borderWidth: 1.5,
+        });
+        const initials = studentName.trim().charAt(0).toUpperCase() || 'A';
+        currentPage.drawText(initials, {
+          x: contentX + photoSize / 2 - 5,
+          y: photoY + photoSize / 2 - 6,
+          font: fontBold,
+          size: 12,
+          color: asPdfColor(COLOR_ORANGE),
+        });
+        textStartX = contentX + photoSize + 14;
+      }
+
+      let textY = headerBaseY + HEADER_HEIGHT - HEADER_PADDING - 6;
+      currentPage.drawText(studentName, {
+        x: textStartX,
+        y: textY,
+        font: fontBold,
+        size: 14,
+        color: asPdfColor(COLOR_SLATE),
+      });
+      textY -= 14;
+      currentPage.drawText(`Turma: ${classLabel}`, {
+        x: textStartX,
+        y: textY,
+        font: fontRegular,
+        size: 10,
+        color: asPdfColor(COLOR_MUTED),
+      });
+      textY -= 12;
+      currentPage.drawText(`Tipo: ${essay.type || '-'}`, {
+        x: textStartX,
+        y: textY,
+        font: fontRegular,
+        size: 10,
+        color: asPdfColor(COLOR_MUTED),
+      });
+      textY -= 12;
+      const bimesterLabel = essay.bimester ?? essay.term ?? essay.bimestre ?? '-';
+      currentPage.drawText(`Bimestre: ${bimesterLabel}`, {
+        x: textStartX,
+        y: textY,
+        font: fontRegular,
+        size: 10,
+        color: asPdfColor(COLOR_MUTED),
+      });
+      textY -= 12;
+      const themeLines = wrapText(`Tema: ${themeName}`, 260, fontRegular, 10);
+      themeLines.forEach((line) => {
+        currentPage.drawText(line, {
+          x: textStartX,
+          y: textY,
+          font: fontRegular,
+          size: 10,
+          color: asPdfColor(COLOR_MUTED),
+        });
+        textY -= 12;
+      });
+
+      const noteBoxWidth = 150;
+      const noteBoxHeight = 64;
+      const noteX = pageWidth - noteBoxWidth - HEADER_PADDING;
+      const noteY = headerBaseY + HEADER_PADDING / 2;
+      currentPage.drawRectangle({
+        x: noteX,
+        y: noteY,
+        width: noteBoxWidth,
+        height: noteBoxHeight,
+        color: asPdfColor(COLOR_NOTE_BG),
+        borderColor: asPdfColor(COLOR_ORANGE),
+        borderWidth: 1.4,
+        borderRadius: 12,
+      });
+      currentPage.drawText('Nota', {
+        x: noteX + 12,
+        y: noteY + noteBoxHeight - 16,
+        font: fontBold,
+        size: 10,
+        color: asPdfColor(COLOR_ORANGE),
+      });
+      currentPage.drawText(finalScore.value, {
+        x: noteX + 12,
+        y: noteY + 24,
+        font: fontBold,
+        size: 22,
+        color: finalScore.annulled ? asPdfColor(COLOR_RED) : asPdfColor(COLOR_SLATE),
+      });
+      if (finalScore.caption) {
+        currentPage.drawText(finalScore.caption, {
+          x: noteX + 12,
+          y: noteY + 8,
+          font: fontRegular,
+          size: 9,
+          color: finalScore.annulled ? asPdfColor(COLOR_RED) : asPdfColor(COLOR_MUTED),
+        });
+      }
+    }
 
     const pageNumber = index + 1;
     const pageAnnotations = (annotationsByPage.get(pageNumber) || []).sort((a, b) => a.number - b.number);
@@ -125,17 +400,16 @@ async function generateCorrectedEssayPdf({
 
     const columnX = origWidth + 12;
     const columnWidth = commentColumnWidth - margin;
-    let cursorY = origHeight - margin;
+    let cursorY = pageHeight - margin;
+    if (index === 0) {
+      cursorY -= HEADER_HEIGHT;
+    }
     const categories = (title) => CATEGORY_LABELS[title] || 'Comentário';
 
-    const ensureSpace = (estimatedHeight, continuation = false) => {
-      if (cursorY - estimatedHeight > margin) return;
-      currentPage = pdfDoc.addPage([origWidth + commentColumnWidth, origHeight]);
+    const createCommentsPage = (label) => {
+      currentPage = pdfDoc.addPage([pageWidth, origHeight]);
       cursorY = origHeight - margin;
-      const headerText = continuation
-        ? `Comentários — página ${pageNumber} (cont.)`
-        : `Comentários — página ${pageNumber}`;
-      currentPage.drawText(headerText, {
+      currentPage.drawText(label, {
         x: columnX,
         y: cursorY,
         size: 12,
@@ -143,6 +417,11 @@ async function generateCorrectedEssayPdf({
         color: rgb(0.2, 0.2, 0.2),
       });
       cursorY -= 18;
+    };
+
+    const ensureSpace = (estimatedHeight, continuation = false) => {
+      if (cursorY - estimatedHeight > margin) return;
+      createCommentsPage(`Comentários — página ${pageNumber}${continuation ? ' (cont.)' : ''}`);
     };
 
     if (pageAnnotations.length) {
@@ -200,9 +479,14 @@ async function generateCorrectedEssayPdf({
   };
 
   drawSummaryText('Espelho de correção', { size: 18, bold: true, color: rgb(0.1, 0.1, 0.1), lineHeight: 28 });
-  drawSummaryText(`Aluno: ${student?.name || '—'}`, { lineHeight: 18 });
-  drawSummaryText(`Turma: ${classInfo?.name || `${classInfo?.series || ''}${classInfo?.letter || ''}`} `.trim() || '—', { lineHeight: 18 });
+  drawSummaryText(`Aluno: ${studentName}`, { lineHeight: 18 });
+  drawSummaryText(`Turma: ${classLabel}`, { lineHeight: 18 });
   drawSummaryText(`Modelo: ${essay.type || '—'}`, { lineHeight: 18 });
+  drawSummaryText(`Tema: ${themeName}`, { lineHeight: 18 });
+  drawSummaryText(`Nota final: ${finalScore.value}${finalScore.caption ? ` (${finalScore.caption})` : ''}`, {
+    lineHeight: 20,
+    bold: true,
+  });
 
   if (score?.annulled) {
     drawSummaryText('ANULADA (nota 0)', { size: 16, bold: true, color: rgb(0.7, 0.1, 0.1), lineHeight: 24 });

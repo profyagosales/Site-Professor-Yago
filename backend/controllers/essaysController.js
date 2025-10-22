@@ -11,6 +11,7 @@ const { sendEmail } = require('../services/emailService');
 const { recordEssayScore } = require('../services/gradesIntegration');
 const { renderEssayCorrectionPdf } = require('../services/pdfService');
 const { generateCorrectedEssayPdf } = require('../services/pdf');
+const { ENEM_RUBRIC } = require('../constants/enemRubric');
 const https = require('https');
 const http = require('http');
 const { assertUserCanAccessEssay } = require('../utils/assertUserCanAccessEssay');
@@ -87,6 +88,7 @@ function normalizeStudent(student, cls) {
     id,
     name: student.name || student.nome || 'Aluno',
     className: resolveClassName(cls) || null,
+    photo: student.photo || student.photoUrl || null,
   };
 }
 
@@ -145,6 +147,7 @@ function normalizeEssayDetail(essay) {
     annotations: Array.isArray(essay.annotations) ? essay.annotations : [],
     richAnnotations: Array.isArray(essay.richAnnotations) ? essay.richAnnotations : [],
     enemCompetencies: essay.enemCompetencies || null,
+    enemRubric: essay.enemRubric || null,
     pasBreakdown: essay.pasBreakdown || null,
     annulmentReason: essay.annulmentReason || null,
     studentId: essay.studentId || null,
@@ -1078,17 +1081,62 @@ async function deleteEssayAnnotation(req, res) {
   }
 }
 
+async function deleteEssay(req, res) {
+  const { id } = req.params;
+  if (!isValidObjectId(id)) {
+    return res.status(400).json({ message: 'ID inválido' });
+  }
+  try {
+    const essay = await Essay.findById(id);
+    if (!essay) {
+      return res.status(404).json({ message: 'Redação não encontrada' });
+    }
+
+    await Promise.all([
+      EssayAnnotation.deleteMany({ essayId: id }).catch((err) => {
+        console.warn('[essays] failed to cleanup annotations for essay', id, err);
+      }),
+      Essay.findByIdAndDelete(id),
+    ]);
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[essays] delete failed', err);
+    return res.status(500).json({ message: 'Erro ao excluir redação' });
+  }
+}
+
 function normalizeEssayScoreResponse(essay) {
   const reasons = Array.isArray(essay.annulReasons) ? essay.annulReasons : [];
   const annulled = reasons.length > 0 || Boolean(essay.annulmentReason);
   const pas = essay.pasBreakdown || {};
-  const enem = essay.enemCompetencies || {};
-  const enemLevels = [enem.c1, enem.c2, enem.c3, enem.c4, enem.c5]
-    .map((points) => {
-      if (typeof points !== 'number' || Number.isNaN(points)) return 0;
-      return Math.max(0, Math.min(5, Math.round(points / 40)));
-    });
-  const enemPoints = enemLevels.map((level) => LEVEL_POINTS[Math.max(0, Math.min(level, 5))] ?? 0);
+  const enemPointsFallback = essay.enemCompetencies || {};
+  const rubricSelections = essay.enemRubric || {};
+
+  const enemLevels = [];
+  const enemPoints = [];
+  const competencyPayload = {};
+
+  ENEM_RUBRIC.forEach((competency, index) => {
+    const key = competency.key;
+    const selection = rubricSelections[key] || {};
+    const levelFromSelection = typeof selection.level === 'number' ? selection.level : undefined;
+    const pointsFromEssay = enemPointsFallback[`c${index + 1}`];
+    const inferredLevel = typeof pointsFromEssay === 'number' ? Math.round(pointsFromEssay / 40) : undefined;
+    const levelData =
+      getEnemLevelData(key, levelFromSelection ?? inferredLevel ?? competency.levels[0]?.level ?? 0) ||
+      competency.levels[0];
+    const validReasonIds = levelData?.rationale ? collectRubricReasonIds(levelData.rationale) : [];
+    const reasonIds = Array.isArray(selection.reasonIds)
+      ? selection.reasonIds.filter((id) => validReasonIds.includes(id))
+      : [];
+
+    enemLevels.push(levelData.level);
+    const points = typeof pointsFromEssay === 'number' ? pointsFromEssay : levelData?.points ?? 0;
+    enemPoints.push(points);
+    competencyPayload[key] = { level: levelData.level, reasonIds };
+  });
+
   const enemTotal = enemPoints.reduce((acc, value) => acc + value, 0);
 
   return {
@@ -1106,6 +1154,7 @@ function normalizeEssayScoreResponse(essay) {
       levels: enemLevels,
       points: enemPoints,
       total: annulled ? 0 : enemTotal,
+      competencies: competencyPayload,
     },
   };
 }
@@ -1180,19 +1229,48 @@ async function saveEssayScoreController(req, res) {
       essay.rawScore = annulled ? 0 : NR;
     } else {
       essay.type = 'ENEM';
-      const levels = Array.isArray(body?.enem?.levels)
-        ? body.enem.levels.map((lvl) => Math.max(0, Math.min(Number(lvl) || 0, 5)))
-        : [0, 0, 0, 0, 0];
-      const points = levels.map((lvl) => LEVEL_POINTS[Math.max(0, Math.min(lvl, 5))] ?? 0);
-      essay.enemCompetencies = {
-        c1: points[0] ?? 0,
-        c2: points[1] ?? 0,
-        c3: points[2] ?? 0,
-        c4: points[3] ?? 0,
-        c5: points[4] ?? 0,
-      };
-      const total = annulled ? 0 : points.reduce((acc, value) => acc + value, 0);
-      essay.rawScore = total;
+      const incoming = body?.enem?.competencies;
+      if (incoming && typeof incoming === 'object') {
+        const points = [];
+        const rubricStore = {};
+        ENEM_RUBRIC.forEach((competency, index) => {
+          const key = competency.key;
+          const selection = incoming[key] || {};
+          const levelValue = typeof selection.level === 'number' ? selection.level : undefined;
+          const levelData = getEnemLevelData(key, levelValue ?? competency.levels[0]?.level ?? 0) || competency.levels[0];
+          const validReasonIds = levelData?.rationale ? collectRubricReasonIds(levelData.rationale) : [];
+          const reasonIds = Array.isArray(selection.reasonIds)
+            ? selection.reasonIds.filter((id) => validReasonIds.includes(id))
+            : [];
+          points[index] = levelData?.points ?? 0;
+          rubricStore[key] = { level: levelData.level, reasonIds };
+        });
+        essay.enemCompetencies = {
+          c1: points[0] ?? 0,
+          c2: points[1] ?? 0,
+          c3: points[2] ?? 0,
+          c4: points[3] ?? 0,
+          c5: points[4] ?? 0,
+        };
+        essay.enemRubric = rubricStore;
+        const total = annulled ? 0 : points.reduce((acc, value) => acc + value, 0);
+        essay.rawScore = total;
+      } else {
+        const levels = Array.isArray(body?.enem?.levels)
+          ? body.enem.levels.map((lvl) => Math.max(0, Math.min(Number(lvl) || 0, 5)))
+          : [0, 0, 0, 0, 0];
+        const points = levels.map((lvl) => LEVEL_POINTS[Math.max(0, Math.min(lvl, 5))] ?? 0);
+        essay.enemCompetencies = {
+          c1: points[0] ?? 0,
+          c2: points[1] ?? 0,
+          c3: points[2] ?? 0,
+          c4: points[3] ?? 0,
+          c5: points[4] ?? 0,
+        };
+        essay.enemRubric = undefined;
+        const total = annulled ? 0 : points.reduce((acc, value) => acc + value, 0);
+        essay.rawScore = total;
+      }
     }
 
     essay.updatedAt = new Date();
@@ -1253,6 +1331,7 @@ module.exports = {
   listEssayAnnotations,
   saveEssayAnnotationsBatch,
   deleteEssayAnnotation,
+  deleteEssay,
   getEssayScore: getEssayScoreController,
   saveEssayScore: saveEssayScoreController,
   generateFinalPdf,

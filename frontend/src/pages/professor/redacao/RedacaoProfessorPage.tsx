@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useEssays } from '@/hooks/useEssays';
-import { fetchEssayPdfUrl } from '@/services/essays.service';
+import { fetchEssayPdfUrl, fetchEssayById, deleteEssay } from '@/services/essays.service';
 // import GradeModal from '@/components/redacao/GradeModal';
 // @ts-expect-error serviço legado em JS
 import { reenviarPdf } from '@/services/redacoes';
@@ -17,7 +17,13 @@ export default function RedacaoProfessorPage() {
   const { status, setStatus, q, setQ, classId, setClassId, page, setPage, pageSize, setPageSize, data, loading, error, reload, extra, setExtra } = useEssays('pending');
   // const [modal, setModal] = useState<{ id: string; fileUrl?: string; type?: 'ENEM'|'PAS' } | null>(null);
   const [classes, setClasses] = useState<any[]>([]);
-  const [newOpen, setNewOpen] = useState(false);
+  const [modalConfig, setModalConfig] = useState<
+    | { mode: 'create' }
+    | { mode: 'edit'; essayId: string; data: any }
+    | null
+  >(null);
+  const [editLoadingId, setEditLoadingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [themesOpen, setThemesOpen] = useState(false);
   const [bimester, setBimester] = useState<string>('');
   const [type, setType] = useState<string>('');
@@ -62,7 +68,7 @@ export default function RedacaoProfessorPage() {
         <Button variant="ghost" onClick={() => setThemesOpen(true)}>
           Temas
         </Button>
-        <Button onClick={() => setNewOpen(true)}>
+        <Button onClick={() => setModalConfig({ mode: 'create' })}>
           Nova Redação
         </Button>
       </div>
@@ -202,17 +208,17 @@ export default function RedacaoProfessorPage() {
                   </>
                 )}
                 <td className="px-4 py-3">
-                  {status === 'pending' ? (
-                    <Button
-                      size="sm"
-                      onClick={() => correctionUrl && navigate(correctionUrl)}
-                      disabled={!correctionUrl}
-                      title={correctionUrl ? undefined : 'Identificador ausente'}
-                    >
-                      Corrigir
-                    </Button>
-                  ) : (
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {status === 'pending' ? (
+                      <Button
+                        size="sm"
+                        onClick={() => correctionUrl && navigate(correctionUrl)}
+                        disabled={!correctionUrl}
+                        title={correctionUrl ? undefined : 'Identificador ausente'}
+                      >
+                        Corrigir
+                      </Button>
+                    ) : (
                       <Button
                         type="button"
                         variant="ghost"
@@ -230,6 +236,8 @@ export default function RedacaoProfessorPage() {
                       >
                         Ver PDF
                       </Button>
+                    )}
+                    {status === 'corrected' && (
                       <Button
                         size="sm"
                         onClick={async () => {
@@ -248,8 +256,52 @@ export default function RedacaoProfessorPage() {
                       >
                         Reenviar PDF
                       </Button>
-                    </div>
-                  )}
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={async () => {
+                        if (!essayId) return;
+                        try {
+                          setEditLoadingId(essayId);
+                          const data = await fetchEssayById(essayId);
+                          setModalConfig({ mode: 'edit', essayId, data });
+                        } catch (err:any) {
+                          toast.error(err?.response?.data?.message || 'Erro ao carregar redação.');
+                        } finally {
+                          setEditLoadingId(null);
+                        }
+                      }}
+                      disabled={!essayId || editLoadingId === essayId || deletingId === essayId}
+                    >
+                      {editLoadingId === essayId ? 'Abrindo…' : 'Editar'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700"
+                      onClick={async () => {
+                        if (!essayId) return;
+                        const confirmed = window.confirm('Deseja realmente excluir esta redação? Esta ação não pode ser desfeita.');
+                        if (!confirmed) return;
+                        try {
+                          setDeletingId(essayId);
+                          await deleteEssay(essayId);
+                          toast.success('Redação excluída.');
+                          reload();
+                        } catch (err:any) {
+                          toast.error(err?.response?.data?.message || 'Erro ao excluir redação.');
+                        } finally {
+                          setDeletingId(null);
+                        }
+                      }}
+                      disabled={!essayId || deletingId === essayId || editLoadingId === essayId}
+                    >
+                      {deletingId === essayId ? 'Excluindo…' : 'Excluir'}
+                    </Button>
+                  </div>
                 </td>
               </tr>
             );})}
@@ -286,9 +338,18 @@ export default function RedacaoProfessorPage() {
 
   {/* GradeModal substituído por workspace de correção em página dedicada */}
       <NewEssayModal
-        open={newOpen}
-        onClose={() => setNewOpen(false)}
-        onSuccess={() => { setStatus('pending'); setPage(1); reload(); }}
+        open={modalConfig !== null}
+        mode={modalConfig?.mode || 'create'}
+        essayId={modalConfig && modalConfig.mode === 'edit' ? modalConfig.essayId : undefined}
+        initialEssay={modalConfig && modalConfig.mode === 'edit' ? modalConfig.data : undefined}
+        onClose={() => setModalConfig(null)}
+        onSuccess={() => {
+          if (modalConfig?.mode === 'create') {
+            setStatus('pending');
+            setPage(1);
+          }
+          reload();
+        }}
       />
   <ThemesManager open={themesOpen} onClose={() => setThemesOpen(false)} />
     </Page>

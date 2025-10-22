@@ -25,6 +25,7 @@ const {
   listEssayAnnotations,
   saveEssayAnnotationsBatch,
   deleteEssayAnnotation,
+  deleteEssay,
   getEssayScore,
   saveEssayScore,
   getAnnotationsCompat,
@@ -99,6 +100,7 @@ router.get('/', authRequired, ensureTeacher, listEssays);
 router.get('/:id', authRequired, ensureTeacher, getEssay);
 router.put('/:id', authRequired, ensureTeacher, upload.single('file'), updateEssay);
 router.patch('/:id/grade', authRequired, ensureTeacher, upload.single('correctedFile'), gradeEssay);
+router.delete('/:id', authRequired, ensureTeacher, deleteEssay);
 
 /** --------- Anotações (somente usuário logado) --------- */
 router.get('/:id/annotations', authRequired, ensureTeacher, listEssayAnnotations);
