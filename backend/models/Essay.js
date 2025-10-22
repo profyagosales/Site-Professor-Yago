@@ -40,6 +40,8 @@ const essaySchema = new mongoose.Schema({
   // MimeType original do arquivo (ajuda a decidir viewer inline)
   originalMimeType: { type: String, default: null },
   correctedUrl: { type: String, default: null },
+  correctionPdf: { type: String, default: null },
+  correctionPdfPublicId: { type: String, default: null },
   // Data de submissão para consultas específicas; por padrão, usamos timestamps.createdAt,
   // mas expomos submittedAt para novos fluxos e índices compostos.
   submittedAt: { type: Date, default: Date.now },

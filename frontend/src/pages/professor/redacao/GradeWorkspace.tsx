@@ -605,6 +605,35 @@ export default function GradeWorkspace() {
         }));
       });
 
+      const enemCompetencyKeys = ['C1', 'C2', 'C3', 'C4', 'C5'] as const;
+      const enemLevels: [number, number, number, number, number] = enemCompetencyKeys.map((key) => {
+        const selection = enemSelections[key];
+        const level = selection?.level;
+        if (Number.isFinite(level)) {
+          return Math.max(0, Math.min(Number(level), 5));
+        }
+        return 0;
+      }) as [number, number, number, number, number];
+      const enemReasons = enemCompetencyKeys.map((key) => {
+        const selection = enemSelections[key];
+        return Array.isArray(selection?.reasonIds)
+          ? selection.reasonIds.filter((id) => typeof id === 'string' && id.trim().length > 0)
+          : [];
+      });
+
+      const pasSummary = {
+        apresentacao: Number(pasDerived.macros.apresentacao ?? 0) || 0,
+        generoTextual: Number(pasDerived.macros.adequacao ?? 0) || 0,
+        coesaoCoerencia: Number(pasDerived.macros.coesao ?? 0) || 0,
+        conteudo: Number(pasDerived.macros.argumentacao ?? 0) || 0,
+        nl: Number(pasDerived.tl ?? 0) || 0,
+        erros: {
+          grafiaAcentuacao: Number(pasDerived.errors.grafia ?? 0) || 0,
+          pontuacaoMorfossintaxe: Number(pasDerived.errors.pontuacao ?? 0) || 0,
+          propriedadeVocabular: Number(pasDerived.errors.propriedade ?? 0) || 0,
+        },
+      };
+
       const pdfData: EssayPdfData = {
         student: { name: studentName, avatarUrl: studentPhoto ?? undefined },
         professor: { name: professorName, initials: professorInitials },
@@ -616,6 +645,24 @@ export default function GradeWorkspace() {
         finalScore,
         pagesPng,
         annotations: annotationsForPdf,
+        enem:
+          model === 'ENEM'
+            ? {
+                levels: enemLevels,
+                reasons: enemReasons,
+              }
+            : undefined,
+        pas:
+          model === 'PAS/UnB'
+            ? {
+                apresentacao: pasSummary.apresentacao,
+                generoTextual: pasSummary.generoTextual,
+                coesaoCoerencia: pasSummary.coesaoCoerencia,
+                conteudo: pasSummary.conteudo,
+                nl: pasSummary.nl,
+                erros: pasSummary.erros,
+              }
+            : undefined,
       };
 
       const bytes = await generateCorrectedPdf(pdfData);
@@ -626,7 +673,21 @@ export default function GradeWorkspace() {
       link.download = `redacao-corrigida-${pdfData.student.name.replace(/\s+/g, '-')}.pdf`;
       link.click();
       URL.revokeObjectURL(url);
-      toast.success('PDF corrigido gerado.');
+
+      try {
+        const uploadRes = await fetch(`/api/essays/${id}/corrections/pdf`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/pdf' },
+          body: blob,
+        });
+        if (!uploadRes.ok) {
+          throw new Error(`upload failed with status ${uploadRes.status}`);
+        }
+        toast.success('PDF corrigido gerado e salvo com sucesso.');
+      } catch (uploadErr) {
+        console.error('[GradeWorkspace] Failed to upload corrected PDF', uploadErr);
+        toast.warn('PDF gerado, mas falhou ao salvar no servidor.');
+      }
     } catch (err: any) {
       console.error(err);
       toast.error(err?.response?.data?.message || 'Erro ao gerar PDF corrigido.');

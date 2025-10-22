@@ -744,11 +744,6 @@ export default function EssayPrintPage() {
     [isEnem, score],
   );
 
-  const pasData = useMemo(
-    () => (isPas ? extractPasComputation(score, essay) : null),
-    [isPas, score, essay],
-  );
-
   const totalEnemPoints = useMemo(() => {
     if (!isEnem || score?.annulled) return 0;
     const levels = enemSelections.levels.length === 5 ? enemSelections.levels : new Array(5).fill(0);

@@ -170,6 +170,7 @@ function normalizeEssayDetail(essay) {
     file: normalizeEssayFile(essay),
     fileUrl: essay.originalUrl || null,
     correctedUrl: essay.correctedUrl || null,
+    correctionPdf: essay.correctionPdf || essay.correctedUrl || null,
     grade: normalizeEssayGrade(essay),
     comments: essay.comments || null,
     annotations: Array.isArray(essay.annotations) ? essay.annotations : [],
@@ -1507,6 +1508,65 @@ async function generateFinalPdf(req, res) {
   }
 }
 
+async function uploadCorrectionPdf(req, res) {
+  try {
+    const { id } = req.params;
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: 'ID inválido' });
+    }
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+      return res.status(400).json({ message: 'Arquivo PDF inválido ou vazio.' });
+    }
+
+    const essay = await Essay.findById(id);
+    if (!essay) {
+      return res.status(404).json({ message: 'Redação não encontrada' });
+    }
+
+    await assertUserCanAccessEssay(req.user, essay);
+
+    if (essay.correctionPdfPublicId) {
+      try {
+        await cloudinary.uploader.destroy(essay.correctionPdfPublicId, { resource_type: 'raw' });
+      } catch (destroyErr) {
+        console.warn('[essays] Falha ao remover PDF anterior', {
+          essayId: id,
+          error: destroyErr?.message,
+        });
+      }
+    }
+
+    const uploadResult = await uploadBuffer(req.body, 'essays/corrected', 'application/pdf', {
+      returnResult: true,
+    });
+
+    const correctionUrl = uploadResult?.secure_url || uploadResult?.url || null;
+    if (!correctionUrl) {
+      return res.status(502).json({ message: 'Não foi possível salvar o PDF de correção.' });
+    }
+
+    essay.correctionPdf = correctionUrl;
+    if (uploadResult?.public_id) {
+      essay.correctionPdfPublicId = uploadResult.public_id;
+    }
+    if (!essay.correctedUrl) {
+      essay.correctedUrl = correctionUrl;
+    }
+
+    await essay.save();
+
+    return res.json({ success: true, data: { correctionPdf: correctionUrl } });
+  } catch (err) {
+    const status = err?.status || 500;
+    if (status === 401 || status === 403) {
+      logEssayAuth(status, req, { essayId: req.params?.id, reason: err?.reason || err?.message });
+      return res.status(status).json({ success: false, message: err?.message || 'Acesso negado' });
+    }
+    console.error('[essays] uploadCorrectionPdf error', err);
+    return res.status(500).json({ success: false, message: 'Erro ao enviar PDF de correção.' });
+  }
+}
+
 module.exports = {
   upload,
   getEssay,
@@ -1528,6 +1588,7 @@ module.exports = {
   getEssayScore: getEssayScoreController,
   saveEssayScore: saveEssayScoreController,
   generateFinalPdf,
+  uploadCorrectionPdf,
   // Compat: endpoints GET/PUT para { highlights:[], comments:[] }
   async getAnnotationsCompat(req, res) {
     const { id } = req.params;

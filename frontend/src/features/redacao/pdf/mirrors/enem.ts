@@ -1,0 +1,295 @@
+import { PDFDocument, PDFFont, PDFPage, rgb } from 'pdf-lib';
+import {
+  A4,
+  MARGIN,
+  CONTENT_GAP,
+  TITLE_SIZE,
+  BODY_SIZE,
+  TEXT,
+  TEXT_SUBTLE,
+  BG,
+  GRAY,
+} from '../theme';
+import type { EssayPdfData } from '../types';
+
+const POINTS_PER_LEVEL = [0, 40, 80, 120, 160, 200];
+const CARD_PADDING = 12;
+const LINE_GAP = 4;
+const BULLET_INDENT = 12;
+
+type Operation = {
+  text: string;
+  font: 'regular' | 'bold';
+  size: number;
+  color: string;
+  gapAfter?: number;
+  indent?: number;
+};
+
+export function renderEnemMirrorPage(
+  doc: PDFDocument,
+  data: EssayPdfData,
+  fonts: { regular: PDFFont; bold: PDFFont }
+) {
+  if (!data.enem) return;
+
+  let page = doc.addPage([A4.w, A4.h]);
+  let y = renderHeader(page, fonts, false);
+  const contentX = MARGIN;
+  const contentWidth = A4.w - MARGIN * 2;
+
+  const competencyTitles = [
+    'Domínio da norma padrão da língua portuguesa',
+    'Compreensão da proposta de redação e aplicação de conceitos de outras áreas',
+    'Organização e defesa de argumentos',
+    'Conhecimento dos mecanismos linguísticos para a argumentação (coesão)',
+    'Elaboração de proposta de intervenção social para o problema abordado',
+  ];
+
+  for (let index = 0; index < 5; index += 1) {
+    const level = clampLevel(data.enem.levels?.[index] ?? 0);
+    const points = POINTS_PER_LEVEL[level] ?? 0;
+    const reasons = Array.isArray(data.enem.reasons?.[index])
+      ? data.enem.reasons![index]!.filter((item) => typeof item === 'string' && item.trim().length > 0)
+      : [];
+
+    const layout = buildCompetencyLayout(
+      contentWidth,
+      index,
+      competencyTitles[index] ?? '',
+      level,
+      points,
+      reasons,
+      fonts
+    );
+
+    if (y - layout.cardHeight < MARGIN + BODY_SIZE * 4) {
+      const next = newPage(doc, fonts, true);
+      page = next.page;
+      y = next.y;
+    }
+
+    y = drawCompetencyCard(page, contentX, y, contentWidth, layout, fonts);
+
+    if (index < 4) {
+      y -= CONTENT_GAP;
+    }
+  }
+
+  const total = data.enem.levels.reduce(
+    (sum, level) => sum + (POINTS_PER_LEVEL[clampLevel(level)] ?? 0),
+    0
+  );
+  const finalLineHeight = TITLE_SIZE + 6;
+  if (y - finalLineHeight < MARGIN) {
+    const next = newPage(doc, fonts, true);
+    page = next.page;
+    y = next.y;
+  }
+  drawBold(page, `NOTA FINAL: ${total} / 1000`, contentX, y, TITLE_SIZE, fonts.bold);
+}
+
+function renderHeader(page: PDFPage, fonts: { regular: PDFFont; bold: PDFFont }, continuation: boolean) {
+  let y = A4.h - MARGIN;
+  const title = continuation ? 'ESPELHO DE CORREÇÃO — ENEM (continuação)' : 'ESPELHO DE CORREÇÃO — ENEM';
+  drawBold(page, title, MARGIN, y, TITLE_SIZE, fonts.bold);
+  y -= 18;
+  drawText(
+    page,
+    'Competências e justificativas da avaliação',
+    MARGIN,
+    y,
+    BODY_SIZE,
+    fonts.regular,
+    TEXT_SUBTLE
+  );
+  y -= 14;
+  return y;
+}
+
+function newPage(doc: PDFDocument, fonts: { regular: PDFFont; bold: PDFFont }, continuation: boolean) {
+  const page = doc.addPage([A4.w, A4.h]);
+  const y = renderHeader(page, fonts, continuation);
+  return { page, y };
+}
+
+function buildCompetencyLayout(
+  width: number,
+  index: number,
+  title: string,
+  level: number,
+  points: number,
+  reasons: string[],
+  fonts: { regular: PDFFont; bold: PDFFont }
+) {
+  const textWidth = width - CARD_PADDING * 2;
+  const operations: Operation[] = [];
+
+  operations.push({
+    text: `C${index + 1} — ${title}`,
+    font: 'bold',
+    size: TITLE_SIZE,
+    color: TEXT,
+    gapAfter: LINE_GAP,
+  });
+
+  operations.push({
+    text: `Nível: ${level} · Pontuação: ${points} pts`,
+    font: 'regular',
+    size: BODY_SIZE,
+    color: TEXT,
+    gapAfter: LINE_GAP,
+  });
+
+  if (reasons.length > 0) {
+    operations.push({
+      text: 'Justificativas selecionadas:',
+      font: 'regular',
+      size: BODY_SIZE,
+      color: TEXT_SUBTLE,
+      gapAfter: LINE_GAP,
+    });
+
+    reasons.forEach((reason, reasonIndex) => {
+      const cleaned = reason.trim();
+      const wrapped = wrapText(fonts.regular, cleaned, BODY_SIZE, textWidth - BULLET_INDENT);
+      if (wrapped.length === 0) {
+        wrapped.push('');
+      }
+      wrapped.forEach((line, lineIndex) => {
+        const isFirstLine = lineIndex === 0;
+        operations.push({
+          text: isFirstLine ? `• ${line}` : line,
+          font: 'regular',
+          size: BODY_SIZE,
+          color: TEXT,
+          indent: isFirstLine ? 0 : BULLET_INDENT,
+          gapAfter:
+            reasonIndex === reasons.length - 1 && lineIndex === wrapped.length - 1 ? LINE_GAP : LINE_GAP,
+        });
+      });
+    });
+  } else {
+    operations.push({
+      text: 'Sem justificativas selecionadas.',
+      font: 'regular',
+      size: BODY_SIZE,
+      color: TEXT_SUBTLE,
+      gapAfter: LINE_GAP,
+    });
+  }
+
+  if (operations.length > 0) {
+    operations[operations.length - 1].gapAfter = 0;
+  }
+
+  const contentHeight = operations.reduce((sum, op) => sum + op.size + (op.gapAfter ?? 0), 0);
+  const cardHeight = CARD_PADDING * 2 + contentHeight;
+
+  return { operations, cardHeight };
+}
+
+function drawCompetencyCard(
+  page: PDFPage,
+  x: number,
+  yTop: number,
+  width: number,
+  layout: { operations: Operation[]; cardHeight: number },
+  fonts: { regular: PDFFont; bold: PDFFont }
+) {
+  const { operations, cardHeight } = layout;
+  const cardBottom = yTop - cardHeight;
+
+  page.drawRectangle({
+    x,
+    y: cardBottom,
+    width,
+    height: cardHeight,
+    color: colorFromHex(BG),
+    borderColor: colorFromHex(GRAY),
+    borderWidth: 1,
+  });
+
+  let cursor = yTop - CARD_PADDING;
+  operations.forEach((op) => {
+    cursor -= op.size;
+    page.drawText(op.text, {
+      x: x + CARD_PADDING + (op.indent ?? 0),
+      y: cursor,
+      size: op.size,
+      font: op.font === 'bold' ? fonts.bold : fonts.regular,
+      color: colorFromHex(op.color),
+    });
+    if (op.gapAfter) cursor -= op.gapAfter;
+  });
+
+  return cardBottom;
+}
+
+function drawBold(page: PDFPage, text: string, x: number, y: number, size: number, font: PDFFont) {
+  page.drawText(text, {
+    x,
+    y,
+    size,
+    font,
+    color: colorFromHex(TEXT),
+  });
+}
+
+function drawText(
+  page: PDFPage,
+  text: string,
+  x: number,
+  y: number,
+  size: number,
+  font: PDFFont,
+  color: string = TEXT
+) {
+  page.drawText(text, {
+    x,
+    y,
+    size,
+    font,
+    color: colorFromHex(color),
+  });
+}
+
+function wrapText(font: PDFFont, text: string, size: number, maxWidth: number) {
+  const sanitized = (text ?? '').trim();
+  if (!sanitized) return [];
+  const words = sanitized.split(/\s+/);
+  const lines: string[] = [];
+  let current = '';
+  words.forEach((word) => {
+    const candidate = current ? `${current} ${word}` : word;
+    if (font.widthOfTextAtSize(candidate, size) <= maxWidth || !current) {
+      current = candidate;
+    } else {
+      lines.push(current);
+      current = word;
+    }
+  });
+  if (current) lines.push(current);
+  return lines;
+}
+
+function clampLevel(level: number) {
+  if (!Number.isFinite(level)) return 0;
+  return Math.max(0, Math.min(Math.round(level), 5));
+}
+
+function colorFromHex(hex: string) {
+  const sanitized = hex.replace('#', '').trim();
+  const normalized =
+    sanitized.length === 3
+      ? sanitized
+          .split('')
+          .map((char) => char + char)
+          .join('')
+      : sanitized.padEnd(6, '0');
+  const int = parseInt(normalized, 16);
+  const r = (int >> 16) & 255;
+  const g = (int >> 8) & 255;
+  const b = int & 255;
+  return rgb(r / 255, g / 255, b / 255);
+}

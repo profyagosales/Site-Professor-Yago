@@ -31,6 +31,7 @@ const {
   getAnnotationsCompat,
   putAnnotationsCompat,
   generateFinalPdf,
+  uploadCorrectionPdf,
 } = require('../controllers/essaysController');
 
 const fileController = require('../controllers/fileController');
@@ -66,6 +67,8 @@ const optionalThemeUpload = (req, res, next) => {
   }
   return next();
 };
+
+const pdfBinaryUpload = express.raw({ type: 'application/pdf', limit: '20mb' });
 
 function ensureValidId(req, res, next) {
   if (!isValidObjectId(req.params.id)) {
@@ -119,6 +122,7 @@ router.post('/:id/score', authRequired, ensureTeacher, saveEssayScore);
 router.post('/:id/render-correction', authRequired, ensureTeacher, renderCorrection);
 router.post('/:id/send-email', authRequired, ensureTeacher, sendCorrectionEmail);
 router.post('/:id/final-pdf', authRequired, ensureTeacher, generateFinalPdf);
+router.post('/:id/corrections/pdf', ensureValidId, authRequired, ensureTeacher, pdfBinaryUpload, uploadCorrectionPdf);
 
 /** --------- File-token curto --------- */
 // POST legacy (mantido) + GET (usado por loaders que não aceitam POST)

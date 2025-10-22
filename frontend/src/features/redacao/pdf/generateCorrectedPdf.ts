@@ -4,25 +4,37 @@ import {
   rgb,
 } from 'pdf-lib';
 import type { PDFFont, PDFPage } from 'pdf-lib';
-import { A4, BG, CATEGORY, GRAY, MARGIN, ORANGE, TEXT, TEXT_SUBTLE } from './theme';
+import {
+  A4,
+  BG,
+  CATEGORY,
+  GRAY,
+  MARGIN,
+  ORANGE,
+  TEXT,
+  TEXT_SUBTLE,
+  HEADER_HEIGHT,
+  CONTENT_GAP,
+  PREVIEW_PADDING,
+  TITLE_SIZE,
+  BODY_SIZE,
+  columns,
+} from './theme';
+import { renderEnemMirrorPage } from './mirrors/enem';
+import { renderPasMirrorPage } from './mirrors/pas';
 import type { AnnotationKind, EssayPdfData } from './types';
 
-const HEADER_HEIGHT = 112;
-const HEADER_GAP = 12;
+const HEADER_GAP = CONTENT_GAP;
 const BODY_TOP_SPACING = 16;
 const PROFESSOR_WIDTH = 160;
 const SCORE_WIDTH = 160;
 const BADGE_PADDING = 10;
 const CARD_PADDING = 12;
 const AVATAR_SIZE = 64;
-const BODY_COLUMN_GAP = 12;
-const LEFT_COLUMN_WIDTH = 360;
-const PREVIEW_TITLE_SIZE = 11;
 const PREVIEW_GAP = 8;
-const PREVIEW_PADDING = 8;
-const COMMENT_TITLE_SIZE = 11;
-const COMMENT_LABEL_SIZE = 11;
-const COMMENT_TEXT_SIZE = 10;
+const COMMENT_TITLE_SIZE = TITLE_SIZE;
+const COMMENT_LABEL_SIZE = TITLE_SIZE;
+const COMMENT_TEXT_SIZE = BODY_SIZE;
 const COMMENT_LINE_GAP = 4;
 const COMMENT_CARD_GAP = 8;
 const COMMENT_CARD_PADDING = 12;
@@ -277,7 +289,7 @@ async function drawStudentCard(
 
   const textMaxWidth = textAreaWidth;
   const nameSize = 14;
-  const bodySize = 10;
+  const bodySize = BODY_SIZE;
   const lineGap = 3;
   let baseline = textAreaTop;
 
@@ -352,7 +364,7 @@ function drawScoreBox({ page, data, fonts }: DrawContext, originX: number, origi
   });
 
   const padding = 12;
-  const smallLabelSize = 10;
+  const smallLabelSize = BODY_SIZE;
   const scoreSize = 36;
   const subtitleSize = 12;
   const contentTop = originY + HEADER_HEIGHT - padding;
@@ -709,22 +721,23 @@ async function drawBody(
   const bottom = MARGIN;
   if (top <= bottom) return 0;
 
+  const contentWidth = pageWidth - MARGIN * 2;
+  const { left: leftWidth, right: rightWidth } = columns(contentWidth);
   const leftX = MARGIN;
-  const rightX = leftX + LEFT_COLUMN_WIDTH + BODY_COLUMN_GAP;
-  const rightWidth = pageWidth - rightX - MARGIN;
+  const rightX = leftX + leftWidth + CONTENT_GAP;
 
   let leftCursor = top;
-  leftCursor -= PREVIEW_TITLE_SIZE;
+  leftCursor -= TITLE_SIZE;
   page.drawText('Documento do aluno', {
     x: leftX,
     y: leftCursor,
-    size: PREVIEW_TITLE_SIZE,
+    size: TITLE_SIZE,
     font: fonts.bold,
     color: colorFromHex(TEXT),
   });
 
   const previewTop = leftCursor - PREVIEW_GAP;
-  await drawDocumentPreview(context, leftX, previewTop, bottom, LEFT_COLUMN_WIDTH, annotations);
+  await drawDocumentPreview(context, leftX, previewTop, bottom, leftWidth, annotations);
 
   let rightCursor = top;
   rightCursor -= COMMENT_TITLE_SIZE;
@@ -751,8 +764,9 @@ async function drawCommentsContinuation(
   const bottom = MARGIN;
   if (top <= bottom) return startIndex;
 
-  const rightX = MARGIN + LEFT_COLUMN_WIDTH + BODY_COLUMN_GAP;
-  const rightWidth = pageWidth - rightX - MARGIN;
+  const contentWidth = pageWidth - MARGIN * 2;
+  const { left: leftWidth, right: rightWidth } = columns(contentWidth);
+  const rightX = MARGIN + leftWidth + CONTENT_GAP;
 
   let cursor = top;
   cursor -= COMMENT_TITLE_SIZE;
@@ -793,6 +807,12 @@ export async function generateCorrectedPdf(data: EssayPdfData): Promise<Uint8Arr
   const page = pdfDoc.addPage([A4.w, A4.h]);
   const headerBottomY = await drawHeader({ page, data, pdfDoc, fonts });
   let consumed = await drawBody({ page, data, pdfDoc, fonts }, headerBottomY, pageAnnotations);
+
+  if (data.model === 'ENEM') {
+    renderEnemMirrorPage(pdfDoc, data, fonts);
+  } else if (data.model === 'PAS/UnB') {
+    renderPasMirrorPage(pdfDoc, data, fonts);
+  }
 
   while (consumed < pageAnnotations.length) {
     const continuationPage = pdfDoc.addPage([A4.w, A4.h]);
