@@ -1,5 +1,5 @@
 import { Fragment, type CSSProperties, type ReactNode } from 'react';
-import { resolveClassColors } from '@/utils/classColor';
+import { getClassColor, isColorLight } from '@/features/schedule/colors';
 
 type SlotConfig = {
   id: number;
@@ -185,7 +185,8 @@ function ScheduleCell({ items, dayLabel, timeInfo }: ScheduleCellProps) {
   return (
     <div className={`h-[var(--sched-slot-h)] ${multiple ? 'flex flex-col gap-2' : ''}`}>
       {items.map((item, index) => {
-        const palette = resolveClassColors(item.color ?? null, item.classId ?? item.label);
+        const bg = getClassColor(item.classId ?? item.label);
+        const text = isColorLight(bg) ? '#1F2937' : '#ffffff';
         const { turmaLabel, disciplinaLabel } = mapToCellData(item);
         const ariaDiscipline = disciplinaLabel || turmaLabel;
         const classLabel = turmaLabel;
@@ -198,8 +199,8 @@ function ScheduleCell({ items, dayLabel, timeInfo }: ScheduleCellProps) {
             key={`${item.classId || item.label}-${index}`}
             turmaLabel={turmaLabel}
             disciplinaLabel={disciplinaLabel}
-            color={palette.bg}
-            textColor={palette.fg}
+            color={bg}
+            textColor={text}
             ariaLabel={ariaLabel}
             className={multiple ? 'flex-1' : 'h-full'}
           />

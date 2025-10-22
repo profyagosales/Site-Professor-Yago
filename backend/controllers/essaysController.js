@@ -5,10 +5,12 @@ const Essay = require('../models/Essay');
 const EssayTheme = require('../models/EssayTheme');
 const Student = require('../models/Student');
 const Class = require('../models/Class');
+const EssayAnnotation = require('../models/EssayAnnotation');
 const { isValidObjectId } = require('mongoose');
 const { sendEmail } = require('../services/emailService');
 const { recordEssayScore } = require('../services/gradesIntegration');
 const { renderEssayCorrectionPdf } = require('../services/pdfService');
+const { generateCorrectedEssayPdf } = require('../services/pdf');
 const https = require('https');
 const http = require('http');
 const { assertUserCanAccessEssay } = require('../utils/assertUserCanAccessEssay');
@@ -158,6 +160,24 @@ function normalizeEssayDetail(essay) {
   };
 }
 
+function clamp01(value) {
+  const number = Number(value);
+  if (Number.isNaN(number)) return 0;
+  if (number < 0) return 0;
+  if (number > 1) return 1;
+  return number;
+}
+
+const LEVEL_POINTS = [0, 40, 80, 120, 160, 200];
+const LEGACY_ANNUL_REASONS = new Set([
+  'IDENTIFICACAO',
+  'DESENHOS',
+  'SINAIS',
+  'PARTE_DESCONECTADA',
+  'COPIA_MOTIVADORES',
+  'MENOS_7_LINHAS',
+]);
+
 function normalizeEssaySummary(essay) {
   const student = normalizeStudent(essay.studentId, essay.classId);
   return {
@@ -197,6 +217,60 @@ function normalizeTheme(doc) {
     promptFilePublicId: raw.promptFilePublicId || null,
     createdAt: raw.createdAt || null,
     updatedAt: raw.updatedAt || null,
+  };
+}
+
+function mapAnnotationResponse(doc) {
+  if (!doc) return null;
+  const raw = doc.toObject?.() ?? doc;
+  const rects = Array.isArray(raw.rects) ? raw.rects : [];
+  return {
+    id: String(raw._id || raw.id || ''),
+    essayId: raw.essayId ? String(raw.essayId) : undefined,
+    page: Number(raw.page) || 1,
+    rects: rects
+      .map((rect) => ({
+        x: clamp01(rect?.x),
+        y: clamp01(rect?.y),
+        w: clamp01(rect?.w ?? rect?.width),
+        h: clamp01(rect?.h ?? rect?.height),
+      }))
+      .filter((r) => r.w > 0 && r.h > 0),
+    color: typeof raw.color === 'string' ? raw.color : '#FDE68A',
+    category: typeof raw.category === 'string' ? raw.category : 'argumentacao',
+    comment: typeof raw.comment === 'string' ? raw.comment : '',
+    number: Number(raw.number) || 1,
+    createdAt: raw.createdAt || null,
+    updatedAt: raw.updatedAt || null,
+  };
+}
+
+function normalizeAnnotationInput(payload, index, essayId, createdBy) {
+  if (!payload) return null;
+  const rectsRaw = Array.isArray(payload.rects) ? payload.rects : [];
+  const rects = rectsRaw
+    .map((rect) => ({
+      x: clamp01(rect?.x),
+      y: clamp01(rect?.y),
+      w: clamp01(rect?.w ?? rect?.width),
+      h: clamp01(rect?.h ?? rect?.height),
+    }))
+    .filter((rect) => rect.w > 0 && rect.h > 0);
+  if (!rects.length) return null;
+  const page = Math.max(1, Math.floor(Number(payload.page) || 1));
+  const color = typeof payload.color === 'string' ? payload.color : '#FDE68A';
+  const category = typeof payload.category === 'string' ? payload.category : 'argumentacao';
+  const comment = typeof payload.comment === 'string' ? payload.comment : '';
+  const number = Number(payload.number);
+  return {
+    essayId,
+    page,
+    rects,
+    color,
+    category,
+    comment,
+    number: Number.isFinite(number) && number > 0 ? Math.floor(number) : index + 1,
+    createdBy: createdBy || null,
   };
 }
 
@@ -904,6 +978,264 @@ async function sendCorrectionEmail(req, res) {
   }
 }
 
+async function listEssayAnnotations(req, res) {
+  const { id } = req.params;
+  if (!isValidObjectId(id)) {
+    return res.status(400).json({ message: 'ID inválido' });
+  }
+  try {
+    const annotations = await EssayAnnotation.find({ essayId: id }).sort({ number: 1, createdAt: 1 }).lean();
+    const payload = annotations.map((ann) => mapAnnotationResponse(ann));
+    const highlights = payload.flatMap((ann) =>
+      ann.rects.map((rect) => ({
+        page: ann.page,
+        x: rect.x,
+        y: rect.y,
+        w: rect.w,
+        h: rect.h,
+        color: ann.color,
+        category: ann.category,
+        number: ann.number,
+      }))
+    );
+    const comments = payload.map((ann) => ({
+      page: ann.page,
+      text: ann.comment,
+      number: ann.number,
+      category: ann.category,
+    }));
+    return res.json({ data: payload, annotations: payload, highlights, comments });
+  } catch (err) {
+    console.error('[essays] list annotations failed', err);
+    return res.status(500).json({ message: 'Erro ao carregar anotações' });
+  }
+}
+
+async function saveEssayAnnotationsBatch(req, res) {
+  const { id } = req.params;
+  if (!isValidObjectId(id)) {
+    return res.status(400).json({ message: 'ID inválido' });
+  }
+  try {
+    const essay = await Essay.findById(id).select('_id');
+    if (!essay) return res.status(404).json({ message: 'Redação não encontrada' });
+
+    const annotationsInput = Array.isArray(req.body?.annotations) ? req.body.annotations : [];
+    const createdBy = req.auth?.userId || req.user?._id || null;
+    const normalized = annotationsInput
+      .map((ann, idx) => normalizeAnnotationInput(ann, idx, essay._id, createdBy))
+      .filter(Boolean);
+
+    await EssayAnnotation.deleteMany({ essayId: essay._id });
+    let saved = [];
+    if (normalized.length) {
+      saved = await EssayAnnotation.insertMany(normalized, { ordered: true });
+    }
+
+    essay.updatedAt = new Date();
+    await essay.save({ timestamps: false });
+
+    const payload = saved.map((ann) => mapAnnotationResponse(ann));
+    const highlights = payload.flatMap((ann) =>
+      ann.rects.map((rect) => ({
+        page: ann.page,
+        x: rect.x,
+        y: rect.y,
+        w: rect.w,
+        h: rect.h,
+        color: ann.color,
+        category: ann.category,
+        number: ann.number,
+      }))
+    );
+    const comments = payload.map((ann) => ({
+      page: ann.page,
+      text: ann.comment,
+      number: ann.number,
+      category: ann.category,
+    }));
+    return res.json({ data: payload, annotations: payload, highlights, comments });
+  } catch (err) {
+    console.error('[essays] save annotations failed', err);
+    return res.status(500).json({ message: 'Erro ao salvar anotações' });
+  }
+}
+
+async function deleteEssayAnnotation(req, res) {
+  const { id, annotationId } = req.params;
+  if (!isValidObjectId(id) || !isValidObjectId(annotationId)) {
+    return res.status(400).json({ message: 'ID inválido' });
+  }
+  try {
+    const deleted = await EssayAnnotation.findOneAndDelete({ _id: annotationId, essayId: id });
+    if (!deleted) {
+      return res.status(404).json({ message: 'Anotação não encontrada' });
+    }
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[essays] delete annotation failed', err);
+    return res.status(500).json({ message: 'Erro ao remover anotação' });
+  }
+}
+
+function normalizeEssayScoreResponse(essay) {
+  const reasons = Array.isArray(essay.annulReasons) ? essay.annulReasons : [];
+  const annulled = reasons.length > 0 || Boolean(essay.annulmentReason);
+  const pas = essay.pasBreakdown || {};
+  const enem = essay.enemCompetencies || {};
+  const enemLevels = [enem.c1, enem.c2, enem.c3, enem.c4, enem.c5]
+    .map((points) => {
+      if (typeof points !== 'number' || Number.isNaN(points)) return 0;
+      return Math.max(0, Math.min(5, Math.round(points / 40)));
+    });
+  const enemPoints = enemLevels.map((level) => LEVEL_POINTS[Math.max(0, Math.min(level, 5))] ?? 0);
+  const enemTotal = enemPoints.reduce((acc, value) => acc + value, 0);
+
+  return {
+    type: essay.type || null,
+    annulled,
+    reasons: reasons.length ? reasons : (essay.annulmentReason ? [essay.annulmentReason] : []),
+    otherReason: essay.annulOtherReason || null,
+    pas: {
+      NC: pas.NC ?? null,
+      NL: pas.NL ?? null,
+      NE: pas.NE ?? null,
+      NR: pas.NR ?? essay.rawScore ?? null,
+    },
+    enem: {
+      levels: enemLevels,
+      points: enemPoints,
+      total: annulled ? 0 : enemTotal,
+    },
+  };
+}
+
+async function getEssayScoreController(req, res) {
+  const { id } = req.params;
+  if (!isValidObjectId(id)) {
+    return res.status(400).json({ message: 'ID inválido' });
+  }
+  try {
+    const essay = await Essay.findById(id)
+      .select('type pasBreakdown enemCompetencies rawScore annulReasons annulmentReason annulOtherReason');
+    if (!essay) return res.status(404).json({ message: 'Redação não encontrada' });
+    return res.json({ data: normalizeEssayScoreResponse(essay) });
+  } catch (err) {
+    console.error('[essays] get score failed', err);
+    return res.status(500).json({ message: 'Erro ao carregar espelho' });
+  }
+}
+
+async function saveEssayScoreController(req, res) {
+  const { id } = req.params;
+  if (!isValidObjectId(id)) {
+    return res.status(400).json({ message: 'ID inválido' });
+  }
+  try {
+    const essay = await Essay.findById(id);
+    if (!essay) return res.status(404).json({ message: 'Redação não encontrada' });
+
+    const body = req.body || {};
+    const reasonsRaw = Array.isArray(body.reasons) ? body.reasons : [];
+    const normalizedReasons = reasonsRaw
+      .map((reason) => (typeof reason === 'string' ? reason : String(reason ?? '')).trim())
+      .filter(Boolean);
+    const type = typeof body.type === 'string' ? body.type.toUpperCase() : essay.type;
+    const annulled = Boolean(body.annulled) || normalizedReasons.length > 0;
+    const otherReason = typeof body.otherReason === 'string' ? body.otherReason.trim() : null;
+
+    essay.annulReasons = normalizedReasons;
+    essay.annulOtherReason = otherReason || null;
+    if (!annulled) {
+      essay.annulmentReason = null;
+    } else {
+      const legacyReason = normalizedReasons.find((reason) => LEGACY_ANNUL_REASONS.has(reason));
+      if (legacyReason) {
+        essay.annulmentReason = legacyReason;
+      } else if (LEGACY_ANNUL_REASONS.has(essay.annulmentReason)) {
+        // mantém valor anterior
+      } else if (normalizedReasons.includes('MENOS_7_LINHAS')) {
+        essay.annulmentReason = 'MENOS_7_LINHAS';
+      } else {
+        essay.annulmentReason = null;
+      }
+    }
+
+    if (type === 'PAS') {
+      essay.type = 'PAS';
+      essay.pasBreakdown = essay.pasBreakdown || {};
+      const NC = body?.pas?.NC != null ? Number(body.pas.NC) : essay.pasBreakdown.NC;
+      const NL = body?.pas?.NL != null ? Number(body.pas.NL) : essay.pasBreakdown.NL;
+      const NE = body?.pas?.NE != null ? Number(body.pas.NE) : essay.pasBreakdown.NE;
+      let NR = body?.pas?.NR != null ? Number(body.pas.NR) : essay.pasBreakdown.NR;
+      if (!Number.isFinite(NR)) {
+        const normalizedNL = Number.isFinite(NL) && NL > 0 ? NL : 1;
+        NR = Number(NC) - 2 * (Number(NE) / normalizedNL);
+      }
+      NR = Math.max(0, Number.isFinite(NR) ? NR : 0);
+      essay.pasBreakdown.NC = Number.isFinite(NC) ? NC : null;
+      essay.pasBreakdown.NL = Number.isFinite(NL) ? NL : null;
+      essay.pasBreakdown.NE = Number.isFinite(NE) ? NE : null;
+      essay.pasBreakdown.NR = annulled ? 0 : NR;
+      essay.rawScore = annulled ? 0 : NR;
+    } else {
+      essay.type = 'ENEM';
+      const levels = Array.isArray(body?.enem?.levels)
+        ? body.enem.levels.map((lvl) => Math.max(0, Math.min(Number(lvl) || 0, 5)))
+        : [0, 0, 0, 0, 0];
+      const points = levels.map((lvl) => LEVEL_POINTS[Math.max(0, Math.min(lvl, 5))] ?? 0);
+      essay.enemCompetencies = {
+        c1: points[0] ?? 0,
+        c2: points[1] ?? 0,
+        c3: points[2] ?? 0,
+        c4: points[3] ?? 0,
+        c5: points[4] ?? 0,
+      };
+      const total = annulled ? 0 : points.reduce((acc, value) => acc + value, 0);
+      essay.rawScore = total;
+    }
+
+    essay.updatedAt = new Date();
+    await essay.save();
+    return res.json({ data: normalizeEssayScoreResponse(essay) });
+  } catch (err) {
+    console.error('[essays] save score failed', err);
+    return res.status(500).json({ message: 'Erro ao salvar espelho' });
+  }
+}
+
+async function generateFinalPdf(req, res) {
+  const { id } = req.params;
+  if (!isValidObjectId(id)) {
+    return res.status(400).json({ message: 'ID inválido' });
+  }
+  try {
+    const essay = await Essay.findById(id).populate('studentId').populate('classId');
+    if (!essay) return res.status(404).json({ message: 'Redação não encontrada' });
+
+    const annotationsDocs = await EssayAnnotation.find({ essayId: id }).sort({ number: 1 }).lean();
+    const annotations = annotationsDocs.map((ann) => mapAnnotationResponse(ann));
+    const score = normalizeEssayScoreResponse(essay);
+    const buffer = await generateCorrectedEssayPdf({
+      essay,
+      annotations,
+      score,
+      student: essay.studentId,
+      classInfo: essay.classId,
+    });
+
+    const corrected = await uploadBuffer(buffer, 'essays/corrected', 'application/pdf', { returnResult: true });
+    essay.correctedUrl = corrected?.secure_url || corrected || essay.correctedUrl;
+    essay.status = 'GRADED';
+    await essay.save();
+
+    return res.json({ data: { correctedUrl: essay.correctedUrl } });
+  } catch (err) {
+    console.error('[essays] final pdf failed', err);
+    return res.status(500).json({ message: 'Erro ao gerar PDF corrigido' });
+  }
+}
+
 module.exports = {
   upload,
   getEssay,
@@ -918,6 +1250,12 @@ module.exports = {
   updateAnnotations,
   renderCorrection,
   sendCorrectionEmail,
+  listEssayAnnotations,
+  saveEssayAnnotationsBatch,
+  deleteEssayAnnotation,
+  getEssayScore: getEssayScoreController,
+  saveEssayScore: saveEssayScoreController,
+  generateFinalPdf,
   // Compat: endpoints GET/PUT para { highlights:[], comments:[] }
   async getAnnotationsCompat(req, res) {
     const { id } = req.params;

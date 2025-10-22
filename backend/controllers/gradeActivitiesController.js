@@ -465,3 +465,171 @@ exports.bulkSetActivityGrades = async (req, res, next) => {
     next(err);
   }
 };
+
+// Returns students with per-activity points for a class and bimester
+exports.listActivityEntries = async (req, res, next) => {
+  try {
+    const classId = toObjectId(req.query.classId);
+    if (!classId) {
+      const error = new Error('classId é obrigatório.');
+      error.status = 400;
+      throw error;
+    }
+    await ensureClassAccess(classId, req);
+
+    const year = parseYear(req.query.year);
+    const bimester = parseBimester(req.query.term ?? req.query.bimester);
+
+    const [activities, students] = await Promise.all([
+      GradeActivity.find({ classId, year, bimester, active: true }).sort({ order: 1, label: 1 }).lean(),
+      Student.find({ class: classId }).select('_id name photo rollNumber email').lean(),
+    ]);
+
+    const activityIds = activities.map((a) => a._id);
+    const grades = activityIds.length
+      ? await StudentActivityGrade.find({ classId, activityId: { $in: activityIds } })
+          .select('studentId activityId points')
+          .lean()
+      : [];
+
+    const byStudent = new Map();
+    grades.forEach((g) => {
+      const key = String(g.studentId);
+      const map = byStudent.get(key) || new Map();
+      map.set(String(g.activityId), Number(g.points ?? 0));
+      byStudent.set(key, map);
+    });
+
+    const activitiesPayload = activities.map((a) => ({
+      id: String(a._id),
+      label: a.label,
+      maxPoints: Number(a.value ?? 0),
+    }));
+
+    const rows = students
+      .map((s) => ({
+        id: String(s._id),
+        name: s.name || '',
+        photo: s.photo || null,
+        roll: s.rollNumber ?? null,
+        email: s.email || null,
+      }))
+      .sort((a, b) => {
+        const ra = typeof a.roll === 'number' ? a.roll : Number.POSITIVE_INFINITY;
+        const rb = typeof b.roll === 'number' ? b.roll : Number.POSITIVE_INFINITY;
+        if (ra !== rb) return ra - rb;
+        return a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
+      })
+      .map((s) => {
+        const gradesMap = byStudent.get(s.id) || new Map();
+        const entries = activities.map((a) => ({
+          activityId: String(a._id),
+          score: Number(gradesMap.get(String(a._id)) ?? 0),
+        }));
+        return { student: s, entries };
+      });
+
+    res.json({
+      success: true,
+      data: {
+        classId: String(classId),
+        year,
+        term: bimester,
+        activities: activitiesPayload,
+        rows,
+      },
+    });
+  } catch (err) {
+    if (!err.status) {
+      err.status = 500;
+      err.message = 'Falha ao carregar lançamentos por atividade.';
+    }
+    next(err);
+  }
+};
+
+// Compat wrapper: upsert via classId+term+activityId+items
+exports.bulkUpsertActivityEntries = async (req, res, next) => {
+  try {
+    const classId = toObjectId(req.body?.classId);
+    const activityId = toObjectId(req.body?.activityId);
+    if (!classId || !activityId) {
+      const error = new Error('classId e activityId são obrigatórios.');
+      error.status = 400;
+      throw error;
+    }
+    await ensureClassAccess(classId, req);
+
+    const activity = await GradeActivity.findOne({ _id: activityId, classId }).lean();
+    if (!activity || activity.active === false) {
+      const error = new Error('Atividade não encontrada.');
+      error.status = 404;
+      throw error;
+    }
+
+    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+    const grades = items.map((it) => ({ studentId: it.studentId, points: it.score }));
+
+    req.params = { id: String(activityId) };
+    req.body = { grades };
+    return exports.bulkSetActivityGrades(req, res, next);
+  } catch (err) {
+    if (!err.status) {
+      err.status = 500;
+      err.message = 'Falha ao salvar lançamentos por atividade.';
+    }
+    next(err);
+  }
+};
+
+// Returns a student's entries for a term
+exports.getStudentTermGrades = async (req, res, next) => {
+  try {
+    const studentId = toObjectId(req.params.id);
+    const classId = toObjectId(req.query.classId);
+    if (!studentId || !classId) {
+      const error = new Error('studentId e classId são obrigatórios.');
+      error.status = 400;
+      throw error;
+    }
+
+    await ensureClassAccess(classId, req);
+
+    const year = parseYear(req.query.year);
+    const bimester = parseBimester(req.query.term ?? req.query.bimester);
+
+    const activities = await GradeActivity.find({ classId, year, bimester, active: true })
+      .sort({ order: 1, label: 1 })
+      .lean();
+    const activityIds = activities.map((a) => a._id);
+    const grades = activityIds.length
+      ? await StudentActivityGrade.find({ classId, studentId, activityId: { $in: activityIds } })
+          .select('activityId points')
+          .lean()
+      : [];
+
+    const map = new Map(grades.map((g) => [String(g.activityId), Number(g.points ?? 0)]));
+    const entries = activities.map((a) => ({
+      activityId: String(a._id),
+      activityLabel: a.label,
+      maxPoints: Number(a.value ?? 0),
+      score: Number(map.get(String(a._id)) ?? 0),
+    }));
+
+    const total = Math.min(
+      10,
+      entries.reduce((acc, e) => acc + (Number.isFinite(e.score) ? Number(e.score) : 0), 0)
+    );
+
+    res.json({
+      success: true,
+      data: { classId: String(classId), year, term: bimester, entries, total },
+    });
+  } catch (err) {
+    if (!err.status) {
+      err.status = 500;
+      err.message = 'Falha ao carregar notas do aluno no bimestre.';
+    }
+    next(err);
+  }
+};

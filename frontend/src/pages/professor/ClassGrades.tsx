@@ -1,4 +1,5 @@
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { getActivityEntries, getGradeScheme, upsertActivityEntriesBulk } from '@/services/grades';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import {
@@ -26,7 +27,7 @@ type FiltersState = {
 type TableColumn = {
   key: string;
   label: string;
-  align: 'left' | 'center';
+  align: 'left' | 'center' | 'right';
 };
 
 type TableRow = {
@@ -79,8 +80,19 @@ export default function ClassGradesPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [activityTable, setActivityTable] = useState<{
+    activities: Array<{ id: string; label: string; maxPoints: number }>;
+    rows: Array<{ studentId: string; name: string; photoUrl: string | null; roll: number | null; scores: Record<string, number>; total: number }>;
+  } | null>(null);
   const hasSyncedYearRef = useRef(false);
+  const [liveUpdateMessage, setLiveUpdateMessage] = useState<string>('');
   const [selectedTerms, setSelectedTerms] = useState<number[]>(() => [...DEFAULT_TERMS]);
+  const [activityTerm, setActivityTerm] = useState<number>(() => DEFAULT_TERMS[0]);
+  const [activities, setActivities] = useState<Array<{ id: string; label: string; maxPoints: number }>>([]);
+  const [activityModal, setActivityModal] = useState<{ open: boolean; activityId: string | null; maxPoints: number; label: string }>(() => ({ open: false, activityId: null, maxPoints: 10, label: '' }));
+  const [activityRows, setActivityRows] = useState<Array<{ studentId: string; name: string; photo: string | null; roll: number | null; score: number }>>([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityError, setActivityError] = useState<string | null>(null);
 
   const loadGrades = useCallback(async () => {
     if (!id || selectedTerms.length === 0) {
@@ -121,6 +133,85 @@ export default function ClassGradesPage() {
   useEffect(() => {
     void loadGrades();
   }, [loadGrades]);
+
+  // Build Mode A table (single term): activities per student + total (cap 10)
+  useEffect(() => {
+    let cancelled = false;
+    async function loadActivityTable() {
+      if (!id) return;
+      if (selectedTerms.length !== 1) {
+        setActivityTable(null);
+        return;
+      }
+      const term = selectedTerms[0];
+      try {
+        const [scheme, entries] = await Promise.all([
+          getGradeScheme({ classId: id, term: term as any, year: filters.year }),
+          getActivityEntries({ classId: id, term: term as any, year: filters.year }),
+        ]);
+        if (cancelled) return;
+        const activities = scheme;
+        const rows = (entries.rows || []).map((r: any) => {
+          const scores: Record<string, number> = {};
+          activities.forEach((a) => {
+            const found = (r.entries || []).find((e: any) => e.activityId === a.id);
+            scores[a.id] = Number(found?.score ?? NaN);
+          });
+          const total = Math.min(
+            10,
+            activities.reduce((acc, a) => acc + (Number.isFinite(scores[a.id]) ? Number(scores[a.id]) : 0), 0)
+          );
+          return {
+            studentId: r.student.id,
+            name: r.student.name,
+            photoUrl: r.student.photo ? (r.student.photo.startsWith('data:') ? r.student.photo : `data:image/jpeg;base64,${r.student.photo}`) : null,
+            roll: r.student.roll ?? null,
+            scores,
+            total,
+          };
+        });
+        setActivityTable({ activities, rows });
+      } catch {
+        if (!cancelled) setActivityTable(null);
+      }
+    }
+    loadActivityTable();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, filters.year, selectedTerms]);
+
+  // Announce table refresh for accessibility
+  useEffect(() => {
+    const termsLabel = visibleTerms.join(', ');
+    const rowsCount = students.length;
+    // If in activity mode and we have activities, include count
+    if (visibleTerms.length === 1 && activityTable) {
+      const colsCount = 3 + activityTable.activities.length + 1; // base + activities + TOTAL
+      setLiveUpdateMessage(`Tabela atualizada. ${rowsCount} linhas, ${colsCount} colunas. Ano ${filters.year}. Bimestre ${termsLabel}.`);
+    } else {
+      const colsCount = 3 + visibleTerms.length + (filters.sum ? 1 : 0);
+      setLiveUpdateMessage(`Tabela atualizada. ${rowsCount} linhas, ${colsCount} colunas. Ano ${filters.year}. Bimestres ${termsLabel}.`);
+    }
+  }, [students.length, visibleTerms, activityTable, filters.year, filters.sum]);
+
+  // Load activities for launcher
+  useEffect(() => {
+    let ignore = false;
+    async function load() {
+      if (!id) return;
+      try {
+        const items = await getGradeScheme({ classId: id, term: activityTerm as any, year: filters.year });
+        if (!ignore) setActivities(items);
+      } catch (e) {
+        if (!ignore) setActivities([]);
+      }
+    }
+    load();
+    return () => {
+      ignore = true;
+    };
+  }, [id, activityTerm, filters.year]);
 
   const visibleTerms = useMemo(() => {
     return [...selectedTerms].sort((a, b) => a - b);
@@ -196,11 +287,11 @@ export default function ClassGradesPage() {
     if (selectedTerms.length === 0) return;
     setPdfLoading(true);
     try {
-      const blob = await exportClassGradesPdf(id, {
-        year: filters.year,
-        terms: selectedTerms,
-        includeTotal: filters.sum,
-      });
+      const query: any = { year: filters.year, terms: selectedTerms, includeTotal: filters.sum };
+      if (selectedTerms.length === 1) {
+        query.view = 'activities';
+      }
+      const blob = await exportClassGradesPdf(id, query);
       const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = objectUrl;
@@ -234,18 +325,33 @@ export default function ClassGradesPage() {
       { key: 'name', label: 'Aluno', align: 'left' },
     ];
 
-    visibleTerms.forEach((term) => {
-      columns.push({ key: `term-${term}`, label: `${term}º bim.`, align: 'center' });
-    });
-
-    if (showTotal) {
-      columns.push({ key: 'total', label: 'Total', align: 'center' });
+    if (visibleTerms.length === 1 && activityTable) {
+      activityTable.activities.forEach((a) => columns.push({ key: `act-${a.id}`, label: a.label, align: 'right' }));
+      columns.push({ key: 'total', label: 'TOTAL', align: 'right' });
+    } else {
+      visibleTerms.forEach((term) => {
+        columns.push({ key: `term-${term}`, label: `${term}º bim.`, align: 'right' });
+      });
+      if (showTotal) {
+        columns.push({ key: 'total', label: 'Soma Total', align: 'right' });
+      }
     }
 
     return columns;
-  }, [visibleTerms, showTotal]);
+  }, [visibleTerms, showTotal, activityTable]);
 
   const tableRows = useMemo<TableRow[]>(() => {
+    if (visibleTerms.length === 1 && activityTable) {
+      const actIds = activityTable.activities.map((a) => a.id);
+      const map = new Map(activityTable.rows.map((r) => [r.studentId, r]));
+      return students.map((student) => {
+        const row = map.get(student.id);
+        const photoUrl = resolvePhotoUrl(student.photoUrl) ?? row?.photoUrl ?? null;
+        const grades = actIds.map((aid) => ({ term: visibleTerms[0], value: row && Number.isFinite(row.scores[aid]) ? formatScoreValue(row.scores[aid]) : null, badge: null }));
+        const totalText = row ? formatScoreValue(row.total) : null;
+        return { student, photoUrl, grades, totalText };
+      });
+    }
     return students.map((student) => {
       const photoUrl = resolvePhotoUrl(student.photoUrl);
       const grades = visibleTerms.map((term) => {
@@ -256,17 +362,13 @@ export default function ClassGradesPage() {
       });
       const totalScore = showTotal ? computeTotal(student, visibleTerms) : null;
       const totalText = totalScore !== null ? formatScoreValue(totalScore) : null;
-      return {
-        student,
-        photoUrl,
-        grades,
-        totalText,
-      };
+      return { student, photoUrl, grades, totalText };
     });
-  }, [students, visibleTerms, showTotal]);
+  }, [students, visibleTerms, showTotal, activityTable]);
 
   return (
     <div className="p-4 space-y-6">
+      <span className="sr-only" aria-live="polite">{liveUpdateMessage}</span>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Button variant="ghost" onClick={handleBack}>
           ← Voltar para a turma
@@ -313,6 +415,123 @@ export default function ClassGradesPage() {
       )}
 
       <section className="rounded-2xl border border-ys-line bg-white p-4 shadow-ys-sm">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-ys-ink">Lançamentos por atividade</h2>
+            <p className="text-xs text-ys-graphite">Escolha uma atividade do bimestre e lance notas dos alunos.</p>
+          </div>
+          <label className="flex items-center gap-2 rounded-xl border border-ys-line px-3 py-2 text-sm">
+            <span>Bimestre:</span>
+            <select className="focus:outline-none" value={activityTerm} onChange={(e) => setActivityTerm(Number(e.target.value))}>
+              {TERM_OPTIONS.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {activities.length === 0 ? (
+          <p className="mt-3 text-sm text-ys-graphite">Nenhuma atividade configurada. Configure em Divisão de notas.</p>
+        ) : (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {activities.map((a) => (
+              <Button key={a.id} onClick={async () => {
+                if (!id) return;
+                setActivityError(null);
+                setActivityLoading(true);
+                try {
+                  const data = await getActivityEntries({ classId: id, term: activityTerm as any, year: filters.year });
+                  const rows = (data.rows || []).map((r: any) => ({
+                    studentId: r.student.id,
+                    name: r.student.name,
+                    photo: r.student.photo ?? null,
+                    roll: r.student.roll ?? null,
+                    score: Number((r.entries || []).find((e: any) => e.activityId === a.id)?.score ?? 0),
+                  }));
+                  setActivityRows(rows);
+                  setActivityModal({ open: true, activityId: a.id, maxPoints: a.maxPoints, label: a.label });
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : 'Falha ao carregar alunos/lançamentos.';
+                  setActivityError(msg);
+                } finally {
+                  setActivityLoading(false);
+                }
+              }}>
+                Lançar: {a.label}
+              </Button>
+            ))}
+          </div>
+        )}
+        {activityError && <p className="mt-2 text-sm text-rose-600">{activityError}</p>}
+      </section>
+
+      {activityModal.open && (
+        <div role="dialog" aria-labelledby="activity-modal-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-3xl rounded-2xl bg-white p-4 shadow-ys-lg">
+            <h3 id="activity-modal-title" className="text-base font-semibold text-ys-ink">
+              {activityModal.label} — 0..{activityModal.maxPoints}
+            </h3>
+            <div className="mt-3 max-h-[60vh] overflow-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-ys-graphite">
+                    <th className="px-2 py-1 text-left">Aluno</th>
+                    <th className="px-2 py-1 text-center">Nota</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activityRows.map((row, idx) => (
+                    <tr key={row.studentId} className="border-t border-ys-line">
+                      <td className="px-2 py-2">
+                        <div className="flex items-center gap-2">
+                          {row.photo ? (
+                            <img src={row.photo.startsWith('data:') ? row.photo : `data:image/jpeg;base64,${row.photo}`} alt={row.name} className="h-8 w-8 rounded-lg object-cover" />
+                          ) : (
+                            <div className="h-8 w-8 rounded-lg bg-ys-bg text-[10px] text-ys-graphite flex items-center justify-center">{row.roll ?? '—'}</div>
+                          )}
+                          <span className="text-ys-ink">{row.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-2 py-2 text-center">
+                        <input
+                          autoFocus={idx === 0}
+                          type="number"
+                          min={0}
+                          max={activityModal.maxPoints}
+                          step={0.1}
+                          className="w-24 rounded-lg border border-ys-line px-2 py-1 text-center focus:border-ys-amber focus:outline-none"
+                          value={Number.isFinite(row.score) ? row.score : 0}
+                          onChange={(e) => {
+                            const v = Number(e.target.value);
+                            setActivityRows((prev) => prev.map((r) => (r.studentId === row.studentId ? { ...r, score: Math.max(0, Math.min(activityModal.maxPoints, Number.isFinite(v) ? Number(v.toFixed(1)) : 0)) } : r)));
+                          }}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setActivityModal({ open: false, activityId: null, maxPoints: 10, label: '' })}>Cancelar</Button>
+              <Button
+                onClick={async () => {
+                  if (!id || !activityModal.activityId) return;
+                  try {
+                    await upsertActivityEntriesBulk({ classId: id, term: activityTerm as any, activityId: activityModal.activityId, items: activityRows.map((r) => ({ studentId: r.studentId, score: r.score })) });
+                    setActivityModal({ open: false, activityId: null, maxPoints: 10, label: '' });
+                    void loadGrades();
+                  } catch (err) {
+                    const msg = err instanceof Error ? err.message : 'Falha ao salvar notas.';
+                    setActivityError(msg);
+                  }
+                }}
+              >
+                Salvar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold text-ys-ink">Filtros</h2>
@@ -355,10 +574,12 @@ export default function ClassGradesPage() {
             </div>
           </div>
 
-          <label className="flex items-center gap-2 rounded-xl border border-ys-line p-3 text-sm">
-            <input type="checkbox" checked={filters.sum} onChange={handleSumToggle} />
-            <span className="text-ys-ink">Exibir coluna Total (soma)</span>
-          </label>
+          {selectedTerms.length > 1 && (
+            <label className="flex items-center gap-2 rounded-xl border border-ys-line p-3 text-sm">
+              <input type="checkbox" checked={filters.sum} onChange={handleSumToggle} />
+              <span className="text-ys-ink">Exibir coluna Total (soma)</span>
+            </label>
+          )}
         </div>
       </section>
 
@@ -380,7 +601,8 @@ export default function ClassGradesPage() {
                   {tableColumns.map((column) => (
                     <th
                       key={column.key}
-                      className={`px-3 py-2 ${column.align === 'center' ? 'text-center' : 'text-left'}`}
+                      className={`px-3 py-2 ${column.align === 'right' ? 'text-right' : column.align === 'center' ? 'text-center' : 'text-left'}`}
+                      scope="col"
                     >
                       {column.label}
                     </th>
@@ -413,7 +635,7 @@ export default function ClassGradesPage() {
                       )}
                     </td>
                     {row.grades.map((grade) => (
-                      <td key={`${row.student.id}-${grade.term}`} className="px-3 py-3 text-center align-middle">
+                      <td key={`${row.student.id}-${grade.term}`} className="px-3 py-3 text-right align-middle">
                         <div className="font-medium text-ys-ink">{grade.value ?? '—'}</div>
                         {grade.badge && (
                           <span className="mt-1 inline-block rounded-full bg-ys-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ys-graphite">
@@ -423,7 +645,7 @@ export default function ClassGradesPage() {
                       </td>
                     ))}
                     {showTotal && (
-                      <td className="px-3 py-3 text-center align-middle font-medium text-ys-ink">
+                      <td className="px-3 py-3 text-right align-middle font-medium text-ys-ink">
                         {row.totalText ?? '—'}
                       </td>
                     )}
