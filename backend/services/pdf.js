@@ -171,10 +171,45 @@ async function embedSvgLogo(pdfDoc) {
   }
 }
 
+function parseBase64Image(dataUri) {
+  if (typeof dataUri !== 'string') return null;
+  const match = dataUri.match(/^data:(image\/(?:png|jpeg|jpg));base64,(.+)$/i);
+  if (!match) return null;
+  try {
+    return Buffer.from(match[2], 'base64');
+  } catch (err) {
+    console.warn('[pdf] Failed to decode base64 image', err?.message || err);
+    return null;
+  }
+}
+
+function maybeDecodeLooseBase64(raw) {
+  if (typeof raw !== 'string') return null;
+  // Reject obvious URLs
+  if (/^https?:\/\//i.test(raw)) return null;
+  if (!/^[A-Za-z0-9+/=\s]+$/.test(raw)) return null;
+  try {
+    const cleaned = raw.replace(/\s+/g, '');
+    if (!cleaned || cleaned.length % 4 !== 0) return null;
+    const buffer = Buffer.from(cleaned, 'base64');
+    return buffer.length ? buffer : null;
+  } catch (err) {
+    return null;
+  }
+}
+
 async function embedRemoteImage(pdfDoc, url) {
   if (!url) return null;
   try {
-    const data = await fetchRemoteBytes(url);
+    let data = null;
+    if (url.startsWith('data:image/')) {
+      data = parseBase64Image(url);
+    } else {
+      data = await fetchRemoteBytes(url);
+    }
+    if (!data) {
+      data = maybeDecodeLooseBase64(url);
+    }
     if (!data || !data.length) return null;
     if (data[0] === 0x89 && data[1] === 0x50) {
       return await pdfDoc.embedPng(data);
@@ -190,6 +225,9 @@ async function embedRemoteImage(pdfDoc, url) {
 }
 
 async function fetchRemoteBytes(url) {
+  if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) {
+    return null;
+  }
   return new Promise((resolve, reject) => {
     try {
       const client = url.startsWith('https') ? https : http;

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
-import { resolveClassColor, withAlpha, autoTextColor } from '@/shared/classColors';
+import { resolveClassColor, withAlpha } from '@/shared/classColors';
 import {
   listClasses,
   createClass,
@@ -302,16 +302,12 @@ export default function ClassesPage() {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {sortedItems.map((item) => {
             const color = resolveClassColor(item.id ?? item.name);
-            const background = withAlpha(color.hex, 0.12);
-            const border = withAlpha(color.hex, 0.24);
-            const tone = autoTextColor(color.hex);
-            const textClass = tone === 'white' ? 'text-white' : 'text-slate-900';
-            const subtleTextClass = tone === 'white' ? 'text-white/80' : 'text-slate-600';
-            const metaTextClass = tone === 'white' ? 'text-white/70' : 'text-slate-500';
-            const menuButtonClass =
-              tone === 'white'
-                ? 'border-white/40 text-white hover:bg-white/10 focus-visible:ring-white/60'
-                : 'border-slate-200 text-slate-600 hover:bg-white focus-visible:ring-slate-400';
+            const background = `linear-gradient(135deg, ${withAlpha(color.hex, 0.08)} 0%, ${withAlpha(color.hex, 0.18)} 100%)`;
+            const border = withAlpha(color.hex, 0.28);
+            const textClass = 'text-slate-900';
+            const subtleTextClass = 'text-slate-700';
+            const metaTextClass = 'text-slate-600';
+            const menuButtonClass = 'border-slate-200 text-slate-600 hover:bg-white focus-visible:ring-slate-400';
             const gradeLabel =
               item.legacySeries !== undefined && item.legacyLetter
                 ? `${item.legacySeries}${item.legacyLetter}`
@@ -324,10 +320,10 @@ export default function ClassesPage() {
                 className="group block focus:outline-none"
               >
                 <article
-                  className={`h-full rounded-2xl border shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:brightness-105 ${textClass} group-focus-visible:ring-2 group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-white group-focus-visible:ring-slate-300`}
+                  className={`h-full rounded-2xl border shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md ${textClass} group-focus-visible:ring-2 group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-white group-focus-visible:ring-slate-300`}
                   aria-label={`Turma ${item.name}`}
                   style={{
-                    backgroundColor: background,
+                    background,
                     borderColor: border,
                   }}
                 >
