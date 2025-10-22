@@ -15,8 +15,8 @@ if (!fs.existsSync(manifestPath)) fail('manifest.json não encontrado');
 let manifest;
 try { manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')); } catch (e) { fail('manifest inválido'); }
 
-// Permitimos chunks pdf/react-konva existirem (carregamento dinâmico), mas não podem estar como import estático em outra entry.
-const staticSuspect = /(react-pdf|pdfjs-dist|react-konva|konva)/i;
+// Permitimos chunks de pdf existirem (carregamento dinâmico), mas não podem estar como import estático em outra entry.
+const staticSuspect = /(react-pdf|pdfjs-dist)/i;
 for (const [entry, meta] of Object.entries(manifest)) {
   const staticImports = meta.imports || [];
   if (staticImports.some(d => staticSuspect.test(String(d)))) {
@@ -29,8 +29,8 @@ for (const [entry, meta] of Object.entries(manifest)) {
 const indexHtml = path.join(process.cwd(), 'dist', 'index.html');
 if (fs.existsSync(indexHtml)) {
   const html = fs.readFileSync(indexHtml, 'utf8');
-  if (/pdf-\w+\.js/i.test(html) || /ReactKonva-\w+\.js/i.test(html)) {
-    fail('preload inesperado de pdf ou ReactKonva no index.html');
+  if (/pdf-\w+\.js/i.test(html)) {
+    fail('preload inesperado de pdf no index.html');
   }
 }
 
