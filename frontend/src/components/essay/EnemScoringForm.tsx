@@ -78,6 +78,7 @@ function RenderGroup({
   };
 
   const renderCriterion = (criterion: RubricCriterion, multiple: boolean, index: number) => {
+    const labelParts = highlightUppercaseTokens(criterion.label);
     const checked = selectedReasonIds.has(criterion.id);
     if (group.op === 'OR' && !multiple) {
       return (
@@ -93,7 +94,13 @@ function RenderGroup({
             onChange={() => handleSelectRadio(criterion)}
             className="h-4 w-4 text-orange-500 focus:ring-orange-400"
           />
-          <span>{criterion.label}</span>
+          <span>
+            {labelParts.map((part, partIndex) => (
+              <span key={partIndex} className={part.highlight ? HIGHLIGHT_CLASS : undefined}>
+                {part.text}
+              </span>
+            ))}
+          </span>
         </label>
       );
     }
@@ -109,7 +116,13 @@ function RenderGroup({
           onChange={(event) => handleToggleCheckbox(criterion, event.target.checked)}
           className="h-4 w-4 rounded text-orange-500 focus:ring-orange-400"
         />
-        <span>{criterion.label}</span>
+        <span>
+          {labelParts.map((part, partIndex) => (
+            <span key={partIndex} className={part.highlight ? HIGHLIGHT_CLASS : undefined}>
+              {part.text}
+            </span>
+          ))}
+        </span>
       </label>
     );
   };

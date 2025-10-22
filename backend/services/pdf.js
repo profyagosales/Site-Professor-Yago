@@ -1,6 +1,7 @@
 const http = require('http');
 const https = require('https');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
+const { ENEM_RUBRIC, ENEM_REASON_LABELS } = require('../constants/enemRubric');
 
 function hexToRgb(color) {
   if (typeof color !== 'string') return { r: 1, g: 0.8, b: 0.4 };
@@ -59,6 +60,63 @@ const HEADER_PADDING = 24;
 
 function asPdfColor(color) {
   return rgb(color.r, color.g, color.b);
+}
+
+function splitUppercaseTokens(text) {
+  if (!text) return [{ text, highlight: false }];
+  const tokens = text.split(/(\s+)/);
+  return tokens.map((token) => {
+    if (!token.trim()) return { text: token, highlight: false };
+    const sanitized = token.replace(/[^A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9\/\-]/gi, '');
+    const highlight =
+      sanitized.length >= 2 &&
+      sanitized === sanitized.toUpperCase() &&
+      /^[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9\/\-]+$/.test(sanitized);
+    return { text: token, highlight };
+  });
+}
+
+function drawHighlightedParagraph(page, text, options) {
+  const {
+    x,
+    y,
+    maxWidth,
+    font,
+    fontSize,
+    baseColor = rgb(0.2, 0.2, 0.2),
+    highlightColor = asPdfColor(COLOR_ORANGE),
+    lineHeight = fontSize + 4,
+  } = options;
+  let cursorX = x;
+  let cursorY = y;
+  const segments = splitUppercaseTokens(text);
+  segments.forEach(({ text: segment, highlight }) => {
+    const width = font.widthOfTextAtSize(segment, fontSize);
+    if (cursorX + width > x + maxWidth) {
+      cursorX = x;
+      cursorY -= lineHeight;
+    }
+    page.drawText(segment, {
+      x: cursorX,
+      y: cursorY,
+      font,
+      size: fontSize,
+      color: highlight ? highlightColor : baseColor,
+    });
+    cursorX += width;
+  });
+  return cursorY - lineHeight;
+}
+
+const ENEM_RUBRIC_BY_KEY = ENEM_RUBRIC.reduce((map, competency) => {
+  map[competency.key] = competency;
+  return map;
+}, {});
+
+function getEnemLevelData(key, level) {
+  const competency = ENEM_RUBRIC_BY_KEY[key];
+  if (!competency) return null;
+  return competency.levels.find((lvl) => lvl.level === level) || competency.levels[0] || null;
 }
 
 function resolveClassLabel(classInfo) {
@@ -504,11 +562,38 @@ async function generateCorrectedEssayPdf({
 
   if (score?.type === 'ENEM' && score?.enem) {
     drawSummaryText('ENEM', { bold: true, lineHeight: 22 });
-    const levels = score.enem.levels || [];
-    levels.forEach((level, idx) => {
-      const points = score.enem.points?.[idx] ?? levelToPoints(level);
-      const line = `Competência ${idx + 1}: nível ${level} — ${points} pts`;
-      drawSummaryText(line);
+    ENEM_RUBRIC.forEach((competency, idx) => {
+      const selection = score.enem.competencies?.[competency.key] || {};
+      const levelValue = typeof selection.level === 'number' ? selection.level : score.enem.levels?.[idx];
+      const levelData = getEnemLevelData(competency.key, levelValue) || competency.levels[0];
+      const points = score.enem.points?.[idx] ?? levelData?.points ?? 0;
+      drawSummaryText(`Competência ${idx + 1} — Nível ${levelData.level} (${points} pts)`, {
+        bold: true,
+        lineHeight: 18,
+      });
+      summaryCursor = drawHighlightedParagraph(summaryPage, levelData.summary, {
+        x: summaryMargin,
+        y: summaryCursor,
+        maxWidth: 512,
+        font: fontRegular,
+        fontSize: 11,
+      });
+      summaryCursor -= 4;
+      const reasons = Array.isArray(selection.reasonIds) ? selection.reasonIds : [];
+      reasons.forEach((reasonId) => {
+        const label = ENEM_REASON_LABELS.get(reasonId);
+        if (!label) return;
+        summaryCursor = drawHighlightedParagraph(summaryPage, `• ${label}`, {
+          x: summaryMargin,
+          y: summaryCursor,
+          maxWidth: 512,
+          font: fontRegular,
+          fontSize: 10,
+          baseColor: rgb(0.35, 0.35, 0.35),
+        });
+        summaryCursor += 2;
+      });
+      summaryCursor -= 6;
     });
     drawSummaryText(`Total: ${score.annulled ? 0 : score.enem.total ?? 0} pts`, { bold: true, lineHeight: 20 });
   }
@@ -525,12 +610,6 @@ async function generateCorrectedEssayPdf({
 
   const pdfBytes = await pdfDoc.save();
   return Buffer.from(pdfBytes);
-}
-
-function levelToPoints(level) {
-  const LEVEL_POINTS = [0, 40, 80, 120, 160, 200];
-  const idx = Math.max(0, Math.min(level ?? 0, 5));
-  return LEVEL_POINTS[idx] ?? 0;
 }
 
 module.exports = {

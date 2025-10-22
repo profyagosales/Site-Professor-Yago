@@ -184,6 +184,18 @@ export default function GradeWorkspace() {
         setPasState({ NC: '', NL: '', NE: '' });
       }
 
+      if (data.type === 'ENEM' && data.enemRubric) {
+        const nextSelections = createInitialEnemSelections();
+        ENEM_2024.forEach((competency) => {
+          const selection = data.enemRubric?.[competency.key];
+          if (!selection) return;
+          nextSelections[competency.key] = sanitizeEnemSelection(competency.key, selection);
+        });
+        setEnemSelections(nextSelections);
+      } else {
+        setEnemSelections(createInitialEnemSelections());
+      }
+
       try {
         const annotationResponse = await fetchAnnotations(id);
         setAnnotations(renumber(normalizeAnnotations(annotationResponse)));

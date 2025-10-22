@@ -171,7 +171,6 @@ function clamp01(value) {
   return number;
 }
 
-const LEVEL_POINTS = [0, 40, 80, 120, 160, 200];
 const LEGACY_ANNUL_REASONS = new Set([
   'IDENTIFICACAO',
   'DESENHOS',
@@ -738,6 +737,7 @@ async function gradeEssay(req, res) {
         bimestralComputedScore = roundToOneDecimal(bVal * normalized);
         if (bimestralComputedScore > bVal) bimestralComputedScore = bVal;
       }
+      essay.enemRubric = undefined;
     } else {
       const NC = Number(pasBreakdown.NC);
       const NL = Number(pasBreakdown.NL);
@@ -1166,7 +1166,7 @@ async function getEssayScoreController(req, res) {
   }
   try {
     const essay = await Essay.findById(id)
-      .select('type pasBreakdown enemCompetencies rawScore annulReasons annulmentReason annulOtherReason');
+      .select('type pasBreakdown enemCompetencies enemRubric rawScore annulReasons annulmentReason annulOtherReason');
     if (!essay) return res.status(404).json({ message: 'Redação não encontrada' });
     return res.json({ data: normalizeEssayScoreResponse(essay) });
   } catch (err) {
@@ -1212,6 +1212,8 @@ async function saveEssayScoreController(req, res) {
 
     if (type === 'PAS') {
       essay.type = 'PAS';
+      essay.enemRubric = undefined;
+      essay.enemCompetencies = undefined;
       essay.pasBreakdown = essay.pasBreakdown || {};
       const NC = body?.pas?.NC != null ? Number(body.pas.NC) : essay.pasBreakdown.NC;
       const NL = body?.pas?.NL != null ? Number(body.pas.NL) : essay.pasBreakdown.NL;
@@ -1240,7 +1242,7 @@ async function saveEssayScoreController(req, res) {
           const levelData = getEnemLevelData(key, levelValue ?? competency.levels[0]?.level ?? 0) || competency.levels[0];
           const validReasonIds = levelData?.rationale ? collectRubricReasonIds(levelData.rationale) : [];
           const reasonIds = Array.isArray(selection.reasonIds)
-            ? selection.reasonIds.filter((id) => validReasonIds.includes(id))
+            ? Array.from(new Set(selection.reasonIds.filter((id) => validReasonIds.includes(id))))
             : [];
           points[index] = levelData?.points ?? 0;
           rubricStore[key] = { level: levelData.level, reasonIds };
@@ -1259,7 +1261,14 @@ async function saveEssayScoreController(req, res) {
         const levels = Array.isArray(body?.enem?.levels)
           ? body.enem.levels.map((lvl) => Math.max(0, Math.min(Number(lvl) || 0, 5)))
           : [0, 0, 0, 0, 0];
-        const points = levels.map((lvl) => LEVEL_POINTS[Math.max(0, Math.min(lvl, 5))] ?? 0);
+        const points = [];
+        const rubricStore = {};
+        ENEM_RUBRIC.forEach((competency, index) => {
+          const levelValue = levels[index] ?? competency.levels[0]?.level ?? 0;
+          const levelData = getEnemLevelData(competency.key, levelValue) || competency.levels[0];
+          points[index] = levelData?.points ?? 0;
+          rubricStore[competency.key] = { level: levelData.level, reasonIds: [] };
+        });
         essay.enemCompetencies = {
           c1: points[0] ?? 0,
           c2: points[1] ?? 0,
@@ -1267,7 +1276,7 @@ async function saveEssayScoreController(req, res) {
           c4: points[3] ?? 0,
           c5: points[4] ?? 0,
         };
-        essay.enemRubric = undefined;
+        essay.enemRubric = rubricStore;
         const total = annulled ? 0 : points.reduce((acc, value) => acc + value, 0);
         essay.rawScore = total;
       }
