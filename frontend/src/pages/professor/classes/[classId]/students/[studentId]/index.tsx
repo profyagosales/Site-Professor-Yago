@@ -2,6 +2,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 're
 import { Outlet, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Tabs } from '@/components/ui/Tabs';
+import { getActivityEntries, getGradeScheme, upsertActivityEntriesBulk } from '@/services/grades.service';
 import {
   ClassDetails,
   ClassStudent,
@@ -146,6 +147,13 @@ function formatScore(score: number): string {
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
 }
 
+function formatPointsValue(points: number): string {
+  return Number(points ?? 0).toLocaleString('pt-BR', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+}
+
 function getFirstAvailableTerm(
   matrix: Record<number, Partial<Record<Term, StudentGrade>>>,
   year: number
@@ -165,7 +173,7 @@ export default function StudentProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [student, setStudent] = useState<ClassStudent | null>(null);
-  const [classDetail, setClassDetail] = useState<Pick<ClassDetails, 'id' | 'name' | 'subject'> | null>(null);
+  const [classDetail, setClassDetail] = useState<Pick<ClassDetails, 'id' | 'name' | 'subject' | 'year'> | null>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -190,11 +198,11 @@ export default function StudentProfilePage() {
         if (!found) {
           setError('Aluno não encontrado nesta turma.');
           setStudent(null);
-          setClassDetail({ id: detail.id, name: detail.name, subject: detail.subject });
+          setClassDetail({ id: detail.id, name: detail.name, subject: detail.subject, year: detail.year });
           return;
         }
         setStudent(found);
-        setClassDetail({ id: detail.id, name: detail.name, subject: detail.subject });
+        setClassDetail({ id: detail.id, name: detail.name, subject: detail.subject, year: detail.year });
       } catch (err) {
         if (ignore) return;
         const message = err instanceof Error ? err.message : 'Erro ao carregar dados do aluno.';
@@ -311,7 +319,6 @@ export function StudentGradesTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [selectedYear, setSelectedYear] = useState<number>(() => new Date().getFullYear());
   const [refreshToken, setRefreshToken] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
@@ -319,34 +326,11 @@ export function StudentGradesTab() {
   const [saving, setSaving] = useState(false);
   const legacyGradesDisabled = true;
   const [termForActivities, setTermForActivities] = useState<Term>(1);
-  const [activityEntries, setActivityEntries] = useState<Array<{ activityId: string; activityLabel: string; maxPoints: number; score: number }>>([]);
+  const [activityEntries, setActivityEntries] = useState<
+    Array<{ activityId: string; activityLabel: string; maxPoints: number; score: number | '' }>
+  >([]);
   const [actLoading, setActLoading] = useState(false);
   const [actError, setActError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      if (!classId) return;
-      setActLoading(true);
-      setActError(null);
-      try {
-        const data = await (await import('@/services/grades')).getStudentTermGrades({ studentId: student.id, classId, term: termForActivities });
-        if (cancelled) return;
-        const entries = Array.isArray(data?.entries) ? data.entries : [];
-        setActivityEntries(entries);
-      } catch (err) {
-        if (cancelled) return;
-        const msg = err instanceof Error ? err.message : 'Não foi possível carregar atividades.';
-        setActError(msg);
-      } finally {
-        if (!cancelled) setActLoading(false);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [classId, student.id, termForActivities]);
 
   useEffect(() => {
     let cancelled = false;
@@ -359,13 +343,6 @@ export function StudentGradesTab() {
         if (cancelled) return;
         const sorted = sortGrades(data);
         setGrades(sorted);
-        setSelectedYear((prev) => {
-          if (sorted.some((grade) => grade.year === prev)) return prev;
-          if (sorted.length === 0) return new Date().getFullYear();
-          const currentYear = new Date().getFullYear();
-          if (sorted.some((grade) => grade.year === currentYear)) return currentYear;
-          return Math.max(...sorted.map((grade) => grade.year));
-        });
       } catch (err) {
         if (cancelled) return;
         const message = err instanceof Error ? err.message : 'Erro ao carregar notas.';
@@ -397,12 +374,21 @@ export function StudentGradesTab() {
   const years = useMemo(() => {
     const set = new Set<number>();
     grades.forEach((grade) => set.add(grade.year));
-    set.add(selectedYear);
+    if (classDetail?.year) {
+      set.add(classDetail.year);
+    }
     if (set.size === 0) {
       set.add(new Date().getFullYear());
     }
     return Array.from(set).sort((a, b) => b - a);
-  }, [grades, selectedYear]);
+  }, [grades, classDetail?.year]);
+
+  const activeYear = useMemo(() => {
+    if (grades.length === 0) {
+      return classDetail?.year ?? new Date().getFullYear();
+    }
+    return Math.max(...grades.map((grade) => grade.year));
+  }, [grades, classDetail?.year]);
 
   const totalsByYear = useMemo(() => {
     const totals: Record<number, number> = {};
@@ -416,9 +402,74 @@ export function StudentGradesTab() {
     return totals;
   }, [gradeMatrix]);
 
-  const selectedYearTotal = totalsByYear[selectedYear] ?? 0;
-  const missingToTwenty = Math.max(0, roundToOneDecimal(20 - selectedYearTotal));
+  const activeYearTotal = totalsByYear[activeYear] ?? 0;
+  const missingToTwenty = Math.max(0, roundToOneDecimal(20 - activeYearTotal));
   const goalReached = missingToTwenty <= 0;
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadActivities() {
+      if (!classId) return;
+      setActLoading(true);
+      setActError(null);
+      try {
+        const queryYear = activeYear ?? new Date().getFullYear();
+        const [activities, entriesPayload] = await Promise.all([
+          getGradeScheme({ classId, term: termForActivities, year: queryYear }),
+          getActivityEntries({ classId, term: termForActivities, year: queryYear }).catch((err) => {
+            console.warn('[StudentGradesTab] Falha ao carregar lançamentos de atividades', err);
+            return null;
+          }),
+        ]);
+        if (cancelled) return;
+        const rows = Array.isArray((entriesPayload as any)?.rows) ? (entriesPayload as any).rows : [];
+        const targetRow =
+          rows.find((row: any) => {
+            const rowId = row?.studentId ?? row?.student?._id ?? row?.student?.id;
+            return rowId === student.id;
+          }) ?? null;
+        const mapped =
+          activities.length > 0
+            ? activities.map((activity) => {
+                const foundEntry =
+                  targetRow?.entries?.find((entry: any) => entry.activityId === activity.id) ?? null;
+                const numericScore =
+                  foundEntry && Number.isFinite(Number(foundEntry.score))
+                    ? Number.parseFloat(foundEntry.score)
+                    : NaN;
+                return {
+                  activityId: activity.id,
+                  activityLabel: activity.label,
+                  maxPoints: activity.maxPoints,
+                  score: Number.isFinite(numericScore) ? roundToOneDecimal(numericScore) : ('' as const),
+                };
+              })
+            : [];
+        setActivityEntries(mapped);
+      } catch (err) {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : 'Não foi possível carregar atividades.';
+        setActError(msg);
+        setActivityEntries([]);
+      } finally {
+        if (!cancelled) {
+          setActLoading(false);
+        }
+      }
+    }
+    loadActivities();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeYear, classId, student.id, termForActivities]);
+
+  const activityTotal = useMemo(() => {
+    const sum = activityEntries.reduce(
+      (acc, entry) => acc + (typeof entry.score === 'number' ? entry.score : 0),
+      0,
+    );
+    return Math.min(10, roundToOneDecimal(sum));
+  }, [activityEntries]);
 
   const handleRetry = () => {
     setFeedback(null);
@@ -436,12 +487,6 @@ export function StudentGradesTab() {
     setModalOpen(false);
     setModalSeed(null);
     setModalMode('create');
-  };
-
-  const handleAddGradeClick = () => {
-    const year = selectedYear;
-    const term = getFirstAvailableTerm(gradeMatrix, year);
-    openModal('create', { year, term });
   };
 
   const handleCreateForCell = (year: number, term: Term) => {
@@ -466,7 +511,6 @@ export function StudentGradesTab() {
         const filtered = prev.filter((grade) => !(grade.year === saved.year && grade.term === saved.term));
         return sortGrades([...filtered, saved]);
       });
-      setSelectedYear(saved.year);
       setFeedback('Nota salva com sucesso.');
       closeModal();
     } catch (err) {
@@ -489,82 +533,108 @@ export function StudentGradesTab() {
 
   return (
     <div className="space-y-5 text-sm text-ys-ink">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-ys-ink">Notas bimestrais de {student.name}</h2>
           <p className="text-xs text-ys-graphite">Cada bimestre vale até 10 pontos.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-xs text-ys-graphite">
-            Ano
-            <select
-              className="rounded-lg border border-ys-line px-3 py-1 text-sm text-ys-ink focus:border-ys-amber focus:outline-none"
-              value={String(selectedYear)}
-              onChange={(event: ChangeEvent<HTMLSelectElement>) => setSelectedYear(Number(event.target.value))}
-              disabled={loading}
-            >
-              {years.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
-          </label>
-          {!legacyGradesDisabled && (
-            <Button onClick={handleAddGradeClick} disabled={loading}>
-              Adicionar nota
-            </Button>
-          )}
+        <div className="inline-flex items-center gap-2 rounded-full border border-ys-line bg-white/80 px-4 py-2 text-xs font-semibold text-ys-ink">
+          <span>Ano letivo</span>
+          <span className="rounded-full bg-ys-bg px-2 py-0.5 text-ys-ink">{activeYear}</span>
         </div>
       </div>
 
-      <section className="rounded-2xl border border-ys-line bg-white p-4 shadow-ys-sm">
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-ys-ink">Notas por atividade</h3>
-          <label className="flex items-center gap-2 text-xs text-ys-graphite">
-            Bimestre
-            <select
-              className="rounded-lg border border-ys-line px-3 py-1 text-sm text-ys-ink focus:border-ys-amber focus:outline-none"
-              value={termForActivities}
-              onChange={(e) => setTermForActivities(Number(e.target.value) as Term)}
-            >
-              {TERM_VALUES.map((term) => (
-                <option key={term} value={term}>
+      <section className="rounded-3xl border border-ys-line bg-white p-5 shadow-ys-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-base font-semibold text-ys-ink">Notas por atividade</h3>
+            <p className="text-xs text-ys-graphite">Lançamentos individuais das atividades do bimestre.</p>
+          </div>
+          <div className="inline-flex rounded-full border border-ys-line bg-ys-bg/70 p-1 text-xs font-semibold text-ys-ink">
+            {TERM_VALUES.map((term) => {
+              const active = termForActivities === term;
+              return (
+                <button
+                  key={term}
+                  type="button"
+                  className={`rounded-full px-3 py-1.5 transition ${
+                    active ? 'bg-white text-ys-ink shadow-ys-sm' : 'text-ys-graphite hover:text-ys-ink'
+                  }`}
+                  onClick={() => setTermForActivities(term)}
+                >
                   {TERM_LABELS[term]}
-                </option>
-              ))}
-            </select>
-          </label>
+                </button>
+              );
+            })}
+          </div>
         </div>
-        {actError && <p className="mt-2 text-sm text-rose-600">{actError}</p>}
+        {actError && <p className="mt-3 text-sm text-rose-600">{actError}</p>}
         {actLoading ? (
-          <p className="mt-3 text-sm text-ys-graphite">Carregando…</p>
+          <p className="mt-4 text-sm text-ys-graphite">Carregando atividades…</p>
         ) : activityEntries.length === 0 ? (
-          <p className="mt-3 text-sm text-ys-graphite">Sem atividades configuradas para o bimestre.</p>
+          <p className="mt-4 text-sm text-ys-graphite">Sem atividades configuradas para o bimestre.</p>
         ) : (
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
             {activityEntries.map((entry) => (
-              <label key={entry.activityId} className="flex flex-col gap-1 text-sm">
-                <span className="font-medium text-ys-ink">{entry.activityLabel} <span className="text-ys-graphite">(0..{entry.maxPoints})</span></span>
-                <input
-                  type="number"
-                  min={0}
-                  max={entry.maxPoints}
-                  step={0.1}
-                  className="rounded-xl border border-ys-line px-3 py-2 focus:border-ys-amber focus:outline-none"
-                  value={entry.score}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    const clamped = Math.max(0, Math.min(entry.maxPoints, Number.isFinite(v) ? Number(v.toFixed(1)) : 0));
-                    setActivityEntries((prev) => prev.map((it) => (it.activityId === entry.activityId ? { ...it, score: clamped } : it)));
-                  }}
-                />
-                <div className="flex justify-end">
+              <div
+                key={entry.activityId}
+                className="rounded-2xl border border-ys-line/80 bg-white/90 p-4 shadow-[0_1px_4px_rgba(15,23,42,0.05)] transition hover:-translate-y-0.5 hover:shadow-ys-md"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-ys-ink">{entry.activityLabel}</p>
+                    <p className="text-xs text-ys-graphite">
+                      Vale até {formatPointsValue(entry.maxPoints)} pontos.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-ys-bg px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-ys-ink">
+                    {TERM_LABELS[termForActivities]}
+                  </span>
+                </div>
+                <div className="mt-3 flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    max={entry.maxPoints}
+                    step={0.1}
+                    className="h-10 w-full rounded-xl border border-ys-line px-3 py-2 text-sm text-ys-ink focus:border-ys-amber focus:outline-none focus:ring-1 focus:ring-ys-amber"
+                    value={entry.score === '' ? '' : entry.score}
+                    onChange={(event) => {
+                      const raw = event.target.value;
+                      setActivityEntries((prev) =>
+                        prev.map((it) => {
+                          if (it.activityId !== entry.activityId) return it;
+                          if (raw === '') {
+                            return { ...it, score: '' };
+                          }
+                          const parsed = Number.parseFloat(raw.replace(',', '.'));
+                          if (!Number.isFinite(parsed)) {
+                            return { ...it, score: '' };
+                          }
+                          const clamped = Math.max(0, Math.min(entry.maxPoints, roundToOneDecimal(parsed)));
+                          return { ...it, score: clamped };
+                        })
+                      );
+                    }}
+                  />
+                  <span className="text-xs font-medium text-ys-graphite">
+                    / {formatPointsValue(entry.maxPoints)}
+                  </span>
+                </div>
+                <div className="mt-3 flex justify-end">
                   <Button
+                    disabled={typeof entry.score !== 'number'}
                     onClick={async () => {
+                      if (typeof entry.score !== 'number') return;
+                      setActError(null);
                       try {
-                        const svc = await import('@/services/grades');
-                        await svc.upsertActivityEntriesBulk({ classId, term: termForActivities, activityId: entry.activityId, items: [{ studentId: student.id, score: entry.score }] });
+                        await upsertActivityEntriesBulk({
+                          classId,
+                          term: termForActivities,
+                          activityId: entry.activityId,
+                          items: [{ studentId: student.id, score: entry.score }],
+                        });
+                        setFeedback('Nota da atividade atualizada.');
                       } catch (err) {
                         const msg = err instanceof Error ? err.message : 'Falha ao salvar nota.';
                         setActError(msg);
@@ -574,11 +644,14 @@ export function StudentGradesTab() {
                     Salvar
                   </Button>
                 </div>
-              </label>
+              </div>
             ))}
           </div>
         )}
-        <p className="mt-3 text-xs text-ys-graphite">Total do bimestre (cap 10): {Math.min(10, activityEntries.reduce((acc, e) => acc + (Number.isFinite(e.score) ? Number(e.score) : 0), 0)).toFixed(1)}</p>
+        <p className="mt-4 text-xs text-ys-graphite">
+          Total do bimestre (cap 10):{' '}
+          <span className="font-semibold text-ys-ink">{activityTotal.toFixed(1)}</span>
+        </p>
       </section>
 
       {feedback && (
@@ -588,121 +661,143 @@ export function StudentGradesTab() {
       )}
 
       {loading ? (
-        <div className="rounded-2xl border border-ys-line bg-white px-4 py-6 text-sm text-ys-graphite">
+        <div className="rounded-3xl border border-ys-line bg-white px-6 py-8 text-sm text-ys-graphite shadow-ys-sm">
           Carregando notas…
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full border-separate border-spacing-0 text-sm">
-            <thead>
-              <tr>
-                <th className="w-36 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ys-graphite">
-                  Ano
-                </th>
-                {TERM_VALUES.map((term) => (
-                  <th
-                    key={term}
-                    className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-ys-graphite"
-                  >
-                    {TERM_LABELS[term]}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {years.map((year) => {
-                const entries = gradeMatrix[year] || {};
-                const rowHighlight = year === selectedYear ? 'bg-ys-bg/30' : '';
-                return (
-                  <tr key={year} className={rowHighlight}>
-                    <td className="px-3 py-3 align-top">
-                      <button
-                        type="button"
-                        className={`rounded-lg px-2 py-1 text-sm font-semibold transition ${
-                          year === selectedYear ? 'bg-ys-ink text-white' : 'text-ys-ink hover:bg-ys-bg'
-                        }`}
-                        onClick={() => setSelectedYear(year)}
-                      >
-                        {year}
-                      </button>
-                    </td>
-                    {TERM_VALUES.map((term) => {
-                      const grade = entries[term];
-                      const hasGrade = Boolean(grade);
-                      const buttonBase =
-                        'w-full rounded-xl border px-4 py-3 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-ys-amber/40';
-                      const buttonClasses = hasGrade
-                        ? grade!.score >= 5
-                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300'
-                          : 'border-rose-200 bg-rose-50 text-rose-600 hover:border-rose-300'
-                        : 'border border-dashed border-ys-line bg-white text-ys-graphite hover:border-ys-amber hover:text-ys-ink';
-
-                      return (
-                        <td key={term} className="px-3 py-3 align-top">
-                      {hasGrade && !legacyGradesDisabled ? (
-                        <button
-                          type="button"
-                          className={`${buttonBase} ${buttonClasses}`}
-                          onClick={() => handleEditGrade(grade!)}
+        <section className="rounded-3xl border border-ys-line bg-white shadow-ys-sm">
+          <header className="flex items-center justify-between gap-3 border-b border-ys-line/70 px-5 py-4">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-ys-graphite">Histórico de notas</h3>
+            <span className="text-xs text-ys-graphite">
+              {years.length > 1 ? `${years.length} anos disponíveis` : 'Ano atual'}
+            </span>
+          </header>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm text-ys-ink">
+              <thead className="bg-ys-bg/80 text-xs font-semibold uppercase tracking-wide text-ys-graphite">
+                <tr>
+                  <th className="w-36 px-5 py-3 text-left">Ano</th>
+                  {TERM_VALUES.map((term) => (
+                    <th key={term} className="px-5 py-3 text-center">
+                      {TERM_LABELS[term]}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {years.map((year) => {
+                  const entries = gradeMatrix[year] || {};
+                  const rowTint = year === activeYear ? 'bg-ys-bg/40' : '';
+                  return (
+                    <tr key={year} className={rowTint}>
+                      <td className="px-5 py-4 align-middle">
+                        <div
+                          className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
+                            year === activeYear ? 'bg-ys-ink text-white' : 'bg-ys-bg text-ys-ink'
+                          }`}
                         >
-                              <div className="flex items-baseline justify-between gap-2">
-                                <span className="text-lg font-semibold">{formatScore(grade!.score)}</span>
-                                <span className="text-xs font-medium uppercase tracking-wide text-ys-graphite">
-                                  {STATUS_LABELS[grade!.status]}
-                                </span>
-                              </div>
-                              <span className="mt-2 block text-xs text-ys-graphite">Editar nota</span>
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              className={`${buttonBase} ${buttonClasses}`}
-                              onClick={() => handleCreateForCell(year, term)}
-                            >
-                          {!legacyGradesDisabled && <span className="font-medium">Adicionar nota</span>}
-                          <span className="mt-1 block text-xs text-ys-graphite">{TERM_LABELS[term]}</span>
-                        </button>
-                      )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                          <span>{year}</span>
+                          {year === activeYear ? (
+                            <span className="text-[10px] uppercase tracking-wider text-white/80">Atual</span>
+                          ) : null}
+                        </div>
+                      </td>
+                      {TERM_VALUES.map((term) => {
+                        const grade = entries[term];
+                        const hasGrade = Boolean(grade);
+                        const tone =
+                          hasGrade && grade!
+                            ? grade!.score >= 5
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                              : 'border-rose-200 bg-rose-50 text-rose-600'
+                            : 'border-dashed border-ys-line bg-white/70 text-ys-graphite';
+                        return (
+                          <td key={term} className="px-5 py-4 align-top">
+                            <div className={`rounded-2xl border px-4 py-3 shadow-sm ${tone}`}>
+                              {hasGrade ? (
+                                <>
+                                  <div className="flex items-baseline justify-between gap-3">
+                                    <span className="text-lg font-semibold leading-tight">
+                                      {formatScore(grade!.score)}
+                                    </span>
+                                    <span className="text-[11px] font-medium uppercase tracking-wide text-ys-graphite">
+                                      {STATUS_LABELS[grade!.status]}
+                                    </span>
+                                  </div>
+                                  <span className="mt-2 block text-xs font-medium uppercase tracking-wide text-ys-graphite">
+                                    {TERM_LABELS[term]}
+                                  </span>
+                                  {!legacyGradesDisabled ? (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="mt-3 h-8 rounded-xl px-2 text-xs font-semibold"
+                                      onClick={() => handleEditGrade(grade!)}
+                                    >
+                                      Editar nota
+                                    </Button>
+                                  ) : null}
+                                </>
+                              ) : (
+                                <div className="flex h-full flex-col justify-between text-xs text-ys-graphite">
+                                  <div>
+                                    <span className="font-semibold">Sem lançamento</span>
+                                    <span className="mt-1 block text-[11px] uppercase tracking-wide">
+                                      {TERM_LABELS[term]}
+                                    </span>
+                                  </div>
+                                  {!legacyGradesDisabled ? (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="mt-3 h-8 w-fit rounded-xl px-3 text-xs font-semibold"
+                                      onClick={() => handleCreateForCell(year, term)}
+                                    >
+                                      Adicionar nota
+                                    </Button>
+                                  ) : null}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
       )}
 
       {!loading && grades.length === 0 && (
-        <p className="text-xs text-ys-graphite">
-          Nenhuma nota cadastrada ainda. Use “Adicionar nota” para registrar o primeiro bimestre.
-        </p>
+        <p className="text-xs text-ys-graphite">Nenhuma nota cadastrada para este aluno até o momento.</p>
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border-ys-line bg-white px-4 py-4">
+        <div className="rounded-3xl border border-ys-line bg-white px-5 py-5 shadow-ys-sm">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-ys-graphite">
-            Total anual ({selectedYear})
+            Total anual ({activeYear})
           </h3>
           <p className="mt-2 text-3xl font-semibold text-ys-ink">
-            {selectedYearTotal.toFixed(1)} <span className="text-base font-medium text-ys-graphite">/ 40</span>
+            {activeYearTotal.toFixed(1)} <span className="text-base font-medium text-ys-graphite">/ 40</span>
           </p>
         </div>
         <div
-          className={`rounded-2xl px-4 py-4 ${
+          className={`rounded-3xl px-5 py-5 shadow-ys-sm ${
             goalReached
               ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
               : 'border border-ys-line bg-white text-ys-ink'
           }`}
         >
-          <h3 className="text-xs font-semibold uppercase tracking-wide">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-ys-graphite">
             Quanto falta para 20
           </h3>
-          <p className="mt-2 text-base">
+          <p className="mt-2 text-base leading-relaxed">
             {goalReached
               ? 'Meta de 20 pontos atingida!'
-              : `Faltam ${missingToTwenty.toFixed(1)} pontos para atingir 20.`}
+              : `Ainda faltam ${missingToTwenty.toFixed(1)} pontos para alcançar 20.`}
           </p>
         </div>
       </div>

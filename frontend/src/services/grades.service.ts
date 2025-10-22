@@ -1,4 +1,5 @@
 import { api } from '@/services/api';
+import { fetchGradeScheme } from '@/services/gradeScheme';
 
 export type Term = 1 | 2 | 3 | 4;
 
@@ -7,9 +8,32 @@ export type GradeSchemeActivity = { id: string; label: string; maxPoints: number
 export async function getGradeScheme(params: { classId: string; term: Term; year?: number }) {
   const { classId, term } = params;
   const year = params.year ?? new Date().getFullYear();
-  const res = await api.get('/grade-activities', { params: { classId, year, bimester: term } });
-  const list: any[] = Array.isArray(res?.data?.data) ? res.data.data : [];
-  return list.map((a) => ({ id: String(a.id ?? a._id), label: a.label, maxPoints: Number(a.value ?? a.points ?? 0) })) as GradeSchemeActivity[];
+
+  try {
+    const res = await api.get('/grade-activities', { params: { classId, year, bimester: term } });
+    const list: any[] = Array.isArray(res?.data?.data) ? res.data.data : [];
+    if (list.length) {
+      return list.map((a) => ({
+        id: String(a.id ?? a._id),
+        label: a.label ?? a.name ?? 'Atividade',
+        maxPoints: Number(a.value ?? a.points ?? a.maxPoints ?? 0),
+      })) as GradeSchemeActivity[];
+    }
+  } catch (error) {
+    // Continua para fallback
+  }
+
+  try {
+    const scheme = await fetchGradeScheme({ classId, year });
+    const items = scheme.byBimester?.[term]?.items ?? [];
+    return items.map((item) => ({
+      id: String(item.id ?? item.name ?? item.label ?? `${term}-${item.order}`),
+      label: item.label ?? item.name ?? 'Atividade',
+      maxPoints: Number(item.points ?? item.maxPoints ?? 0),
+    }));
+  } catch (error) {
+    return [];
+  }
 }
 
 export type ActivityEntriesRow = {
@@ -35,4 +59,3 @@ export async function getStudentTermGrades(params: { studentId: string; classId:
 }
 
 export default { getGradeScheme, getActivityEntries, upsertActivityEntriesBulk, getStudentTermGrades };
-

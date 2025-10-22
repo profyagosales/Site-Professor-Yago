@@ -279,24 +279,22 @@ async function generateCorrectedEssayPdf({
   const inferredMime = detectImageMimeFromBytes(originalBytes);
   let treatAsImage = isImageMimeType(declaredMime) || (!declaredMime && inferredMime);
 
-  let originalPdf = null;
   let embeddedImage = null;
-  let pagesCount = 0;
   let embeddedPages = [];
 
+  let pagesCount = 0;
   if (!treatAsImage) {
     try {
-      originalPdf = await PDFDocument.load(originalBytes);
-      pagesCount = originalPdf.getPageCount();
-      if (pagesCount > 0) {
-        embeddedPages = await pdfDoc.copyPages(
-          originalPdf,
-          Array.from({ length: pagesCount }, (_value, idx) => idx),
-        );
-      }
+      const originalPdfDoc = await PDFDocument.load(originalBytes);
+      pagesCount = originalPdfDoc.getPageCount();
+      embeddedPages = await pdfDoc.embedPdf(
+        originalBytes,
+        Array.from({ length: pagesCount }, (_value, idx) => idx),
+      );
     } catch (err) {
-      console.warn('[pdf] Failed to load original as PDF, falling back to image mode', err?.message || err);
+      console.warn('[pdf] Failed to load/embed original as PDF, falling back to image mode', err?.message || err);
       treatAsImage = true;
+      pagesCount = 0;
     }
   }
 
@@ -311,8 +309,8 @@ async function generateCorrectedEssayPdf({
     pagesCount = 1;
   }
 
-  if (!pagesCount) {
-    throw new Error('Não foi possível determinar o conteúdo da redação para gerar o PDF.');
+  if (!pagesCount || (!treatAsImage && embeddedPages.length !== pagesCount)) {
+    throw new Error('Não foi possível processar o arquivo original para gerar o PDF corrigido.');
   }
 
   const commentColumnWidth = 220;
@@ -344,12 +342,12 @@ async function generateCorrectedEssayPdf({
       origWidth = embeddedImage.width;
       origHeight = embeddedImage.height;
     } else {
-      const origPage = embeddedPages[index];
-      if (!origPage) {
-        throw new Error(`Falha ao copiar página ${index + 1} do PDF original.`);
+      const embeddedPage = embeddedPages[index];
+      if (!embeddedPage) {
+        throw new Error(`Falha ao embutir a página ${index + 1} do PDF original.`);
       }
-      origWidth = origPage.getWidth();
-      origHeight = origPage.getHeight();
+      origWidth = embeddedPage.width;
+      origHeight = embeddedPage.height;
     }
 
     const pageWidth = origWidth + commentColumnWidth;
@@ -360,8 +358,8 @@ async function generateCorrectedEssayPdf({
     if (treatAsImage) {
       currentPage.drawImage(embeddedImage, { x: 0, y: 0, width: origWidth, height: origHeight });
     } else {
-      const origPage = embeddedPages[index];
-      currentPage.drawPage(origPage, { x: 0, y: 0, width: origWidth, height: origHeight });
+      const embeddedPage = embeddedPages[index];
+      currentPage.drawPage(embeddedPage, { x: 0, y: 0, width: origWidth, height: origHeight });
     }
 
     if (index === 0) {
