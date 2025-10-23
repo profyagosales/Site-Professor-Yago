@@ -14,7 +14,14 @@ export interface Annotation {
 }
 
 export interface EssayPdfData {
-  student: { name: string; avatarUrl?: string };
+  student: {
+    name: string;
+    avatarUrl?: string;
+    avatarDataUri?: string;
+    classLabel?: string;
+    bimester?: number | string | null;
+    bimesterLabel?: string | null;
+  };
   professor?: { name: string; initials: string };
   klass: { label: string };
   termLabel: string;
@@ -22,6 +29,10 @@ export interface EssayPdfData {
   theme?: string;
   model: EssayModel;
   finalScore: string;
+  score?: {
+    finalFormatted: string;
+    final?: number | null;
+  };
   pagesPng: string[];
   annotations: Annotation[];
   enem?: {

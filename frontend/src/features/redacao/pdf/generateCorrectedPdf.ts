@@ -3,44 +3,43 @@ import {
   StandardFonts,
   rgb,
 } from 'pdf-lib';
-import type { PDFFont, PDFPage } from 'pdf-lib';
+import type { PDFFont, PDFPage, RGB } from 'pdf-lib';
 import {
   A4,
   BG,
   CATEGORY,
   GRAY,
   MARGIN,
-  ORANGE,
   TEXT,
   TEXT_SUBTLE,
-  HEADER_HEIGHT,
   CONTENT_GAP,
   PREVIEW_PADDING,
   TITLE_SIZE,
   BODY_SIZE,
+  HERO,
+  BRAND,
+  AVATAR,
+  SCORE,
+  BRAND_COLORS,
+  PDF_FONT,
   columns,
+  columns8020,
 } from './theme';
 import { renderEnemMirrorPage } from './mirrors/enem';
 import { renderPasMirrorPage } from './mirrors/pas';
 import type { AnnotationKind, EssayPdfData } from './types';
 
-const HEADER_GAP = CONTENT_GAP;
-const BODY_TOP_SPACING = 16;
-const PROFESSOR_WIDTH = 160;
-const SCORE_WIDTH = 160;
-const BADGE_PADDING = 10;
-const CARD_PADDING = 12;
-const AVATAR_SIZE = 64;
 const PREVIEW_GAP = 8;
 const COMMENT_TITLE_SIZE = TITLE_SIZE;
-const COMMENT_LABEL_SIZE = TITLE_SIZE;
-const COMMENT_TEXT_SIZE = BODY_SIZE;
-const COMMENT_LINE_GAP = 4;
-const COMMENT_CARD_GAP = 8;
-const COMMENT_CARD_PADDING = 12;
-const COMMENT_BAND_HEIGHT = 22;
-const COMMENT_BAND_TEXT_GAP = 6;
-const COMMENT_TITLE_TEXT_GAP = 6;
+const COMMENT_NUMBER_SIZE = 9;
+const COMMENT_CATEGORY_SIZE = PDF_FONT.XS;
+const COMMENT_TEXT_SIZE = PDF_FONT.SM;
+const COMMENT_LINE_GAP = 3;
+const COMMENT_CARD_GAP = 6;
+const COMMENT_CARD_PADDING = 10;
+const COMMENT_BAND_HEIGHT = 14;
+const COMMENT_BAND_TEXT_GAP = 4;
+const COMMENT_TITLE_TEXT_GAP = 4;
 const HIGHLIGHT_FILL_OPACITY = 0.28;
 const HIGHLIGHT_BORDER_OPACITY = 0.8;
 const HIGHLIGHT_LABEL_SIZE = 20;
@@ -48,10 +47,290 @@ const HIGHLIGHT_LABEL_FONT_SIZE = 10;
 
 type PageAnnotation = EssayPdfData['annotations'][number];
 
+let brandMarkCache: ArrayBuffer | null | undefined;
+
+async function getBrandMarkBytes() {
+  if (brandMarkCache !== undefined) return brandMarkCache;
+  brandMarkCache = await loadPublicPng('/pdf/brand-mark.png');
+  return brandMarkCache;
+}
+
+type HeroHeaderArgs = {
+  pdfDoc: PDFDocument;
+  page: PDFPage;
+  fonts: FontPack;
+  contentBox: { x: number; w: number };
+  data: EssayPdfData;
+};
+
+type CommentsRenderer = (
+  page: PDFPage,
+  top: number,
+  bottom: number,
+  x: number,
+  width: number,
+  startIndex: number,
+) => number;
+
+async function renderHeroHeader({
+  pdfDoc,
+  page,
+  fonts,
+  contentBox,
+  data,
+}: HeroHeaderArgs): Promise<number> {
+  const card = {
+    x: contentBox.x,
+    y: page.getHeight() - MARGIN - HERO.HEIGHT,
+    w: contentBox.w,
+    h: HERO.HEIGHT,
+  };
+
+  drawRoundedRect(page, {
+    x: card.x,
+    y: card.y,
+    width: card.w,
+    height: card.h,
+    radius: HERO.RADIUS,
+    color: BRAND_COLORS.ORANGE,
+  });
+
+  const brandX = card.x + HERO.PAD_X;
+  const brandY = card.y + (card.h - BRAND.ICON) / 2;
+  const brandBytes = await getBrandMarkBytes();
+  if (brandBytes) {
+    try {
+      const brandImage = await pdfDoc.embedPng(brandBytes);
+      drawRoundedRect(page, {
+        x: brandX,
+        y: brandY,
+        width: BRAND.ICON,
+        height: BRAND.ICON,
+        radius: BRAND.ICON / 2,
+        color: rgb(1, 1, 1),
+      });
+      page.drawImage(brandImage, {
+        x: brandX + 5,
+        y: brandY + 5,
+        width: BRAND.ICON - 10,
+        height: BRAND.ICON - 10,
+      });
+    } catch (err) {
+      console.warn('[renderHeroHeader] Failed to embed brand icon', err);
+    }
+  }
+
+  page.drawText('Professor Yago Sales', {
+    x: brandX,
+    y: card.y + 6,
+    size: PDF_FONT.SM,
+    font: fonts.bold,
+    color: rgb(1, 1, 1),
+  });
+
+  const midX = brandX + BRAND.ICON + HERO.GAP;
+  const scoreBlockX = card.x + card.w - SCORE.W - HERO.PAD_X;
+  const centralWidth = Math.max(0, scoreBlockX - HERO.GAP - midX);
+
+  if (centralWidth > 0) {
+    drawRoundedRect(page, {
+      x: midX,
+      y: card.y + 10,
+      width: centralWidth,
+      height: card.h - 20,
+      radius: 10,
+      borderColor: BRAND_COLORS.ORANGE_DARK,
+      borderWidth: 0,
+    });
+  }
+
+  const studentName = ellipsize(data.student?.name ?? 'Aluno', 32);
+  const classLabel = ellipsize(data.student?.classLabel ?? data.klass?.label ?? '', 40);
+  const bimesterLabel =
+    data.student?.bimesterLabel ??
+    (data.student?.bimester != null && data.student?.bimester !== ''
+      ? `${data.student.bimester}º bimestre`
+      : '');
+  const themeLabel = ellipsize(data.theme ?? 'Tema não informado', 40);
+
+  const nameY = card.y + card.h - HERO.PAD_Y - PDF_FONT.LG;
+  page.drawText(studentName, {
+    x: midX + 12,
+    y: nameY,
+    size: PDF_FONT.LG,
+    font: fonts.bold,
+    color: rgb(1, 1, 1),
+  });
+
+  page.drawText(classLabel, {
+    x: midX + 12,
+    y: nameY - (PDF_FONT.MD + 4),
+    size: PDF_FONT.SM,
+    font: fonts.regular,
+    color: rgb(1, 1, 1),
+  });
+
+  if (bimesterLabel) {
+    page.drawText(bimesterLabel, {
+      x: midX + 12,
+      y: nameY - (PDF_FONT.MD + 4) - (PDF_FONT.SM + 4),
+      size: PDF_FONT.SM,
+      font: fonts.regular,
+      color: rgb(1, 1, 1),
+    });
+  }
+
+  page.drawText(`Tema: ${themeLabel}`, {
+    x: midX + 12,
+    y: card.y + HERO.PAD_Y,
+    size: PDF_FONT.SM,
+    font: fonts.regular,
+    color: rgb(1, 1, 1),
+  });
+
+  const avatarDataUri = data.student?.avatarDataUri;
+  if (avatarDataUri && centralWidth > AVATAR.SIZE + 24) {
+    const avatarBytes = dataUriToBytes(avatarDataUri);
+    if (avatarBytes) {
+      try {
+        const avatarImage = await pdfDoc.embedPng(avatarBytes);
+        const avatarX = Math.min(midX + centralWidth - AVATAR.SIZE - 12, midX + 220);
+        const avatarY = card.y + (card.h - AVATAR.SIZE) / 2;
+        drawRoundedRect(page, {
+          x: avatarX,
+          y: avatarY,
+          width: AVATAR.SIZE,
+          height: AVATAR.SIZE,
+          radius: AVATAR.SIZE / 2,
+          color: rgb(1, 1, 1),
+        });
+        page.drawImage(avatarImage, {
+          x: avatarX + 2,
+          y: avatarY + 2,
+          width: AVATAR.SIZE - 4,
+          height: AVATAR.SIZE - 4,
+        });
+      } catch (err) {
+        console.warn('[renderHeroHeader] Failed to embed avatar image', err);
+      }
+    }
+  }
+
+  const scoreX = scoreBlockX;
+  const scoreY = card.y + (card.h - SCORE.H) / 2;
+  drawRoundedRect(page, {
+    x: scoreX,
+    y: scoreY,
+    width: SCORE.W,
+    height: SCORE.H,
+    radius: SCORE.R,
+    color: BRAND_COLORS.CHIP_BG,
+    borderColor: BRAND_COLORS.CHIP_BORDER,
+    borderWidth: 1,
+  });
+
+  const labelY = scoreY + SCORE.H - SCORE.PAD - PDF_FONT.SM;
+  page.drawText('Nota final', {
+    x: scoreX + SCORE.PAD,
+    y: labelY,
+    size: PDF_FONT.SM,
+    font: fonts.regular,
+    color: colorFromHex(TEXT_SUBTLE),
+  });
+
+  const scoreStr =
+    data.score?.finalFormatted?.trim() ||
+    data.finalScore?.trim() ||
+    '--';
+  const scoreSize = PDF_FONT.LG + 6;
+  page.drawText(scoreStr, {
+    x: scoreX + SCORE.PAD,
+    y: scoreY + SCORE.PAD + 6,
+    size: scoreSize,
+    font: fonts.bold,
+    color: colorFromHex(TEXT),
+  });
+
+  const modelLabel = (data.model || '').toString().toUpperCase() || '-';
+  const modelWidth = fonts.bold.widthOfTextAtSize(modelLabel, PDF_FONT.SM);
+  page.drawText(modelLabel, {
+    x: scoreX + SCORE.W - SCORE.PAD - modelWidth,
+    y: scoreY + SCORE.PAD + 6,
+    size: PDF_FONT.SM,
+    font: fonts.bold,
+    color: colorFromHex(TEXT_SUBTLE),
+  });
+
+  return card.y - CONTENT_GAP;
+}
+
 type FontPack = {
   regular: PDFFont;
   bold: PDFFont;
 };
+
+async function loadPublicPng(path: string) {
+  try {
+    const res = await fetch(path);
+    if (!res.ok) return null;
+    return await res.arrayBuffer();
+  } catch {
+    return null;
+  }
+}
+
+function drawRoundedRect(
+  page: PDFPage,
+  opts: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    radius: number;
+    color?: RGB;
+    borderColor?: RGB;
+    borderWidth?: number;
+  }
+) {
+  const { x, y, width, height, radius, color, borderColor, borderWidth = 0 } = opts;
+  const options: Record<string, unknown> = {
+    x,
+    y,
+    width,
+    height,
+    borderRadius: radius,
+  };
+  if (color) options.color = color;
+  if (borderColor) options.borderColor = borderColor;
+  if (borderWidth) options.borderWidth = borderWidth;
+  page.drawRectangle(options as any);
+}
+
+function ellipsize(text: string, max: number) {
+  if (!text) return '';
+  return text.length <= max ? text : `${text.slice(0, Math.max(0, max - 1))}…`;
+}
+
+function dataUriToBytes(uri: string) {
+  if (typeof uri !== 'string') return null;
+  const match = uri.match(/^data:(?:[^;]+);base64,(.+)$/);
+  if (!match) return null;
+  const base64 = match[1];
+  try {
+    if (typeof globalThis.atob === 'function') {
+      const binary = globalThis.atob(base64);
+      const len = binary.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i += 1) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return bytes;
+    }
+    return Uint8Array.from(Buffer.from(base64, 'base64'));
+  } catch {
+    return null;
+  }
+}
 
 type DrawContext = {
   page: PDFPage;
@@ -188,217 +467,6 @@ async function embedImageFromDataUri(pdfDoc: PDFDocument, source: string) {
   }
 }
 
-async function drawProfessorBadge({ page, data, fonts }: DrawContext, originX: number, originY: number) {
-  page.drawRectangle({
-    x: originX,
-    y: originY,
-    width: PROFESSOR_WIDTH,
-    height: HEADER_HEIGHT,
-    color: colorFromHex(ORANGE),
-  });
-
-  const badgeInnerX = originX + BADGE_PADDING;
-  const badgeInnerY = originY + BADGE_PADDING;
-  const badgeInnerWidth = PROFESSOR_WIDTH - BADGE_PADDING * 2;
-
-  const professorName = data.professor?.name?.trim() || 'Professor Yago Sales';
-  const professorInitials = (data.professor?.initials?.trim() || getInitials(professorName) || 'YS').toUpperCase();
-
-  const circleSize = 72;
-  const circleCenterX = badgeInnerX + circleSize / 2;
-  const circleCenterY = originY + HEADER_HEIGHT - BADGE_PADDING - circleSize / 2;
-
-  page.drawCircle({
-    x: circleCenterX,
-    y: circleCenterY,
-    size: circleSize / 2,
-    color: colorFromHex(BG),
-  });
-
-  const initialsFontSize = 24;
-  const initialsWidth = fonts.bold.widthOfTextAtSize(professorInitials, initialsFontSize);
-  const initialsHeight = fonts.bold.heightAtSize(initialsFontSize);
-
-  page.drawText(professorInitials, {
-    x: circleCenterX - initialsWidth / 2,
-    y: circleCenterY - initialsHeight / 2 + initialsFontSize * 0.1,
-    size: initialsFontSize,
-    font: fonts.bold,
-    color: colorFromHex(ORANGE),
-  });
-
-  const nameFontSize = 11;
-  const maxWidth = badgeInnerWidth;
-  const displayName = truncateText(fonts.bold, professorName, nameFontSize, maxWidth);
-
-  page.drawText(displayName, {
-    x: badgeInnerX,
-    y: badgeInnerY,
-    size: nameFontSize,
-    font: fonts.bold,
-    color: colorFromHex(BG),
-  });
-}
-
-async function drawStudentCard(
-  context: DrawContext,
-  originX: number,
-  originY: number,
-  width: number,
-) {
-  const { page, data, pdfDoc, fonts } = context;
-
-  page.drawRectangle({
-    x: originX,
-    y: originY,
-    width,
-    height: HEADER_HEIGHT,
-    color: colorFromHex(BG),
-    borderColor: mixWithWhite(ORANGE, 0.3),
-    borderWidth: 1,
-  });
-
-  const cardInnerX = originX + CARD_PADDING;
-  const cardInnerY = originY + CARD_PADDING;
-  const textAreaTop = originY + HEADER_HEIGHT - CARD_PADDING;
-
-  const avatarUrl = data.student.avatarUrl;
-  let avatarDrawn = false;
-  let textAreaWidth = width - CARD_PADDING * 2;
-
-  if (typeof avatarUrl === 'string' && avatarUrl.startsWith('data:image')) {
-    const parsed = extractDataUriImage(avatarUrl);
-    if (parsed) {
-      try {
-        const image = parsed.format === 'png' ? await pdfDoc.embedPng(parsed.bytes) : await pdfDoc.embedJpg(parsed.bytes);
-        const avatarX = originX + width - CARD_PADDING - AVATAR_SIZE;
-        const avatarY = originY + HEADER_HEIGHT - CARD_PADDING - AVATAR_SIZE;
-        page.drawImage(image, {
-          x: avatarX,
-          y: avatarY,
-          width: AVATAR_SIZE,
-          height: AVATAR_SIZE,
-        });
-        avatarDrawn = true;
-        textAreaWidth = Math.max(textAreaWidth - AVATAR_SIZE - 8, 0);
-      } catch (err) {
-        console.warn('[generateCorrectedPdf] Failed to embed avatar image', err);
-      }
-    }
-  }
-
-  const textMaxWidth = textAreaWidth;
-  const nameSize = 14;
-  const bodySize = BODY_SIZE;
-  const lineGap = 3;
-  let baseline = textAreaTop;
-
-  const studentName = truncateText(fonts.bold, data.student.name || 'Aluno', nameSize, textMaxWidth);
-
-  baseline -= nameSize;
-  page.drawText(studentName, {
-    x: cardInnerX,
-    y: baseline,
-    size: nameSize,
-    font: fonts.bold,
-    color: colorFromHex(TEXT),
-  });
-
-  baseline -= lineGap;
-
-  const classLineSource = data.klass?.label?.trim() || '';
-  if (classLineSource) {
-    const classLine = truncateText(fonts.regular, classLineSource, bodySize, textMaxWidth);
-    baseline -= bodySize;
-    page.drawText(classLine, {
-      x: cardInnerX,
-      y: baseline,
-      size: bodySize,
-      font: fonts.regular,
-      color: colorFromHex(TEXT_SUBTLE),
-    });
-    baseline -= lineGap;
-  }
-
-  const deliveredLabel =
-    typeof data.deliveredAt === 'string' && data.deliveredAt.trim()
-      ? `Entregue em ${data.deliveredAt.trim()}`
-      : null;
-  const termLineSource = data.termLabel?.trim() || deliveredLabel || '';
-  if (termLineSource) {
-    const termLine = truncateText(fonts.regular, termLineSource, bodySize, textMaxWidth);
-    baseline -= bodySize;
-    page.drawText(termLine, {
-      x: cardInnerX,
-      y: baseline,
-      size: bodySize,
-      font: fonts.regular,
-      color: colorFromHex(TEXT_SUBTLE),
-    });
-    baseline -= lineGap;
-  }
-
-  const themeSource = data.theme?.trim() || 'Tema não informado';
-  const themeLine = truncateText(fonts.regular, `Tema: ${themeSource}`, bodySize, textMaxWidth);
-  baseline -= bodySize;
-  page.drawText(themeLine, {
-    x: cardInnerX,
-    y: baseline,
-    size: bodySize,
-    font: fonts.regular,
-    color: colorFromHex(TEXT),
-  });
-
-  if (!avatarDrawn && typeof avatarUrl === 'string' && avatarUrl && !avatarUrl.startsWith('data:image')) {
-    console.warn('[generateCorrectedPdf] Avatar URL must be a data URI to embed in the PDF.');
-  }
-}
-
-function drawScoreBox({ page, data, fonts }: DrawContext, originX: number, originY: number) {
-  page.drawRectangle({
-    x: originX,
-    y: originY,
-    width: SCORE_WIDTH,
-    height: HEADER_HEIGHT,
-    color: colorFromHex(GRAY),
-  });
-
-  const padding = 12;
-  const smallLabelSize = BODY_SIZE;
-  const scoreSize = 36;
-  const subtitleSize = 12;
-  const contentTop = originY + HEADER_HEIGHT - padding;
-
-  let baseline = contentTop;
-  baseline -= smallLabelSize;
-  page.drawText('Nota final', {
-    x: originX + padding,
-    y: baseline,
-    size: smallLabelSize,
-    font: fonts.regular,
-    color: colorFromHex(TEXT_SUBTLE),
-  });
-
-  baseline -= 6;
-  baseline -= scoreSize;
-  const scoreText = data.finalScore && data.finalScore.trim() ? data.finalScore.trim() : '-';
-  page.drawText(scoreText, {
-    x: originX + padding,
-    y: baseline,
-    size: scoreSize,
-    font: fonts.bold,
-    color: colorFromHex(TEXT),
-  });
-
-  const modelLabel = (data.model || '').toString().toUpperCase() || '-';
-  page.drawText(modelLabel, {
-    x: originX + padding,
-    y: originY + padding,
-    size: subtitleSize,
-    font: fonts.regular,
-    color: colorFromHex(TEXT_SUBTLE),
-  });
-}
 
 function getAnnotationLabel(kind: AnnotationKind) {
   return COMMENT_TITLES[kind] ?? COMMENT_TITLES.general;
@@ -426,7 +494,7 @@ async function drawDocumentPreview(
     width: maxWidth,
     height: availableHeight,
     color: colorFromHex(BG),
-    borderColor: colorFromHex(GRAY),
+    borderColor: colorFromHex('#E2E8F0'),
     borderWidth: 1,
   });
 
@@ -605,7 +673,6 @@ function drawCommentsColumn(
   }
 
   const innerWidth = Math.max(8, width - COMMENT_CARD_PADDING * 2);
-  const bandNumberSize = 10;
   let index = startIndex;
   let drewAny = false;
 
@@ -613,7 +680,7 @@ function drawCommentsColumn(
     const annotation = annotations[index];
     const numberLabel = `#${index + 1}`;
     const kind = annotation.kind;
-    const title = getAnnotationLabel(kind);
+    const categoryLabel = getAnnotationLabel(kind).toUpperCase();
     const baseColor = CATEGORY[kind] ?? CATEGORY.general;
     const bandColor = mixWithWhite(baseColor, 0.3);
     const textLinesRaw = wrapText(fonts.regular, annotation.text || '', COMMENT_TEXT_SIZE, innerWidth);
@@ -624,7 +691,7 @@ function drawCommentsColumn(
     const cardHeight =
       COMMENT_BAND_HEIGHT +
       COMMENT_BAND_TEXT_GAP +
-      COMMENT_LABEL_SIZE +
+      COMMENT_CATEGORY_SIZE +
       COMMENT_TITLE_TEXT_GAP +
       textBlockHeight +
       COMMENT_CARD_PADDING;
@@ -657,11 +724,11 @@ function drawCommentsColumn(
     });
 
     const numberBaseline =
-      cardTop - COMMENT_BAND_HEIGHT + (COMMENT_BAND_HEIGHT - bandNumberSize) / 2;
+      cardTop - COMMENT_BAND_HEIGHT + (COMMENT_BAND_HEIGHT - COMMENT_NUMBER_SIZE) / 2;
     page.drawText(numberLabel, {
       x: originX + COMMENT_CARD_PADDING,
       y: numberBaseline,
-      size: bandNumberSize,
+      size: COMMENT_NUMBER_SIZE,
       font: fonts.bold,
       color: colorFromHex(TEXT),
     });
@@ -669,13 +736,13 @@ function drawCommentsColumn(
     const innerX = originX + COMMENT_CARD_PADDING;
     let textCursor = cardTop - COMMENT_BAND_HEIGHT - COMMENT_BAND_TEXT_GAP;
 
-    textCursor -= COMMENT_LABEL_SIZE;
-    page.drawText(title, {
+    textCursor -= COMMENT_CATEGORY_SIZE;
+    page.drawText(categoryLabel, {
       x: innerX,
       y: textCursor,
-      size: COMMENT_LABEL_SIZE,
+      size: COMMENT_CATEGORY_SIZE,
       font: fonts.bold,
-      color: colorFromHex(TEXT),
+      color: colorFromHex(TEXT_SUBTLE),
     });
 
     textCursor -= COMMENT_TITLE_TEXT_GAP;
@@ -712,19 +779,20 @@ function drawCommentsColumn(
 
 async function drawBody(
   context: DrawContext,
-  headerBottomY: number,
+  contentTop: number,
   annotations: PageAnnotation[],
+  startIndex: number,
 ): Promise<number> {
   const { page, fonts } = context;
   const { width: pageWidth } = page.getSize();
-  const top = headerBottomY - BODY_TOP_SPACING;
+  const top = contentTop;
   const bottom = MARGIN;
   if (top <= bottom) return 0;
 
   const contentWidth = pageWidth - MARGIN * 2;
-  const { left: leftWidth, right: rightWidth } = columns(contentWidth);
+  const { left: leftWidth, right: rightWidth, gap } = columns8020(contentWidth);
   const leftX = MARGIN;
-  const rightX = leftX + leftWidth + CONTENT_GAP;
+  const rightX = leftX + leftWidth + gap;
 
   let leftCursor = top;
   leftCursor -= TITLE_SIZE;
@@ -737,7 +805,9 @@ async function drawBody(
   });
 
   const previewTop = leftCursor - PREVIEW_GAP;
-  await drawDocumentPreview(context, leftX, previewTop, bottom, leftWidth, annotations);
+  const previewHeight = Math.min(leftWidth / Math.SQRT2, previewTop - bottom);
+  const previewBottom = Math.max(bottom, previewTop - previewHeight);
+  await drawDocumentPreview(context, leftX, previewTop, previewBottom, leftWidth, annotations);
 
   let rightCursor = top;
   rightCursor -= COMMENT_TITLE_SIZE;
@@ -749,24 +819,24 @@ async function drawBody(
     color: colorFromHex(TEXT),
   });
   rightCursor -= PREVIEW_GAP;
-  return drawCommentsColumn(context, rightX, rightCursor, bottom, rightWidth, annotations, 0);
+  return drawCommentsColumn(context, rightX, rightCursor, bottom, rightWidth, annotations, startIndex);
 }
 
 async function drawCommentsContinuation(
   context: DrawContext,
-  headerBottomY: number,
+  contentTop: number,
   annotations: PageAnnotation[],
   startIndex: number,
 ): Promise<number> {
   const { page, fonts } = context;
   const { width: pageWidth } = page.getSize();
-  const top = headerBottomY - BODY_TOP_SPACING;
+  const top = contentTop;
   const bottom = MARGIN;
   if (top <= bottom) return startIndex;
 
   const contentWidth = pageWidth - MARGIN * 2;
-  const { left: leftWidth, right: rightWidth } = columns(contentWidth);
-  const rightX = MARGIN + leftWidth + CONTENT_GAP;
+  const { left: leftWidth, right: rightWidth, gap } = columns8020(contentWidth);
+  const rightX = MARGIN + leftWidth + gap;
 
   let cursor = top;
   cursor -= COMMENT_TITLE_SIZE;
@@ -782,21 +852,6 @@ async function drawCommentsContinuation(
   return drawCommentsColumn(context, rightX, cursor, bottom, rightWidth, annotations, startIndex);
 }
 
-async function drawHeader(context: DrawContext): Promise<number> {
-  const { page } = context;
-  const { width: pageWidth, height: pageHeight } = page.getSize();
-  const headerOriginY = pageHeight - MARGIN - HEADER_HEIGHT;
-
-  const studentWidth =
-    pageWidth - MARGIN * 2 - PROFESSOR_WIDTH - SCORE_WIDTH - HEADER_GAP * 2;
-
-  drawProfessorBadge(context, MARGIN, headerOriginY);
-  await drawStudentCard(context, MARGIN + PROFESSOR_WIDTH + HEADER_GAP, headerOriginY, studentWidth);
-  drawScoreBox(context, pageWidth - MARGIN - SCORE_WIDTH, headerOriginY);
-
-  return headerOriginY;
-}
-
 export async function generateCorrectedPdf(data: EssayPdfData): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
   const fonts: FontPack = {
@@ -805,26 +860,60 @@ export async function generateCorrectedPdf(data: EssayPdfData): Promise<Uint8Arr
   };
   const pageAnnotations = getPageAnnotations(data, 1);
   const page = pdfDoc.addPage([A4.w, A4.h]);
-  const headerBottomY = await drawHeader({ page, data, pdfDoc, fonts });
-  let consumed = await drawBody({ page, data, pdfDoc, fonts }, headerBottomY, pageAnnotations);
+  const contentBox = { x: MARGIN, w: A4.w - MARGIN * 2 };
+  const contentTop = await renderHeroHeader({
+    pdfDoc,
+    page,
+    fonts,
+    contentBox,
+    data,
+  });
+
+  const commentsRenderer: CommentsRenderer = (targetPage, top, bottom, x, width, startIndex) =>
+    drawCommentsColumn(
+      { page: targetPage, data, pdfDoc, fonts },
+      x,
+      top,
+      bottom,
+      width,
+      pageAnnotations,
+      startIndex,
+    );
+
+  let consumed = await drawBody({ page, data, pdfDoc, fonts }, contentTop, pageAnnotations, 0);
 
   if (data.model === 'ENEM') {
-    renderEnemMirrorPage(pdfDoc, data, fonts);
+    consumed = await renderEnemMirrorPage(
+      pdfDoc,
+      data,
+      fonts,
+      renderHeroHeader,
+      commentsRenderer,
+      consumed,
+    );
   } else if (data.model === 'PAS/UnB') {
-    renderPasMirrorPage(pdfDoc, data, fonts);
+    consumed = await renderPasMirrorPage(
+      pdfDoc,
+      data,
+      fonts,
+      renderHeroHeader,
+      commentsRenderer,
+      consumed,
+    );
   }
 
   while (consumed < pageAnnotations.length) {
     const continuationPage = pdfDoc.addPage([A4.w, A4.h]);
-    const continuationHeaderBottom = await drawHeader({
-      page: continuationPage,
-      data,
+    const continuationTop = await renderHeroHeader({
       pdfDoc,
+      page: continuationPage,
       fonts,
+      contentBox,
+      data,
     });
     const next = await drawCommentsContinuation(
       { page: continuationPage, data, pdfDoc, fonts },
-      continuationHeaderBottom,
+      continuationTop,
       pageAnnotations,
       consumed,
     );

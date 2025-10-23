@@ -26,6 +26,7 @@ import {
 } from '@/services/essays.service';
 import { generateCorrectedPdf } from '@/features/redacao/pdf/generateCorrectedPdf';
 import type { AnnotationKind, EssayPdfData, EssayModel } from '@/features/redacao/pdf/types';
+import { renderFirstPageToPng } from '@/features/redacao/pdf/pdfPreview';
 
 type PasState = {
   NC: string;
@@ -588,7 +589,7 @@ export default function GradeWorkspace() {
         (essay as any)?.submitted_at ??
         null;
       const deliveredAt = typeof deliveredAtRaw === 'string' && deliveredAtRaw ? deliveredAtRaw : undefined;
-      const pagesPng = Array.isArray((essay as any)?.pagesPng)
+      let pagesPng = Array.isArray((essay as any)?.pagesPng)
         ? (essay as any).pagesPng.filter((src: unknown): src is string => typeof src === 'string' && src.length > 0)
         : [];
       const annotationsForPdf = orderedAnnotations.flatMap((ann) => {
@@ -604,6 +605,23 @@ export default function GradeWorkspace() {
           text: ann.comment ?? '',
         }));
       });
+
+      const previewSource =
+        (essay as any)?.correctedUrl ||
+        pdfUrl ||
+        (essay as any)?.originalUrl ||
+        (essay as any)?.fileUrl ||
+        null;
+      if (previewSource) {
+        try {
+          const previewPng = await renderFirstPageToPng(previewSource, 1200);
+          if (previewPng) {
+            pagesPng = [previewPng];
+          }
+        } catch (previewErr) {
+          console.warn('[GradeWorkspace] Failed to generate preview PNG', previewErr);
+        }
+      }
 
       const enemCompetencyKeys = ['C1', 'C2', 'C3', 'C4', 'C5'] as const;
       const enemLevels: [number, number, number, number, number] = enemCompetencyKeys.map((key) => {
@@ -634,8 +652,22 @@ export default function GradeWorkspace() {
         },
       };
 
+      const avatarDataUri = typeof studentPhoto === 'string' && studentPhoto.startsWith('data:') ? studentPhoto : undefined;
+      const bimestreNumber = Number.isFinite(Number(bimestreRaw)) ? Number(bimestreRaw) : null;
+      const scoreInfo = {
+        finalFormatted: finalScore,
+        final: model === 'ENEM' ? Number(enemTotal ?? 0) : pasDerived.nr ?? null,
+      };
+
       const pdfData: EssayPdfData = {
-        student: { name: studentName, avatarUrl: studentPhoto ?? undefined },
+        student: {
+          name: studentName,
+          avatarUrl: studentPhoto ?? undefined,
+          avatarDataUri: avatarDataUri,
+          classLabel: turmaLabel || undefined,
+          bimester: bimestreNumber,
+          bimesterLabel: bimestreLabel || undefined,
+        },
         professor: { name: professorName, initials: professorInitials },
         klass: { label: turmaLabel || '-' },
         termLabel: bimestreLabel || '',
@@ -643,6 +675,7 @@ export default function GradeWorkspace() {
         theme: (essay as any)?.theme || (essay as any)?.topic || undefined,
         model,
         finalScore,
+        score: scoreInfo,
         pagesPng,
         annotations: annotationsForPdf,
         enem:

@@ -12,6 +12,16 @@ import {
 } from '../theme';
 import type { EssayPdfData } from '../types';
 
+type Fonts = { regular: PDFFont; bold: PDFFont };
+
+type HeroRenderer = (args: {
+  pdfDoc: PDFDocument;
+  page: PDFPage;
+  fonts: Fonts;
+  contentBox: { x: number; w: number };
+  data: EssayPdfData;
+}) => Promise<number>;
+
 const MACRO_ROWS: Array<{ key: keyof EssayPdfData['pas']; label: string; range: string }> = [
   { key: 'apresentacao', label: 'Apresentação (legibilidade, margens, paragrafação)', range: '0,00 – 0,50' },
   { key: 'conteudo', label: 'Consistência da argumentação / Conteúdo', range: '0,00 – 5,00' },
@@ -25,16 +35,20 @@ const MICRO_ROWS: Array<{ key: keyof EssayPdfData['pas']['erros']; label: string
   { key: 'propriedadeVocabular', label: 'Propriedade vocabular' },
 ];
 
-type Fonts = { regular: PDFFont; bold: PDFFont };
-
-export function renderPasMirrorPage(doc: PDFDocument, data: EssayPdfData, fonts: Fonts) {
+export async function renderPasMirrorPage(
+  doc: PDFDocument,
+  data: EssayPdfData,
+  fonts: Fonts,
+  renderHeroHeader: HeroRenderer
+) {
   if (!data.pas) return;
 
-  const page = doc.addPage([A4.w, A4.h]);
-  const contentX = MARGIN;
-  const contentY = A4.h - MARGIN;
-  const contentW = A4.w - MARGIN * 2;
-  let cursor = contentY;
+  const contentBox = { x: MARGIN, w: A4.w - MARGIN * 2 };
+  let page = doc.addPage([A4.w, A4.h]);
+  let cursor = await renderHeroHeader({ pdfDoc: doc, page, fonts, contentBox, data });
+
+  const contentX = contentBox.x;
+  const contentW = contentBox.w;
 
   drawBold(page, 'ESPELHO DE CORREÇÃO — PAS/UnB', contentX, cursor, TITLE_SIZE, fonts.bold);
   cursor -= 18;
@@ -63,6 +77,15 @@ export function renderPasMirrorPage(doc: PDFDocument, data: EssayPdfData, fonts:
   const nl = clampNumber(data.pas.nl, 0, 30);
   const discount = nl > 0 ? 2 / nl : 0;
   const nr = roundDecimals(Math.max(0, macroSum - totalErros * discount), 2);
+
+  if (cursor - 200 < MARGIN) {
+    page = doc.addPage([A4.w, A4.h]);
+    cursor = await renderHeroHeader({ pdfDoc: doc, page, fonts, contentBox, data });
+    drawBold(page, 'ESPELHO DE CORREÇÃO — PAS/UnB (continuação)', contentX, cursor, TITLE_SIZE, fonts.bold);
+    cursor -= 18;
+    drawText(page, 'Aspectos microestruturais', contentX, cursor, BODY_SIZE, fonts.regular, TEXT_SUBTLE);
+    cursor -= 14;
+  }
 
   cursor = drawMicroTable(page, contentX, cursor, contentW, {
     erros,

@@ -9,8 +9,17 @@ import {
   TEXT_SUBTLE,
   BG,
   GRAY,
+  columns8020,
 } from '../theme';
 import type { EssayPdfData } from '../types';
+
+type HeroRenderer = (args: {
+  pdfDoc: PDFDocument;
+  page: PDFPage;
+  fonts: { regular: PDFFont; bold: PDFFont };
+  contentBox: { x: number; w: number };
+  data: EssayPdfData;
+}) => Promise<number>;
 
 const POINTS_PER_LEVEL = [0, 40, 80, 120, 160, 200];
 const CARD_PADDING = 12;
@@ -26,17 +35,36 @@ type Operation = {
   indent?: number;
 };
 
-export function renderEnemMirrorPage(
+export async function renderEnemMirrorPage(
   doc: PDFDocument,
   data: EssayPdfData,
-  fonts: { regular: PDFFont; bold: PDFFont }
+  fonts: { regular: PDFFont; bold: PDFFont },
+  renderHeroHeader: HeroRenderer
 ) {
   if (!data.enem) return;
 
+  const contentBox = { x: MARGIN, w: A4.w - MARGIN * 2 };
   let page = doc.addPage([A4.w, A4.h]);
-  let y = renderHeader(page, fonts, false);
-  const contentX = MARGIN;
-  const contentWidth = A4.w - MARGIN * 2;
+  let y = await renderHeroHeader({ pdfDoc: doc, page, fonts, contentBox, data });
+  const contentX = contentBox.x;
+  const contentWidth = contentBox.w;
+
+  page.drawText('ESPELHO DE CORREÇÃO — ENEM', {
+    x: contentX,
+    y,
+    size: TITLE_SIZE,
+    font: fonts.bold,
+    color: colorFromHex(TEXT),
+  });
+  y -= 18;
+  page.drawText('Competências e justificativas da avaliação', {
+    x: contentX,
+    y,
+    size: BODY_SIZE,
+    font: fonts.regular,
+    color: colorFromHex(TEXT_SUBTLE),
+  });
+  y -= 14;
 
   const competencyTitles = [
     'Domínio da norma padrão da língua portuguesa',
@@ -64,9 +92,24 @@ export function renderEnemMirrorPage(
     );
 
     if (y - layout.cardHeight < MARGIN + BODY_SIZE * 4) {
-      const next = newPage(doc, fonts, true);
-      page = next.page;
-      y = next.y;
+      page = doc.addPage([A4.w, A4.h]);
+      y = await renderHeroHeader({ pdfDoc: doc, page, fonts, contentBox, data });
+      page.drawText('ESPELHO DE CORREÇÃO — ENEM (continuação)', {
+        x: contentX,
+        y,
+        size: TITLE_SIZE,
+        font: fonts.bold,
+        color: colorFromHex(TEXT),
+      });
+      y -= 18;
+      page.drawText('Competências e justificativas da avaliação', {
+        x: contentX,
+        y,
+        size: BODY_SIZE,
+        font: fonts.regular,
+        color: colorFromHex(TEXT_SUBTLE),
+      });
+      y -= 14;
     }
 
     y = drawCompetencyCard(page, contentX, y, contentWidth, layout, fonts);
@@ -82,35 +125,26 @@ export function renderEnemMirrorPage(
   );
   const finalLineHeight = TITLE_SIZE + 6;
   if (y - finalLineHeight < MARGIN) {
-    const next = newPage(doc, fonts, true);
-    page = next.page;
-    y = next.y;
+    page = doc.addPage([A4.w, A4.h]);
+    y = await renderHeroHeader({ pdfDoc: doc, page, fonts, contentBox, data });
+    page.drawText('ESPELHO DE CORREÇÃO — ENEM (continuação)', {
+      x: contentX,
+      y,
+      size: TITLE_SIZE,
+      font: fonts.bold,
+      color: colorFromHex(TEXT),
+    });
+    y -= 18;
+    page.drawText('Competências e justificativas da avaliação', {
+      x: contentX,
+      y,
+      size: BODY_SIZE,
+      font: fonts.regular,
+      color: colorFromHex(TEXT_SUBTLE),
+    });
+    y -= 14;
   }
   drawBold(page, `NOTA FINAL: ${total} / 1000`, contentX, y, TITLE_SIZE, fonts.bold);
-}
-
-function renderHeader(page: PDFPage, fonts: { regular: PDFFont; bold: PDFFont }, continuation: boolean) {
-  let y = A4.h - MARGIN;
-  const title = continuation ? 'ESPELHO DE CORREÇÃO — ENEM (continuação)' : 'ESPELHO DE CORREÇÃO — ENEM';
-  drawBold(page, title, MARGIN, y, TITLE_SIZE, fonts.bold);
-  y -= 18;
-  drawText(
-    page,
-    'Competências e justificativas da avaliação',
-    MARGIN,
-    y,
-    BODY_SIZE,
-    fonts.regular,
-    TEXT_SUBTLE
-  );
-  y -= 14;
-  return y;
-}
-
-function newPage(doc: PDFDocument, fonts: { regular: PDFFont; bold: PDFFont }, continuation: boolean) {
-  const page = doc.addPage([A4.w, A4.h]);
-  const y = renderHeader(page, fonts, continuation);
-  return { page, y };
 }
 
 function buildCompetencyLayout(
