@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import AppShell from "@/components/AppShell";
 import { Suspense, lazy } from "react";
 import ProtectedRoute from "./routes/ProtectedRoute";
+import "@/styles.css";
 
 const Landing = lazy(() => import("@/pages/Landing"));
 const Turmas = lazy(() => import("@/pages/professor/Turmas"));

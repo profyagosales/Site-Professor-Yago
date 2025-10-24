@@ -56,5 +56,5 @@ export const PDF_FONT = {
   XS: 7,
   SM: 8,
   MD: 10,
-  LG: 12,
+  LG: 14,
 };

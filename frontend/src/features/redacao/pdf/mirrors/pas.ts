@@ -9,6 +9,7 @@ import {
   TEXT_SUBTLE,
   GRAY,
   BG,
+  columns8020,
 } from '../theme';
 import type { EssayPdfData } from '../types';
 
@@ -21,6 +22,15 @@ type HeroRenderer = (args: {
   contentBox: { x: number; w: number };
   data: EssayPdfData;
 }) => Promise<number>;
+
+type CommentsRenderer = (args: {
+  page: PDFPage;
+  x: number;
+  yTop: number;
+  width: number;
+  height: number;
+  fonts: { regular: PDFFont; bold: PDFFont };
+}) => void;
 
 const MACRO_ROWS: Array<{ key: keyof EssayPdfData['pas']; label: string; range: string }> = [
   { key: 'apresentacao', label: 'Apresentação (legibilidade, margens, paragrafação)', range: '0,00 – 0,50' },
@@ -39,7 +49,8 @@ export async function renderPasMirrorPage(
   doc: PDFDocument,
   data: EssayPdfData,
   fonts: Fonts,
-  renderHeroHeader: HeroRenderer
+  renderHeroHeader: HeroRenderer,
+  renderCommentsRight?: CommentsRenderer
 ) {
   if (!data.pas) return;
 
@@ -50,10 +61,33 @@ export async function renderPasMirrorPage(
   const contentX = contentBox.x;
   const contentW = contentBox.w;
 
-  drawBold(page, 'ESPELHO DE CORREÇÃO — PAS/UnB', contentX, cursor, TITLE_SIZE, fonts.bold);
+  const cols = columns8020(contentW);
+  const leftX = contentX;
+  const leftW = cols.left;
+  // Right column (reservado para comentários — continuação)
+  const rightX = contentX + cols.left + cols.gap;
+  const rightW = cols.right;
+
+  drawBold(page, 'ESPELHO DE CORREÇÃO — PAS/UnB', leftX, cursor, TITLE_SIZE, fonts.bold);
   cursor -= 18;
-  drawText(page, 'Aspectos macro e microestruturais', contentX, cursor, BODY_SIZE, fonts.regular, TEXT_SUBTLE);
+  drawText(page, 'Aspectos macro e microestruturais', leftX, cursor, BODY_SIZE, fonts.regular, TEXT_SUBTLE);
   cursor -= 14;
+
+  // Preenche a coluna direita com Comentários (continuação), se fornecido
+  if (renderCommentsRight) {
+    const rightTop = cursor;
+    const rightHeight = rightTop - MARGIN;
+    if (rightHeight > 24) {
+      renderCommentsRight({
+        page,
+        x: rightX,
+        yTop: rightTop,
+        width: rightW,
+        height: rightHeight,
+        fonts,
+      });
+    }
+  }
 
   const macro = {
     apresentacao: clampNumber(data.pas.apresentacao, 0, 0.5),
@@ -65,7 +99,7 @@ export async function renderPasMirrorPage(
     macro.apresentacao + macro.conteudo + macro.generoTextual + macro.coesaoCoerencia,
     2
   );
-  cursor = drawMacroTable(page, contentX, cursor, contentW, macro, macroSum, fonts);
+  cursor = drawMacroTable(page, leftX, cursor, leftW, macro, macroSum, fonts);
   cursor -= CONTENT_GAP;
 
   const erros = {
@@ -81,13 +115,28 @@ export async function renderPasMirrorPage(
   if (cursor - 200 < MARGIN) {
     page = doc.addPage([A4.w, A4.h]);
     cursor = await renderHeroHeader({ pdfDoc: doc, page, fonts, contentBox, data });
-    drawBold(page, 'ESPELHO DE CORREÇÃO — PAS/UnB (continuação)', contentX, cursor, TITLE_SIZE, fonts.bold);
+    drawBold(page, 'ESPELHO DE CORREÇÃO — PAS/UnB (continuação)', leftX, cursor, TITLE_SIZE, fonts.bold);
     cursor -= 18;
-    drawText(page, 'Aspectos microestruturais', contentX, cursor, BODY_SIZE, fonts.regular, TEXT_SUBTLE);
+    drawText(page, 'Aspectos microestruturais', leftX, cursor, BODY_SIZE, fonts.regular, TEXT_SUBTLE);
     cursor -= 14;
+
+    if (renderCommentsRight) {
+      const rightTop = cursor;
+      const rightHeight = rightTop - MARGIN;
+      if (rightHeight > 24) {
+        renderCommentsRight({
+          page,
+          x: rightX,
+          yTop: rightTop,
+          width: rightW,
+          height: rightHeight,
+          fonts,
+        });
+      }
+    }
   }
 
-  cursor = drawMicroTable(page, contentX, cursor, contentW, {
+  cursor = drawMicroTable(page, leftX, cursor, leftW, {
     erros,
     totalErros,
     nl,
