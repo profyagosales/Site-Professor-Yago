@@ -39,16 +39,16 @@ export function AnnotationSidebar({
   }, [focusId]);
 
   return (
-    <aside className="flex h-full w-full flex-col">
-      <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-        <h2 className="text-base font-semibold">Comentários ({ordered.length})</h2>
+    <aside className="RightRailCard flex h-full w-full flex-col">
+      <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+        <h2 className="text-sm font-semibold">Comentários ({ordered.length})</h2>
       </div>
       <div className="sr-only" aria-live="polite">
         {liveMessage}
       </div>
-      <div className="mt-3 flex-1 space-y-3 overflow-y-auto pr-2">
+      <div className="mt-2 flex-1 space-y-2 overflow-y-auto pr-1">
         {ordered.length === 0 && (
-          <p className="text-sm text-slate-500">
+          <p className="text-[11px] text-slate-500">
             Selecione um trecho no PDF para adicionar um comentário.
           </p>
         )}
@@ -60,10 +60,13 @@ export function AnnotationSidebar({
           return (
             <div
               key={ann.id}
-              className={`rounded-lg border border-slate-200 p-3 shadow-sm ${
+              className={`rounded-md border border-slate-200 p-2 shadow-sm ${
                 isActive ? 'ring-2 ring-orange-400' : ''
               }`}
-              style={{ backgroundColor: background }}
+              style={{
+                backgroundColor: background,
+                borderLeft: `3px solid ${meta?.color ?? '#E5E7EB'}`
+              }}
             >
               <button
                 type="button"
@@ -71,11 +74,11 @@ export function AnnotationSidebar({
                 className="flex w-full items-start justify-between text-left"
               >
                 <div>
-                  <span className="text-xs font-semibold text-slate-600">#{ann.number}</span>
-                  <h3 className="text-sm font-semibold text-slate-800">{meta?.label ?? 'Comentário'}</h3>
-                  <p className="text-xs text-slate-600">página {ann.page}</p>
+                  <span className="text-[10px] font-semibold text-slate-600">#{ann.number}</span>
+                  <h3 className="text-[11px] font-semibold text-slate-800">{meta?.label ?? 'Comentário'}</h3>
+                  <p className="text-[10px] text-slate-600">página {ann.page}</p>
                 </div>
-                <span className="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-white text-sm font-semibold text-slate-700 shadow">
+                <span className="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-semibold text-slate-700 shadow">
                   {ann.number}
                 </span>
               </button>
@@ -86,15 +89,15 @@ export function AnnotationSidebar({
                 value={ann.comment}
                 onChange={(event) => onCommentChange(ann.id, event.target.value)}
                 onFocus={() => onSelect(ann.id)}
-                className="mt-2 w-full resize-none rounded-md border border-slate-300 bg-white p-2 text-sm outline-none focus:ring-2 focus:ring-orange-400"
-                rows={3}
+                className="mt-1.5 w-full resize-none rounded-md border border-slate-300 bg-white p-1.5 text-[11px] outline-none focus:ring-2 focus:ring-orange-400"
+                rows={2}
                 placeholder="Escreva comentários detalhados aqui…"
               />
-              <div className="mt-2 flex justify-end">
+              <div className="mt-1 flex justify-end">
                 <button
                   type="button"
                   onClick={() => onDelete(ann.id)}
-                  className="text-sm font-medium text-orange-600 hover:text-orange-700"
+                  className="text-[11px] font-medium text-orange-600 hover:text-orange-700"
                 >
                   Remover
                 </button>

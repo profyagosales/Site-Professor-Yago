@@ -1,3 +1,4 @@
+import React, { useMemo, useRef, useCallback } from 'react';
 import { HIGHLIGHT_ALPHA, HIGHLIGHT_CATEGORIES, type HighlightCategoryKey } from '@/constants/annotations';
 import { hexToRgba } from '@/utils/color';
 
@@ -11,34 +12,104 @@ type AnnotationToolbarProps = {
 export function AnnotationToolbar({ active, onChange, orientation = 'horizontal', className }: AnnotationToolbarProps) {
   const isVertical = orientation === 'vertical';
   const baseClasses = isVertical
-    ? 'flex flex-col items-stretch space-y-1.5'
+    ? 'flex flex-col items-stretch gap-1'
     : 'flex flex-wrap items-center gap-1.5 border-b border-slate-200 pb-2';
 
+  const entries = useMemo(
+    () => Object.entries(HIGHLIGHT_CATEGORIES) as Array<[
+      HighlightCategoryKey,
+      { label: string; color: string }
+    ]>,
+    []
+  );
+
+  const btnRefs = useRef<Record<HighlightCategoryKey, HTMLButtonElement | null>>({} as any);
+
+  const focusByIndex = useCallback(
+    (idx: number) => {
+      const tuple = entries[idx];
+      if (!tuple) return;
+      const key = tuple[0];
+      const el = btnRefs.current[key];
+      if (el) el.focus();
+    },
+    [entries]
+  );
+
+  const onKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLButtonElement>, idx: number) => {
+      const last = entries.length - 1;
+      switch (e.key) {
+        case 'ArrowRight':
+        case 'ArrowDown': {
+          e.preventDefault();
+          const next = idx >= last ? 0 : idx + 1;
+          focusByIndex(next);
+          break;
+        }
+        case 'ArrowLeft':
+        case 'ArrowUp': {
+          e.preventDefault();
+          const prev = idx <= 0 ? last : idx - 1;
+          focusByIndex(prev);
+          break;
+        }
+        case 'Home': {
+          e.preventDefault();
+          focusByIndex(0);
+          break;
+        }
+        case 'End': {
+          e.preventDefault();
+          focusByIndex(last);
+          break;
+        }
+        case ' ':
+        case 'Enter': {
+          e.preventDefault();
+          const [key] = entries[idx];
+          onChange(key);
+          break;
+        }
+      }
+    },
+    [entries, focusByIndex, onChange]
+  );
+
   return (
-    <div className={`${baseClasses}${className ? ` ${className}` : ''}`}>
-      {(
-        Object.entries(HIGHLIGHT_CATEGORIES) as Array<[HighlightCategoryKey, { label: string; color: string }]>
-      ).map(([key, meta]) => {
+    <div
+      role="radiogroup"
+      aria-orientation={isVertical ? 'vertical' : 'horizontal'}
+      aria-label="Selecionar marcador"
+      className={`${baseClasses}${className ? ` ${className}` : ''}`}
+    >
+      {entries.map(([key, meta], idx) => {
         const isActive = key === active;
         return (
           <button
             key={key}
+            ref={(el) => (btnRefs.current[key] = el)}
             type="button"
+            role="radio"
+            aria-checked={isActive}
+            aria-label={meta.label}
+            title={meta.label}
             onClick={() => onChange(key)}
-            className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition shadow-sm ${
-              isActive ? 'ring-2 ring-offset-1 ring-orange-500' : 'ring-1 ring-transparent'
-            } ${isVertical ? 'justify-start text-left' : ''}`}
+            onKeyDown={(e) => onKeyDown(e, idx)}
+            className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500/60 ${
+              isActive ? 'ring-2 ring-orange-500' : 'ring-1 ring-transparent'
+            } ${isVertical ? 'justify-start text-left w-full' : ''}`}
             style={{
               backgroundColor: hexToRgba(meta.color, HIGHLIGHT_ALPHA),
             }}
-            aria-pressed={isActive}
+            data-key={key}
           >
             <span
               className="inline-block h-2 w-2 flex-none rounded-full"
               style={{ backgroundColor: meta.color }}
               aria-hidden
             />
-            <span>{meta.label}</span>
+            <span className="text-slate-800">{meta.label}</span>
           </button>
         );
       })}

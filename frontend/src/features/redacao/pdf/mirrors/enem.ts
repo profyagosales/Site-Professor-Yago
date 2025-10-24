@@ -21,6 +21,15 @@ type HeroRenderer = (args: {
   data: EssayPdfData;
 }) => Promise<number>;
 
+type CommentsRenderer = (args: {
+  page: PDFPage;
+  x: number;
+  yTop: number;
+  width: number;
+  height: number;
+  fonts: { regular: PDFFont; bold: PDFFont };
+}) => void;
+
 const POINTS_PER_LEVEL = [0, 40, 80, 120, 160, 200];
 const CARD_PADDING = 12;
 const LINE_GAP = 4;
@@ -39,7 +48,8 @@ export async function renderEnemMirrorPage(
   doc: PDFDocument,
   data: EssayPdfData,
   fonts: { regular: PDFFont; bold: PDFFont },
-  renderHeroHeader: HeroRenderer
+  renderHeroHeader: HeroRenderer,
+  renderCommentsRight?: CommentsRenderer
 ) {
   if (!data.enem) return;
 
@@ -48,9 +58,15 @@ export async function renderEnemMirrorPage(
   let y = await renderHeroHeader({ pdfDoc: doc, page, fonts, contentBox, data });
   const contentX = contentBox.x;
   const contentWidth = contentBox.w;
+  const cols = columns8020(contentWidth);
+  const leftX = contentX;
+  const leftW = cols.left;
+  // Right column (reserved for Comentários - continuação)
+  const rightX = contentX + cols.left + cols.gap;
+  const rightW = cols.right;
 
   page.drawText('ESPELHO DE CORREÇÃO — ENEM', {
-    x: contentX,
+    x: leftX,
     y,
     size: TITLE_SIZE,
     font: fonts.bold,
@@ -58,13 +74,29 @@ export async function renderEnemMirrorPage(
   });
   y -= 18;
   page.drawText('Competências e justificativas da avaliação', {
-    x: contentX,
+    x: leftX,
     y,
     size: BODY_SIZE,
     font: fonts.regular,
     color: colorFromHex(TEXT_SUBTLE),
   });
   y -= 14;
+
+  // Preenche a coluna direita com Comentários (continuação), se fornecido
+  if (renderCommentsRight) {
+    const rightTop = y;
+    const rightHeight = rightTop - MARGIN;
+    if (rightHeight > 24) {
+      renderCommentsRight({
+        page,
+        x: rightX,
+        yTop: rightTop,
+        width: rightW,
+        height: rightHeight,
+        fonts,
+      });
+    }
+  }
 
   const competencyTitles = [
     'Domínio da norma padrão da língua portuguesa',
@@ -82,7 +114,7 @@ export async function renderEnemMirrorPage(
       : [];
 
     const layout = buildCompetencyLayout(
-      contentWidth,
+      leftW,
       index,
       competencyTitles[index] ?? '',
       level,
@@ -95,7 +127,7 @@ export async function renderEnemMirrorPage(
       page = doc.addPage([A4.w, A4.h]);
       y = await renderHeroHeader({ pdfDoc: doc, page, fonts, contentBox, data });
       page.drawText('ESPELHO DE CORREÇÃO — ENEM (continuação)', {
-        x: contentX,
+        x: leftX,
         y,
         size: TITLE_SIZE,
         font: fonts.bold,
@@ -103,16 +135,31 @@ export async function renderEnemMirrorPage(
       });
       y -= 18;
       page.drawText('Competências e justificativas da avaliação', {
-        x: contentX,
+        x: leftX,
         y,
         size: BODY_SIZE,
         font: fonts.regular,
         color: colorFromHex(TEXT_SUBTLE),
       });
       y -= 14;
+
+      if (renderCommentsRight) {
+        const rightTop = y;
+        const rightHeight = rightTop - MARGIN;
+        if (rightHeight > 24) {
+          renderCommentsRight({
+            page,
+            x: rightX,
+            yTop: rightTop,
+            width: rightW,
+            height: rightHeight,
+            fonts,
+          });
+        }
+      }
     }
 
-    y = drawCompetencyCard(page, contentX, y, contentWidth, layout, fonts);
+    y = drawCompetencyCard(page, leftX, y, leftW, layout, fonts);
 
     if (index < 4) {
       y -= CONTENT_GAP;
@@ -128,7 +175,7 @@ export async function renderEnemMirrorPage(
     page = doc.addPage([A4.w, A4.h]);
     y = await renderHeroHeader({ pdfDoc: doc, page, fonts, contentBox, data });
     page.drawText('ESPELHO DE CORREÇÃO — ENEM (continuação)', {
-      x: contentX,
+      x: leftX,
       y,
       size: TITLE_SIZE,
       font: fonts.bold,
@@ -136,15 +183,30 @@ export async function renderEnemMirrorPage(
     });
     y -= 18;
     page.drawText('Competências e justificativas da avaliação', {
-      x: contentX,
+      x: leftX,
       y,
       size: BODY_SIZE,
       font: fonts.regular,
       color: colorFromHex(TEXT_SUBTLE),
     });
     y -= 14;
+
+    if (renderCommentsRight) {
+      const rightTop = y;
+      const rightHeight = rightTop - MARGIN;
+      if (rightHeight > 24) {
+        renderCommentsRight({
+          page,
+          x: rightX,
+          yTop: rightTop,
+          width: rightW,
+          height: rightHeight,
+          fonts,
+        });
+      }
+    }
   }
-  drawBold(page, `NOTA FINAL: ${total} / 1000`, contentX, y, TITLE_SIZE, fonts.bold);
+  drawBold(page, `NOTA FINAL: ${total} / 1000`, leftX, y, TITLE_SIZE, fonts.bold);
 }
 
 function buildCompetencyLayout(

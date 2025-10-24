@@ -932,3 +932,9 @@ a {
 .icon-btn { width: 36px; height: 36px; border-radius: 10px; border:1px solid rgba(0,0,0,.15); background:#fff; }
 .icon-btn:hover { background: rgba(0,0,0,.04); }
 .icon-btn.danger { border-color: rgba(220,38,38,.35); color: #b91c1c; }
+
+/* === Print / PDF generation overrides === */
+/* Oculta a lateral direita (comentários + ações) durante a geração do PDF */
+[data-printing="1"] .RightRailCard {
+  display: none !important;
+}

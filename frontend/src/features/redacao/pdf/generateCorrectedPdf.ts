@@ -30,20 +30,22 @@ import { renderPasMirrorPage } from './mirrors/pas';
 import type { AnnotationKind, EssayPdfData } from './types';
 
 const PREVIEW_GAP = 8;
-const COMMENT_TITLE_SIZE = TITLE_SIZE;
-const COMMENT_NUMBER_SIZE = 9;
-const COMMENT_CATEGORY_SIZE = PDF_FONT.XS;
-const COMMENT_TEXT_SIZE = PDF_FONT.SM;
-const COMMENT_LINE_GAP = 3;
+const COMMENT_TITLE_SIZE = BODY_SIZE; // título mais discreto (Comentários / continuação)
+const COMMENT_NUMBER_SIZE = 8;         // #n menor
+const COMMENT_CATEGORY_SIZE = PDF_FONT.XS; // 7 pt
+const COMMENT_TEXT_SIZE = PDF_FONT.SM;     // 8 pt
+const COMMENT_LINE_GAP = 2;            // menos espaço entre linhas
 const COMMENT_CARD_GAP = 6;
-const COMMENT_CARD_PADDING = 10;
-const COMMENT_BAND_HEIGHT = 14;
-const COMMENT_BAND_TEXT_GAP = 4;
-const COMMENT_TITLE_TEXT_GAP = 4;
-const HIGHLIGHT_FILL_OPACITY = 0.28;
+const COMMENT_CARD_PADDING = 6;        // padding menor (ainda mais compacto)
+const COMMENT_BAND_HEIGHT = 12;        // faixa superior mais baixa
+const COMMENT_BAND_TEXT_GAP = 3;
+const COMMENT_TITLE_TEXT_GAP = 3;
+const HIGHLIGHT_FILL_OPACITY = 0.22;
 const HIGHLIGHT_BORDER_OPACITY = 0.8;
-const HIGHLIGHT_LABEL_SIZE = 20;
-const HIGHLIGHT_LABEL_FONT_SIZE = 10;
+const HIGHLIGHT_LABEL_SIZE = 16;       // selo um pouco menor
+const HIGHLIGHT_LABEL_FONT_SIZE = 9;   // fonte do selo menor
+
+const COMMENT_MAX_LINES = 6;           // no máx. ~6 linhas por card (resto resumido com …)
 
 type PageAnnotation = EssayPdfData['annotations'][number];
 
@@ -63,14 +65,14 @@ type HeroHeaderArgs = {
   data: EssayPdfData;
 };
 
-type CommentsRenderer = (
-  page: PDFPage,
-  top: number,
-  bottom: number,
-  x: number,
-  width: number,
-  startIndex: number,
-) => number;
+type CommentsRenderer = (args: {
+  page: PDFPage;
+  x: number;
+  yTop: number;
+  width: number;
+  height: number;
+  fonts: { regular: PDFFont; bold: PDFFont };
+}) => void;
 
 async function renderHeroHeader({
   pdfDoc,
@@ -351,9 +353,26 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
+
+function getDisplayNumber(ann: any, fallback: number) {
+  // Prefer explicit numeric order fields from the workspace, fallback to loop index
+  const cands = [ann?.n, ann?.index, ann?.order, ann?.seq];
+  for (const c of cands) {
+    const v = Number(c);
+    if (Number.isFinite(v) && v > 0) return v;
+  }
+  return fallback;
+}
+
 function getPageAnnotations(data: EssayPdfData, pageNumber: number): PageAnnotation[] {
   if (!Array.isArray(data.annotations)) return [];
-  return data.annotations.filter((ann) => ann.page === pageNumber);
+  const list = data.annotations.filter((ann) => ann.page === pageNumber);
+  // Detect if we have explicit numbering; if most items have a valid display number, sort by it.
+  const hasNumbers = list.filter((a, i) => Number.isFinite(getDisplayNumber(a, i + 1))).length >= Math.ceil(list.length * 0.6);
+  if (!hasNumbers) return list;
+  return list
+    .slice()
+    .sort((a, b) => getDisplayNumber(a, 0) - getDisplayNumber(b, 0));
 }
 
 function getInitials(value: string) {
@@ -617,7 +636,7 @@ async function drawDocumentPreview(
     if (labelWidth > 0 && labelHeight > 0) {
       const labelX = clippedX;
       const labelY = clippedY + clippedHeight - labelHeight;
-      const labelText = `#${index + 1}`;
+      const labelText = `#${getDisplayNumber(annotation, index + 1)}`;
       page.drawRectangle({
         x: labelX,
         y: labelY,
@@ -678,13 +697,26 @@ function drawCommentsColumn(
 
   while (index < annotations.length) {
     const annotation = annotations[index];
-    const numberLabel = `#${index + 1}`;
+    const numberLabel = `#${getDisplayNumber(annotation, index + 1)}`;
     const kind = annotation.kind;
     const categoryLabel = getAnnotationLabel(kind).toUpperCase();
     const baseColor = CATEGORY[kind] ?? CATEGORY.general;
     const bandColor = mixWithWhite(baseColor, 0.3);
     const textLinesRaw = wrapText(fonts.regular, annotation.text || '', COMMENT_TEXT_SIZE, innerWidth);
-    const textLines = textLinesRaw.length > 0 ? textLinesRaw : ['Sem comentário.'];
+    let textLines = textLinesRaw.length > 0 ? textLinesRaw : ['Sem comentário.'];
+
+    // Limita a ~6 linhas; se exceder, encurta a última e adiciona reticências.
+    if (textLines.length > COMMENT_MAX_LINES) {
+      const clipped = textLines.slice(0, COMMENT_MAX_LINES);
+      const last = clipped[clipped.length - 1] || '';
+      clipped[clipped.length - 1] = truncateText(
+        fonts.regular,
+        last.endsWith('…') ? last : `${last} …`,
+        COMMENT_TEXT_SIZE,
+        innerWidth
+      );
+      textLines = clipped;
+    }
     const textBlockHeight =
       textLines.length * COMMENT_TEXT_SIZE +
       Math.max(0, textLines.length - 1) * COMMENT_LINE_GAP;
@@ -869,38 +901,63 @@ export async function generateCorrectedPdf(data: EssayPdfData): Promise<Uint8Arr
     data,
   });
 
-  const commentsRenderer: CommentsRenderer = (targetPage, top, bottom, x, width, startIndex) =>
-    drawCommentsColumn(
-      { page: targetPage, data, pdfDoc, fonts },
+  let consumed = await drawBody({ page, data, pdfDoc, fonts }, contentTop, pageAnnotations, 0);
+
+  // Usaremos um "ponteiro" mutável para a fila remanescente de comentários
+  let consumedRef = consumed;
+
+  const commentsRenderer: CommentsRenderer = ({ page: targetPage, x, yTop, width, height, fonts: rendererFonts }) => {
+    const bottom = yTop - height; // mirrors passam height = (yTop - MARGIN)
+    let cursor = yTop;
+
+    // Título da coluna direita na página do espelho — só se houver comentários remanescentes
+    const hasRemaining = consumedRef < pageAnnotations.length;
+    if (hasRemaining) {
+      cursor -= COMMENT_TITLE_SIZE;
+      targetPage.drawText('Comentários (continuação)', {
+        x,
+        y: cursor,
+        size: COMMENT_TITLE_SIZE,
+        font: rendererFonts.bold,
+        color: colorFromHex(TEXT),
+      });
+      cursor -= PREVIEW_GAP;
+    }
+
+    const next = drawCommentsColumn(
+      { page: targetPage, data, pdfDoc, fonts: rendererFonts },
       x,
-      top,
+      cursor,
       bottom,
       width,
       pageAnnotations,
-      startIndex,
+      consumedRef,
     );
 
-  let consumed = await drawBody({ page, data, pdfDoc, fonts }, contentTop, pageAnnotations, 0);
+    // Atualiza o ponteiro global para que páginas seguintes continuem a partir do último item desenhado
+    consumedRef = next;
+  };
 
   if (data.model === 'ENEM') {
-    consumed = await renderEnemMirrorPage(
+    await renderEnemMirrorPage(
       pdfDoc,
       data,
       fonts,
       renderHeroHeader,
       commentsRenderer,
-      consumed,
     );
   } else if (data.model === 'PAS/UnB') {
-    consumed = await renderPasMirrorPage(
+    await renderPasMirrorPage(
       pdfDoc,
       data,
       fonts,
       renderHeroHeader,
       commentsRenderer,
-      consumed,
     );
   }
+
+  // Após o espelho, continue paginando comentários restantes (se houver) em páginas extras
+  consumed = consumedRef;
 
   while (consumed < pageAnnotations.length) {
     const continuationPage = pdfDoc.addPage([A4.w, A4.h]);

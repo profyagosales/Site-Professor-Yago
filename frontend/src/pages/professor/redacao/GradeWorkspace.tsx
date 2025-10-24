@@ -28,11 +28,7 @@ import { generateCorrectedPdf } from '@/features/redacao/pdf/generateCorrectedPd
 import type { AnnotationKind, EssayPdfData, EssayModel } from '@/features/redacao/pdf/types';
 import { renderFirstPageToPng } from '@/features/redacao/pdf/pdfPreview';
 
-type PasState = {
-  NC: string;
-  NL: string;
-  NE: string;
-};
+
 
 function createInitialEnemSelections(): EnemSelectionsMap {
   return ENEM_2024.reduce(
@@ -614,7 +610,7 @@ export default function GradeWorkspace() {
         null;
       if (previewSource) {
         try {
-          const previewPng = await renderFirstPageToPng(previewSource, 1200);
+          const previewPng = await renderFirstPageToPng(previewSource, { maxWidth: 1200, page: 1, pixelRatio: 1.5 });
           if (previewPng) {
             pagesPng = [previewPng];
           }
@@ -769,64 +765,113 @@ export default function GradeWorkspace() {
   const thirdInfoLine = [typeLabel, themeLabel].filter(Boolean).join(', ') || '-';
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-none flex-col gap-3 px-2 py-4 sm:px-3 lg:px-4">
-      <header className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-start gap-4">
-          <div className="relative h-16 w-16 overflow-hidden rounded-full border border-orange-300 bg-orange-50 text-lg font-semibold text-orange-600 shadow-sm sm:h-20 sm:w-20">
-            {studentPhoto ? (
-              <img src={studentPhoto} alt={studentName} className="h-full w-full object-cover" />
-            ) : (
-              <span className="flex h-full w-full items-center justify-center">{studentInitials}</span>
-            )}
+    <div
+      data-printing={generating ? '1' : '0'}
+      className="mx-auto flex h-full w-full max-w-none flex-col gap-3 px-2 py-4 sm:px-3 lg:px-4"
+    >
+      <header
+        className="flex flex-col gap-3 rounded-2xl border border-orange-300 bg-orange-500/95 p-3 text-white shadow-md lg:flex-row lg:items-center lg:justify-between"
+        aria-label="Cabeçalho de correção"
+      >
+        {/* BRAND (esquerda) */}
+        <div className="flex items-center gap-3">
+          <div className="flex flex-col items-center justify-center">
+            <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-white/95 shadow-sm">
+              <img
+                src="/pdf/brand-mark.png"
+                alt="Marca"
+                className="h-10 w-10 object-contain"
+              />
+            </div>
+            <span className="mt-1 text-[10px] font-medium leading-none opacity-95">
+              Professor Yago Sales
+            </span>
           </div>
-          <div className="flex flex-col gap-1 text-sm leading-snug text-slate-700">
-            <p className="text-base font-semibold text-slate-900">{firstInfoLine}</p>
-            <p>{secondInfoLine}</p>
-            <p>{thirdInfoLine}</p>
+
+          {/* BLOCO DO ALUNO (centro) */}
+          <div className="ml-3 flex flex-col leading-tight text-white/95">
+            <p className="text-sm font-semibold">{firstInfoLine}</p>
+            <p className="text-[11px]">{secondInfoLine}</p>
+            <p className="text-[11px]">{thirdInfoLine}</p>
           </div>
         </div>
-        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-          <Button variant="ghost" onClick={backToList}>
-            Voltar
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              if (essay?.originalUrl) {
-                window.open(essay.originalUrl, '_blank', 'noopener,noreferrer');
-              } else if (pdfUrl) {
-                window.open(pdfUrl, '_blank', 'noopener,noreferrer');
-              } else {
-                toast.info('Nenhum PDF disponível para abrir.');
-              }
-            }}
-          >
-            Abrir original
-          </Button>
-          <Button onClick={handleSave} disabled={saving || !dirty}>
-            {saving ? 'Salvando…' : 'Salvar'}
-          </Button>
-          <Button onClick={handleGeneratePdf} disabled={generating}>
-            {generating ? 'Gerando…' : 'Gerar PDF corrigido'}
-          </Button>
+
+        {/* SCORE + AÇÕES (direita) */}
+        <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center">
+          {/* Mini-card de nota final */}
+          <div className="flex items-center gap-3 rounded-xl border border-white/25 bg-white/10 px-3 py-2 backdrop-blur">
+            <div className="flex min-w-[88px] flex-col">
+              <span className="text-[10px] uppercase tracking-wide text-white/85">
+                Nota final
+              </span>
+              <span className="text-xl font-extrabold leading-none">
+                {essayType === 'PAS'
+                  ? (pasDerived.nr != null
+                      ? Number(pasDerived.nr).toFixed(1).replace('.', ',')
+                      : '0,0')
+                  : Math.max(0, Math.round(Number(enemTotal) || 0)).toString()}
+              </span>
+              <span className="text-[10px] font-semibold text-white/85">
+                {essayType === 'PAS' ? 'PAS/UnB' : 'ENEM'}
+              </span>
+            </div>
+          </div>
+
+          {/* Ações */}
+          <div className="flex flex-1 flex-row flex-wrap items-center justify-end gap-2 sm:flex-none">
+            <Button variant="ghost" className="bg-white/5 text-white hover:bg-white/10" onClick={backToList}>
+              Voltar
+            </Button>
+            <Button
+              variant="ghost"
+              className="bg-white/5 text-white hover:bg-white/10"
+              onClick={() => {
+                if (essay?.originalUrl) {
+                  window.open(essay.originalUrl, '_blank', 'noopener,noreferrer');
+                } else if (pdfUrl) {
+                  window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+                } else {
+                  toast.info('Nenhum PDF disponível para abrir.');
+                }
+              }}
+            >
+              Abrir original
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={saving || !dirty}
+              className="bg-white text-orange-700 hover:bg-white/90 disabled:opacity-60"
+            >
+              {saving ? 'Salvando…' : 'Salvar'}
+            </Button>
+            <Button
+              onClick={handleGeneratePdf}
+              disabled={generating}
+              className="bg-orange-700 text-white hover:bg-orange-800 disabled:opacity-60"
+            >
+              {generating ? 'Gerando…' : 'Gerar PDF corrigido'}
+            </Button>
+          </div>
         </div>
       </header>
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:p-5">
         <div
-          className="grid grid-cols-1 gap-2 md:grid-cols-[110px_minmax(0,1fr)_220px] md:gap-3"
+          className="grid grid-cols-1 gap-3 md:grid-cols-[260px_minmax(0,1fr)_320px]"
           aria-label="Workspace de correção"
         >
-          <aside className="order-1 md:order-none md:w-[110px] md:shrink-0">
+          <aside className="order-1 md:order-none md:w-[260px] md:shrink-0">
             <div className="mb-3 md:hidden">
               <AnnotationToolbar active={activeCategory} onChange={setActiveCategory} orientation="horizontal" />
             </div>
-            <div className="hidden md:block md:sticky md:top-24 md:space-y-2">
-              <AnnotationToolbar
-                active={activeCategory}
-                onChange={setActiveCategory}
-                orientation="vertical"
-              />
+            <div className="hidden md:block md:sticky md:top-24">
+              <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+                <AnnotationToolbar
+                  active={activeCategory}
+                  onChange={setActiveCategory}
+                  orientation="vertical"
+                />
+              </div>
             </div>
           </aside>
           <main className="order-2 min-w-0 md:order-none">
@@ -835,8 +880,8 @@ export default function GradeWorkspace() {
                 {pdfError}
               </p>
             )}
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-2 shadow-inner">
-              <div className="h-[78vh] min-h-[560px] w-full overflow-auto rounded-xl border border-slate-200 bg-white">
+            <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+              <div className="h-[78vh] min-h-[560px] w-full overflow-auto rounded-lg">
                 <PdfCorrectionViewer
                   fileUrl={pdfUrl}
                   annotations={orderedAnnotations}
@@ -849,7 +894,9 @@ export default function GradeWorkspace() {
               </div>
             </div>
           </main>
-          <aside className="order-3 hidden w-[220px] max-w-[220px] shrink-0 md:flex">
+          <aside
+            className={`RightRailCard order-3 ${generating ? 'hidden' : 'md:flex'} hidden w-[320px] max-w-[320px] shrink-0`}
+          >
             <div className="h-[78vh] min-h-[560px] w-full overflow-auto rounded-xl border border-slate-200 bg-white p-2">
               <AnnotationSidebar
                 annotations={orderedAnnotations}
