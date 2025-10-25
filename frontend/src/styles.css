@@ -1008,13 +1008,19 @@ a {
 
 /* Compact hero for correction workspace */
 .hero--compact { --hero-py: 8px; --hero-min-h: 64px; --hero-stat-h: 40px; }
-.hero--compact .hero-brand-mark { width: 28px; height: 28px; }
-.hero--compact .hero-brand-mark img { width: 24px; height: 24px; }
+.hero--compact .hero-brand-mark { width: 36px; height: 36px; }
+.hero--compact .hero-brand-mark img { width: 32px; height: 32px; }
 .hero--compact .hero-title { font-size: clamp(1.1rem, 2.6vw, 1.35rem); letter-spacing: 0.08em; }
 .hero--compact .hero-stats { gap: 8px; }
 .hero--compact .hero-stat { padding: 6px 10px; min-height: var(--hero-stat-h); }
 .hero--compact .hero-stat__label { font-size: 8px; letter-spacing: 0.14em; }
 .hero--compact .hero-stat__value { font-size: clamp(1.05rem, 2.2vw, 1.35rem); }
+
+/* Label ao lado da marca no hero (negrito e um toque maior no md+) */
+.hero-brand-label { font-weight: 700; font-size: 12px; line-height: 1; }
+@media (min-width: 768px) {
+  .hero-brand-label { font-size: 13px; }
+}
 
 /* Inline PDF workspace: 80/20 grid (doc/comments) */
 .pdf-inline-grid { display: grid; grid-template-columns: minmax(0, 4fr) minmax(220px, 1fr); gap: 10px; align-items: start; }
@@ -1112,6 +1118,22 @@ a {
 @media (max-width: 640px) { .rail-actions { gap: 6px; } }
 @media (min-width: 1280px) { .rail-actions { gap: 10px; } }
 
+/* Vertical spacing between action groups and the toolbar in the left rail */
+.redacao-left-rail .rail-actions + .AnnotationToolbar,
+.redacao-left-rail .AnnotationToolbar + .rail-actions,
+.LeftRailCard .rail-actions + .AnnotationToolbar,
+.LeftRailCard .AnnotationToolbar + .rail-actions {
+  margin-top: 12px;
+}
+@media (min-width: 1024px) {
+  .redacao-left-rail .rail-actions + .AnnotationToolbar,
+  .redacao-left-rail .AnnotationToolbar + .rail-actions,
+  .LeftRailCard .rail-actions + .AnnotationToolbar,
+  .LeftRailCard .AnnotationToolbar + .rail-actions {
+    margin-top: 14px;
+  }
+}
+
 /* Botões/Chips com variação de cor por categoria (Argumentação, Ortografia, Coesão, Apresentação, Comentários) */
 /* Use em botões da lateral: class="btn btn--arg" etc. Também funciona em chips: class="chip chip--arg" */
 .btn.btn--arg, .chip.chip--arg { background: var(--cat-arg-bg); color: var(--cat-arg-text); border: 1px solid var(--cat-arg-border); }
@@ -1146,15 +1168,11 @@ a {
 /* === Correção (Redação) — utilitários de alinhamento do hero/rails === */
 :root { --gw-hero-h: 72px; }
 
-/* Sobe o rail direito para alinhar com o topo do hero compacto */
-.gw-rail-raise { margin-top: calc(var(--gw-hero-h) - 12px); }
+/* Novo layout em grid: os rails já alinham no topo da coluna.
+   Não empurrar com margin-top. */
+.gw-rail-raise { margin-top: 0; }
 
-/* Em telas menores, evitar sobreposição com o hero */
-@media (max-width: 1024px) {
-  .gw-rail-raise { margin-top: 8px; }
-}
-
-/* Caso prefira sticky via classe (além das utilitárias do Tailwind) */
+/* Sticky helper (opcional) */
 .gw-sticky-rail { position: sticky; top: var(--gw-hero-h); }
  
 /* PAS mirror color cards aligned to PDF tokens (applies if elements carry these classes) */
