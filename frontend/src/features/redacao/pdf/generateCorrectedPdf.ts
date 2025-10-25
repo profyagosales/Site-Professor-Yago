@@ -32,11 +32,11 @@ import type { AnnotationKind, EssayPdfData } from './types';
 const PREVIEW_GAP = 8;
 const COMMENT_TITLE_SIZE = BODY_SIZE; // título mais discreto (Comentários / continuação)
 const COMMENT_NUMBER_SIZE = 8;         // #n menor
-const COMMENT_CATEGORY_SIZE = PDF_FONT.XS; // 7 pt
-const COMMENT_TEXT_SIZE = PDF_FONT.SM;     // 8 pt
-const COMMENT_LINE_GAP = 2;            // menos espaço entre linhas
+const COMMENT_CATEGORY_SIZE = 6;       // menor que o corpo, mantém rótulo mínimo
+const COMMENT_TEXT_SIZE = PDF_FONT.XS; // 7 pt (antes 8 pt)
+const COMMENT_LINE_GAP = 1;            // menos espaço entre linhas (ainda mais compacto)
 const COMMENT_CARD_GAP = 6;
-const COMMENT_CARD_PADDING = 6;        // padding menor (ainda mais compacto)
+const COMMENT_CARD_PADDING = 4;        // antes 6 px (−2 px)
 const COMMENT_BAND_HEIGHT = 12;        // faixa superior mais baixa
 const COMMENT_BAND_TEXT_GAP = 3;
 const COMMENT_TITLE_TEXT_GAP = 3;
@@ -49,11 +49,76 @@ const COMMENT_MAX_LINES = 6;           // no máx. ~6 linhas por card (resto res
 
 type PageAnnotation = EssayPdfData['annotations'][number];
 
+
 let brandMarkCache: ArrayBuffer | null | undefined;
+
+/** Converte data:uri -> bytes (já existe para avatar; aqui reusamos a mesma assinatura) */
+function dataUriToBytesGeneric(uri: string): Uint8Array {
+  const base64 = uri.split(',')[1] ?? '';
+  const bin = atob(base64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+/** Rasteriza um SVG público para PNG (bytes) em runtime (navegador) */
+async function rasterizeSvgToPngBytes(svgUrl: string, targetWidth = 96): Promise<Uint8Array | null> {
+  try {
+    const res = await fetch(svgUrl, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const svgText = await res.text();
+    const blob = new Blob([svgText], { type: 'image/svg+xml' });
+    const objUrl = URL.createObjectURL(blob);
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.decoding = 'async';
+      const loaded = new Promise<HTMLImageElement>((resolve, reject) => {
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+      });
+      img.src = objUrl;
+      const el = await loaded;
+
+      const ratio = el.naturalHeight && el.naturalWidth ? el.naturalHeight / el.naturalWidth : 1;
+      const w = targetWidth;
+      const h = Math.max(1, Math.round(w * ratio));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      ctx.drawImage(el, 0, 0, w, h);
+
+      const dataUrl = canvas.toDataURL('image/png');
+      return dataUriToBytesGeneric(dataUrl);
+    } finally {
+      URL.revokeObjectURL(objUrl);
+    }
+  } catch {
+    return null;
+  }
+}
 
 async function getBrandMarkBytes() {
   if (brandMarkCache !== undefined) return brandMarkCache;
-  brandMarkCache = await loadPublicPng('/pdf/brand-mark.png');
+  const trySvg = async (url?: string | null) => {
+    if (!url) return null;
+    const png = await rasterizeSvgToPngBytes(url, 96);
+    return png ? png.buffer : null;
+  };
+  // 1) Tenta a logo oficial do site em /logo.svg
+  let buf = await trySvg('/logo.svg');
+  // 2) Se houver token de tema, tenta em seguida
+  if (!buf && (BRAND as any)?.SVG_URL) buf = await trySvg((BRAND as any).SVG_URL);
+  if (buf) {
+    brandMarkCache = buf;
+    return brandMarkCache;
+  }
+  // 3) Fallback PNG público
+  const fallbackPath = (BRAND as any)?.FALLBACK_URL || '/pdf/brand-mark.png';
+  brandMarkCache = await loadPublicPng(fallbackPath);
   return brandMarkCache;
 }
 
@@ -102,7 +167,7 @@ async function renderHeroHeader({
   const brandBytes = await getBrandMarkBytes();
   if (brandBytes) {
     try {
-      const brandImage = await pdfDoc.embedPng(brandBytes);
+      const brandImage = await pdfDoc.embedPng(new Uint8Array(brandBytes));
       drawRoundedRect(page, {
         x: brandX,
         y: brandY,
@@ -355,7 +420,8 @@ function clamp(value: number, min: number, max: number) {
 
 
 function getDisplayNumber(ann: any, fallback: number) {
-  // Prefer explicit numeric order fields from the workspace, fallback to loop index
+  // Prefer backend global number, then other known fields; fallback to loop index
+  if (Number.isFinite(ann?.number) && ann.number > 0) return Number(ann.number);
   const cands = [ann?.n, ann?.index, ann?.order, ann?.seq];
   for (const c of cands) {
     const v = Number(c);
@@ -367,12 +433,12 @@ function getDisplayNumber(ann: any, fallback: number) {
 function getPageAnnotations(data: EssayPdfData, pageNumber: number): PageAnnotation[] {
   if (!Array.isArray(data.annotations)) return [];
   const list = data.annotations.filter((ann) => ann.page === pageNumber);
-  // Detect if we have explicit numbering; if most items have a valid display number, sort by it.
-  const hasNumbers = list.filter((a, i) => Number.isFinite(getDisplayNumber(a, i + 1))).length >= Math.ceil(list.length * 0.6);
-  if (!hasNumbers) return list;
-  return list
-    .slice()
-    .sort((a, b) => getDisplayNumber(a, 0) - getDisplayNumber(b, 0));
+  // Se a maioria tem `.number` real, ordena por ele; senão mantém a ordem original
+  const withNum = list.filter((a: any) => Number.isFinite(a?.number) && a.number > 0).length;
+  if (withNum >= Math.ceil(list.length * 0.6)) {
+    return list.slice().sort((a: any, b: any) => (a.number as number) - (b.number as number));
+  }
+  return list;
 }
 
 function getInitials(value: string) {
@@ -779,24 +845,39 @@ function drawCommentsColumn(
 
     textCursor -= COMMENT_TITLE_TEXT_GAP;
 
-    for (let lineIndex = 0; lineIndex < textLines.length; lineIndex += 1) {
-      const line = textLines[lineIndex];
-      textCursor -= COMMENT_TEXT_SIZE;
-      if (textCursor < bottom) {
-        break;
+    // Desenha o corpo do comentário respeitando o rodapé do card e truncando a última linha, se preciso
+    const lineHeight = COMMENT_TEXT_SIZE + COMMENT_LINE_GAP;
+    const bodyTopY = textCursor; // topo do bloco de texto (após categoria + gap)
+    const available = bodyTopY - cardBottom;
+    const maxLines = Math.max(1, Math.floor(available / lineHeight));
+    let drawn = 0;
+
+    for (let i = 0; i < textLines.length; i += 1) {
+      const isLastLine = (drawn + 1) >= maxLines;
+      const nextY = textCursor - COMMENT_TEXT_SIZE;
+      if (nextY < cardBottom) break;
+
+      let toDraw = textLines[i];
+      if (isLastLine && i < textLines.length - 1) {
+        // Há mais texto do que cabe: trunca a última linha visível
+        toDraw = truncateText(fonts.regular, toDraw.endsWith('…') ? toDraw : `${toDraw} …`, COMMENT_TEXT_SIZE, innerWidth);
       }
-      if (line.trim()) {
-        page.drawText(line, {
+
+      if (toDraw.trim()) {
+        page.drawText(toDraw, {
           x: innerX,
-          y: textCursor,
+          y: nextY,
           size: COMMENT_TEXT_SIZE,
           font: fonts.regular,
           color: colorFromHex(TEXT),
         });
       }
-      if (lineIndex < textLines.length - 1) {
-        textCursor -= COMMENT_LINE_GAP;
-      }
+
+      textCursor = nextY;
+      drawn += 1;
+      if (drawn >= maxLines) break;
+      // avança para a próxima linha
+      textCursor -= COMMENT_LINE_GAP;
     }
 
     cursor = cardBottom - COMMENT_CARD_GAP;

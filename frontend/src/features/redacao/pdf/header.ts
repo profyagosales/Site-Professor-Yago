@@ -1,5 +1,3 @@
-
-
 import { PDFDocument, PDFPage, PDFFont } from 'pdf-lib';
 import { EssayPdfData } from './types';
 import {
@@ -33,6 +31,55 @@ async function loadPublicPng(pdfDoc: PDFDocument, path: string) {
     if (!res.ok) return null;
     const buf = await res.arrayBuffer();
     return await pdfDoc.embedPng(buf);
+  } catch {
+    return null;
+  }
+}
+
+/** Converte data:uri -> bytes */
+function dataUriToBytes(uri: string): Uint8Array {
+  const base64 = uri.split(',')[1] ?? '';
+  const bin = atob(base64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+/** Rasteriza um SVG público para PNG (bytes) em runtime (navegador) */
+async function rasterizeSvgToPngBytes(svgUrl: string, targetWidth = 96): Promise<Uint8Array | null> {
+  try {
+    const res = await fetch(svgUrl, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const svgText = await res.text();
+    const blob = new Blob([svgText], { type: 'image/svg+xml' });
+    const objUrl = URL.createObjectURL(blob);
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.decoding = 'async';
+      const loaded = new Promise<HTMLImageElement>((resolve, reject) => {
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+      });
+      img.src = objUrl;
+      const el = await loaded;
+
+      const ratio = el.naturalHeight && el.naturalWidth ? el.naturalHeight / el.naturalWidth : 1;
+      const w = targetWidth;
+      const h = Math.max(1, Math.round(w * ratio));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      ctx.drawImage(el, 0, 0, w, h);
+
+      const dataUrl = canvas.toDataURL('image/png');
+      return dataUriToBytes(dataUrl);
+    } finally {
+      URL.revokeObjectURL(objUrl);
+    }
   } catch {
     return null;
   }
@@ -112,9 +159,20 @@ export const renderHeroHeader: HeroRenderer = async ({
   const gap = 10;
   const scoreW = 160;
 
-  // BRAND mark
-  const mark = await loadPublicPng(pdfDoc, '/pdf/brand-mark.png');
-  if (mark) {
+  // BRAND mark: prioriza rasterizar o SVG público `/logo.svg`; se falhar, usa fallback PNG
+  let markImg = null;
+  try {
+    const svgBytes = await rasterizeSvgToPngBytes('/logo.svg', 96);
+    if (svgBytes) {
+      markImg = await pdfDoc.embedPng(svgBytes);
+    }
+  } catch {
+    markImg = null;
+  }
+  if (!markImg) {
+    markImg = await loadPublicPng(pdfDoc, BRAND.FALLBACK_URL || '/pdf/brand-mark.png');
+  }
+  if (markImg) {
     const imgSize = 40;
     const imgX = x0 + PAD + (brandW - imgSize) / 2;
     const imgY = top - PAD - imgSize;
@@ -125,7 +183,7 @@ export const renderHeroHeader: HeroRenderer = async ({
       height: 46,
       color: colorFromHex('#ffffff'),
     });
-    page.drawImage(mark, {
+    page.drawImage(markImg, {
       x: imgX,
       y: imgY,
       width: imgSize,

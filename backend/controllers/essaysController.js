@@ -127,7 +127,7 @@ function normalizeEssayFile(essay) {
   return {
     kind,
     mimeType: mime || null,
-    hasCorrected: Boolean(essay.correctedUrl),
+    hasCorrected: Boolean(essay.correctedUrl || essay.correctionPdf),
   };
 }
 
@@ -171,6 +171,8 @@ function normalizeEssayDetail(essay) {
     fileUrl: essay.originalUrl || null,
     correctedUrl: essay.correctedUrl || null,
     correctionPdf: essay.correctionPdf || essay.correctedUrl || null,
+    isCorrected: Boolean(essay.isCorrected || essay.correctionPdf || essay.correctedUrl || essay.status === 'GRADED'),
+    correctedAt: essay.correctedAt || null,
     grade: normalizeEssayGrade(essay),
     comments: essay.comments || null,
     annotations: Array.isArray(essay.annotations) ? essay.annotations : [],
@@ -200,6 +202,43 @@ function clamp01(value) {
   return number;
 }
 
+// Ensures annotation numbers are unique, sequential (1,2,3...) and sorted by createdAt then id
+function ensureAnnotationNumbers(annotations = []) {
+  if (!Array.isArray(annotations)) return [];
+  const arr = [...annotations];
+  // sort by createdAt asc, then id asc
+  arr.sort((a, b) => {
+    const ta = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const tb = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+    if (ta !== tb) return ta - tb;
+    const ia = (a?.id || a?._id || '').toString();
+    const ib = (b?.id || b?._id || '').toString();
+    return ia.localeCompare(ib);
+  });
+  // preserve valid unique numbers, fill gaps/dups
+  const used = new Set();
+  for (const a of arr) {
+    const n = Number(a?.number);
+    if (Number.isFinite(n) && n > 0 && !used.has(n)) used.add(n);
+  }
+  let next = 1;
+  const takeNext = () => {
+    while (used.has(next)) next += 1;
+    used.add(next);
+    return next++;
+  };
+  const seen = new Set();
+  for (const a of arr) {
+    let n = Number(a?.number);
+    if (!Number.isFinite(n) || n <= 0 || seen.has(n)) {
+      n = takeNext();
+    }
+    a.number = n;
+    seen.add(n);
+  }
+  return arr;
+}
+
 const LEVEL_POINTS = [0, 40, 80, 120, 160, 200];
 const LEGACY_ANNUL_REASONS = new Set([
   'IDENTIFICACAO',
@@ -224,9 +263,12 @@ function normalizeEssaySummary(essay) {
     studentName: student?.name || essay.studentName || null,
     classId: essay.classId?._id ? String(essay.classId._id) : essay.classId || null,
     className: student?.className || null,
-    corrected: Boolean(essay.correctedUrl),
+    corrected: Boolean(essay.correctedUrl || essay.correctionPdf || essay.isCorrected || essay.status === 'GRADED'),
+    isCorrected: Boolean(essay.isCorrected || essay.correctionPdf || essay.correctedUrl || essay.status === 'GRADED'),
+    correctedAt: essay.correctedAt || null,
     fileUrl: essay.originalUrl || null,
     correctedUrl: essay.correctedUrl || null,
+    correctionPdf: essay.correctionPdf || essay.correctedUrl || null,
     rawScore: essay.rawScore != null ? Number(essay.rawScore) : null,
     scaledScore: essay.scaledScore != null ? Number(essay.scaledScore) : null,
     bimestralPointsValue: essay.bimestralPointsValue != null ? Number(essay.bimestralPointsValue) : null,
@@ -324,6 +366,12 @@ async function getEssay(req, res) {
     }
 
     await assertUserCanAccessEssay(req.user, essay);
+    if (Array.isArray(essay.annotations)) {
+      essay.annotations = ensureAnnotationNumbers(essay.annotations);
+    }
+    if (Array.isArray(essay.richAnnotations)) {
+      essay.richAnnotations = ensureAnnotationNumbers(essay.richAnnotations);
+    }
     const normalized = normalizeEssayDetail(essay);
 
     return res.json({ success: true, data: normalized });
@@ -801,6 +849,8 @@ async function gradeEssay(req, res) {
     essay.teacherId = req.user._id;
     essay.status = 'GRADED';
     essay.comments = comments || null;
+    essay.isCorrected = true;
+    if (!essay.correctedAt) essay.correctedAt = new Date();
 
     await essay.save();
 
@@ -895,6 +945,13 @@ async function updateAnnotations(req, res) {
         })
         .filter(Boolean);
       essay.richAnnotations = norm;
+    }
+    // Ensure annotation numbers are sequential before saving
+    if (Array.isArray(essay.annotations)) {
+      essay.annotations = ensureAnnotationNumbers(essay.annotations);
+    }
+    if (Array.isArray(essay.richAnnotations)) {
+      essay.richAnnotations = ensureAnnotationNumbers(essay.richAnnotations);
     }
     if (essay.type === 'PAS') {
       const NE = essay.annotations.filter((a) => a.color === 'green').length;
@@ -1019,7 +1076,8 @@ async function listEssayAnnotations(req, res) {
   try {
     const annotations = await EssayAnnotation.find({ essayId: id }).sort({ number: 1, createdAt: 1 }).lean();
     const payload = annotations.map((ann) => mapAnnotationResponse(ann));
-    const highlights = payload.flatMap((ann) =>
+    const normalized = ensureAnnotationNumbers(payload).sort((a, b) => a.number - b.number);
+    const highlights = normalized.flatMap((ann) =>
       ann.rects.map((rect) => ({
         page: ann.page,
         x: rect.x,
@@ -1031,13 +1089,13 @@ async function listEssayAnnotations(req, res) {
         number: ann.number,
       }))
     );
-    const comments = payload.map((ann) => ({
+    const comments = normalized.map((ann) => ({
       page: ann.page,
       text: ann.comment,
       number: ann.number,
       category: ann.category,
     }));
-    return res.json({ data: payload, annotations: payload, highlights, comments });
+    return res.json({ data: normalized, annotations: normalized, highlights, comments });
   } catch (err) {
     console.error('[essays] list annotations failed', err);
     return res.status(500).json({ message: 'Erro ao carregar anotações' });
@@ -1069,7 +1127,8 @@ async function saveEssayAnnotationsBatch(req, res) {
     await essay.save({ timestamps: false });
 
     const payload = saved.map((ann) => mapAnnotationResponse(ann));
-    const highlights = payload.flatMap((ann) =>
+    const normalizedPayload = ensureAnnotationNumbers(payload).sort((a, b) => a.number - b.number);
+    const highlights = normalizedPayload.flatMap((ann) =>
       ann.rects.map((rect) => ({
         page: ann.page,
         x: rect.x,
@@ -1081,13 +1140,13 @@ async function saveEssayAnnotationsBatch(req, res) {
         number: ann.number,
       }))
     );
-    const comments = payload.map((ann) => ({
+    const comments = normalizedPayload.map((ann) => ({
       page: ann.page,
       text: ann.comment,
       number: ann.number,
       category: ann.category,
     }));
-    return res.json({ data: payload, annotations: payload, highlights, comments });
+    return res.json({ data: normalizedPayload, annotations: normalizedPayload, highlights, comments });
   } catch (err) {
     console.error('[essays] save annotations failed', err);
     return res.status(500).json({ message: 'Erro ao salvar anotações' });
@@ -1487,10 +1546,11 @@ async function generateFinalPdf(req, res) {
 
     const annotationsDocs = await EssayAnnotation.find({ essayId: id }).sort({ number: 1 }).lean();
     const annotations = annotationsDocs.map((ann) => mapAnnotationResponse(ann));
+    const annotationsNorm = ensureAnnotationNumbers(annotations).sort((a, b) => a.number - b.number);
     const score = normalizeEssayScoreResponse(essay);
     const buffer = await generateCorrectedEssayPdf({
       essay,
-      annotations,
+      annotations: annotationsNorm,
       score,
       student: essay.studentId,
       classInfo: essay.classId,
@@ -1498,7 +1558,10 @@ async function generateFinalPdf(req, res) {
 
     const corrected = await uploadBuffer(buffer, 'essays/corrected', 'application/pdf', { returnResult: true });
     essay.correctedUrl = corrected?.secure_url || corrected || essay.correctedUrl;
+    essay.correctionPdf = essay.correctionPdf || essay.correctedUrl;
     essay.status = 'GRADED';
+    essay.isCorrected = true;
+    essay.correctedAt = new Date();
     await essay.save();
 
     return res.json({ data: { correctedUrl: essay.correctedUrl } });
@@ -1552,10 +1615,22 @@ async function uploadCorrectionPdf(req, res) {
     if (!essay.correctedUrl) {
       essay.correctedUrl = correctionUrl;
     }
+    essay.status = 'GRADED';
+    essay.isCorrected = true;
+    essay.correctedAt = new Date();
 
     await essay.save();
 
-    return res.json({ success: true, data: { correctionPdf: correctionUrl } });
+    return res.json({
+      success: true,
+      data: {
+        correctionPdf: correctionUrl,
+        correctedUrl: essay.correctedUrl,
+        isCorrected: essay.isCorrected,
+        correctedAt: essay.correctedAt,
+        status: essay.status,
+      }
+    });
   } catch (err) {
     const status = err?.status || 500;
     if (status === 401 || status === 403) {

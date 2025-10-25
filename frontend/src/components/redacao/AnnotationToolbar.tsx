@@ -2,6 +2,23 @@ import React, { useMemo, useRef, useCallback } from 'react';
 import { HIGHLIGHT_ALPHA, HIGHLIGHT_CATEGORIES, type HighlightCategoryKey } from '@/constants/annotations';
 import { hexToRgba } from '@/utils/color';
 
+const VARIANT_BY_KEY: Partial<Record<HighlightCategoryKey, string>> = {
+  // Ajuste as chaves conforme seu constants/annotations
+  // Fallbacks por label também serão aplicados abaixo
+};
+
+function variantFor(key: HighlightCategoryKey, label: string): string {
+  const direct = VARIANT_BY_KEY[key as HighlightCategoryKey];
+  if (direct) return `btn ${direct}`;
+  const t = label.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+  if (t.includes('argument')) return 'btn btn--arg';
+  if (t.includes('ortograf') || t.includes('gramat')) return 'btn btn--ort';
+  if (t.includes('coes') || t.includes('coer')) return 'btn btn--coe';
+  if (t.includes('apresenta')) return 'btn btn--apr';
+  if (t.includes('coment')) return 'btn btn--com';
+  return 'btn btn--neutral';
+}
+
 type AnnotationToolbarProps = {
   active: HighlightCategoryKey;
   onChange: (key: HighlightCategoryKey) => void;
@@ -96,13 +113,10 @@ export function AnnotationToolbar({ active, onChange, orientation = 'horizontal'
             title={meta.label}
             onClick={() => onChange(key)}
             onKeyDown={(e) => onKeyDown(e, idx)}
-            className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500/60 ${
+            data-key={key}
+            className={`${variantFor(key, meta.label)} flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500/60 ${
               isActive ? 'ring-2 ring-orange-500' : 'ring-1 ring-transparent'
             } ${isVertical ? 'justify-start text-left w-full' : ''}`}
-            style={{
-              backgroundColor: hexToRgba(meta.color, HIGHLIGHT_ALPHA),
-            }}
-            data-key={key}
           >
             <span
               className="inline-block h-2 w-2 flex-none rounded-full"

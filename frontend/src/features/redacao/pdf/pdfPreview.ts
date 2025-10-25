@@ -1,4 +1,4 @@
-import { pdfjsLib } from '@/lib/pdf';
+import { pdfjsLib, ensureWorker } from '@/lib/pdf';
 
 async function fetchAsUint8Array(source: string | Uint8Array | Blob): Promise<Uint8Array | null> {
   if (source instanceof Uint8Array) return source;
@@ -39,16 +39,7 @@ export async function renderFirstPageToPng(
     const bytes = await fetchAsUint8Array(pdfUrlOrBytes);
     if (!bytes) return null;
 
-    // Garantir worker quando necessário (fallback suave)
-    try {
-      const anyPdf: any = pdfjsLib as any;
-      if (anyPdf?.GlobalWorkerOptions && !anyPdf.GlobalWorkerOptions.workerSrc) {
-        // script copy-pdf-worker.cjs copia para /public/
-        anyPdf.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
-      }
-    } catch {
-      // ignora
-    }
+    ensureWorker();
 
     const loadingTask = pdfjsLib.getDocument({ data: bytes });
     const doc = await loadingTask.promise;
@@ -63,9 +54,9 @@ export async function renderFirstPageToPng(
       const pixelRatio = Math.max(1, Math.min(3, opts.pixelRatio ?? 1));
 
       const page = await doc.getPage(pageNumber);
-      const viewport1x = page.getViewport({ scale: 1 });
+      const viewport1x = page.getViewport({ scale: 1, rotation: (page as any).rotate ?? 0 });
       const scale = Math.max(0.1, Math.min(4, maxWidth / viewport1x.width));
-      const viewport = page.getViewport({ scale });
+      const viewport = page.getViewport({ scale, rotation: (page as any).rotate ?? 0 });
 
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');

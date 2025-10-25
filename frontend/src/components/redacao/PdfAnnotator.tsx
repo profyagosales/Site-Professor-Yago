@@ -1,7 +1,8 @@
 import type React from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { nanoid } from "nanoid";
 import { emitPdfEvent } from '@/services/telemetry.service';
+import { ensureWorker } from '@/lib/pdf';
 
 /** NÃO importar 'react-pdf' nem 'react-konva' no topo — são carregados dinamicamente. */
 
@@ -22,6 +23,7 @@ export type AnnHighlight = {
   pen?: PenPath; // pen
   at?: { x: number; y: number }; // comment pin
   createdAt: number;
+  number?: number;
 };
 
 export type PdfAnnotatorProps = {
@@ -30,6 +32,7 @@ export type PdfAnnotatorProps = {
   palette: PaletteItem[];
   onChange?: (annos: AnnHighlight[]) => void;
   onError?: (error: unknown) => void;
+  hideLocalToolbar?: boolean;
 };
 
 export default function PdfAnnotator({
@@ -38,6 +41,7 @@ export default function PdfAnnotator({
   palette,
   onChange,
   onError,
+  hideLocalToolbar = false,
 }: PdfAnnotatorProps) {
   /** --------- lazy import das libs --------- */
   const [RP, setRP] = useState<any>(null);
@@ -52,6 +56,7 @@ export default function PdfAnnotator({
         } catch {
           m.pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
         }
+        try { ensureWorker(); } catch {}
         if (active) setRP(m);
       } catch (e) {
         console.error("Falha ao carregar react-pdf", e);
@@ -88,8 +93,46 @@ export default function PdfAnnotator({
   const [tool, setTool] = useState<"highlight" | "strike" | "box" | "pen" | "comment">("highlight");
   const [currentCat, setCurrentCat] = useState<PaletteItem>(palette[1] ?? palette[0]);
   const [annos, setAnnos] = useState<AnnHighlight[]>([]);
+  // Mapa id -> ordem (#n) estável por createdAt
+  const orderMap = useMemo(() => {
+    const sorted = [...annos].sort((a, b) => (a.createdAt - b.createdAt) || a.id.localeCompare(b.id));
+    const map: Record<string, number> = {};
+    sorted.forEach((a, i) => { map[a.id] = i + 1; });
+    return map;
+  }, [annos]);
   const [pageSizes, setPageSizes] = useState<Record<number, { w: number; h: number }>>({});
   const PDF_DEBUG = (import.meta as any).env?.VITE_PDF_DEBUG === '1';
+
+  const printing = typeof document !== 'undefined' && document.documentElement.getAttribute('data-printing') === '1';
+
+  // Fit-width control per page
+  const pageWrapRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const [pageWidths, setPageWidths] = useState<Record<number, number>>({});
+
+  function debounce<T extends (...args: any[]) => void>(fn: T, wait = 150) {
+    let t: any;
+    return (...args: Parameters<T>) => {
+      clearTimeout(t);
+      t = setTimeout(() => fn(...args), wait);
+    };
+  }
+
+  useEffect(() => {
+    const update = () => {
+      const next: Record<number, number> = {};
+      for (let p = 1; p <= pagesToRender; p++) {
+        const el = pageWrapRefs.current[p];
+        if (!el) continue;
+        const w = el.clientWidth || el.getBoundingClientRect().width || 0;
+        if (w > 0) next[p] = Math.floor(w);
+      }
+      if (Object.keys(next).length) setPageWidths(next);
+    };
+    const onResize = debounce(update, 150);
+    update();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [pagesToRender]);
 
   const emit = (list: AnnHighlight[]) => {
     setAnnos(list);
@@ -154,14 +197,8 @@ export default function PdfAnnotator({
           </button>
         ))}
       </div>
-      <div className="ml-auto flex gap-2">
-        <button onClick={() => setScale((s) => Math.max(0.75, s - 0.1))} className="px-2 py-1 rounded border">
-          –
-        </button>
-        <span className="px-2 py-1">{Math.round(scale * 100)}%</span>
-        <button onClick={() => setScale((s) => Math.min(2, s + 0.1))} className="px-2 py-1 rounded border">
-          +
-        </button>
+      <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+        <span className="px-2 py-1">Ajuste automático (largura)</span>
       </div>
     </div>
   );
@@ -171,6 +208,10 @@ export default function PdfAnnotator({
     const size = pageSizes[page];
     const [drag, setDrag] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
     if (!size) return null;
+    const colorForAnno = (a: AnnHighlight) => {
+      const p = palette.find((x) => x.key === a.category) || palette[0];
+      return p;
+    };
 
     const onDown = (e: any) => {
       const pos = e.target.getStage().getPointerPosition();
@@ -273,35 +314,54 @@ export default function PdfAnnotator({
     const annsThis = annos.filter((a) => a.page === page);
 
     return (
-      <Stage width={size.w} height={size.h} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp}>
+      <Stage width={size.w} height={size.h} listening={!printing} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp}>
         <Layer>
           {annsThis.map((a) => {
             if (a.type === "highlight" && a.rects)
               return a.rects.map((r, i) => {
                 const d = fromNorm(r, size.w, size.h);
+                const pal = colorForAnno(a);
+                const displayN = Number.isFinite((a as any).number) ? Number((a as any).number) : (orderMap[a.id] ?? undefined);
+                const label = displayN ? `#${displayN}` : "#?";
+                const fontSize = 10;
+                const chipW = Math.max(20, label.length * 6 + 6);
+                const chipH = 16;
                 return (
-                  <Rect
-                    key={a.id + "_" + i}
-                    x={d.x}
-                    y={d.y}
-                    width={d.width}
-                    height={d.height}
-                    fill={currentCat.rgba}
-                    opacity={0.6}
-                    cornerRadius={3}
-                  />
+                  <Group key={a.id + "_" + i}>
+                    <Rect
+                      x={d.x}
+                      y={d.y}
+                      width={d.width}
+                      height={d.height}
+                      fill={pal.rgba}
+                      opacity={0.22}
+                      cornerRadius={3}
+                    />
+                    {/* chip #n */}
+                    <Group x={d.x + 2} y={d.y + 2}>
+                      <Rect
+                        width={chipW}
+                        height={chipH}
+                        fill="#ffffff"
+                        cornerRadius={8}
+                        shadowBlur={2}
+                        shadowOpacity={0.15}
+                      />
+                      <Text x={4} y={3} text={label} fontSize={fontSize} fill="#334155" />
+                    </Group>
+                  </Group>
                 );
               });
 
             if (a.type === "strike" && a.rects)
               return a.rects.map((r, i) => {
                 const d = fromNorm(r, size.w, size.h);
-                return <Line key={a.id + "_" + i} points={[d.x, d.y + d.height / 2, d.x + d.width, d.y + d.height / 2]} stroke={a.color} strokeWidth={2} />;
+                return <Line key={a.id + "_" + i} points={[d.x, d.y + d.height / 2, d.x + d.width, d.y + d.height / 2]} stroke={(colorForAnno(a).color)} strokeWidth={2} />;
               });
 
             if (a.type === "box" && a.box) {
               const d = fromNorm(a.box, size.w, size.h);
-              return <Rect key={a.id} x={d.x} y={d.y} width={d.width} height={d.height} stroke={a.color} strokeWidth={2} dash={[6, 4]} />;
+              return <Rect key={a.id} x={d.x} y={d.y} width={d.width} height={d.height} stroke={(colorForAnno(a).color)} strokeWidth={2} dash={[6, 4]} />;
             }
 
             if (a.type === "pen" && a.pen) {
@@ -339,7 +399,7 @@ export default function PdfAnnotator({
   return (
     <div className="flex flex-col h-full">
       <div className="mb-2">
-        <Toolbar />
+        {!printing && !hideLocalToolbar && <Toolbar />}
       </div>
       {!fileUrl && <div className="p-4 text-muted-foreground">Preparando arquivo…</div>}
 
@@ -374,20 +434,32 @@ export default function PdfAnnotator({
             }}
           >
             {Array.from(new Array(pagesToRender), (_, i) => (
-              <div key={i + 1} className="relative inline-block">
+              <div
+                key={i + 1}
+                ref={(el) => (pageWrapRefs.current[i + 1] = el)}
+                className="relative block w-full"
+              >
                 <Page
                   pageNumber={i + 1}
-                  scale={scale}
+                  width={pageWidths[i + 1] || undefined}
                   renderAnnotationLayer={false}
                   renderTextLayer={false}
                   onLoadSuccess={(p: any) => {
-                    const vw = p._pageInfo.view[2] * scale;
-                    const vh = p._pageInfo.view[3] * scale;
+                    const view = p._pageInfo.view; // [x0, y0, w, h] in user space units
+                    const pageW = view[2];
+                    const pageH = view[3];
+                    const targetW = pageWidths[i + 1] || pageW;
+                    const ratio = pageH / pageW;
+                    const vw = Math.max(1, Math.floor(targetW));
+                    const vh = Math.max(1, Math.floor(vw * ratio));
                     setPageSizes((s) => ({ ...s, [i + 1]: { w: vw, h: vh } }));
                   }}
                 />
                 {pageSizes[i + 1] && (
-                  <div className="absolute inset-0 pointer-events-auto">
+                  <div
+                    className="absolute inset-0"
+                    style={{ pointerEvents: printing ? 'none' : 'auto' }}
+                  >
                     <PageOverlay page={i + 1} />
                   </div>
                 )}

@@ -73,6 +73,45 @@ function formatIso(value: unknown): string {
   return new Date().toISOString();
 }
 
+// ----------- Student avatar helpers -----------
+function asString(v: any): string | undefined {
+  if (!v) return undefined;
+  if (typeof v === 'string') return v.trim() || undefined;
+  if (typeof v === 'number' && Number.isFinite(v)) return String(v);
+  if (typeof v === 'object') {
+    if (typeof v.url === 'string') return v.url.trim() || undefined;
+    if (typeof v.href === 'string') return v.href.trim() || undefined;
+  }
+  return undefined;
+}
+
+function resolveStudentAvatar(raw: any): string | undefined {
+  const cands = [
+    raw?.avatarUrl,
+    raw?.photoUrl,
+    raw?.avatar,
+    raw?.image?.url,
+    raw?.picture,
+    raw?.profileImageUrl,
+    raw?.profile?.avatarUrl,
+    raw?.profile?.photoUrl,
+  ];
+  for (const c of cands) {
+    const s = asString(c);
+    if (s) return s;
+  }
+  return undefined;
+}
+
+function normalizeStudent(raw: any) {
+  if (!raw || typeof raw !== 'object') return raw;
+  const avatarUrl = resolveStudentAvatar(raw);
+  if (avatarUrl && raw.avatarUrl !== avatarUrl) {
+    return { ...raw, avatarUrl };
+  }
+  return raw;
+}
+
 export function joinApi(base: string, path: string) {
   const cleanedBase = typeof base === 'string' ? base.trim() : '';
   const cleanedPath = typeof path === 'string' ? path.replace(/^\/+/, '') : '';
@@ -128,12 +167,14 @@ type EssayListItem = {
   correctedUrl?: string | null;
   score?: number | null;
   comments?: string | null;
+  studentAvatarUrl?: string | null;
   raw?: any;
 };
 
 function normalizeEssayListItem(raw: any): EssayListItem {
   const id = normalizeId(raw);
-  const studentName = raw?.studentName || raw?.student?.name || raw?.student || '-';
+  const studentObj = normalizeStudent(raw?.student);
+  const studentName = raw?.studentName || studentObj?.name || raw?.student || '-';
   const className = raw?.className || raw?.class?.name || raw?.class || null;
   const classId = normalizeId(raw?.classId || raw?.class);
   const theme = raw?.theme || raw?.topic || raw?.title || 'Tema não informado';
@@ -148,7 +189,7 @@ function normalizeEssayListItem(raw: any): EssayListItem {
   return {
     id,
     studentName,
-    student: raw?.student,
+    student: studentObj,
     className,
     classId,
     theme,
@@ -161,6 +202,7 @@ function normalizeEssayListItem(raw: any): EssayListItem {
     correctedUrl,
     score: typeof score === 'number' ? score : null,
     comments: typeof comments === 'string' ? comments : null,
+    studentAvatarUrl: resolveStudentAvatar(studentObj) ?? null,
     raw,
   };
 }
@@ -390,7 +432,12 @@ export async function listStudentEssaysByStatus(
 
 export async function fetchEssayById(id: EssayId, options?: { signal?: AbortSignal }) {
   const { data } = await api.get(`/essays/${id}`, { signal: options?.signal });
-  return data?.data ?? data;
+  const payload = data?.data ?? data;
+  if (payload && typeof payload === 'object') {
+    if (payload.student) payload.student = normalizeStudent(payload.student);
+    if (payload.user) payload.user = normalizeStudent(payload.user);
+  }
+  return payload;
 }
 
 export async function getSubmission(id: EssayId, options?: { signal?: AbortSignal }) {
