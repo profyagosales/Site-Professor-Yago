@@ -1,8 +1,20 @@
 export type EssayStatus = 'pending' | 'corrected';
 
+// Minimal student summary used across correction flows
+export interface StudentSummary {
+  id?: string | null;
+  name: string;
+  avatarUrl?: string | null; // normalizado em essays.service.ts
+  photoUrl?: string | null;  // mantido para retrocompatibilidade
+  image?: { url?: string | null } | null; // fontes alternativas
+  classId?: string | null;
+  className?: string | null;
+}
+
 export interface Essay {
   id: string;
   studentName: string;
+  student?: StudentSummary | null; // novo: objeto normalizado (avatarUrl, etc.)
   className: string | null;
   classId?: string | null;
   theme: string;
@@ -13,6 +25,7 @@ export interface Essay {
   correctedUrl?: string | null;
   score?: number | null;
   comments?: string | null;
+  studentAvatarUrl?: string | null; // novo: atalho normalizado para a lista
   type?: string | null;
   bimester?: number | null;
   raw?: any;

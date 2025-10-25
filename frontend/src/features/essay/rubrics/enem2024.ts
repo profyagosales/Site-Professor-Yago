@@ -71,7 +71,7 @@ export const ENEM_2024: EnemCompetency[] = [
               items: [{ id: 'c2_l2_3partes_2_embrionarias', label: '3 partes do texto (2 delas embrionárias)' }],
             },
             { id: 'c2_l2_conclusao_incompleta', label: 'Conclusão finalizada por frase incompleta' },
-            { id: 'c2_l2_muitas_copias', label: 'Redação com muitas cópias — não deve ultrapassar este nível' },
+            { id: 'c2_l2_muitas_copias', label: 'Redação com muitas cópias' },
           ],
         },
       },
@@ -79,7 +79,7 @@ export const ENEM_2024: EnemCompetency[] = [
         level: 3,
         points: P(3),
         summary:
-          'Abordagem completa do tema E 3 partes do texto (1 delas embrionárias) E repertório baseado nos textos motivadores E/OU repertório não legitimado E/OU repertório legitimado MAS não pertecente ao tema',
+          'Abordagem completa do tema E 3 partes do texto (1 delas embrionárias) E repertório baseado nos textos motivadores E/OU repertório não legitimado E/OU repertório legitimado MAS não pertencente ao tema',
         rationale: {
           op: 'AND',
           items: [
@@ -92,7 +92,7 @@ export const ENEM_2024: EnemCompetency[] = [
                 { id: 'c2_l3_repertorio_nao_legitimado', label: 'Repertório não legitimado' },
                 {
                   id: 'c2_l3_repertorio_legitimado_nao_pertinente',
-                  label: 'Repertório legitimado MAS não pertecente ao tema',
+                  label: 'Repertório legitimado MAS não pertencente ao tema',
                 },
               ],
             },
@@ -140,7 +140,7 @@ export const ENEM_2024: EnemCompetency[] = [
         level: 2,
         points: P(2),
         summary:
-          'projeto de texto com MUITAS falhas E sem desenvolvimento ou desenvolvimento de apenas uma informação // Contradição grave',
+          'projeto de texto com MUITAS falhas E sem desenvolvimento OU desenvolvimento de apenas uma informação // Contradição grave',
         rationale: {
           op: 'OR',
           items: [
@@ -148,10 +148,16 @@ export const ENEM_2024: EnemCompetency[] = [
               op: 'AND',
               items: [
                 { id: 'c3_l2_muitas_falhas', label: 'MUITAS falhas' },
-                { id: 'c3_l2_sem_desenvolvimento', label: 'Sem desenvolvimento OU desenvolvimento de apenas uma informação' },
+                {
+                  op: 'OR',
+                  items: [
+                    { id: 'c3_l2_sem_desenvolvimento', label: 'sem desenvolvimento' },
+                    { id: 'c3_l2_desenvolvimento_um', label: 'desenvolvimento de apenas uma informação' },
+                  ],
+                },
               ],
             },
-            { id: 'c3_l2_contradicao_grave', label: 'Contradição grave — não deve ultrapassar este nível' },
+            { id: 'c3_l2_contradicao_grave', label: 'Contradição grave' },
           ],
         },
       },
@@ -205,7 +211,7 @@ export const ENEM_2024: EnemCompetency[] = [
             { id: 'c4_l2_intra_inter', label: 'Elementos coesivos intra E/OU interparágrafos (PONTUAL)' },
             { id: 'c4_l2_muitas_repeticoes', label: 'MUITAS repetições' },
             { id: 'c4_l2_muitas_inadequacoes', label: 'MUITAS inadequações' },
-            { id: 'c4_l2_texto_monobloco', label: 'Texto monobloco — não deve ultrapassar este nível' },
+            { id: 'c4_l2_texto_monobloco', label: 'Texto monobloco' },
           ],
         },
       },
@@ -240,13 +246,13 @@ export const ENEM_2024: EnemCompetency[] = [
       {
         level: 5,
         points: P(5),
-        summary: 'Presença EXPRESSIVA de elementos coesivos intra E/OU interparágrafos E/OU RARAS ou AUSENTES repetições E/OU SEM inadequações',
+        summary: 'Presença EXPRESSIVA de elementos coesivos intra E/OU interparágrafos E/OU RARAS OU AUSENTES repetições E/OU SEM inadequações',
         rationale: {
           op: 'OR',
           multiple: true,
           items: [
             { id: 'c4_l5_intra_inter', label: 'Elementos coesivos intra E/OU interparágrafos (EXPRESSIVA)' },
-            { id: 'c4_l5_raras_ausentes_repeticoes', label: 'RARAS ou AUSENTES repetições' },
+            { id: 'c4_l5_raras_ausentes_repeticoes', label: 'RARAS OU AUSENTES repetições' },
             { id: 'c4_l5_sem_inadequacoes', label: 'SEM inadequações' },
           ],
         },
@@ -264,7 +270,6 @@ export const ENEM_2024: EnemCompetency[] = [
         summary: 'Ausência de proposta OU Proposta de intervenção que desrespeita os direitos humanos OU proposta de intervenção não relacionada ao assunto',
         rationale: {
           op: 'OR',
-          multiple: true,
           items: [
             { id: 'c5_l0_ausencia', label: 'Ausência de proposta' },
             { id: 'c5_l0_desrespeita_dh', label: 'Proposta de intervenção que desrespeita os direitos humanos' },
@@ -275,12 +280,11 @@ export const ENEM_2024: EnemCompetency[] = [
       {
         level: 1,
         points: P(1),
-        summary: 'Tangênciamento ao tema OU Apenas elementos nulos OU 1 elemento válido',
+        summary: 'Tangenciamento ao tema OU Apenas elementos nulos OU 1 elemento válido',
         rationale: {
           op: 'OR',
-          multiple: true,
           items: [
-            { id: 'c5_l1_tangenciamento', label: 'Tangênciamento ao tema' },
+            { id: 'c5_l1_tangenciamento', label: 'Tangenciamento ao tema' },
             { id: 'c5_l1_elementos_nulos', label: 'Apenas elementos nulos' },
             { id: 'c5_l1_um_elemento_valido', label: '1 elemento válido' },
           ],
@@ -289,7 +293,7 @@ export const ENEM_2024: EnemCompetency[] = [
       {
         level: 2,
         points: P(2),
-        summary: '2 elementos válidos //Estrutura CONDICIONAL com dois ou mais elementos válidos',
+        summary: '2 elementos válidos OU Estrutura CONDICIONAL com dois ou mais elementos válidos',
         rationale: {
           op: 'OR',
           items: [

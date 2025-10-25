@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { pdfjsLib } from '@/lib/pdf';
+import { pdfjsLib, ensureWorker } from '@/lib/pdf';
 import { HIGHLIGHT_ALPHA, HIGHLIGHT_CATEGORIES, type HighlightCategoryKey } from '@/constants/annotations';
 import { hexToRgba } from '@/utils/color';
 import type { AnnotationItem, NormalizedRect } from './annotationTypes';
@@ -13,6 +13,14 @@ type PdfCorrectionViewerProps = {
   onMoveAnnotation: (id: string, rect: NormalizedRect) => void;
   onSelectAnnotation: (id: string) => void;
   disabled?: boolean;
+  actions?: {
+    onBack: () => void;
+    onOpenOriginal: () => void;
+    onSave: () => void;
+    onGenerate: () => void;
+    saving?: boolean;
+    generating?: boolean;
+  };
 };
 
 type DrawingState = {
@@ -29,7 +37,7 @@ type DragState = {
   size: { width: number; height: number };
 };
 
-const SCALE = 1.2;
+
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -67,6 +75,20 @@ export function PdfCorrectionViewer({
   const destroyPromiseRef = useRef<Promise<void> | null>(null);
   const pdfDocRef = useRef<any>(null);
   const renderTasksRef = useRef<Record<number, any>>({});
+  const annRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Re-render trigger on viewport/resize changes
+  const [viewportVersion, setViewportVersion] = useState(0);
+
+  function debounce<T extends (...args: any[]) => void>(fn: T, wait = 150) {
+    let t: any;
+    return (...args: Parameters<T>) => {
+      clearTimeout(t);
+      t = setTimeout(() => fn(...args), wait);
+    };
+  }
+
+  const printing = typeof document !== 'undefined' && document.documentElement.getAttribute('data-printing') === '1';
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +121,7 @@ export function PdfCorrectionViewer({
             }
           }
         }
+        ensureWorker();
         const task = pdfjsLib.getDocument({ url: fileUrl, withCredentials: true });
         loadingTaskRef.current = task;
         const doc = await task.promise;
@@ -140,6 +163,12 @@ export function PdfCorrectionViewer({
   }, [fileUrl]);
 
   useEffect(() => {
+    const onResize = debounce(() => setViewportVersion((v) => v + 1), 150);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
     if (!pdfDoc || numPages === 0) return;
     let cancelled = false;
 
@@ -147,16 +176,33 @@ export function PdfCorrectionViewer({
       try {
         const page = await pdfDoc.getPage(pageNumber);
         if (!page || cancelled) return;
-        const viewport = page.getViewport({ scale: SCALE });
+
+        // Fit-width: escala derivada da largura disponível do container da página
+        const container = pageRefs.current[pageNumber];
+        if (!container) return;
+        const availableWidth = container.clientWidth || container.getBoundingClientRect().width || 0;
+        const rotation = (page as any).rotate ?? 0;
+        const viewport1x = page.getViewport({ scale: 1, rotation });
+        const scale = Math.max(0.1, Math.min(4, availableWidth / viewport1x.width));
+        const viewport = page.getViewport({ scale, rotation });
+
         const canvas = canvasRefs.current[pageNumber];
         if (!canvas) return;
         const context = canvas.getContext('2d', { alpha: false });
         if (!context) return;
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-        canvas.style.width = `${viewport.width}px`;
-        canvas.style.height = `${viewport.height}px`;
-        const renderTask = page.render({ canvasContext: context, viewport });
+
+        // HiDPI: renderiza no DPR para nitidez, mantendo CSS no tamanho lógico
+        const dpr = Math.min(2, typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1);
+        canvas.width = Math.floor(viewport.width * dpr);
+        canvas.height = Math.floor(viewport.height * dpr);
+        canvas.style.width = `${Math.floor(viewport.width)}px`;
+        canvas.style.height = `${Math.floor(viewport.height)}px`;
+
+        const renderTask = page.render({
+          canvasContext: context,
+          viewport,
+          transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined,
+        });
         renderTasksRef.current[pageNumber] = renderTask;
         await renderTask.promise;
       } catch (err) {
@@ -181,7 +227,7 @@ export function PdfCorrectionViewer({
       });
       renderTasksRef.current = {};
     };
-  }, [pdfDoc, numPages, fileUrl]);
+  }, [pdfDoc, numPages, fileUrl, viewportVersion]);
 
   const byPage = useMemo(() => {
     const map = new Map<number, AnnotationItem[]>();
@@ -190,10 +236,48 @@ export function PdfCorrectionViewer({
       map.get(ann.page)!.push(ann);
     }
     for (const list of map.values()) {
-      list.sort((a, b) => a.number - b.number);
+      list.sort((a, b) => {
+        const na = typeof a.number === 'number' ? a.number : Number.POSITIVE_INFINITY;
+        const nb = typeof b.number === 'number' ? b.number : Number.POSITIVE_INFINITY;
+        if (na !== nb) return na - nb;
+        return a.id.localeCompare(b.id);
+      });
     }
     return map;
   }, [annotations]);
+
+  const idToPage = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const [pageNo, list] of byPage.entries()) {
+      for (const a of list) m.set(a.id, pageNo);
+    }
+    return m;
+  }, [byPage]);
+
+
+  useEffect(() => {
+    if (!selectedId) return;
+    const el = annRefs.current[selectedId];
+    if (el) {
+      // scroll the highlight into view (centro do contêiner rolável)
+      try {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+      } catch {
+        // no-op
+      }
+      return;
+    }
+    // Fallback: tenta rolar para a página caso o overlay ainda não exista
+    const pageNo = idToPage.get(selectedId);
+    if (pageNo) {
+      const pageEl = pageRefs.current[pageNo];
+      try {
+        pageEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [selectedId, idToPage]);
 
   const handlePointerDown = (pageNumber: number, event: React.PointerEvent<HTMLDivElement>) => {
     if (disabled) return;
@@ -332,20 +416,25 @@ export function PdfCorrectionViewer({
               className="block w-full"
             />
             <div
-              className="absolute inset-0 cursor-crosshair"
+              className={`absolute inset-0 ${disabled || printing ? 'cursor-default' : 'cursor-crosshair'}`}
+              style={{ pointerEvents: disabled || printing ? 'none' : 'auto' }}
               onPointerDown={(event) => handlePointerDown(pageNumber, event)}
               onPointerMove={(event) => handlePointerMove(pageNumber, event)}
               onPointerUp={(event) => handlePointerUp(pageNumber, event)}
               onPointerLeave={() => cancelDrawing()}
               role="presentation"
             >
-              {pageAnnotations.map((ann) =>
+              {pageAnnotations.map((ann, annIndex) =>
                 ann.rects.map((rect, idx) => {
                   const style = toCssRect(rect);
                   const color = hexToRgba(ann.color, HIGHLIGHT_ALPHA);
                   return (
                     <div
                       key={`${ann.id}-${idx}`}
+                      ref={(node) => {
+                        if (idx === 0) annRefs.current[ann.id] = node;
+                      }}
+                      data-annotation-id={ann.id}
                       className={`absolute rounded-md border border-orange-400/40 shadow-inner transition ${
                         selectedId === ann.id ? 'ring-2 ring-orange-500' : ''
                       }`}
@@ -361,8 +450,8 @@ export function PdfCorrectionViewer({
                         onSelectAnnotation(ann.id);
                       }}
                     >
-                      <span className="absolute left-1 top-1 inline-flex h-6 min-w-[24px] items-center justify-center rounded-full bg-white px-2 text-xs font-semibold text-slate-800 shadow">
-                        #{ann.number}
+                      <span className="absolute left-1 top-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-white px-1.5 text-[10px] font-semibold text-slate-800 shadow">
+                        {`#${typeof ann.number === 'number' ? ann.number : (annIndex + 1)}`}
                       </span>
                     </div>
                   );

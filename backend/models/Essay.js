@@ -18,7 +18,9 @@ const annotationSchema = new mongoose.Schema({
     y: Number,
     w: Number,
     h: Number
-  }
+  },
+  // Ordem global (#n) opcional; será preenchida pelo controller se ausente
+  number: { type: Number, default: null }
 }, { _id: false });
 
 const essaySchema = new mongoose.Schema({
@@ -42,6 +44,9 @@ const essaySchema = new mongoose.Schema({
   correctedUrl: { type: String, default: null },
   correctionPdf: { type: String, default: null },
   correctionPdfPublicId: { type: String, default: null },
+  // Sinalização explícita de correção e data da correção (para mover de Pendentes → Corrigidas)
+  isCorrected: { type: Boolean, default: false },
+  correctedAt: { type: Date, default: null },
   // Data de submissão para consultas específicas; por padrão, usamos timestamps.createdAt,
   // mas expomos submittedAt para novos fluxos e índices compostos.
   submittedAt: { type: Date, default: Date.now },
@@ -115,6 +120,8 @@ const essaySchema = new mongoose.Schema({
       type: { type: String, enum: ['highlight', 'pen', 'box', 'strike', 'comment'] },
       createdAt: { type: String },
       updatedAt: { type: String },
+      // Ordem global (#n); definida no backend ao normalizar
+      number: { type: Number, default: null },
       // highlight
       rects: [{ x: Number, y: Number, w: Number, h: Number }],
       opacity: { type: Number },
@@ -148,5 +155,6 @@ essaySchema.index({ status: 1 });
 essaySchema.index({ bimester: 1 });
 essaySchema.index({ type: 1 });
 essaySchema.index({ studentId: 1, submittedAt: -1 });
+essaySchema.index({ isCorrected: 1, correctedAt: -1 });
 
 module.exports = mongoose.model('Essay', essaySchema, 'essays');

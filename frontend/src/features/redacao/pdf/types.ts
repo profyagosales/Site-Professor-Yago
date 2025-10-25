@@ -4,6 +4,8 @@ export type AnnotationKind = 'argument' | 'grammar' | 'cohesion' | 'presentation
 
 export interface Annotation {
   id: string;
+  /** ordem exibida (#n); se ausente, o gerador usa o índice natural */
+  number?: number;
   page: number;
   x: number;
   y: number;
@@ -38,6 +40,8 @@ export interface EssayPdfData {
   enem?: {
     levels: [number, number, number, number, number];
     reasons: string[][];
+    /** pontuação final (0..1000) opcional; se ausente, o gerador formata via score.finalFormatted */
+    total?: number;
   };
   pas?: {
     apresentacao: number;
@@ -50,5 +54,9 @@ export interface EssayPdfData {
       pontuacaoMorfossintaxe: number;
       propriedadeVocabular: number;
     };
+    /** soma de erros (NE) opcional para referência direta */
+    neTotal?: number;
+    /** nota final calculada (NR) opcional; se ausente, o gerador calcula on-the-fly */
+    nr?: number;
   };
 }

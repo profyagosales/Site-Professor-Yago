@@ -116,6 +116,7 @@ const HIGHLIGHT_TO_KIND: Record<HighlightCategoryKey, AnnotationKind> = {
   comentarios: 'general',
 };
 
+
 function getInitialsFromName(name: string) {
   return name
     .split(' ')
@@ -123,6 +124,77 @@ function getInitialsFromName(name: string) {
     .slice(0, 2)
     .map((piece) => piece[0]?.toUpperCase() ?? '')
     .join('');
+}
+
+function MirrorSummaryInline(props: {
+  type: 'PAS' | 'ENEM' | null;
+  pas: {
+    nc: number;
+    tl: number | null;
+    ne: number;
+    discount: number | null;
+    nr: number | null;
+  } | null;
+  enemTotal: number;
+}) {
+  const { type, pas, enemTotal } = props;
+  return (
+    <div className="rounded-xl border border-orange-200 bg-orange-50/60 p-3">
+      <h3 className="text-[11px] font-semibold tracking-wide text-orange-700">Resumo do espelho</h3>
+      {type === 'PAS' && pas ? (
+        <div className="mt-2 grid grid-cols-2 gap-2 text-slate-800">
+          <div className="rounded-lg border border-slate-200 bg-white p-2">
+            <span className="block text-[10px] text-slate-500">NC</span>
+            <span className="text-base font-bold leading-none">{pas.nc.toFixed(2)}</span>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-white p-2">
+            <span className="block text-[10px] text-slate-500">NR previsto</span>
+            <span className="text-base font-bold leading-none">{(pas.nr ?? 0).toFixed(2)}</span>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-white p-2">
+            <span className="block text-[10px] text-slate-500">TL</span>
+            <span className="text-base font-semibold leading-none">{pas.tl ?? 0}</span>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-white p-2">
+            <span className="block text-[10px] text-slate-500">NE total</span>
+            <span className="text-base font-semibold leading-none">{pas.ne}</span>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-2 grid grid-cols-1 gap-2 text-slate-800">
+          <div className="rounded-lg border border-slate-200 bg-white p-2">
+            <span className="block text-[10px] text-slate-500">TOTAL ENEM</span>
+            <span className="text-base font-bold leading-none">{Math.max(0, Math.round(enemTotal))} / 1000</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Converte uma URL http(s) em data URI (base64). Mantém `data:` se já vier pronto.
+async function toDataUriIfHttp(url?: string | null): Promise<string | undefined> {
+  if (!url || typeof url !== 'string') return undefined;
+  if (url.startsWith('data:')) return url;
+  if (!/^https?:/i.test(url)) return undefined;
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) return undefined;
+    const blob = await res.blob();
+    const dataUrl = await blobToDataUrl(blob);
+    return dataUrl || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 export default function GradeWorkspace() {
@@ -145,6 +217,7 @@ export default function GradeWorkspace() {
 
   const [annulState, setAnnulState] = useState<Record<string, boolean>>({});
   const [annulOther, setAnnulOther] = useState('');
+  const [brandSrc, setBrandSrc] = useState('/logo.svg');
   const createEmptyPasState = (): PasState => ({
     apresentacao: '',
     argumentacao: '',
@@ -374,6 +447,15 @@ export default function GradeWorkspace() {
   }, [liveMessage]);
 
   useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.documentElement.setAttribute('data-printing', generating ? '1' : '0');
+    return () => {
+      // garante reset em navegação/desmontagem
+      document.documentElement.setAttribute('data-printing', '0');
+    };
+  }, [generating]);
+
+  useEffect(() => {
     if (!id) return;
     const controller = new AbortController();
     (async () => {
@@ -599,6 +681,7 @@ export default function GradeWorkspace() {
           height: rect.height,
           kind: HIGHLIGHT_TO_KIND[ann.category] ?? 'general',
           text: ann.comment ?? '',
+          number: ann.number,
         }));
       });
 
@@ -648,7 +731,10 @@ export default function GradeWorkspace() {
         },
       };
 
-      const avatarDataUri = typeof studentPhoto === 'string' && studentPhoto.startsWith('data:') ? studentPhoto : undefined;
+      let avatarDataUri = typeof studentPhoto === 'string' && studentPhoto.startsWith('data:') ? studentPhoto : undefined;
+      if (!avatarDataUri && typeof studentPhoto === 'string' && /^https?:/i.test(studentPhoto)) {
+        avatarDataUri = await toDataUriIfHttp(studentPhoto);
+      }
       const bimestreNumber = Number.isFinite(Number(bimestreRaw)) ? Number(bimestreRaw) : null;
       const scoreInfo = {
         finalFormatted: finalScore,
@@ -679,6 +765,7 @@ export default function GradeWorkspace() {
             ? {
                 levels: enemLevels,
                 reasons: enemReasons,
+                total: enemTotal,
               }
             : undefined,
         pas:
@@ -690,6 +777,8 @@ export default function GradeWorkspace() {
                 conteudo: pasSummary.conteudo,
                 nl: pasSummary.nl,
                 erros: pasSummary.erros,
+                neTotal: pasDerived.ne ?? 0,
+                nr: pasDerived.nr ?? 0,
               }
             : undefined,
       };
@@ -729,9 +818,13 @@ export default function GradeWorkspace() {
 
   const studentName = essay?.student?.name || essay?.studentName || '-';
   const rawPhoto =
-    (essay?.student as any)?.photo ||
+    (essay?.student as any)?.avatarUrl ||
+    (essay as any)?.studentAvatarUrl ||
     (essay?.student as any)?.photoUrl ||
     (essay?.student as any)?.avatar ||
+    (essay?.student as any)?.image?.url ||
+    (essay?.student as any)?.photo ||
+    (essay?.student as any)?.picture ||
     null;
   const studentPhoto = useMemo(() => {
     if (!rawPhoto || typeof rawPhoto !== 'string') return null;
@@ -769,165 +862,235 @@ export default function GradeWorkspace() {
       data-printing={generating ? '1' : '0'}
       className="mx-auto flex h-full w-full max-w-none flex-col gap-3 px-2 py-4 sm:px-3 lg:px-4"
     >
-      <header
-        className="flex flex-col gap-3 rounded-2xl border border-orange-300 bg-orange-500/95 p-3 text-white shadow-md lg:flex-row lg:items-center lg:justify-between"
-        aria-label="Cabeçalho de correção"
-      >
-        {/* BRAND (esquerda) */}
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col items-center justify-center">
-            <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-white/95 shadow-sm">
-              <img
-                src="/pdf/brand-mark.png"
-                alt="Marca"
-                className="h-10 w-10 object-contain"
-              />
-            </div>
-            <span className="mt-1 text-[10px] font-medium leading-none opacity-95">
-              Professor Yago Sales
-            </span>
-          </div>
-
-          {/* BLOCO DO ALUNO (centro) */}
-          <div className="ml-3 flex flex-col leading-tight text-white/95">
-            <p className="text-sm font-semibold">{firstInfoLine}</p>
-            <p className="text-[11px]">{secondInfoLine}</p>
-            <p className="text-[11px]">{thirdInfoLine}</p>
-          </div>
-        </div>
-
-        {/* SCORE + AÇÕES (direita) */}
-        <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center">
-          {/* Mini-card de nota final */}
-          <div className="flex items-center gap-3 rounded-xl border border-white/25 bg-white/10 px-3 py-2 backdrop-blur">
-            <div className="flex min-w-[88px] flex-col">
-              <span className="text-[10px] uppercase tracking-wide text-white/85">
-                Nota final
-              </span>
-              <span className="text-xl font-extrabold leading-none">
-                {essayType === 'PAS'
-                  ? (pasDerived.nr != null
-                      ? Number(pasDerived.nr).toFixed(1).replace('.', ',')
-                      : '0,0')
-                  : Math.max(0, Math.round(Number(enemTotal) || 0)).toString()}
-              </span>
-              <span className="text-[10px] font-semibold text-white/85">
-                {essayType === 'PAS' ? 'PAS/UnB' : 'ENEM'}
-              </span>
-            </div>
-          </div>
-
-          {/* Ações */}
-          <div className="flex flex-1 flex-row flex-wrap items-center justify-end gap-2 sm:flex-none">
-            <Button variant="ghost" className="bg-white/5 text-white hover:bg-white/10" onClick={backToList}>
-              Voltar
-            </Button>
-            <Button
-              variant="ghost"
-              className="bg-white/5 text-white hover:bg-white/10"
-              onClick={() => {
-                if (essay?.originalUrl) {
-                  window.open(essay.originalUrl, '_blank', 'noopener,noreferrer');
-                } else if (pdfUrl) {
-                  window.open(pdfUrl, '_blank', 'noopener,noreferrer');
-                } else {
-                  toast.info('Nenhum PDF disponível para abrir.');
-                }
-              }}
-            >
-              Abrir original
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={saving || !dirty}
-              className="bg-white text-orange-700 hover:bg-white/90 disabled:opacity-60"
-            >
-              {saving ? 'Salvando…' : 'Salvar'}
-            </Button>
-            <Button
-              onClick={handleGeneratePdf}
-              disabled={generating}
-              className="bg-orange-700 text-white hover:bg-orange-800 disabled:opacity-60"
-            >
-              {generating ? 'Gerando…' : 'Gerar PDF corrigido'}
-            </Button>
-          </div>
-        </div>
-      </header>
+      {/* HERO COMPACTO ALINHADO AO PDF */}
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:p-5">
+        {/* HERO COMPACTO ALINHADO AO PDF */}
+        <header
+          className="hero hero--compact mb-3 rounded-2xl border border-orange-300 bg-orange-500/95 p-2 text-white shadow-md"
+          aria-label="Cabeçalho de correção"
+          style={{ ['--gw-hero-h' as any]: '72px' }}
+        >
+          <div className="flex items-center justify-between gap-3">
+            {/* BRAND (esquerda) */}
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col items-center justify-center">
+                <div className="hero-brand-mark">
+                  <img
+                    src={brandSrc}
+                    alt="Logo Professor Yago Sales"
+                    onError={() => setBrandSrc('/pdf/brand-mark.png')}
+                  />
+                </div>
+                <span className="mt-1 text-[9px] font-medium leading-none opacity-95">
+                  Professor Yago Sales
+                </span>
+              </div>
+
+              {/* FOTO DO ALUNO + DADOS */}
+              <div className="ml-3 flex items-center gap-3">
+                <div className="h-9 w-9 md:h-10 md:w-10 overflow-hidden rounded-full ring-2 ring-white/30 bg-white/20 flex items-center justify-center text-[11px] font-bold">
+                  {studentPhoto ? (
+                    <img src={studentPhoto} alt={studentName} className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="text-white">{studentInitials}</span>
+                  )}
+                </div>
+                <div className="flex flex-col leading-tight text-white/95">
+                  <p className="text-[12px] font-semibold leading-tight">{firstInfoLine}</p>
+                  <p className="text-[10px] leading-tight">{secondInfoLine}</p>
+                  <p className="text-[10px] leading-tight">{thirdInfoLine}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* SCORE (direita) */}
+            <div className="flex items-center">
+              <div className="flex items-center gap-3 rounded-xl border border-white/25 bg-white/10 px-3 py-2 backdrop-blur">
+                <div className="flex min-w-[88px] flex-col text-right">
+                  <span className="text-[9px] uppercase tracking-wide text-white/85">Nota final</span>
+                  <span className="text-lg font-extrabold leading-none">
+                    {essayType === 'PAS'
+                      ? (pasDerived.nr != null
+                          ? Number(pasDerived.nr).toFixed(1).replace('.', ',')
+                          : '0,0')
+                      : Math.max(0, Math.round(Number(enemTotal) || 0)).toString()}
+                  </span>
+                  <span className="text-[9px] font-semibold text-white/85">{essayType === 'PAS' ? 'PAS/UnB' : 'ENEM'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
         <div
-          className="grid grid-cols-1 gap-3 md:grid-cols-[260px_minmax(0,1fr)_320px]"
+          className="grid grid-cols-1 gap-3 md:grid-cols-[260px_minmax(0,1fr)]"
           aria-label="Workspace de correção"
         >
-          <aside className="order-1 md:order-none md:w-[260px] md:shrink-0">
+          <aside className="order-1 md:order-none md:w-[260px] md:shrink-0 redacao-left-rail">
+            {/* Mobile: action buttons + toolbar + action buttons */}
             <div className="mb-3 md:hidden">
+              <div className="rail-actions mb-2 flex flex-wrap items-center gap-2">
+                <Button className="btn btn--neutral" onClick={backToList}>
+                  Voltar
+                </Button>
+                <Button
+                  className="btn btn--neutral"
+                  onClick={() => {
+                    if (essay?.originalUrl) {
+                      window.open(essay.originalUrl, '_blank', 'noopener,noreferrer');
+                    } else if (pdfUrl) {
+                      window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+                    } else {
+                      toast.info('Nenhum PDF disponível para abrir.');
+                    }
+                  }}
+                >
+                  Abrir original
+                </Button>
+              </div>
+
               <AnnotationToolbar active={activeCategory} onChange={setActiveCategory} orientation="horizontal" />
+
+              <div className="rail-actions mt-2 flex flex-wrap items-center gap-2">
+                <Button
+                  className="btn btn--neutral"
+                  onClick={handleSave}
+                  disabled={saving || !dirty}
+                >
+                  {saving ? 'Salvando…' : 'Salvar'}
+                </Button>
+                <Button
+                  className="btn btn--brand"
+                  onClick={handleGeneratePdf}
+                  disabled={generating}
+                >
+                  {generating ? 'Gerando…' : 'Gerar PDF corrigido'}
+                </Button>
+              </div>
             </div>
-            <div className="hidden md:block md:sticky md:top-24">
+            {/* Desktop: action buttons + toolbar + action buttons (vertical) */}
+            <div className="hidden md:block md:sticky md:top-24 gw-rail-raise" style={{ marginTop: 'calc(var(--gw-hero-h, 72px) - 12px)' }}>
               <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+                <div className="rail-actions mb-2 flex flex-wrap items-center gap-2">
+                  <Button className="btn btn--neutral" onClick={backToList}>
+                    Voltar
+                  </Button>
+                  <Button
+                    className="btn btn--neutral"
+                    onClick={() => {
+                      if (essay?.originalUrl) {
+                        window.open(essay.originalUrl, '_blank', 'noopener,noreferrer');
+                      } else if (pdfUrl) {
+                        window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+                      } else {
+                        toast.info('Nenhum PDF disponível para abrir.');
+                      }
+                    }}
+                  >
+                    Abrir original
+                  </Button>
+                </div>
+
                 <AnnotationToolbar
                   active={activeCategory}
                   onChange={setActiveCategory}
                   orientation="vertical"
                 />
+
+                <div className="rail-actions mt-2 flex flex-wrap items-center gap-2">
+                  <Button
+                    className="btn btn--neutral"
+                    onClick={handleSave}
+                    disabled={saving || !dirty}
+                  >
+                    {saving ? 'Salvando…' : 'Salvar'}
+                  </Button>
+                  <Button
+                    className="btn btn--brand"
+                    onClick={handleGeneratePdf}
+                    disabled={generating}
+                  >
+                    {generating ? 'Gerando…' : 'Gerar PDF corrigido'}
+                  </Button>
+                </div>
               </div>
             </div>
           </aside>
-          <main className="order-2 min-w-0 md:order-none">
-            {pdfError && (
-              <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                {pdfError}
-              </p>
-            )}
-            <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-              <div className="h-[78vh] min-h-[560px] w-full overflow-auto rounded-lg">
-                <PdfCorrectionViewer
-                  fileUrl={pdfUrl}
-                  annotations={orderedAnnotations}
-                  selectedId={selectedAnnotationId}
-                  activeCategory={activeCategory}
-                  onCreateAnnotation={handleCreateAnnotation}
-                  onMoveAnnotation={handleMoveAnnotation}
-                  onSelectAnnotation={setSelectedAnnotationId}
+          <div
+            className="grid grid-cols-[minmax(0,1fr)_clamp(260px,20%,360px)] grid-rows-[auto_auto] gap-3"
+            aria-label="Workspace de correção"
+          >
+            {/* Coluna central · Linha 1 — PDF */}
+            <main className="min-w-0 col-start-1 row-start-1">
+              {pdfError && (
+                <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                  {pdfError}
+                </p>
+              )}
+              <div className="pdf-canvas-wrap p-1">
+                <div className="h-[78vh] min-h-[560px] w-full overflow-auto">
+                  <PdfCorrectionViewer
+                    fileUrl={pdfUrl}
+                    annotations={orderedAnnotations}
+                    selectedId={selectedAnnotationId}
+                    activeCategory={activeCategory}
+                    onCreateAnnotation={handleCreateAnnotation}
+                    onMoveAnnotation={handleMoveAnnotation}
+                    onSelectAnnotation={setSelectedAnnotationId}
+                  />
+                </div>
+              </div>
+            </main>
+
+            {/* Coluna direita (20%) — Comentários (ocupa as 2 linhas) */}
+            <aside
+              className={`RightRailCard comments-rail gw-rail-raise md:sticky md:top-24 row-span-2 col-start-2 ${generating ? 'hidden' : ''}`}
+              style={{ marginTop: 'calc(var(--gw-hero-h, 72px) - 12px)' }}
+            >
+              <div className="flex h-full min-h-[560px] w-full flex-col rounded-xl border border-slate-200 bg-white p-2">
+                <div className="mt-0 flex-1 overflow-auto">
+                  <AnnotationSidebar
+                    annotations={orderedAnnotations}
+                    selectedId={selectedAnnotationId}
+                    onSelect={setSelectedAnnotationId}
+                    onDelete={handleDeleteAnnotation}
+                    onCommentChange={handleCommentChange}
+                    focusId={focusAnnotationId}
+                    liveMessage={liveMessage}
+                  />
+                </div>
+              </div>
+            </aside>
+
+            {/* Coluna central · Linha 2 — Espelho do aluno */}
+            <div className="col-start-1 row-start-2 min-w-0">
+              <div className="mb-3">
+                <MirrorSummaryInline
+                  type={essayType}
+                  pas={essayType === 'PAS' ? { nc: pasDerived.nc, tl: pasDerived.tl, ne: pasDerived.ne, discount: pasDerived.discount, nr: pasDerived.nr } : null}
+                  enemTotal={enemTotal}
                 />
               </div>
-            </div>
-          </main>
-          <aside
-            className={`RightRailCard order-3 ${generating ? 'hidden' : 'md:flex'} hidden w-[320px] max-w-[320px] shrink-0`}
-          >
-            <div className="h-[78vh] min-h-[560px] w-full overflow-auto rounded-xl border border-slate-200 bg-white p-2">
-              <AnnotationSidebar
-                annotations={orderedAnnotations}
-                selectedId={selectedAnnotationId}
-                onSelect={setSelectedAnnotationId}
-                onDelete={handleDeleteAnnotation}
-                onCommentChange={handleCommentChange}
-                focusId={focusAnnotationId}
-                liveMessage={liveMessage}
+              <CorrectionMirror
+                type={essayType}
+                annulState={annulState}
+                annulOther={annulOther}
+                onToggleAnnul={handleToggleAnnul}
+                onAnnulOtherChange={(value) => {
+                  setAnnulOther(value);
+                  setDirty(true);
+                }}
+                annulled={annulled}
+                pasState={pasState}
+                onPasChange={handlePasChange}
+                enemSelections={enemSelections}
+                onEnemSelectionChange={handleEnemSelectionChange}
+                enemTotal={enemTotal}
               />
             </div>
-          </aside>
+          </div>
         </div>
       </section>
-
-      <CorrectionMirror
-        type={essayType}
-        annulState={annulState}
-        annulOther={annulOther}
-        onToggleAnnul={handleToggleAnnul}
-        onAnnulOtherChange={(value) => {
-          setAnnulOther(value);
-          setDirty(true);
-        }}
-        annulled={annulled}
-        pasState={pasState}
-        onPasChange={handlePasChange}
-        enemSelections={enemSelections}
-        onEnemSelectionChange={handleEnemSelectionChange}
-        enemTotal={enemTotal}
-      />
     </div>
   );
 }

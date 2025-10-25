@@ -10,6 +10,7 @@ import {
   GRAY,
   BG,
   columns8020,
+  colorFromHex, PAS_MACRO_HEX, PAS_MICRO_HEX,
 } from '../theme';
 import type { EssayPdfData } from '../types';
 
@@ -33,9 +34,9 @@ type CommentsRenderer = (args: {
 }) => void;
 
 const MACRO_ROWS: Array<{ key: keyof EssayPdfData['pas']; label: string; range: string }> = [
-  { key: 'apresentacao', label: 'Apresentação (legibilidade, margens, paragrafação)', range: '0,00 – 0,50' },
-  { key: 'conteudo', label: 'Consistência da argumentação / Conteúdo', range: '0,00 – 5,00' },
-  { key: 'generoTextual', label: 'Adequação ao gênero / tipo textual', range: '0,00 – 2,00' },
+  { key: 'apresentacao', label: 'Apresentação', range: '0,00 – 0,50' },
+  { key: 'conteudo', label: 'Conteúdo', range: '0,00 – 4,50' },
+  { key: 'generoTextual', label: 'Gênero textual', range: '0,00 – 2,00' },
   { key: 'coesaoCoerencia', label: 'Coesão e coerência', range: '0,00 – 3,00' },
 ];
 
@@ -44,6 +45,9 @@ const MICRO_ROWS: Array<{ key: keyof EssayPdfData['pas']['erros']; label: string
   { key: 'pontuacaoMorfossintaxe', label: 'Pontuação / Morfossintaxe' },
   { key: 'propriedadeVocabular', label: 'Propriedade vocabular' },
 ];
+
+const PAS_MACRO = { pastel: PAS_MACRO_HEX.pastel, border: PAS_MACRO_HEX.title, title: PAS_MACRO_HEX.title } as const;
+const PAS_MICRO = { pastel: PAS_MICRO_HEX.pastel, border: PAS_MICRO_HEX.title, title: PAS_MICRO_HEX.title } as const;
 
 export async function renderPasMirrorPage(
   doc: PDFDocument,
@@ -75,7 +79,8 @@ export async function renderPasMirrorPage(
 
   // Preenche a coluna direita com Comentários (continuação), se fornecido
   if (renderCommentsRight) {
-    const rightTop = cursor;
+    // Alinha o topo da coluna de comentários ao baseline do título da esquerda
+    const rightTop = cursor + 14; // desfaz o recuo aplicado após desenhar o subtítulo
     const rightHeight = rightTop - MARGIN;
     if (rightHeight > 24) {
       renderCommentsRight({
@@ -91,7 +96,7 @@ export async function renderPasMirrorPage(
 
   const macro = {
     apresentacao: clampNumber(data.pas.apresentacao, 0, 0.5),
-    conteudo: clampNumber(data.pas.conteudo, 0, 5),
+    conteudo: clampNumber(data.pas.conteudo, 0, 4.5),
     generoTextual: clampNumber(data.pas.generoTextual, 0, 2),
     coesaoCoerencia: clampNumber(data.pas.coesaoCoerencia, 0, 3),
   };
@@ -121,7 +126,8 @@ export async function renderPasMirrorPage(
     cursor -= 14;
 
     if (renderCommentsRight) {
-      const rightTop = cursor;
+      // Alinha ao baseline do título "Aspectos microestruturais"
+      const rightTop = cursor + 14;
       const rightHeight = rightTop - MARGIN;
       if (rightHeight > 24) {
         renderCommentsRight({
@@ -155,11 +161,11 @@ function drawMacroTable(
   total: number,
   fonts: Fonts
 ) {
-  const headerHeight = BODY_SIZE + 6;
-  const rowHeight = BODY_SIZE + 6;
+  const headerHeight = BODY_SIZE + 4;
+  const rowHeight = BODY_SIZE + 4;
   let cursor = y;
 
-  drawSectionHeader(page, x, cursor, width, 'Aspectos macroestruturais', fonts);
+  drawSectionHeader(page, x, cursor, width, 'ASPECTOS MACROESTRUTURAIS', fonts, PAS_MACRO);
   cursor -= headerHeight;
 
   MACRO_ROWS.forEach((row) => {
@@ -171,7 +177,7 @@ function drawMacroTable(
       width,
       [
         { text: row.label, widthRatio: 0.6, font: fonts.regular, color: TEXT },
-        { text: row.range, widthRatio: 0.2, font: fonts.regular, color: TEXT_SUBTLE, align: 'center' },
+        { text: row.range, widthRatio: 0.2, font: fonts.regular, color: PAS_MACRO.title, align: 'center' },
         { text: formatScore(macro[row.key] ?? 0, 2), widthRatio: 0.2, font: fonts.bold, color: TEXT, align: 'right' },
       ]
     );
@@ -184,8 +190,8 @@ function drawMacroTable(
     cursor,
     width,
     [
-      { text: 'Nota conectiva (NC)', widthRatio: 0.8, font: fonts.bold, color: TEXT },
-      { text: formatScore(total, 2), widthRatio: 0.2, font: fonts.bold, color: TEXT, align: 'right' },
+      { text: 'Nota de conteúdo (NC)', widthRatio: 0.8, font: fonts.bold, color: PAS_MACRO.title },
+      { text: formatScore(total, 2), widthRatio: 0.2, font: fonts.bold, color: PAS_MACRO.title, align: 'right' },
     ],
     true
   );
@@ -212,11 +218,11 @@ function drawMicroTable(
   },
   fonts: Fonts
 ) {
-  const headerHeight = BODY_SIZE + 6;
-  const rowHeight = BODY_SIZE + 6;
+  const headerHeight = BODY_SIZE + 4;
+  const rowHeight = BODY_SIZE + 4;
   let cursor = y;
 
-  drawSectionHeader(page, x, cursor, width, 'Aspectos microestruturais', fonts);
+  drawSectionHeader(page, x, cursor, width, 'ASPECTOS MICROESTRUTURAIS', fonts, PAS_MICRO);
   cursor -= headerHeight;
 
   MICRO_ROWS.forEach((row) => {
@@ -248,7 +254,7 @@ function drawMicroTable(
   );
 
   cursor -= headerHeight;
-  drawSectionHeader(page, x, cursor + headerHeight, width, 'Cálculo da nota resultante (NR)', fonts);
+  drawSectionHeader(page, x, cursor + headerHeight, width, 'Cálculo da nota resultante (NR)', fonts, PAS_MICRO);
   cursor -= rowHeight;
   const formula = `NR = max(0, NC - NE * (2/NL))`;
   drawRow(
@@ -257,12 +263,12 @@ function drawMicroTable(
     cursor,
     width,
     [
-      { text: formula, widthRatio: 0.7, font: fonts.regular, color: TEXT },
+      { text: formula, widthRatio: 0.7, font: fonts.regular, color: PAS_MICRO.title },
       {
-        text: formatScore(data.nr, 2),
+        text: formatScore(data.nr, 1),
         widthRatio: 0.3,
         font: fonts.bold,
-        color: TEXT,
+        color: PAS_MICRO.title,
         align: 'right',
       },
     ]
@@ -284,14 +290,22 @@ function drawMicroTable(
   return cursor;
 }
 
-function drawSectionHeader(page: PDFPage, x: number, y: number, width: number, text: string, fonts: Fonts) {
+function drawSectionHeader(
+  page: PDFPage,
+  x: number,
+  y: number,
+  width: number,
+  text: string,
+  fonts: Fonts,
+  palette: { pastel: string; border: string; title: string }
+) {
   page.drawRectangle({
     x,
-    y: y - (BODY_SIZE + 6),
+    y: y - (BODY_SIZE + 5),
     width,
-    height: BODY_SIZE + 6,
-    color: rgb(245 / 255, 249 / 255, 255 / 255),
-    borderColor: colorFromHex(GRAY),
+    height: BODY_SIZE + 5,
+    color: colorFromHex(palette.pastel),
+    borderColor: colorFromHex(palette.border),
     borderWidth: 1,
   });
   page.drawText(text, {
@@ -299,7 +313,7 @@ function drawSectionHeader(page: PDFPage, x: number, y: number, width: number, t
     y: y - BODY_SIZE - 2,
     size: BODY_SIZE,
     font: fonts.bold,
-    color: colorFromHex(TEXT),
+    color: colorFromHex(palette.title),
   });
 }
 
@@ -315,7 +329,7 @@ function drawRow(
     x,
     y,
     width,
-    height: BODY_SIZE + 6,
+    height: BODY_SIZE + 5,
     color: highlight ? colorFromHex('#f3f4f6') : colorFromHex(BG),
     borderColor: colorFromHex(GRAY),
     borderWidth: 1,
@@ -325,11 +339,11 @@ function drawRow(
   cells.forEach((cell) => {
     const cellWidth = width * cell.widthRatio;
     const textWidth = cell.font.widthOfTextAtSize(cell.text, BODY_SIZE);
-    let textX = cursorX + 8;
+    let textX = cursorX + 6;
     if (cell.align === 'center') {
       textX = cursorX + cellWidth / 2 - textWidth / 2;
     } else if (cell.align === 'right') {
-      textX = cursorX + cellWidth - textWidth - 8;
+      textX = cursorX + cellWidth - textWidth - 6;
     }
     page.drawText(cell.text, {
       x: textX,
@@ -389,20 +403,4 @@ function formatScore(value: number, decimals: number) {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
-}
-
-function colorFromHex(hex: string) {
-  const sanitized = hex.replace('#', '').trim();
-  const normalized =
-    sanitized.length === 3
-      ? sanitized
-          .split('')
-          .map((char) => char + char)
-          .join('')
-      : sanitized.padEnd(6, '0');
-  const int = parseInt(normalized, 16);
-  const r = (int >> 16) & 255;
-  const g = (int >> 8) & 255;
-  const b = int & 255;
-  return rgb(r / 255, g / 255, b / 255);
 }

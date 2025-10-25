@@ -8,6 +8,50 @@
 :root {
   color-scheme: light;
   --card-title-size: var(--dash-card-title-fz);
+
+  /* === PDF token sync (colors/weights/sizes) === */
+  --pdf-text: #0f172a;             /* slate-900 */
+  --pdf-text-subtle: #64748b;      /* slate-500 */
+
+  /* PDF font weights aligned to PDF_FONT */
+  --pdf-fw-regular: 400;
+  --pdf-fw-medium: 500;
+  --pdf-fw-semibold: 600;
+  --pdf-fw-bold: 700;
+
+  /* Font sizes aligned with PDF_FONT (approx px for web) */
+  --pdf-fz-xs: 11px; /* XS */
+  --pdf-fz-sm: 12px; /* SM */
+  --pdf-fz-md: 13px; /* MD */
+  --pdf-fz-lg: 18px; /* LG */
+
+  /* Brand used in hero/header and score cards (matches PDF BRAND_COLORS) */
+  --pdf-brand-strong: #C2410C;  /* orange-700 */
+  --pdf-brand-title:  #EA580C;  /* orange-600 */
+  --pdf-brand-pastel: #FFEDD5;  /* orange-100 */
+
+  /* Hero gradient stops derived from brand */
+  --hero-grad-1: #d97a3f;
+  --hero-grad-2: #cf763b;
+  --hero-grad-3: #c46531;
+
+  /* ENEM competencies palette (strong/title/pastel) */
+  --enem-c1-strong: #166534;  --enem-c1-title: #059669;  --enem-c1-pastel: #DCFCE7; /* Verde */
+  --enem-c2-strong: #9d174d;  --enem-c2-title: #be185d;  --enem-c2-pastel: #FFE4E6; /* Rosa */
+  --enem-c3-strong: #92400E;  --enem-c3-title: #B45309;  --enem-c3-pastel: #FEF3C7; /* Amarelo */
+  --enem-c4-strong: #1E3A8A;  --enem-c4-title: #2563EB;  --enem-c4-pastel: #DBEAFE; /* Azul */
+  --enem-c5-strong: #9A3412;  --enem-c5-title: #EA580C;  --enem-c5-pastel: #FFEDD5; /* Laranja */
+
+  /* PAS sections palette */
+  --pas-macro-strong: #1E3A8A;  --pas-macro-title: #2563EB;  --pas-macro-pastel: #DBEAFE; /* Azul */
+  --pas-micro-strong: #9d174d;  --pas-micro-title: #be185d;  --pas-micro-pastel: #FFE4E6; /* Rosa */
+
+  /* Category chips/buttons (match PDF annotations colors) */
+  --cat-arg-bg: #FEF3C7;  --cat-arg-text: #92400E;  --cat-arg-border: #FDE68A; /* Amarelo */
+  --cat-ort-bg: #DCFCE7;  --cat-ort-text: #065F46;  --cat-ort-border: #BBF7D0; /* Verde */
+  --cat-coe-bg: #DBEAFE;  --cat-coe-text: #1E3A8A;  --cat-coe-border: #BFDBFE; /* Azul */
+  --cat-apr-bg: #FFEDD5;  --cat-apr-text: #9A3412;  --cat-apr-border: #FED7AA; /* Laranja */
+  --cat-com-bg: #FEE2E2;  --cat-com-text: #991B1B;  --cat-com-border: #FCA5A5; /* Vermelho */
 }
 
 button:focus-visible,
@@ -212,6 +256,19 @@ html, body, #root { height: 100%; background: var(--c-bg); }
 @media (prefers-reduced-motion: reduce) {
   .ys-noise { background: linear-gradient(180deg, #F7F8FA 0%, #F1F4F7 100%); }
 }
+
+/* === PDF token utilities (web ≈ PDF) === */
+.pdf-ink { color: var(--pdf-text); }
+.pdf-ink-subtle { color: var(--pdf-text-subtle); }
+
+.pdf-xs { font-size: var(--pdf-fz-xs); line-height: 1.2; }
+.pdf-sm { font-size: var(--pdf-fz-sm); line-height: 1.25; }
+.pdf-md { font-size: var(--pdf-fz-md); line-height: 1.3; }
+.pdf-lg { font-size: var(--pdf-fz-lg); line-height: 1.2; }
+
+.pdf-strong { color: var(--pdf-brand-strong); font-weight: var(--pdf-fw-bold); }
+.pdf-title  { color: var(--pdf-brand-title);  font-weight: var(--pdf-fw-semibold); }
+.pdf-pastel { background: var(--pdf-brand-pastel); }
 
 @layer components {
   .ys-card-title {
@@ -493,7 +550,7 @@ html, body, #root { height: 100%; background: var(--c-bg); }
     padding-inline: 22px;
     padding-block: var(--hero-py);
     border-radius: 32px;
-    background: linear-gradient(135deg, #d97a3f 0%, #cf763b 52%, #c46531 100%);
+    background: linear-gradient(135deg, var(--hero-grad-1) 0%, var(--hero-grad-2) 52%, var(--hero-grad-3) 100%);
     color: #fff;
     position: relative;
     min-height: var(--hero-min-h);
@@ -506,6 +563,22 @@ html, body, #root { height: 100%; background: var(--c-bg); }
     gap: 16px;
     flex-wrap: wrap;
     min-width: 0;
+  }
+  .hero-brand-mark {
+    width: 64px;
+    height: 64px;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.15);
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+  }
+  .hero-brand-mark img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    display: block;
   }
   .hero-avatar {
     width: 82px;
@@ -933,8 +1006,181 @@ a {
 .icon-btn:hover { background: rgba(0,0,0,.04); }
 .icon-btn.danger { border-color: rgba(220,38,38,.35); color: #b91c1c; }
 
+/* Compact hero for correction workspace */
+.hero--compact { --hero-py: 8px; --hero-min-h: 64px; --hero-stat-h: 40px; }
+.hero--compact .hero-brand-mark { width: 28px; height: 28px; }
+.hero--compact .hero-brand-mark img { width: 24px; height: 24px; }
+.hero--compact .hero-title { font-size: clamp(1.1rem, 2.6vw, 1.35rem); letter-spacing: 0.08em; }
+.hero--compact .hero-stats { gap: 8px; }
+.hero--compact .hero-stat { padding: 6px 10px; min-height: var(--hero-stat-h); }
+.hero--compact .hero-stat__label { font-size: 8px; letter-spacing: 0.14em; }
+.hero--compact .hero-stat__value { font-size: clamp(1.05rem, 2.2vw, 1.35rem); }
+
+/* Inline PDF workspace: 80/20 grid (doc/comments) */
+.pdf-inline-grid { display: grid; grid-template-columns: minmax(0, 4fr) minmax(220px, 1fr); gap: 10px; align-items: start; }
+@media (max-width: 1024px) { .pdf-inline-grid { grid-template-columns: 1fr; } }
+.pdf-canvas-wrap { background:#fff; border-radius:16px; border:1px solid rgba(15,23,42,0.06); box-shadow:0 8px 24px rgba(15,23,42,0.06); overflow:hidden; }
+.comments-rail { font-size: 9px; line-height: 1.2; }
+
+.comments-rail .card-title { font-size: 11px; }
+
+/* Compact annotation cards in the comments rail */
+.comments-rail [data-annotation-id] { padding: 4px 6px; }
+.comments-rail [data-annotation-id] h4 { font-size: 10px; line-height: 1.15; margin: 0 0 2px 0; }
+.comments-rail [data-annotation-id] p { font-size: 9px; line-height: 1.25; margin: 0; }
+
+/* === Focus flash for selected PDF highlights === */
+@keyframes focus-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(234, 88, 12, .40); }
+  60% { box-shadow: 0 0 0 6px rgba(234, 88, 12, .18); }
+  100% { box-shadow: 0 0 0 0 rgba(234, 88, 12, 0); }
+}
+/* Animate the first rect of the selected annotation (ring-2 is applied by the app) */
+.pdf-canvas-wrap [data-annotation-id].ring-2 {
+  animation: focus-pulse 820ms ease-out 1;
+}
+
+/* === Line clamp for unfocused comment previews (rail) === */
+/* Clamp only paragraphs inside annotation cards when they are NOT active (no ring) */
+.comments-rail [data-annotation-id]:not(.ring-2) p {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* Utility class for explicit clamps in JSX if needed */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
 /* === Print / PDF generation overrides === */
 /* Oculta a lateral direita (comentários + ações) durante a geração do PDF */
-[data-printing="1"] .RightRailCard {
+[data-printing="1"] .RightRailCard { display: none !important; }
+
+/* Esconde botões/ações do hero ao gerar PDF */
+[data-printing="1"] .hero .btn,
+[data-printing="1"] .hero .icon-btn,
+[data-printing="1"] .hero .dash-card__actions,
+[data-printing="1"] .hero [role="button"] { display: none !important; }
+
+/* Suaviza contêiner do documento no modo de impressão */
+[data-printing="1"] .pdf-canvas-wrap { box-shadow: none !important; border-color: transparent !important; }
+
+/* Fallback em mídia print, caso o data-attr não esteja setado */
+@media print {
+  .RightRailCard { display: none !important; }
+}
+
+/* Right rail visual compaction */
+.RightRailCard { font-size: 9px; line-height: 1.25; }
+.RightRailCard .card-title { font-size: 10px; }
+.RightRailCard [data-annotation-id] { padding: 4px 6px; }
+.RightRailCard [data-annotation-id] h4 { font-size: 10px; line-height: 1.15; margin: 0 0 2px 0; }
+.RightRailCard [data-annotation-id] p { font-size: 9px; line-height: 1.25; margin: 0; }
+
+/* === Correção Inline: ações no card do marca‑texto (lateral esquerda) === */
+/* Esconde o grupo antigo de ações do cabeçalho (envolvido por .header-actions--deprecated) */
+.header-actions--deprecated { display: none !important; }
+
+/* Container de ações com quebra automática (usado na lateral) */
+.rail-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+.rail-actions .btn {
+  white-space: normal;   /* permite quebra de linha em rótulos longos */
+  line-height: 1.15;
+  padding: 10px 12px;
+}
+
+/* Oculta a lateral esquerda durante geração de PDF/impressão (caso essas classes existam na página) */
+[data-printing="1"] .correction-rail,
+[data-printing="1"] .redacao-left-rail,
+[data-printing="1"] .LeftRailCard {
   display: none !important;
 }
+/* ===== Left-rail actions: responsive gaps + category color variants ===== */
+/* ===== Left-rail actions: responsive gaps + category color variants ===== */
+/* Responsive gap: mais compacto em telas pequenas, mais folga em desktops grandes */
+.rail-actions { gap: 8px; }
+@media (max-width: 640px) { .rail-actions { gap: 6px; } }
+@media (min-width: 1280px) { .rail-actions { gap: 10px; } }
+
+/* Botões/Chips com variação de cor por categoria (Argumentação, Ortografia, Coesão, Apresentação, Comentários) */
+/* Use em botões da lateral: class="btn btn--arg" etc. Também funciona em chips: class="chip chip--arg" */
+.btn.btn--arg, .chip.chip--arg { background: var(--cat-arg-bg); color: var(--cat-arg-text); border: 1px solid var(--cat-arg-border); }
+.btn.btn--arg:hover, .chip.chip--arg:hover { background: var(--cat-arg-border); }
+.btn.btn--arg:focus-visible, .chip.chip--arg:focus-visible { outline: 3px solid #FCD34D; outline-offset: 2px; }
+
+.btn.btn--ort, .chip.chip--ort { background: var(--cat-ort-bg); color: var(--cat-ort-text); border: 1px solid var(--cat-ort-border); }
+.btn.btn--ort:hover, .chip.chip--ort:hover { background: var(--cat-ort-border); }
+.btn.btn--ort:focus-visible, .chip.chip--ort:focus-visible { outline: 3px solid #34D399; outline-offset: 2px; }
+
+.btn.btn--coe, .chip.chip--coe { background: var(--cat-coe-bg); color: var(--cat-coe-text); border: 1px solid var(--cat-coe-border); }
+.btn.btn--coe:hover, .chip.chip--coe:hover { background: var(--cat-coe-border); }
+.btn.btn--coe:focus-visible, .chip.chip--coe:focus-visible { outline: 3px solid #60A5FA; outline-offset: 2px; }
+
+.btn.btn--apr, .chip.chip--apr { background: var(--cat-apr-bg); color: var(--cat-apr-text); border: 1px solid var(--cat-apr-border); }
+.btn.btn--apr:hover, .chip.chip--apr:hover { background: var(--cat-apr-border); }
+.btn.btn--apr:focus-visible, .chip.chip--apr:focus-visible { outline: 3px solid #FDBA74; outline-offset: 2px; }
+
+.btn.btn--com, .chip.chip--com { background: var(--cat-com-bg); color: var(--cat-com-text); border: 1px solid var(--cat-com-border); }
+.btn.btn--com:hover, .chip.chip--com:hover { background: var(--cat-com-border); }
+.btn.btn--com:focus-visible, .chip.chip--com:focus-visible { outline: 3px solid #F87171; outline-offset: 2px; }
+
+/* Variantes genéricas para ações principais/secundárias na lateral */
+.btn.btn--neutral { background: #F1F5F9; color:#334155; border:1px solid #E2E8F0; }
+.btn.btn--neutral:hover { background:#E2E8F0; }
+.btn.btn--neutral:focus-visible { outline:3px solid #94A3B8; outline-offset:2px; }
+
+.btn.btn--brand { background:#EA580C; color:#fff; }
+.btn.btn--brand:hover { background:#C2410C; }
+.btn.btn--brand:focus-visible { outline:3px solid #FDBA74; outline-offset:2px; }
+ 
+/* === Correção (Redação) — utilitários de alinhamento do hero/rails === */
+:root { --gw-hero-h: 72px; }
+
+/* Sobe o rail direito para alinhar com o topo do hero compacto */
+.gw-rail-raise { margin-top: calc(var(--gw-hero-h) - 12px); }
+
+/* Em telas menores, evitar sobreposição com o hero */
+@media (max-width: 1024px) {
+  .gw-rail-raise { margin-top: 8px; }
+}
+
+/* Caso prefira sticky via classe (além das utilitárias do Tailwind) */
+.gw-sticky-rail { position: sticky; top: var(--gw-hero-h); }
+ 
+/* PAS mirror color cards aligned to PDF tokens (applies if elements carry these classes) */
+.pas-macro-card { border-color: var(--pas-macro-title) !important; background: var(--pas-macro-pastel) !important; }
+.pas-macro-card .card-title, .pas-macro-card h3, .pas-macro-card h4 { color: var(--pas-macro-title) !important; }
+
+.pas-micro-card { border-color: var(--pas-micro-title) !important; background: var(--pas-micro-pastel) !important; }
+.pas-micro-card .card-title, .pas-micro-card h3, .pas-micro-card h4 { color: var(--pas-micro-title) !important; }
+
+/* ENEM competency cards (web ≈ PDF) */
+.enem-c1-card { border-color: var(--enem-c1-title) !important; background: var(--enem-c1-pastel) !important; }
+.enem-c1-card .card-title, .enem-c1-card h3, .enem-c1-card h4 { color: var(--enem-c1-title) !important; }
+.enem-c1-strong { color: var(--enem-c1-strong) !important; font-weight: var(--pdf-fw-bold); }
+
+.enem-c2-card { border-color: var(--enem-c2-title) !important; background: var(--enem-c2-pastel) !important; }
+.enem-c2-card .card-title, .enem-c2-card h3, .enem-c2-card h4 { color: var(--enem-c2-title) !important; }
+.enem-c2-strong { color: var(--enem-c2-strong) !important; font-weight: var(--pdf-fw-bold); }
+
+.enem-c3-card { border-color: var(--enem-c3-title) !important; background: var(--enem-c3-pastel) !important; }
+.enem-c3-card .card-title, .enem-c3-card h3, .enem-c3-card h4 { color: var(--enem-c3-title) !important; }
+.enem-c3-strong { color: var(--enem-c3-strong) !important; font-weight: var(--pdf-fw-bold); }
+
+.enem-c4-card { border-color: var(--enem-c4-title) !important; background: var(--enem-c4-pastel) !important; }
+.enem-c4-card .card-title, .enem-c4-card h3, .enem-c4-card h4 { color: var(--enem-c4-title) !important; }
+.enem-c4-strong { color: var(--enem-c4-strong) !important; font-weight: var(--pdf-fw-bold); }
+
+.enem-c5-card { border-color: var(--enem-c5-title) !important; background: var(--enem-c5-pastel) !important; }
+.enem-c5-card .card-title, .enem-c5-card h3, .enem-c5-card h4 { color: var(--enem-c5-title) !important; }
+.enem-c5-strong { color: var(--enem-c5-strong) !important; font-weight: var(--pdf-fw-bold); }

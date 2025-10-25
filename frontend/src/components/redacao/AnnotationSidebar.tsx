@@ -11,6 +11,7 @@ type AnnotationSidebarProps = {
   onCommentChange: (id: string, value: string) => void;
   focusId?: string | null;
   liveMessage?: string | null;
+  className?: string;
 };
 
 export function AnnotationSidebar({
@@ -21,12 +22,14 @@ export function AnnotationSidebar({
   onCommentChange,
   focusId,
   liveMessage,
+  className,
 }: AnnotationSidebarProps) {
   const ordered = useMemo(
-    () => [...annotations].sort((a, b) => a.number - b.number),
+    () => [...annotations].sort((a, b) => Number(a.number) - Number(b.number)),
     [annotations]
   );
   const textareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     if (!focusId) return;
@@ -38,8 +41,25 @@ export function AnnotationSidebar({
     }
   }, [focusId]);
 
+  useEffect(() => {
+    if (!selectedId) return;
+    const el = itemRefs.current[selectedId];
+    if (el) {
+      try {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } catch {
+        // no-op
+      }
+    }
+  }, [selectedId]);
+
   return (
-    <aside className="RightRailCard flex h-full w-full flex-col">
+    <aside
+      className={`RightRailCard comments-rail gw-rail-raise md:sticky md:top-24 flex h-full w-full flex-col ${
+        className ? className : ''
+      }`}
+      style={{ marginTop: 'calc(var(--gw-hero-h, 72px) - 12px)' }}
+    >
       <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
         <h2 className="text-sm font-semibold">Comentários ({ordered.length})</h2>
       </div>
@@ -60,22 +80,26 @@ export function AnnotationSidebar({
           return (
             <div
               key={ann.id}
-              className={`rounded-md border border-slate-200 p-2 shadow-sm ${
+              ref={(node) => { itemRefs.current[ann.id] = node; }}
+              data-annotation-id={ann.id}
+              className={`rounded-md border border-slate-200 p-1.5 shadow-sm ${
                 isActive ? 'ring-2 ring-orange-400' : ''
               }`}
               style={{
                 backgroundColor: background,
-                borderLeft: `3px solid ${meta?.color ?? '#E5E7EB'}`
+                borderLeft: `2px solid ${meta?.color ?? '#E5E7EB'}`
               }}
             >
               <button
                 type="button"
                 onClick={() => onSelect(ann.id)}
-                className="flex w-full items-start justify-between text-left"
+                aria-selected={isActive}
+                aria-controls={`comment-${ann.id}`}
+                className="flex w-full items-start justify-between gap-2 text-left"
               >
-                <div>
+                <div className="min-w-0">
                   <span className="text-[10px] font-semibold text-slate-600">#{ann.number}</span>
-                  <h3 className="text-[11px] font-semibold text-slate-800">{meta?.label ?? 'Comentário'}</h3>
+                  <h3 className="text-[11px] font-semibold text-slate-800 truncate">{meta?.label ?? 'Comentário'}</h3>
                   <p className="text-[10px] text-slate-600">página {ann.page}</p>
                 </div>
                 <span className="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-semibold text-slate-700 shadow">
@@ -83,13 +107,14 @@ export function AnnotationSidebar({
                 </span>
               </button>
               <textarea
+                id={`comment-${ann.id}`}
                 ref={(el) => {
                   textareaRefs.current[ann.id] = el;
                 }}
                 value={ann.comment}
                 onChange={(event) => onCommentChange(ann.id, event.target.value)}
                 onFocus={() => onSelect(ann.id)}
-                className="mt-1.5 w-full resize-none rounded-md border border-slate-300 bg-white p-1.5 text-[11px] outline-none focus:ring-2 focus:ring-orange-400"
+                className="mt-1 w-full resize-none rounded-md border border-slate-300 bg-white p-1 text-[10px] leading-tight break-words outline-none focus:ring-2 focus:ring-orange-400 max-h-20"
                 rows={2}
                 placeholder="Escreva comentários detalhados aqui…"
               />
@@ -97,7 +122,7 @@ export function AnnotationSidebar({
                 <button
                   type="button"
                   onClick={() => onDelete(ann.id)}
-                  className="text-[11px] font-medium text-orange-600 hover:text-orange-700"
+                  className="text-[10px] font-medium text-orange-600 hover:text-orange-700"
                 >
                   Remover
                 </button>
