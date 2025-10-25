@@ -865,30 +865,31 @@ export default function GradeWorkspace() {
       {/* HERO COMPACTO ALINHADO AO PDF */}
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:p-5">
-        {/* HERO COMPACTO ALINHADO AO PDF */}
-        <header
-          className="hero hero--compact mb-3 rounded-2xl border border-orange-300 bg-orange-500/95 p-2 text-white shadow-md"
-          aria-label="Cabeçalho de correção"
-          style={{ ['--gw-hero-h' as any]: '72px' }}
-        >
-          <div className="flex items-center justify-between gap-3">
-            {/* BRAND (esquerda) */}
-            <div className="flex items-center gap-3">
-              <div className="flex flex-col items-center justify-center">
-                <div className="hero-brand-mark">
+        {/* Unified 3-column grid */}
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-[260px_minmax(0,1fr)_clamp(260px,20%,360px)]" aria-label="Workspace de correção">
+          {/* HERO: spans center and right columns */}
+          <header
+            className="hero hero--compact mb-3 rounded-2xl border border-orange-300 bg-orange-500/95 p-2 text-white shadow-md md:col-start-2 md:col-span-2"
+            aria-label="Cabeçalho de correção"
+            style={{ ['--gw-hero-h' as any]: '72px' }}
+          >
+            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-5">
+              {/* BRAND (left) */}
+              <div className="flex items-center gap-3">
+                <div className="hero-brand-mark shrink-0">
                   <img
                     src={brandSrc}
                     alt="Logo Professor Yago Sales"
                     onError={() => setBrandSrc('/pdf/brand-mark.png')}
+                    className="h-full w-full"
                   />
                 </div>
-                <span className="mt-1 text-[9px] font-medium leading-none opacity-95">
+                <span className="hero-brand-label">
                   Professor Yago Sales
                 </span>
               </div>
-
-              {/* FOTO DO ALUNO + DADOS */}
-              <div className="ml-3 flex items-center gap-3">
+              {/* STUDENT INFO (center) */}
+              <div className="flex items-center justify-center gap-3">
                 <div className="h-9 w-9 md:h-10 md:w-10 overflow-hidden rounded-full ring-2 ring-white/30 bg-white/20 flex items-center justify-center text-[11px] font-bold">
                   {studentPhoto ? (
                     <img src={studentPhoto} alt={studentName} className="h-full w-full object-cover" />
@@ -902,34 +903,29 @@ export default function GradeWorkspace() {
                   <p className="text-[10px] leading-tight">{thirdInfoLine}</p>
                 </div>
               </div>
-            </div>
-
-            {/* SCORE (direita) */}
-            <div className="flex items-center">
-              <div className="flex items-center gap-3 rounded-xl border border-white/25 bg-white/10 px-3 py-2 backdrop-blur">
-                <div className="flex min-w-[88px] flex-col text-right">
-                  <span className="text-[9px] uppercase tracking-wide text-white/85">Nota final</span>
-                  <span className="text-lg font-extrabold leading-none">
-                    {essayType === 'PAS'
-                      ? (pasDerived.nr != null
-                          ? Number(pasDerived.nr).toFixed(1).replace('.', ',')
-                          : '0,0')
-                      : Math.max(0, Math.round(Number(enemTotal) || 0)).toString()}
-                  </span>
-                  <span className="text-[9px] font-semibold text-white/85">{essayType === 'PAS' ? 'PAS/UnB' : 'ENEM'}</span>
+              {/* SCORE (right) */}
+              <div className="flex items-center justify-end">
+                <div className="flex items-center gap-3 rounded-xl border border-white/25 bg-white/10 px-3 py-2 backdrop-blur">
+                  <div className="flex min-w-[88px] flex-col text-right">
+                    <span className="text-[9px] uppercase tracking-wide text-white/85">Nota final</span>
+                    <span className="text-xl font-extrabold leading-none">
+                      {essayType === 'PAS'
+                        ? (pasDerived.nr != null
+                            ? Number(pasDerived.nr).toFixed(1).replace('.', ',')
+                            : '0,0')
+                        : Math.max(0, Math.round(Number(enemTotal) || 0)).toString()}
+                    </span>
+                    <span className="text-[9px] font-semibold text-white/85">{essayType === 'PAS' ? 'PAS/UnB' : 'ENEM'}</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </header>
-        <div
-          className="grid grid-cols-1 gap-3 md:grid-cols-[260px_minmax(0,1fr)]"
-          aria-label="Workspace de correção"
-        >
-          <aside className="order-1 md:order-none md:w-[260px] md:shrink-0 redacao-left-rail">
+          </header>
+          {/* LEFT RAIL */}
+          <aside className="order-1 md:order-none md:col-start-1 md:row-start-2 md:w-[260px] md:shrink-0 redacao-left-rail">
             {/* Mobile: action buttons + toolbar + action buttons */}
-            <div className="mb-3 md:hidden">
-              <div className="rail-actions mb-2 flex flex-wrap items-center gap-2">
+            <div className="mb-3 md:hidden flex flex-col gap-4">
+              <div className="rail-actions flex flex-wrap items-center gap-2">
                 <Button className="btn btn--neutral" onClick={backToList}>
                   Voltar
                 </Button>
@@ -951,7 +947,7 @@ export default function GradeWorkspace() {
 
               <AnnotationToolbar active={activeCategory} onChange={setActiveCategory} orientation="horizontal" />
 
-              <div className="rail-actions mt-2 flex flex-wrap items-center gap-2">
+              <div className="rail-actions flex flex-wrap items-center gap-2">
                 <Button
                   className="btn btn--neutral"
                   onClick={handleSave}
@@ -969,9 +965,9 @@ export default function GradeWorkspace() {
               </div>
             </div>
             {/* Desktop: action buttons + toolbar + action buttons (vertical) */}
-            <div className="hidden md:block md:sticky md:top-24 gw-rail-raise" style={{ marginTop: 'calc(var(--gw-hero-h, 72px) - 12px)' }}>
-              <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-                <div className="rail-actions mb-2 flex flex-wrap items-center gap-2">
+            <div className="hidden md:block md:sticky md:top-24 gw-rail-raise">
+              <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm min-h-[640px] flex flex-col space-y-4">
+                <div className="rail-actions flex flex-wrap items-center gap-2">
                   <Button className="btn btn--neutral" onClick={backToList}>
                     Voltar
                   </Button>
@@ -991,13 +987,15 @@ export default function GradeWorkspace() {
                   </Button>
                 </div>
 
+                <div className="h-1" aria-hidden />
                 <AnnotationToolbar
                   active={activeCategory}
                   onChange={setActiveCategory}
                   orientation="vertical"
                 />
+                <div className="h-1" aria-hidden />
 
-                <div className="rail-actions mt-2 flex flex-wrap items-center gap-2">
+                <div className="rail-actions flex flex-wrap items-center gap-2">
                   <Button
                     className="btn btn--neutral"
                     onClick={handleSave}
@@ -1016,78 +1014,70 @@ export default function GradeWorkspace() {
               </div>
             </div>
           </aside>
-          <div
-            className="grid grid-cols-[minmax(0,1fr)_clamp(260px,20%,360px)] grid-rows-[auto_auto] gap-3"
-            aria-label="Workspace de correção"
-          >
-            {/* Coluna central · Linha 1 — PDF */}
-            <main className="min-w-0 col-start-1 row-start-1">
-              {pdfError && (
-                <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                  {pdfError}
-                </p>
-              )}
-              <div className="pdf-canvas-wrap p-1">
-                <div className="h-[78vh] min-h-[560px] w-full overflow-auto">
-                  <PdfCorrectionViewer
-                    fileUrl={pdfUrl}
-                    annotations={orderedAnnotations}
-                    selectedId={selectedAnnotationId}
-                    activeCategory={activeCategory}
-                    onCreateAnnotation={handleCreateAnnotation}
-                    onMoveAnnotation={handleMoveAnnotation}
-                    onSelectAnnotation={setSelectedAnnotationId}
-                  />
-                </div>
-              </div>
-            </main>
-
-            {/* Coluna direita (20%) — Comentários (ocupa as 2 linhas) */}
-            <aside
-              className={`RightRailCard comments-rail gw-rail-raise md:sticky md:top-24 row-span-2 col-start-2 ${generating ? 'hidden' : ''}`}
-              style={{ marginTop: 'calc(var(--gw-hero-h, 72px) - 12px)' }}
-            >
-              <div className="flex h-full min-h-[560px] w-full flex-col rounded-xl border border-slate-200 bg-white p-2">
-                <div className="mt-0 flex-1 overflow-auto">
-                  <AnnotationSidebar
-                    annotations={orderedAnnotations}
-                    selectedId={selectedAnnotationId}
-                    onSelect={setSelectedAnnotationId}
-                    onDelete={handleDeleteAnnotation}
-                    onCommentChange={handleCommentChange}
-                    focusId={focusAnnotationId}
-                    liveMessage={liveMessage}
-                  />
-                </div>
-              </div>
-            </aside>
-
-            {/* Coluna central · Linha 2 — Espelho do aluno */}
-            <div className="col-start-1 row-start-2 min-w-0">
-              <div className="mb-3">
-                <MirrorSummaryInline
-                  type={essayType}
-                  pas={essayType === 'PAS' ? { nc: pasDerived.nc, tl: pasDerived.tl, ne: pasDerived.ne, discount: pasDerived.discount, nr: pasDerived.nr } : null}
-                  enemTotal={enemTotal}
+          {/* MAIN PDF */}
+          <main className="min-w-0 md:col-start-2 md:row-start-2">
+            {pdfError && (
+              <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                {pdfError}
+              </p>
+            )}
+            <div className="pdf-canvas-wrap p-1">
+              <div className="h-[78vh] min-h-[560px] w-full overflow-auto">
+                <PdfCorrectionViewer
+                  fileUrl={pdfUrl}
+                  annotations={orderedAnnotations}
+                  selectedId={selectedAnnotationId}
+                  activeCategory={activeCategory}
+                  onCreateAnnotation={handleCreateAnnotation}
+                  onMoveAnnotation={handleMoveAnnotation}
+                  onSelectAnnotation={setSelectedAnnotationId}
                 />
               </div>
-              <CorrectionMirror
+            </div>
+          </main>
+          {/* COMMENTS RAIL */}
+          <aside
+            className={`RightRailCard comments-rail gw-rail-raise md:sticky md:top-24 md:col-start-3 md:row-start-2 md:row-span-2 ${generating ? 'hidden' : ''}`}
+          >
+            <div className="flex h-full min-h-[560px] w-full flex-col rounded-xl border border-slate-200 bg-white p-2">
+              <div className="mt-0 flex-1 overflow-auto">
+                <AnnotationSidebar
+                  annotations={orderedAnnotations}
+                  selectedId={selectedAnnotationId}
+                  onSelect={setSelectedAnnotationId}
+                  onDelete={handleDeleteAnnotation}
+                  onCommentChange={handleCommentChange}
+                  focusId={focusAnnotationId}
+                  liveMessage={liveMessage}
+                />
+              </div>
+            </div>
+          </aside>
+          {/* MIRROR (center, below PDF) */}
+          <div className="md:col-start-2 md:row-start-3 min-w-0">
+            <div className="mb-3">
+              <MirrorSummaryInline
                 type={essayType}
-                annulState={annulState}
-                annulOther={annulOther}
-                onToggleAnnul={handleToggleAnnul}
-                onAnnulOtherChange={(value) => {
-                  setAnnulOther(value);
-                  setDirty(true);
-                }}
-                annulled={annulled}
-                pasState={pasState}
-                onPasChange={handlePasChange}
-                enemSelections={enemSelections}
-                onEnemSelectionChange={handleEnemSelectionChange}
+                pas={essayType === 'PAS' ? { nc: pasDerived.nc, tl: pasDerived.tl, ne: pasDerived.ne, discount: pasDerived.discount, nr: pasDerived.nr } : null}
                 enemTotal={enemTotal}
               />
             </div>
+            <CorrectionMirror
+              type={essayType}
+              annulState={annulState}
+              annulOther={annulOther}
+              onToggleAnnul={handleToggleAnnul}
+              onAnnulOtherChange={(value) => {
+                setAnnulOther(value);
+                setDirty(true);
+              }}
+              annulled={annulled}
+              pasState={pasState}
+              onPasChange={handlePasChange}
+              enemSelections={enemSelections}
+              onEnemSelectionChange={handleEnemSelectionChange}
+              enemTotal={enemTotal}
+            />
           </div>
         </div>
       </section>

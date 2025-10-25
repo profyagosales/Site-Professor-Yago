@@ -55,18 +55,17 @@ export function AnnotationSidebar({
 
   return (
     <aside
-      className={`RightRailCard comments-rail gw-rail-raise md:sticky md:top-24 flex h-full w-full flex-col ${
-        className ? className : ''
-      }`}
-      style={{ marginTop: 'calc(var(--gw-hero-h, 72px) - 12px)' }}
+      className={`card RightRailCard comments-rail gw-rail-raise md:sticky md:top-24 flex h-full w-full flex-col p-4 md:p-5 ${className ?? ''}`}
     >
-      <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
-        <h2 className="text-sm font-semibold">Comentários ({ordered.length})</h2>
+      <div className="card-header px-0 mb-2 md:mb-3">
+        <h3 className="card-title">
+          Comentários ({ordered.length})
+        </h3>
       </div>
       <div className="sr-only" aria-live="polite">
         {liveMessage}
       </div>
-      <div className="mt-2 flex-1 space-y-2 overflow-y-auto pr-1">
+      <div className="card-body pt-0 flex-1 space-y-2.5 md:space-y-3 overflow-y-auto pr-1">
         {ordered.length === 0 && (
           <p className="text-[11px] text-slate-500">
             Selecione um trecho no PDF para adicionar um comentário.
@@ -82,7 +81,7 @@ export function AnnotationSidebar({
               key={ann.id}
               ref={(node) => { itemRefs.current[ann.id] = node; }}
               data-annotation-id={ann.id}
-              className={`rounded-md border border-slate-200 p-1.5 shadow-sm ${
+              className={`rounded-md border border-slate-200 p-2.5 md:p-3 shadow-sm ${
                 isActive ? 'ring-2 ring-orange-400' : ''
               }`}
               style={{
@@ -100,7 +99,6 @@ export function AnnotationSidebar({
                 <div className="min-w-0">
                   <span className="text-[10px] font-semibold text-slate-600">#{ann.number}</span>
                   <h3 className="text-[11px] font-semibold text-slate-800 truncate">{meta?.label ?? 'Comentário'}</h3>
-                  <p className="text-[10px] text-slate-600">página {ann.page}</p>
                 </div>
                 <span className="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-semibold text-slate-700 shadow">
                   {ann.number}
