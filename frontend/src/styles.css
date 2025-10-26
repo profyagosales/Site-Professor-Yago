@@ -1200,5 +1200,65 @@ a {
 .enem-c4-strong { color: var(--enem-c4-strong) !important; font-weight: var(--pdf-fw-bold); }
 
 .enem-c5-card { border-color: var(--enem-c5-title) !important; background: var(--enem-c5-pastel) !important; }
+
 .enem-c5-card .card-title, .enem-c5-card h3, .enem-c5-card h4 { color: var(--enem-c5-title) !important; }
 .enem-c5-strong { color: var(--enem-c5-strong) !important; font-weight: var(--pdf-fw-bold); }
+
+/* === Comments Rail: sticky + internal scroll helpers === */
+.RightRailCard {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;          /* allow internal scroller to size */
+}
+
+.comments-rail .card-header {
+  align-items: baseline;  /* title aligns nicer with count/badges */
+  margin-bottom: 8px;     /* tighter header for more vertical room */
+}
+
+.comments-rail .card-title {
+  font-size: 11px;        /* keep tiny, consistent with PDF */
+  line-height: 1.2;
+  margin: 0;
+}
+
+#comments-rail-scroll {
+  flex: 1 1 auto;
+  max-height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;     /* scrollbar gutter */
+}
+
+/* Reduce inner gap slightly to fit more comments in 20% column */
+.comments-rail .card-body {
+  gap: 0.5rem;
+}
+/* === Workspace sticky rails (micro) === */
+:root{ --ws-hero-h: 72px; --ws-gap: 16px; --ws-rail-top: calc(var(--ws-hero-h) + var(--ws-gap)); }
+
+/* Left rail gruda no topo do hero e ganha rolagem própria */
+.ws-left-rail{
+  position: sticky;
+  top: var(--ws-rail-top);
+  max-height: calc(100vh - var(--ws-rail-top) - 12px);
+  overflow: auto;
+}
+
+/* Right rail pode usar o mesmo topo para sincronizar com o hero */
+.ws-right-rail{ position: sticky; top: var(--ws-rail-top); }
+
+/* === Left rail: espaçamento explícito entre grupos (micro) === */
+.redacao-left-rail .rail-actions:first-of-type{ margin-bottom: 12px; }
+.redacao-left-rail .AnnotationToolbar{ margin: 12px 0; }
+.redacao-left-rail .rail-actions:last-of-type{ margin-top: 12px; }
+@media (min-width: 1024px){
+  .redacao-left-rail .rail-actions:first-of-type{ margin-bottom: 16px; }
+  .redacao-left-rail .AnnotationToolbar{ margin: 16px 0; }
+  .redacao-left-rail .rail-actions:last-of-type{ margin-top: 16px; }
+}
+.ws-left-rail-stretch{
+  align-self: stretch;
+  height: auto;
+}

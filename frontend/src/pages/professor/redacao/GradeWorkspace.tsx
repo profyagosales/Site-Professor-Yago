@@ -866,17 +866,17 @@ export default function GradeWorkspace() {
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:p-5">
         {/* Unified 3-column grid */}
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-[260px_minmax(0,1fr)_clamp(260px,20%,360px)]" aria-label="Workspace de correção">
-          {/* HERO: spans center and right columns */}
+        <div className="grid grid-cols-1 gap-3 items-start md:grid-cols-[260px_minmax(0,1fr)_clamp(260px,20%,360px)]" aria-label="Workspace de correção">
+          {/* HERO: spans center column only */}
           <header
-            className="hero hero--compact mb-3 rounded-2xl border border-orange-300 bg-orange-500/95 p-2 text-white shadow-md md:col-start-2 md:col-span-2"
+            className="hero hero--compact mb-3 rounded-2xl border border-orange-300 bg-orange-500/95 p-2 text-white shadow-md md:col-start-2 md:col-span-1"
             aria-label="Cabeçalho de correção"
             style={{ ['--gw-hero-h' as any]: '72px' }}
           >
             <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-5">
               {/* BRAND (left) */}
               <div className="flex items-center gap-3">
-                <div className="hero-brand-mark shrink-0">
+                <div className="hero-brand-mark shrink-0 h-12 w-12">
                   <img
                     src={brandSrc}
                     alt="Logo Professor Yago Sales"
@@ -884,7 +884,7 @@ export default function GradeWorkspace() {
                     className="h-full w-full"
                   />
                 </div>
-                <span className="hero-brand-label">
+                <span className="hero-brand-label font-bold">
                   Professor Yago Sales
                 </span>
               </div>
@@ -906,7 +906,7 @@ export default function GradeWorkspace() {
               {/* SCORE (right) */}
               <div className="flex items-center justify-end">
                 <div className="flex items-center gap-3 rounded-xl border border-white/25 bg-white/10 px-3 py-2 backdrop-blur">
-                  <div className="flex min-w-[88px] flex-col text-right">
+                  <div className="flex min-w-[96px] flex-col items-center text-center">
                     <span className="text-[9px] uppercase tracking-wide text-white/85">Nota final</span>
                     <span className="text-xl font-extrabold leading-none">
                       {essayType === 'PAS'
@@ -922,7 +922,7 @@ export default function GradeWorkspace() {
             </div>
           </header>
           {/* LEFT RAIL */}
-          <aside className="order-1 md:order-none md:col-start-1 md:row-start-2 md:w-[260px] md:shrink-0 redacao-left-rail">
+          <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-2 md:w-[260px] md:shrink-0 redacao-left-rail ws-left-rail-stretch">
             {/* Mobile: action buttons + toolbar + action buttons */}
             <div className="mb-3 md:hidden flex flex-col gap-4">
               <div className="rail-actions flex flex-wrap items-center gap-2">
@@ -965,8 +965,8 @@ export default function GradeWorkspace() {
               </div>
             </div>
             {/* Desktop: action buttons + toolbar + action buttons (vertical) */}
-            <div className="hidden md:block md:sticky md:top-24 gw-rail-raise">
-              <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm min-h-[640px] flex flex-col space-y-4">
+            <div className="hidden md:block ws-left-rail gw-rail-raise">
+              <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm min-h-[560px] flex flex-col space-y-4">
                 <div className="rail-actions flex flex-wrap items-center gap-2">
                   <Button className="btn btn--neutral" onClick={backToList}>
                     Voltar
@@ -987,13 +987,13 @@ export default function GradeWorkspace() {
                   </Button>
                 </div>
 
-                <div className="h-1" aria-hidden />
+                <div className="h-3" aria-hidden />
                 <AnnotationToolbar
                   active={activeCategory}
                   onChange={setActiveCategory}
                   orientation="vertical"
                 />
-                <div className="h-1" aria-hidden />
+                <div className="h-3" aria-hidden />
 
                 <div className="rail-actions flex flex-wrap items-center gap-2">
                   <Button
@@ -1037,10 +1037,10 @@ export default function GradeWorkspace() {
           </main>
           {/* COMMENTS RAIL */}
           <aside
-            className={`RightRailCard comments-rail gw-rail-raise md:sticky md:top-24 md:col-start-3 md:row-start-2 md:row-span-2 ${generating ? 'hidden' : ''}`}
+            className={`RightRailCard comments-rail gw-rail-raise ws-right-rail md:self-start md:col-start-3 md:row-start-2 md:row-span-2 ${generating ? 'hidden' : ''}`}
           >
-            <div className="flex h-full min-h-[560px] w-full flex-col rounded-xl border border-slate-200 bg-white p-2">
-              <div className="mt-0 flex-1 overflow-auto">
+            <div className="flex h-full w-full flex-col rounded-xl border border-slate-200 bg-white p-2 min-h-[560px]">
+              <div id="comments-rail-scroll" className="mt-0 flex-1 overflow-y-auto overscroll-contain max-h-full">
                 <AnnotationSidebar
                   annotations={orderedAnnotations}
                   selectedId={selectedAnnotationId}
