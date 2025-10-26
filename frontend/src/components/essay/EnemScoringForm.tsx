@@ -1,4 +1,4 @@
-import { Fragment, useMemo } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import {
   ENEM_2024,
   type EnemCompetency,
@@ -42,6 +42,11 @@ function isConnectorToken(txt: string) {
   return CONNECTOR_SET.has(norm);
 }
 
+// Helper to render a label string with highlights (for justification summary)
+function renderHighlighted(label: string, palette: { strong: string; title: string; pastel: string }) {
+  // Use renderSummary to highlight tokens in the label string
+  return renderSummary(label, palette);
+}
 function renderSummary(summary: string, palette: { strong: string; title: string; pastel: string }) {
   // keep uppercase highlights, but also force E/OU tokens
   const parts = highlightUppercaseTokens(summary);
@@ -314,6 +319,7 @@ function RenderC2Overrides({
   // helpers to get ids by substring
   const id = (s: string) => findCriterionIdByContains(rationale, s);
 
+  // C2 nível 1: select before justification, hide after choose, show Edit pill
   if (level.level === 1) {
     // OU exclusivo entre 3 opções
     const options = [
@@ -322,6 +328,38 @@ function RenderC2Overrides({
       { key: 'outros-tipos', label: 'Traços constantes de outros tipos textuais', id: id('outros tipos textuais') },
     ].filter(o => o.id);
     const current = Array.from(selectedReasonIds)[0] || '';
+    const [isEditing, setIsEditing] = useState(!current);
+    // Find label for the selected id
+    const selectedOption = options.find(o => o.id === current);
+    if (!isEditing && current) {
+      return (
+        <div className="space-y-2 rounded-xl border p-2.5" style={{ backgroundColor: palette.pastel, borderColor: palette.pastel }}>
+          <div className="flex items-center gap-2">
+            <span
+              className="text-xs rounded-full px-2 py-1 border font-medium"
+              style={{
+                backgroundColor: palette.pastel,
+                borderColor: palette.title,
+                color: palette.strong,
+                borderWidth: 1,
+                borderStyle: 'solid',
+                fontSize: '13px'
+              }}
+            >
+              {selectedOption ? renderHighlighted(selectedOption.label, palette) : null}
+            </span>
+            <button
+              type="button"
+              className="text-xs ml-2 px-2 py-0.5 rounded border border-slate-300 bg-white hover:bg-orange-50 text-orange-700"
+              onClick={() => setIsEditing(true)}
+              style={{ fontSize: '12px' }}
+            >
+              editar
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="space-y-2 rounded-xl border p-2.5" style={{ backgroundColor: palette.pastel, borderColor: palette.pastel }}>
         <p className="pdf-xs font-semibold leading-tight" style={{ color: palette.title }}>
@@ -330,7 +368,10 @@ function RenderC2Overrides({
         <select
           className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
           value={current}
-          onChange={(e) => onUpdateReasons(e.target.value ? [e.target.value] : [])}
+          onChange={(e) => {
+            onUpdateReasons(e.target.value ? [e.target.value] : []);
+            setIsEditing(false);
+          }}
         >
           <option value="">— escolher —</option>
           {options.map((o) => (
@@ -702,7 +743,7 @@ function RenderC5Overrides({
   if (!rationale) return null;
   const id = (s: string) => findCriterionIdByContains(rationale, s);
 
-  // Nível 0 — OU exclusivo entre 3 opções
+  // C5 nível 0: select before justification, hide after choose, show Edit pill
   if (level.level === 0) {
     const opts = [
       { id: id('Ausência de proposta'), label: 'Ausência de proposta' },
@@ -710,6 +751,37 @@ function RenderC5Overrides({
       { id: id('não relacionada ao assunto'), label: 'Proposta não relacionada ao assunto' },
     ].filter(o => o.id) as { id: string; label: string }[];
     const current = Array.from(selectedReasonIds)[0] || '';
+    const [isEditing, setIsEditing] = useState(!current);
+    const selectedOption = opts.find(o => o.id === current);
+    if (!isEditing && current) {
+      return (
+        <div className="space-y-2 rounded-xl border p-2.5" style={{ backgroundColor: palette.pastel, borderColor: palette.pastel }}>
+          <div className="flex items-center gap-2">
+            <span
+              className="text-xs rounded-full px-2 py-1 border font-medium"
+              style={{
+                backgroundColor: palette.pastel,
+                borderColor: palette.title,
+                color: palette.strong,
+                borderWidth: 1,
+                borderStyle: 'solid',
+                fontSize: '13px'
+              }}
+            >
+              {selectedOption ? renderHighlighted(selectedOption.label, palette) : null}
+            </span>
+            <button
+              type="button"
+              className="text-xs ml-2 px-2 py-0.5 rounded border border-slate-300 bg-white hover:bg-orange-50 text-orange-700"
+              onClick={() => setIsEditing(true)}
+              style={{ fontSize: '12px' }}
+            >
+              editar
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="space-y-2 rounded-xl border p-2.5" style={{ backgroundColor: palette.pastel, borderColor: palette.pastel }}>
         <p
@@ -721,7 +793,10 @@ function RenderC5Overrides({
         <select
           className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
           value={current}
-          onChange={(e) => onUpdateReasons(e.target.value ? [e.target.value] : [])}
+          onChange={(e) => {
+            onUpdateReasons(e.target.value ? [e.target.value] : []);
+            setIsEditing(false);
+          }}
         >
           <option value="">— escolher —</option>
           {opts.map((o) => (
@@ -732,7 +807,7 @@ function RenderC5Overrides({
     );
   }
 
-  // Nível 1 — OU exclusivo entre 3 opções
+  // C5 nível 1: select before justification, hide after choose, show Edit pill
   if (level.level === 1) {
     const opts = [
       { id: id('Tangenciamento ao tema') || id('Tangênciamento ao tema'), label: 'Tangenciamento ao tema' },
@@ -740,6 +815,37 @@ function RenderC5Overrides({
       { id: id('1 elemento válido'), label: '1 elemento válido' },
     ].filter(o => o.id) as { id: string; label: string }[];
     const current = Array.from(selectedReasonIds)[0] || '';
+    const [isEditing, setIsEditing] = useState(!current);
+    const selectedOption = opts.find(o => o.id === current);
+    if (!isEditing && current) {
+      return (
+        <div className="space-y-2 rounded-xl border p-2.5" style={{ backgroundColor: palette.pastel, borderColor: palette.pastel }}>
+          <div className="flex items-center gap-2">
+            <span
+              className="text-xs rounded-full px-2 py-1 border font-medium"
+              style={{
+                backgroundColor: palette.pastel,
+                borderColor: palette.title,
+                color: palette.strong,
+                borderWidth: 1,
+                borderStyle: 'solid',
+                fontSize: '13px'
+              }}
+            >
+              {selectedOption ? renderHighlighted(selectedOption.label, palette) : null}
+            </span>
+            <button
+              type="button"
+              className="text-xs ml-2 px-2 py-0.5 rounded border border-slate-300 bg-white hover:bg-orange-50 text-orange-700"
+              onClick={() => setIsEditing(true)}
+              style={{ fontSize: '12px' }}
+            >
+              editar
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="space-y-2 rounded-xl border p-2.5" style={{ backgroundColor: palette.pastel, borderColor: palette.pastel }}>
         <p
@@ -751,7 +857,10 @@ function RenderC5Overrides({
         <select
           className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
           value={current}
-          onChange={(e) => onUpdateReasons(e.target.value ? [e.target.value] : [])}
+          onChange={(e) => {
+            onUpdateReasons(e.target.value ? [e.target.value] : []);
+            setIsEditing(false);
+          }}
         >
           <option value="">— escolher —</option>
           {opts.map((o) => (
@@ -762,11 +871,46 @@ function RenderC5Overrides({
     );
   }
 
-  // Nível 2 — OU exclusivo entre 2 opções
+  // C5 nível 2: select before justification, hide after choose, show Edit pill
   if (level.level === 2) {
     const optA = id('2 elementos válidos');
     const optB = id('Estrutura CONDICIONAL com dois ou mais elementos válidos') || id('Estrutura CONDICIONAL');
+    const opts = [
+      optA ? { id: optA, label: '2 elementos válidos' } : null,
+      optB ? { id: optB, label: 'Estrutura CONDICIONAL com dois ou mais elementos válidos' } : null,
+    ].filter(Boolean) as { id: string; label: string }[];
     const current = Array.from(selectedReasonIds)[0] || '';
+    const [isEditing, setIsEditing] = useState(!current);
+    const selectedOption = opts.find(o => o.id === current);
+    if (!isEditing && current) {
+      return (
+        <div className="space-y-2 rounded-xl border p-2.5" style={{ backgroundColor: palette.pastel, borderColor: palette.pastel }}>
+          <div className="flex items-center gap-2">
+            <span
+              className="text-xs rounded-full px-2 py-1 border font-medium"
+              style={{
+                backgroundColor: palette.pastel,
+                borderColor: palette.title,
+                color: palette.strong,
+                borderWidth: 1,
+                borderStyle: 'solid',
+                fontSize: '13px'
+              }}
+            >
+              {selectedOption ? renderHighlighted(selectedOption.label, palette) : null}
+            </span>
+            <button
+              type="button"
+              className="text-xs ml-2 px-2 py-0.5 rounded border border-slate-300 bg-white hover:bg-orange-50 text-orange-700"
+              onClick={() => setIsEditing(true)}
+              style={{ fontSize: '12px' }}
+            >
+              editar
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="space-y-2 rounded-xl border p-2.5" style={{ backgroundColor: palette.pastel, borderColor: palette.pastel }}>
         <p
@@ -778,11 +922,15 @@ function RenderC5Overrides({
         <select
           className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
           value={current}
-          onChange={(e) => onUpdateReasons(e.target.value ? [e.target.value] : [])}
+          onChange={(e) => {
+            onUpdateReasons(e.target.value ? [e.target.value] : []);
+            setIsEditing(false);
+          }}
         >
           <option value="">— escolher —</option>
-          {optA && <option value={optA}>2 elementos válidos</option>}
-          {optB && <option value={optB}>Estrutura CONDICIONAL com dois ou mais elementos válidos</option>}
+          {opts.map((o) => (
+            <option key={o.id} value={o.id}>{o.label}</option>
+          ))}
         </select>
       </div>
     );
@@ -959,7 +1107,9 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
                             {' '}E{' '}
                           </span>
                         )}
-                        <span>{lbl}</span>
+                        <span className="text-xs">
+                          {renderHighlighted(lbl, palette)}
+                        </span>
                       </Fragment>
                     ))}
                   </span>

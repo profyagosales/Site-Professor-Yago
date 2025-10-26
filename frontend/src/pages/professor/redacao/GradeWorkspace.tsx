@@ -873,42 +873,46 @@ export default function GradeWorkspace() {
             aria-label="Cabeçalho de correção"
             style={{ ['--gw-hero-h' as any]: '72px' }}
           >
-            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4">
-              {/* BRAND (left) */}
-              <div className="hero-brand grid grid-rows-[auto_auto] justify-items-center items-center gap-1 place-items-center text-center">
-                <div className="hero-brand-mark h-9 w-9 shrink-0">
+            <div className="grid w-full h-[var(--gw-hero-h)] grid-cols-[auto_1fr_auto] items-center gap-3">
+              {/* BRAND (left): ícone em cima, texto centralizado embaixo */}
+              <div className="flex flex-col items-center justify-center">
+                <div className="h-9 w-9 md:h-9 md:w-9 rounded-xl overflow-hidden ring-2 ring-white/30 bg-white/15 flex items-center justify-center">
                   <img
                     src={brandSrc}
                     alt="Logomarca Professor Yago Sales"
                     onError={() => setBrandSrc('/pdf/brand-mark.png')}
-                    className="h-full w-full"
+                    className="h-full w-full object-contain"
                   />
                 </div>
-                <span className="hero-brand-name mt-0.5 text-[14px] font-extrabold leading-tight text-white text-center whitespace-nowrap">
+                <span className="mt-1 text-[12px] font-semibold leading-tight text-white text-center whitespace-nowrap">
                   Professor Yago Sales
                 </span>
               </div>
-              {/* STUDENT INFO (center) */}
-              <div className="flex items-center justify-center gap-2">
-                <div className="h-9 w-9 md:h-10 md:w-10 overflow-hidden rounded-full ring-2 ring-white/30 bg-white/20 flex items-center justify-center text-[11px] font-bold">
-                  {studentPhoto ? (
-                    <img src={studentPhoto} alt={studentName} className="h-full w-full object-cover" />
-                  ) : (
-                    <span className="text-white">{studentInitials}</span>
-                  )}
-                </div>
-                <div className="flex flex-col leading-tight text-white/95">
-                  <p className="text-[12px] font-semibold leading-tight">{firstInfoLine}</p>
-                  <p className="text-[10px] leading-tight">{secondInfoLine}</p>
-                  <p className="text-[10px] leading-tight">{thirdInfoLine}</p>
+
+              {/* STUDENT INFO (center): centralizado no hero */}
+              <div className="flex items-center justify-center">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="h-9 w-9 md:h-10 md:w-10 overflow-hidden rounded-full ring-2 ring-white/30 bg-white/20 flex items-center justify-center text-[11px] font-bold">
+                    {studentPhoto ? (
+                      <img src={studentPhoto} alt={studentName} className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-white">{studentInitials}</span>
+                    )}
+                  </div>
+                  <div className="flex flex-col leading-tight text-white/95 text-center">
+                    <p className="text-[12px] font-semibold leading-tight text-white whitespace-nowrap">{firstInfoLine}</p>
+                    <p className="text-[10px] leading-tight">{secondInfoLine}</p>
+                    <p className="text-[10px] leading-tight">{thirdInfoLine}</p>
+                  </div>
                 </div>
               </div>
-              {/* SCORE (right) */}
-              <div className="flex items-center justify-end ml-auto pr-1 md:pr-2 justify-self-end">
+
+              {/* SCORE (right): alinhado ao canto direito do hero */}
+              <div className="flex justify-end">
                 <div className="flex items-center gap-3 rounded-xl border border-white/25 bg-white/10 px-3 py-2 backdrop-blur">
-                <div className="flex min-w-[92px] flex-col items-center text-center">
-                  <span className="text-[9px] uppercase tracking-wide text-white/85">Nota final</span>
-                  <span className="text-[18px] font-extrabold leading-none">
+                  <div className="flex min-w-[92px] flex-col items-center text-center">
+                    <span className="text-[9px] uppercase tracking-wide text-white/85">Nota final</span>
+                    <span className="text-[18px] font-extrabold leading-none">
                       {essayType === 'PAS'
                         ? (pasDerived.nr != null
                             ? Number(pasDerived.nr).toFixed(1).replace('.', ',')
@@ -922,7 +926,7 @@ export default function GradeWorkspace() {
             </div>
           </header>
           {/* LEFT RAIL */}
-          <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-2 md:w-[260px] md:shrink-0 redacao-left-rail ws-left-rail-stretch">
+          <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:w-[260px] md:shrink-0 redacao-left-rail ws-left-rail-stretch">
             {/* Mobile: action buttons + toolbar + action buttons */}
             <div className="mb-3 md:hidden flex flex-col gap-4">
               <div className="rail-actions flex flex-wrap items-center gap-2">
