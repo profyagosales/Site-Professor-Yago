@@ -811,6 +811,9 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
           () => (levelData?.rationale ? orderedSelectedLabels(levelData.rationale, Array.from(selectedReasonIds)) : []),
           [levelData?.rationale, selectedReasonIds]
         );
+        // Static fallback for levels without selection controls
+        const staticJust = levelData?.staticJustification ? fixLabel(levelData.staticJustification) : '';
+        const labelsToShow = orderedLabels.length > 0 ? orderedLabels : (staticJust ? [staticJust] : []);
 
         const handleLevelChange = (level: EnemLevel) => {
           if (competency.key === 'C2' && (level.level === 4 || level.level === 5) && level.rationale) {
@@ -883,8 +886,8 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
 
             {!(competency.key === 'C2' || competency.key === 'C3' || competency.key === 'C4' || competency.key === 'C5') && (
               <div
-                className="rounded-xl border px-3 py-2 text-[13px] leading-tight text-slate-700"
-                style={{ backgroundColor: palette.pastel, borderColor: palette.pastel }}
+                className="rounded-xl border px-3 py-2 pdf-xs leading-tight"
+                style={{ backgroundColor: palette.pastel, borderColor: palette.pastel, color: palette.title }}
               >
                 {renderSummary(levelData.summary, palette).map((part, index) => (
                   <Fragment key={index}>{part}</Fragment>
@@ -939,15 +942,17 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
             {/* Dynamic summary for C2–C5 */}
             {(competency.key === 'C2' || competency.key === 'C3' || competency.key === 'C4' || competency.key === 'C5') && (
               <div
-                className="rounded-xl border px-3 py-2 text-[12px] leading-tight"
+                className="rounded-xl border px-3 py-2 leading-tight"
                 style={{ backgroundColor: palette.pastel, borderColor: palette.pastel, color: palette.title }}
               >
-                <strong style={{ color: palette.strong }}>Justificativa selecionada:</strong>{' '}
-                {orderedLabels.length === 0 ? (
+                <span className="pdf-xs font-semibold" style={{ color: palette.title }}>
+                  <span style={{ color: palette.strong }}>Justificativa selecionada:</span>
+                </span>{' '}
+                {labelsToShow.length === 0 ? (
                   <span className="opacity-70">— nenhuma seleção ainda —</span>
                 ) : (
                   <span>
-                    {orderedLabels.map((lbl, idx) => (
+                    {labelsToShow.map((lbl, idx) => (
                       <Fragment key={`sel-${idx}`}>
                         {idx > 0 && (
                           <span style={{ backgroundColor: palette.pastel, color: palette.strong, fontWeight: 700, padding: '0 2px', borderRadius: 3 }}>

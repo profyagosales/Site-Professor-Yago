@@ -30,28 +30,76 @@ export function AnnotationSidebar({
   );
   const textareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // rAF handle to avoid overlapping animations
+  const rafRef = useRef<number | null>(null);
+
+  function smoothScrollTo(container: HTMLElement, to: number, duration = 220) {
+    const start = container.scrollTop;
+    const diff = to - start;
+    if (Math.abs(diff) < 1) return; // ignore tiny moves
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    const startAt = performance.now();
+    const ease = (t: number) => t * (2 - t); // easeOutQuad
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - startAt) / duration);
+      container.scrollTop = start + diff * ease(t);
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        rafRef.current = null;
+      }
+    };
+    rafRef.current = requestAnimationFrame(tick);
+  }
+
+  function scrollChildIntoContainer(container: HTMLElement | null, child: HTMLElement) {
+    if (!container) return;
+    const cRect = container.getBoundingClientRect();
+    const eRect = child.getBoundingClientRect();
+    const padding = 8;
+    let target: number | null = null;
+    const overTop = eRect.top < cRect.top;
+    const overBottom = eRect.bottom > cRect.bottom;
+    if (overTop) {
+      target = container.scrollTop + (eRect.top - cRect.top) - padding;
+    } else if (overBottom) {
+      target = container.scrollTop + (eRect.bottom - cRect.bottom) + padding;
+    }
+    if (target !== null) {
+      smoothScrollTo(container, target);
+    }
+  }
 
   useEffect(() => {
     if (!focusId) return;
     const el = textareaRefs.current[focusId];
-    if (el) {
+    if (!el) return;
+    try {
+      // focus without scrolling the whole page
+      (el as any).focus({ preventScroll: true });
+    } catch {
       el.focus();
-      el.setSelectionRange(el.value.length, el.value.length);
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
+    // keep caret at the end
+    el.setSelectionRange(el.value.length, el.value.length);
+    // scroll only the sidebar body
+    scrollChildIntoContainer(containerRef.current, el);
   }, [focusId]);
 
   useEffect(() => {
     if (!selectedId) return;
     const el = itemRefs.current[selectedId];
-    if (el) {
-      try {
-        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      } catch {
-        // no-op
-      }
-    }
+    if (!el) return;
+    scrollChildIntoContainer(containerRef.current, el);
   }, [selectedId]);
+
+  useEffect(() => {
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
 
   return (
     <aside
@@ -65,7 +113,7 @@ export function AnnotationSidebar({
       <div className="sr-only" aria-live="polite">
         {liveMessage}
       </div>
-      <div className="card-body pt-0 flex-1 space-y-2.5 md:space-y-3 overflow-y-auto pr-1">
+      <div ref={containerRef} className="card-body pt-0 flex-1 space-y-2.5 md:space-y-3 overflow-y-auto pr-1">
         {ordered.length === 0 && (
           <p className="text-[11px] text-slate-500">
             Selecione um trecho no PDF para adicionar um comentário.

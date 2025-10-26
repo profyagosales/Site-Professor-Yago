@@ -24,12 +24,13 @@ type AnnotationToolbarProps = {
   onChange: (key: HighlightCategoryKey) => void;
   orientation?: 'horizontal' | 'vertical';
   className?: string;
+  centered?: boolean;
 };
 
-export function AnnotationToolbar({ active, onChange, orientation = 'horizontal', className }: AnnotationToolbarProps) {
+export function AnnotationToolbar({ active, onChange, orientation = 'horizontal', className, centered = false }: AnnotationToolbarProps) {
   const isVertical = orientation === 'vertical';
   const baseClasses = isVertical
-    ? 'row-span-2 md:sticky md:self-start md:top-[var(--hero-sticky-top,88px)] h-fit flex flex-col items-stretch gap-1.5 mt-3 mb-3'
+    ? `row-span-2 md:sticky md:self-start md:top-[var(--hero-sticky-top,88px)] h-fit flex flex-col ${centered ? 'items-center' : 'items-stretch'} gap-1.5 mt-3 mb-3`
     : 'flex flex-wrap items-center gap-1.5 border-b border-slate-200 pb-2';
 
   const entries = useMemo(
@@ -116,7 +117,7 @@ export function AnnotationToolbar({ active, onChange, orientation = 'horizontal'
             data-key={key}
             className={`${variantFor(key, meta.label)} flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500/60 ${
               isActive ? 'ring-2 ring-orange-500' : 'ring-1 ring-transparent'
-            } ${isVertical ? 'justify-start text-left w-full' : ''}`}
+            } ${isVertical ? `justify-start text-left w-full${centered ? ' max-w-[340px] mx-auto' : ''}` : ''}`}
           >
             <span
               className="inline-block h-2 w-2 flex-none rounded-full"

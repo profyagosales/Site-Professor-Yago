@@ -867,29 +867,29 @@ export default function GradeWorkspace() {
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:p-5">
         {/* Unified 3-column grid */}
         <div className="grid grid-cols-1 gap-3 items-start md:grid-cols-[260px_minmax(0,1fr)_clamp(260px,20%,360px)]" aria-label="Workspace de correção">
-          {/* HERO: spans center column only */}
+          {/* HERO: spans center and right columns on md+ */}
           <header
-            className="hero hero--compact mb-3 rounded-2xl border border-orange-300 bg-orange-500/95 p-2 text-white shadow-md md:col-start-2 md:col-span-1"
+            className="hero hero--compact mb-3 rounded-2xl border border-orange-300 bg-orange-500/95 p-2 text-white shadow-md md:col-start-2 md:col-span-2 w-full"
             aria-label="Cabeçalho de correção"
             style={{ ['--gw-hero-h' as any]: '72px' }}
           >
-            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-5">
+            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4">
               {/* BRAND (left) */}
-              <div className="flex items-center gap-3">
-                <div className="hero-brand-mark shrink-0 h-12 w-12">
+              <div className="hero-brand grid grid-rows-[auto_auto] justify-items-center items-center gap-1 place-items-center text-center">
+                <div className="hero-brand-mark h-9 w-9 shrink-0">
                   <img
                     src={brandSrc}
-                    alt="Logo Professor Yago Sales"
+                    alt="Logomarca Professor Yago Sales"
                     onError={() => setBrandSrc('/pdf/brand-mark.png')}
                     className="h-full w-full"
                   />
                 </div>
-                <span className="hero-brand-label font-bold">
+                <span className="hero-brand-name mt-0.5 text-[14px] font-extrabold leading-tight text-white text-center whitespace-nowrap">
                   Professor Yago Sales
                 </span>
               </div>
               {/* STUDENT INFO (center) */}
-              <div className="flex items-center justify-center gap-3">
+              <div className="flex items-center justify-center gap-2">
                 <div className="h-9 w-9 md:h-10 md:w-10 overflow-hidden rounded-full ring-2 ring-white/30 bg-white/20 flex items-center justify-center text-[11px] font-bold">
                   {studentPhoto ? (
                     <img src={studentPhoto} alt={studentName} className="h-full w-full object-cover" />
@@ -904,11 +904,11 @@ export default function GradeWorkspace() {
                 </div>
               </div>
               {/* SCORE (right) */}
-              <div className="flex items-center justify-end">
+              <div className="flex items-center justify-end ml-auto pr-1 md:pr-2 justify-self-end">
                 <div className="flex items-center gap-3 rounded-xl border border-white/25 bg-white/10 px-3 py-2 backdrop-blur">
-                  <div className="flex min-w-[96px] flex-col items-center text-center">
-                    <span className="text-[9px] uppercase tracking-wide text-white/85">Nota final</span>
-                    <span className="text-xl font-extrabold leading-none">
+                <div className="flex min-w-[92px] flex-col items-center text-center">
+                  <span className="text-[9px] uppercase tracking-wide text-white/85">Nota final</span>
+                  <span className="text-[18px] font-extrabold leading-none">
                       {essayType === 'PAS'
                         ? (pasDerived.nr != null
                             ? Number(pasDerived.nr).toFixed(1).replace('.', ',')
@@ -965,37 +965,42 @@ export default function GradeWorkspace() {
               </div>
             </div>
             {/* Desktop: action buttons + toolbar + action buttons (vertical) */}
-            <div className="hidden md:block ws-left-rail gw-rail-raise">
-              <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm min-h-[560px] flex flex-col space-y-4">
-                <div className="rail-actions flex flex-wrap items-center gap-2">
-                  <Button className="btn btn--neutral" onClick={backToList}>
-                    Voltar
-                  </Button>
-                  <Button
-                    className="btn btn--neutral"
-                    onClick={() => {
-                      if (essay?.originalUrl) {
-                        window.open(essay.originalUrl, '_blank', 'noopener,noreferrer');
-                      } else if (pdfUrl) {
-                        window.open(pdfUrl, '_blank', 'noopener,noreferrer');
-                      } else {
-                        toast.info('Nenhum PDF disponível para abrir.');
-                      }
-                    }}
-                  >
-                    Abrir original
-                  </Button>
+            <div className="hidden md:block ws-left-rail gw-rail-raise md:sticky md:top-2 md:max-h-[calc(100vh-0.5rem)]">
+              <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm min-h-[560px] h-full flex flex-col">
+                <div className="flex-1 overflow-y-auto pr-1">
+                  <div className="rail-actions flex flex-wrap items-center gap-2">
+                    <Button className="btn btn--neutral" onClick={backToList}>
+                      Voltar
+                    </Button>
+                    <Button
+                      className="btn btn--neutral"
+                      onClick={() => {
+                        if (essay?.originalUrl) {
+                          window.open(essay.originalUrl, '_blank', 'noopener,noreferrer');
+                        } else if (pdfUrl) {
+                          window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+                        } else {
+                          toast.info('Nenhum PDF disponível para abrir.');
+                        }
+                      }}
+                    >
+                      Abrir original
+                    </Button>
+                  </div>
+
+                  <div className="h-3" aria-hidden />
+                  <div className="flex justify-center">
+                    <AnnotationToolbar
+                      active={activeCategory}
+                      onChange={setActiveCategory}
+                      orientation="vertical"
+                      centered
+                    />
+                  </div>
+                  <div className="h-3" aria-hidden />
                 </div>
-
-                <div className="h-3" aria-hidden />
-                <AnnotationToolbar
-                  active={activeCategory}
-                  onChange={setActiveCategory}
-                  orientation="vertical"
-                />
-                <div className="h-3" aria-hidden />
-
-                <div className="rail-actions flex flex-wrap items-center gap-2">
+                {/* footer CTA, outside the scrollable area */}
+                <div className="rail-actions mt-2 flex flex-wrap items-center gap-2 border-t border-slate-100/80 bg-white/95 px-1 pt-3 backdrop-blur supports-[backdrop-filter]:bg-white/80">
                   <Button
                     className="btn btn--neutral"
                     onClick={handleSave}
