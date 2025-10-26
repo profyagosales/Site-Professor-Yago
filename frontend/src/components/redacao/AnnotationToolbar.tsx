@@ -29,7 +29,7 @@ type AnnotationToolbarProps = {
 export function AnnotationToolbar({ active, onChange, orientation = 'horizontal', className }: AnnotationToolbarProps) {
   const isVertical = orientation === 'vertical';
   const baseClasses = isVertical
-    ? 'flex flex-col items-stretch gap-1'
+    ? 'row-span-2 md:sticky md:self-start md:top-[var(--hero-sticky-top,88px)] h-fit flex flex-col items-stretch gap-1.5 mt-3 mb-3'
     : 'flex flex-wrap items-center gap-1.5 border-b border-slate-200 pb-2';
 
   const entries = useMemo(

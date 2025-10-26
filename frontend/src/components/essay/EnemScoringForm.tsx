@@ -110,6 +110,32 @@ function uniqueReasonIds(ids: string[]) {
   return Array.from(new Set(ids));
 }
 
+// Helpers to resolve labels from reasonIds, preserving rubric order
+function findCriterionLabelById(node: RubricGroup | RubricCriterion, id: string): string | null {
+  if ('id' in node) {
+    return node.id === id ? fixLabel(node.label) : null;
+  }
+  for (const it of node.items) {
+    const got = findCriterionLabelById(it, id);
+    if (got) return got;
+  }
+  return null;
+}
+
+function orderedSelectedLabels(rationale: RubricGroup, selected: string[]): string[] {
+  // percorre a árvore e retorna as labels dos selecionados mantendo a ordem do rubric
+  const out: string[] = [];
+  function walk(node: RubricGroup | RubricCriterion) {
+    if ('id' in node) {
+      if (selected.includes(node.id)) out.push(fixLabel(node.label));
+      return;
+    }
+    for (const it of node.items) walk(it);
+  }
+  walk(rationale);
+  return out;
+}
+
 function RenderGroup({
   competencyKey,
   level,
@@ -327,7 +353,12 @@ function RenderC2Overrides({
     const hasCopias = selected.has(copias || '');
 
     const apply = (ouVal: string, withCopias: boolean) => {
-      const ids = ensureUnique([obrig, ouVal || null, withCopias ? copias : null]);
+      if (withCopias && copias) {
+        // Quando há muitas cópias, essa é a única justificativa
+        onUpdateReasons([copias]);
+        return;
+      }
+      const ids = ensureUnique([obrig, ouVal || null]);
       onUpdateReasons(ids);
     };
 
@@ -348,11 +379,17 @@ function RenderC2Overrides({
             className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
             value={currentOU}
             onChange={(e) => apply(e.target.value, hasCopias)}
+            disabled={hasCopias}
           >
             <option value="">— escolher —</option>
             {optA && <option value={optA}>3 partes do texto (2 delas embrionárias)</option>}
             {optB && <option value={optB}>Conclusão finalizada por frase incompleta</option>}
           </select>
+          {hasCopias && (
+            <p className="text-[12px] text-slate-500">
+              Ao marcar “Redação com muitas cópias”, somente essa justificativa será considerada.
+            </p>
+          )}
         </div>
         <label className="flex items-center gap-2 text-sm">
           <input
@@ -367,22 +404,25 @@ function RenderC2Overrides({
   }
 
   if (level.level === 3) {
-    // Dois obrigatórios + E/OU entre 2 opções (multi)
+    // Dois obrigatórios + E/OU entre 2 opções (multi), mais checkbox opcional "Repertório baseado nos textos motivadores"
     const obrig1 = id('Abordagem completa do tema');
     const obrig2 = id('3 partes do texto (1 delas embrionárias)');
     const opt1 = id('Repertório não legitimado');
     const opt2 = id('Repertório legitimado MAS não pertencente ao tema');
+    const opt0 = id('baseado nos textos motivadores') || id('repertório baseado nos textos motivadores');
 
     const selected = new Set(selectedReasonIds);
     const sel1 = selected.has(opt1 || '');
     const sel2 = selected.has(opt2 || '');
+    const sel0 = selected.has(opt0 || '');
 
-    const apply = (a: boolean, b: boolean) => {
+    const apply = (a: boolean, b: boolean, c: boolean) => {
       const ids = ensureUnique([
         obrig1,
         obrig2,
         a && opt1 ? opt1 : null,
         b && opt2 ? opt2 : null,
+        c && opt0 ? opt0 : null,
       ]);
       onUpdateReasons(ids);
     };
@@ -400,12 +440,16 @@ function RenderC2Overrides({
           Selecione um ou ambos (E/OU)
         </p>
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={sel1} onChange={(e) => apply(e.target.checked, sel2)} />
+          <input type="checkbox" checked={sel1} onChange={(e) => apply(e.target.checked, sel2, sel0)} />
           Repertório não legitimado
         </label>
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={sel2} onChange={(e) => apply(sel1, e.target.checked)} />
+          <input type="checkbox" checked={sel2} onChange={(e) => apply(sel1, e.target.checked, sel0)} />
           Repertório legitimado MAS não pertencente ao tema
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={sel0} onChange={(e) => apply(sel1, sel2, e.target.checked)} />
+          Repertório baseado nos textos motivadores
         </label>
       </div>
     );
@@ -635,8 +679,7 @@ function RenderC4Overrides({
   if (level.level === 5) {
     return mkMulti([
       'elementos coesivos intra e interparágrafos',
-      'RARAS repetições',
-      'AUSENTES repetições',
+      'RARAS ou AUSENTES repetições',
       'SEM inadequações',
     ]);
   }
@@ -763,6 +806,12 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
         const filteredReasonIds = selection.reasonIds.filter((id) => availableReasonIds.includes(id));
         const selectedReasonIds = new Set(filteredReasonIds);
 
+        // Memoized ordered labels for summary panel
+        const orderedLabels = useMemo(
+          () => (levelData?.rationale ? orderedSelectedLabels(levelData.rationale, Array.from(selectedReasonIds)) : []),
+          [levelData?.rationale, selectedReasonIds]
+        );
+
         const handleLevelChange = (level: EnemLevel) => {
           if (competency.key === 'C2' && (level.level === 4 || level.level === 5) && level.rationale) {
             const needles = level.level === 4
@@ -832,14 +881,16 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
               </div>
             </header>
 
-            <div
-              className="rounded-xl border px-3 py-2 text-[13px] leading-tight text-slate-700"
-              style={{ backgroundColor: palette.pastel, borderColor: palette.pastel }}
-            >
-              {renderSummary(levelData.summary, palette).map((part, index) => (
-                <Fragment key={index}>{part}</Fragment>
-              ))}
-            </div>
+            {!(competency.key === 'C2' || competency.key === 'C3' || competency.key === 'C4' || competency.key === 'C5') && (
+              <div
+                className="rounded-xl border px-3 py-2 text-[13px] leading-tight text-slate-700"
+                style={{ backgroundColor: palette.pastel, borderColor: palette.pastel }}
+              >
+                {renderSummary(levelData.summary, palette).map((part, index) => (
+                  <Fragment key={index}>{part}</Fragment>
+                ))}
+              </div>
+            )}
 
             {levelData.rationale && (
               competency.key === 'C2' ? (
@@ -883,6 +934,32 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
                   onUpdateReasons={handleReasonsChange}
                 />
               )
+            )}
+
+            {/* Dynamic summary for C2–C5 */}
+            {(competency.key === 'C2' || competency.key === 'C3' || competency.key === 'C4' || competency.key === 'C5') && (
+              <div
+                className="rounded-xl border px-3 py-2 text-[12px] leading-tight"
+                style={{ backgroundColor: palette.pastel, borderColor: palette.pastel, color: palette.title }}
+              >
+                <strong style={{ color: palette.strong }}>Justificativa selecionada:</strong>{' '}
+                {orderedLabels.length === 0 ? (
+                  <span className="opacity-70">— nenhuma seleção ainda —</span>
+                ) : (
+                  <span>
+                    {orderedLabels.map((lbl, idx) => (
+                      <Fragment key={`sel-${idx}`}>
+                        {idx > 0 && (
+                          <span style={{ backgroundColor: palette.pastel, color: palette.strong, fontWeight: 700, padding: '0 2px', borderRadius: 3 }}>
+                            {' '}E{' '}
+                          </span>
+                        )}
+                        <span>{lbl}</span>
+                      </Fragment>
+                    ))}
+                  </span>
+                )}
+              </div>
             )}
           </section>
         );
