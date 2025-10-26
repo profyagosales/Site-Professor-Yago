@@ -13,6 +13,7 @@ export type EnemLevel = {
   points: number;
   summary: string;
   rationale?: RubricGroup;
+  staticJustification?: string;
 };
 
 export type EnemCompetency = {
@@ -30,12 +31,12 @@ export const ENEM_2024: EnemCompetency[] = [
     title: 'Competência 1',
     description: 'Domínio da norma padrão da língua portuguesa.',
     levels: [
-      { level: 0, points: P(0), summary: 'Estrutura sintática inexistente (independentemente da quantidade de desvios)' },
-      { level: 1, points: P(1), summary: 'Estrutura sintática deficitária COM muitos desvios' },
-      { level: 2, points: P(2), summary: 'Estrutura sintática deficitária OU muitos desvios' },
-      { level: 3, points: P(3), summary: 'Estrutura sintática regular E alguns desvios' },
-      { level: 4, points: P(4), summary: 'Estrutura sintática boa E poucos desvios' },
-      { level: 5, points: P(5), summary: 'Estrutura sintática excelente (no máximo, uma falha) E, no máximo, dois desvios' },
+      { level: 0, points: P(0), summary: 'Estrutura sintática inexistente (independentemente da quantidade de desvios)', staticJustification: 'Estrutura sintática inexistente (independentemente da quantidade de desvios)' },
+      { level: 1, points: P(1), summary: 'Estrutura sintática deficitária COM muitos desvios', staticJustification: 'Estrutura sintática deficitária COM muitos desvios' },
+      { level: 2, points: P(2), summary: 'Estrutura sintática deficitária OU muitos desvios', staticJustification: 'Estrutura sintática deficitária OU muitos desvios' },
+      { level: 3, points: P(3), summary: 'Estrutura sintática regular E alguns desvios', staticJustification: 'Estrutura sintática regular E alguns desvios' },
+      { level: 4, points: P(4), summary: 'Estrutura sintática boa E poucos desvios', staticJustification: 'Estrutura sintática boa E poucos desvios' },
+      { level: 5, points: P(5), summary: 'Estrutura sintática excelente (no máximo, uma falha) E, no máximo, dois desvios', staticJustification: 'Estrutura sintática excelente (no máximo, uma falha) E, no máximo, dois desvios' },
     ],
   },
   {
@@ -134,8 +135,8 @@ export const ENEM_2024: EnemCompetency[] = [
     title: 'Competência 3',
     description: 'Organização e defesa de argumentos.',
     levels: [
-      { level: 0, points: P(0), summary: 'Aglomerado caótico de palavras' },
-      { level: 1, points: P(1), summary: 'Projeto de texto sem foco temático ou distorcido' },
+      { level: 0, points: P(0), summary: 'Aglomerado caótico de palavras', staticJustification: 'Aglomerado caótico de palavras' },
+      { level: 1, points: P(1), summary: 'Projeto de texto sem foco temático ou distorcido', staticJustification: 'Projeto de texto sem foco temático ou distorcido' },
       {
         level: 2,
         points: P(2),
@@ -166,17 +167,20 @@ export const ENEM_2024: EnemCompetency[] = [
         points: P(3),
         summary:
           'projeto de texto com ALGUMAS falhas E Desenvolvimento de informações, fatos e opiniões com ALGUMAS lacunas',
+        staticJustification: 'projeto de texto com ALGUMAS falhas E Desenvolvimento de informações, fatos e opiniões com ALGUMAS lacunas',
       },
       {
         level: 4,
         points: P(4),
         summary:
           'projeto de texto com POUCAS falhas E Desenvolvimento de informações, fatos e opiniões com POUCAS lacunas',
+        staticJustification: 'projeto de texto com POUCAS falhas E Desenvolvimento de informações, fatos e opiniões com POUCAS lacunas',
       },
       {
         level: 5,
         points: P(5),
         summary: 'Projeto de texto estratégico E Desenvolvimento de informações, fatos e opiniões em TODO o texto.',
+        staticJustification: 'Projeto de texto estratégico E Desenvolvimento de informações, fatos e opiniões em TODO o texto.',
       },
     ],
   },
@@ -185,7 +189,7 @@ export const ENEM_2024: EnemCompetency[] = [
     title: 'Competência 4',
     description: 'Conhecimento dos mecanismos linguísticos para a argumentação (coesão).',
     levels: [
-      { level: 0, points: P(0), summary: 'Ausência de articulação: palavras E/OU períodos desconexos' },
+      { level: 0, points: P(0), summary: 'Ausência de articulação: palavras E/OU períodos desconexos', staticJustification: 'Ausência de articulação: palavras E/OU períodos desconexos' },
       {
         level: 1,
         points: P(1),
@@ -302,9 +306,9 @@ export const ENEM_2024: EnemCompetency[] = [
           ],
         },
       },
-      { level: 3, points: P(3), summary: '3 elementos válidos' },
-      { level: 4, points: P(4), summary: '4 elementos válidos' },
-      { level: 5, points: P(5), summary: '5 elementos válidos' },
+      { level: 3, points: P(3), summary: '3 elementos válidos', staticJustification: '3 elementos válidos' },
+      { level: 4, points: P(4), summary: '4 elementos válidos', staticJustification: '4 elementos válidos' },
+      { level: 5, points: P(5), summary: '5 elementos válidos', staticJustification: '5 elementos válidos' },
     ],
   },
 ];

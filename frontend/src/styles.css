@@ -1008,13 +1008,16 @@ a {
 
 /* Compact hero for correction workspace */
 .hero--compact { --hero-py: 8px; --hero-min-h: 64px; --hero-stat-h: 40px; }
-.hero--compact .hero-brand-mark { width: 36px; height: 36px; }
-.hero--compact .hero-brand-mark img { width: 32px; height: 32px; }
+.hero--compact .hero-brand-mark { width: 40px; height: 40px; }
+.hero--compact .hero-brand-mark img { width: 36px; height: 36px; }
 .hero--compact .hero-title { font-size: clamp(1.1rem, 2.6vw, 1.35rem); letter-spacing: 0.08em; }
 .hero--compact .hero-stats { gap: 8px; }
 .hero--compact .hero-stat { padding: 6px 10px; min-height: var(--hero-stat-h); }
 .hero--compact .hero-stat__label { font-size: 8px; letter-spacing: 0.14em; }
 .hero--compact .hero-stat__value { font-size: clamp(1.05rem, 2.2vw, 1.35rem); }
+
+/* Vertical brand label under the mark (keeps it bold and tight like in PDF) */
+.hero-brand-name { font-weight: 800; letter-spacing: -0.01em; }
 
 /* Label ao lado da marca no hero (negrito e um toque maior no md+) */
 .hero-brand-label { font-weight: 700; font-size: 12px; line-height: 1; }
