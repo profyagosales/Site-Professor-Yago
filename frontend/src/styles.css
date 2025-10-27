@@ -1008,13 +1008,15 @@ a {
 
 /* Compact hero for correction workspace */
 .hero--compact { --hero-py: 8px; --hero-min-h: 64px; --hero-stat-h: 40px; }
-.hero--compact .hero-brand-mark { width: 40px; height: 40px; }
+.hero--compact .hero-brand-mark { width: 36px; height: 36px; }
 .hero--compact .hero-brand-mark img { width: 36px; height: 36px; }
+.hero--compact .hero-brand-mark img { width: 32px; height: 32px; }
 .hero--compact .hero-title { font-size: clamp(1.1rem, 2.6vw, 1.35rem); letter-spacing: 0.08em; }
 .hero--compact .hero-stats { gap: 8px; }
 .hero--compact .hero-stat { padding: 6px 10px; min-height: var(--hero-stat-h); }
 .hero--compact .hero-stat__label { font-size: 8px; letter-spacing: 0.14em; }
 .hero--compact .hero-stat__value { font-size: clamp(1.05rem, 2.2vw, 1.35rem); }
+.hero--compact .hero-name { font-size: 13px; font-weight: 700; line-height: 1.1; }
 
 /* Vertical brand label under the mark (keeps it bold and tight like in PDF) */
 .hero-brand-name { font-weight: 800; letter-spacing: -0.01em; }
@@ -1091,6 +1093,9 @@ a {
 .RightRailCard [data-annotation-id] { padding: 4px 6px; }
 .RightRailCard [data-annotation-id] h4 { font-size: 10px; line-height: 1.15; margin: 0 0 2px 0; }
 .RightRailCard [data-annotation-id] p { font-size: 9px; line-height: 1.25; margin: 0; }
+/* Fallback sticky for rails when ws-* helpers are not attached */
+.LeftRailCard, .RightRailCard { position: sticky; top: var(--ws-rail-top); }
+.LeftRailCard { max-height: calc(100vh - var(--ws-rail-top) - 12px); overflow: auto; }
 
 /* === Correção Inline: ações no card do marca‑texto (lateral esquerda) === */
 /* Esconde o grupo antigo de ações do cabeçalho (envolvido por .header-actions--deprecated) */
@@ -1128,6 +1133,9 @@ a {
 .LeftRailCard .AnnotationToolbar + .rail-actions {
   margin-top: 12px;
 }
+/* Center actions inside the left rail card and make buttons full-width for visual balance */
+.LeftRailCard .rail-actions { justify-items: center; }
+.LeftRailCard .rail-actions .btn { width: 100%; }
 @media (min-width: 1024px) {
   .redacao-left-rail .rail-actions + .AnnotationToolbar,
   .redacao-left-rail .AnnotationToolbar + .rail-actions,
@@ -1231,7 +1239,17 @@ a {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable both-edges;
   padding-right: 4px;     /* scrollbar gutter */
+}
+
+/* Reserve scrollbar gutter in other internal scrollers to avoid width jumps */
+.card .overflow-y-auto,
+.dash-card .overflow-y-auto,
+.modal-body,
+.announcement-modal-list,
+.grade-columns-scroll {
+  scrollbar-gutter: stable both-edges;
 }
 
 /* Reduce inner gap slightly to fit more comments in 20% column */
@@ -1264,4 +1282,33 @@ a {
 .ws-left-rail-stretch{
   align-self: stretch;
   height: auto;
+}
+/* === Hero internal grid (left=logo, center=aluno, right=nota) === */
+.hero-inner{ 
+  display:grid; 
+  grid-template-columns:auto 1fr auto; 
+  align-items:center; 
+  gap:.75rem; 
+  width:100%;
+}
+
+/* Brand: ícone em cima, texto embaixo, centralizados */
+.hero-brand{ 
+  display:flex; 
+  flex-direction:column; 
+  align-items:center; 
+}
+.hero-brand .brand-mark{ width:36px; height:36px; }
+.hero-brand .brand-title{ font-size:11px; font-weight:600; line-height:1.1; }
+
+/* Centro realmente no meio do hero */
+.hero-center{ 
+  justify-self:center; 
+  text-align:center; 
+  min-width:0; /* enable truncate */
+}
+
+/* Nota final colada ao canto direito do hero */
+.hero-score{ 
+  justify-self:end; 
 }

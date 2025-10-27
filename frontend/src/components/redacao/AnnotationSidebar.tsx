@@ -113,7 +113,12 @@ export function AnnotationSidebar({
       <div className="sr-only" aria-live="polite">
         {liveMessage}
       </div>
-      <div ref={containerRef} className="card-body pt-0 flex-1 space-y-2.5 md:space-y-3 overflow-y-auto pr-1">
+      <div
+        id="comments-rail-scroll"
+        ref={containerRef}
+        className="card-body pt-0 flex-1 space-y-2.5 md:space-y-3 overflow-y-auto overscroll-contain pr-1"
+        style={{ scrollbarGutter: 'stable' }}
+      >
         {ordered.length === 0 && (
           <p className="text-[11px] text-slate-500">
             Selecione um trecho no PDF para adicionar um comentário.
@@ -129,6 +134,7 @@ export function AnnotationSidebar({
               key={ann.id}
               ref={(node) => { itemRefs.current[ann.id] = node; }}
               data-annotation-id={ann.id}
+              data-ann-id={ann.id}
               className={`rounded-md border border-slate-200 p-2.5 md:p-3 shadow-sm ${
                 isActive ? 'ring-2 ring-orange-400' : ''
               }`}
@@ -159,7 +165,9 @@ export function AnnotationSidebar({
                 }}
                 value={ann.comment}
                 onChange={(event) => onCommentChange(ann.id, event.target.value)}
-                onFocus={() => onSelect(ann.id)}
+                onFocus={() => {
+                  if (selectedId !== ann.id) onSelect(ann.id);
+                }}
                 className="mt-1 w-full resize-none rounded-md border border-slate-300 bg-white p-1 text-[10px] leading-tight break-words outline-none focus:ring-2 focus:ring-orange-400 max-h-20"
                 rows={2}
                 placeholder="Escreva comentários detalhados aqui…"
