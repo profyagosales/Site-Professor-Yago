@@ -120,7 +120,8 @@ function fixLabel(label: string) {
   return label.replace('Tangênciamento', 'Tangenciamento');
 }
 
-function collectReasonIds(node: RubricGroup | RubricCriterion): string[] {
+function collectReasonIds(node: RubricGroup | RubricCriterion | undefined | null): string[] {
+  if (!node) return [];
   if ('id' in node) {
     return [node.id];
   }
@@ -132,7 +133,8 @@ function uniqueReasonIds(ids: string[]) {
 }
 
 // Helpers to resolve labels from reasonIds, preserving rubric order
-function findCriterionLabelById(node: RubricGroup | RubricCriterion, id: string): string | null {
+function findCriterionLabelById(node: RubricGroup | RubricCriterion | undefined | null, id: string): string | null {
+  if (!node) return null;
   if ('id' in node) {
     return node.id === id ? fixLabel(node.label) : null;
   }
@@ -143,7 +145,7 @@ function findCriterionLabelById(node: RubricGroup | RubricCriterion, id: string)
   return null;
 }
 
-function orderedSelectedLabels(rationale: RubricGroup, selected: string[]): string[] {
+function orderedSelectedLabels(rationale: RubricGroup | undefined | null, selected: string[]): string[] {
   // percorre a árvore e retorna as labels dos selecionados mantendo a ordem do rubric
   const out: string[] = [];
   function walk(node: RubricGroup | RubricCriterion) {
@@ -153,7 +155,7 @@ function orderedSelectedLabels(rationale: RubricGroup, selected: string[]): stri
     }
     for (const it of node.items) walk(it);
   }
-  walk(rationale);
+  if (rationale) walk(rationale);
   return out;
 }
 

@@ -926,18 +926,16 @@ export default function GradeWorkspace() {
                 {/* DIREITA: cartões colados na borda do hero */}
                 <div className="hero-score flex items-center gap-3">
                   <div className="hero-stat">
-                    <span className="hero-stat__label">NOTA FINAL</span>
-                    <span className="hero-stat__value">{finalScore}</span>
-                    <span className="pdf-xs">ENEM</span>
+                    <span className="hero-stat__label">{essayType === 'PAS' ? 'TOTAL PAS' : 'TOTAL ENEM'}</span>
+                    <span className="hero-stat__value">
+                      {finalScore}
+                      {essayType === 'PAS' ? ' / 10' : ' / 1000'}
+                    </span>
                   </div>
-
-                  {/* Opcional: manter status; remova se não quiser dois cartões */}
-                  {statusLabel && (
-                    <div className="hero-stat">
-                      <span className="hero-stat__label">STATUS</span>
-                      <span className="hero-stat__value">{statusLabel}</span>
-                    </div>
-                  )}
+                  <div className="hero-stat">
+                    <span className="hero-stat__label">STATUS {essayType === 'PAS' ? 'PAS' : 'ENEM'}</span>
+                    <span className="hero-stat__value">{statusLabel || (essayType === 'PAS' ? 'PAS' : 'ENEM')}</span>
+                  </div>
                 </div>
               </div>
             </div>
