@@ -547,7 +547,7 @@ html, body, #root { height: 100%; background: var(--c-bg); }
     grid-template-columns: 1fr;
     align-items: center;
     gap: 14px;
-    padding-inline: 22px;
+    padding-inline: 26px;
     padding-block: var(--hero-py);
     border-radius: 32px;
     background: linear-gradient(135deg, var(--hero-grad-1) 0%, var(--hero-grad-2) 52%, var(--hero-grad-3) 100%);
@@ -628,8 +628,9 @@ html, body, #root { height: 100%; background: var(--c-bg); }
     opacity: 0.85;
   }
   .hero-name {
-    font-size: clamp(1.6rem, 4vw, 2.125rem);
-    font-weight: 600;
+    font-weight: 800;
+    font-size: clamp(1.45rem, 2.2vw, 1.75rem);
+    line-height: 1.1;
     margin: 0;
   }
   .hero-stats {
@@ -646,25 +647,25 @@ html, body, #root { height: 100%; background: var(--c-bg); }
     justify-content: center;
     gap: 8px;
     border-radius: 22px;
-    padding: 8px 14px;
+    padding: 6px 12px;
     background: rgba(255, 255, 255, 0.12);
     border: 1px solid rgba(255, 255, 255, 0.18);
     backdrop-filter: blur(6px);
     box-shadow: 0 14px 30px rgba(12, 22, 38, 0.2);
-    min-width: min(180px, 100%);
+    min-width: 160px;
     text-align: center;
     min-height: var(--hero-stat-h);
   }
   .hero-stat__label {
-    font-size: 10px;
-    letter-spacing: 0.18em;
+    font-size: 9px;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
     opacity: 0.82;
   }
   .hero-stat__value {
     font-weight: 800;
-    font-size: clamp(1.75rem, 4vw, 2.4rem);
-    line-height: 1;
+    font-size: clamp(1.6rem, 2.2vw, 2rem);
+    line-height: 1.1;
   }
   .hero-metric__skeleton {
     display: block;
@@ -1287,10 +1288,10 @@ a {
 .hero-inner{ 
   display:grid; 
   /* centro expande sem sobrar espaço à direita */
-  grid-template-columns: auto minmax(0,1fr) auto; 
+  grid-template-columns: auto 1fr auto; 
   align-items:center; 
   gap:.75rem; 
-  column-gap: 1rem;
+  column-gap: .75rem;
   width:100%;
 }
 
@@ -1302,10 +1303,10 @@ a {
 }
 .hero-brand .brand-mark{ width:36px; height:36px; }
 .hero-brand .brand-title{
-  font-size:11px;
-  font-weight:600;
-  line-height:1.1;
-  margin-top: 4px;
+  font-size:13px;
+  font-weight:800;
+  line-height:1.05;
+  margin-top: 2px;
   text-align: center;
 }
 
@@ -1319,5 +1320,7 @@ a {
 /* Nota final colada ao canto direito do hero */
 .hero-score{ 
   justify-self:end; 
+  display:flex;
+  flex-wrap:nowrap;
   margin-left: auto;
 }
