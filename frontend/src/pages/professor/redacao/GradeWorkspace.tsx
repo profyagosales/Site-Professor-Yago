@@ -899,16 +899,19 @@ export default function GradeWorkspace() {
                       <span className="text-white">{studentInitials}</span>
                     )}
                   </div>
-                  <div className="flex flex-col leading-tight text-white/95 text-center">
-                    <p className="hero-name text-[12px] font-semibold leading-tight text-white whitespace-nowrap">{firstInfoLine}</p>
-                    <p className="text-[10px] leading-tight">{secondInfoLine}</p>
-                    <p className="text-[10px] leading-tight">{thirdInfoLine}</p>
+                  <div className="text-left md:text-center">
+                    <h1 className="hero-name hero-brand-name truncate">{studentName}</h1>
+                    <p className="pdf-md opacity-90 truncate">
+                      {turmaLabel}{bimestreLabel ? ` • ${bimestreLabel}` : ''}
+                      <br />
+                      {typeLabel}, {themeLabel}
+                    </p>
+                  </div>
                   </div>
                 </div>
-              </div>
 
               {/* SCORE (right): alinhado ao canto direito do hero */}
-              <div className="hero-score ml-auto flex justify-end">
+              <div className="hero-score flex items-center gap-3">
                 <div className="flex items-center gap-3 rounded-xl border border-white/25 bg-white/10 px-3 py-2 backdrop-blur">
                   <div className="flex min-w-[92px] flex-col items-center text-center">
                     <span className="text-[9px] uppercase tracking-wide text-white/85">Nota final</span>
