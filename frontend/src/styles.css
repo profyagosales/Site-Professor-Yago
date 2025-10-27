@@ -1286,9 +1286,11 @@ a {
 /* === Hero internal grid (left=logo, center=aluno, right=nota) === */
 .hero-inner{ 
   display:grid; 
-  grid-template-columns:auto 1fr auto; 
+  /* centro expande sem sobrar espaço à direita */
+  grid-template-columns: auto minmax(0,1fr) auto; 
   align-items:center; 
   gap:.75rem; 
+  column-gap: 1rem;
   width:100%;
 }
 
@@ -1299,7 +1301,13 @@ a {
   align-items:center; 
 }
 .hero-brand .brand-mark{ width:36px; height:36px; }
-.hero-brand .brand-title{ font-size:11px; font-weight:600; line-height:1.1; }
+.hero-brand .brand-title{
+  font-size:11px;
+  font-weight:600;
+  line-height:1.1;
+  margin-top: 4px;
+  text-align: center;
+}
 
 /* Centro realmente no meio do hero */
 .hero-center{ 
@@ -1311,4 +1319,5 @@ a {
 /* Nota final colada ao canto direito do hero */
 .hero-score{ 
   justify-self:end; 
+  margin-left: auto;
 }

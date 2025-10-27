@@ -873,9 +873,9 @@ export default function GradeWorkspace() {
             aria-label="Cabeçalho de correção"
             style={{ ['--gw-hero-h' as any]: '72px' }}
           >
-            <div className="grid w-full h-[var(--gw-hero-h)] grid-cols-[auto_1fr_auto] items-center gap-3">
+            <div className="hero-inner grid w-full h-[var(--gw-hero-h)] grid-cols-[auto_1fr_auto] items-center gap-3">
               {/* BRAND (left): ícone em cima, texto centralizado embaixo */}
-              <div className="flex flex-col items-center justify-center">
+              <div className="hero-brand flex flex-col items-center justify-center">
                 <div className="h-9 w-9 md:h-9 md:w-9 rounded-xl overflow-hidden ring-2 ring-white/30 bg-white/15 flex items-center justify-center">
                   <img
                     src={brandSrc}
@@ -884,13 +884,13 @@ export default function GradeWorkspace() {
                     className="h-full w-full object-contain"
                   />
                 </div>
-                <span className="mt-1 text-[12px] font-semibold leading-tight text-white text-center whitespace-nowrap">
+                <span className="brand-title hero-brand-label mt-1 text-[12px] font-semibold leading-tight text-white text-center whitespace-nowrap">
                   Professor Yago Sales
                 </span>
               </div>
 
               {/* STUDENT INFO (center): centralizado no hero */}
-              <div className="flex items-center justify-center">
+              <div className="hero-center flex items-center justify-center">
                 <div className="flex items-center justify-center gap-2">
                   <div className="h-9 w-9 md:h-10 md:w-10 overflow-hidden rounded-full ring-2 ring-white/30 bg-white/20 flex items-center justify-center text-[11px] font-bold">
                     {studentPhoto ? (
@@ -900,7 +900,7 @@ export default function GradeWorkspace() {
                     )}
                   </div>
                   <div className="flex flex-col leading-tight text-white/95 text-center">
-                    <p className="text-[12px] font-semibold leading-tight text-white whitespace-nowrap">{firstInfoLine}</p>
+                    <p className="hero-name text-[12px] font-semibold leading-tight text-white whitespace-nowrap">{firstInfoLine}</p>
                     <p className="text-[10px] leading-tight">{secondInfoLine}</p>
                     <p className="text-[10px] leading-tight">{thirdInfoLine}</p>
                   </div>
@@ -908,7 +908,7 @@ export default function GradeWorkspace() {
               </div>
 
               {/* SCORE (right): alinhado ao canto direito do hero */}
-              <div className="flex justify-end">
+              <div className="hero-score ml-auto flex justify-end">
                 <div className="flex items-center gap-3 rounded-xl border border-white/25 bg-white/10 px-3 py-2 backdrop-blur">
                   <div className="flex min-w-[92px] flex-col items-center text-center">
                     <span className="text-[9px] uppercase tracking-wide text-white/85">Nota final</span>
