@@ -27,7 +27,6 @@ import {
 import { generateCorrectedPdf } from '@/features/redacao/pdf/generateCorrectedPdf';
 import type { AnnotationKind, EssayPdfData, EssayModel } from '@/features/redacao/pdf/types';
 import { renderFirstPageToPng } from '@/features/redacao/pdf/pdfPreview';
-import Logo from '@/components/Logo';
 
 
 
@@ -218,7 +217,7 @@ export default function GradeWorkspace() {
 
   const [annulState, setAnnulState] = useState<Record<string, boolean>>({});
   const [annulOther, setAnnulOther] = useState('');
-  const [brandSrc, setBrandSrc] = useState('/logo.svg');
+  const [brandSrc, setBrandSrc] = useState('/pdf/brand-mark.png');
   const createEmptyPasState = (): PasState => ({
     apresentacao: '',
     argumentacao: '',
@@ -851,12 +850,15 @@ export default function GradeWorkspace() {
         ? `${Number(bimestreRaw)}º bimestre`
         : String(bimestreRaw)
       : null;
-  const turmaLabel = essay?.className || '-';
-  const firstInfoLine = studentName;
-  const secondInfoLine = [turmaLabel, bimestreLabel].filter(Boolean).join(', ') || '-';
-  const typeLabel = essayType || '-';
-  const themeLabel = essay?.theme || essay?.topic || '-';
-  const thirdInfoLine = [typeLabel, themeLabel].filter(Boolean).join(', ') || '-';
+  const joinPieces = (...pieces: (string | null | undefined)[]) =>
+    pieces.filter((piece): piece is string => typeof piece === 'string' && piece.trim().length > 0);
+  const turmaLabel = essay?.classroom || essay?.className || (essay?.student as any)?.class || '';
+  const subjectLabel = (essay?.subject as string) || (essay as any)?.subjectName || 'Português';
+  const classLine = joinPieces(turmaLabel, subjectLabel).join(' • ');
+  const infoLine = joinPieces(classLine, bimestreLabel).join(', ');
+  const typeLabel = essayType === 'PAS' ? 'PAS/UnB' : 'ENEM';
+  const themeLabel = essay?.theme || essay?.topic || '';
+  const detailLine = joinPieces(typeLabel, themeLabel).join(', ');
   const statusLabel = (essay as any)?.statusLabel || (essay as any)?.status || '';
   const finalScore = ((): string => {
     if (essayType === 'PAS') {
@@ -866,6 +868,10 @@ export default function GradeWorkspace() {
     const enem = Math.max(0, Math.round(Number(enemTotal) || 0));
     return String(enem);
   })();
+  const totalLabel = essayType === 'PAS' ? 'TOTAL PAS' : 'TOTAL ENEM';
+  const totalSuffix = essayType === 'PAS' ? '10' : '1000';
+  const statusTypeLabel = essayType === 'PAS' ? 'PAS' : 'ENEM';
+  const statusValue = (statusLabel ? String(statusLabel) : statusTypeLabel).toUpperCase();
 
   return (
     <div
@@ -883,12 +889,16 @@ export default function GradeWorkspace() {
             aria-label="Cabeçalho de correção"
             style={{ ['--gw-hero-h' as any]: '72px' }}
           >
-            <div className="hero hero--compact">
+            <div className="hero hero--compact gw-hero w-full">
               <div className="hero-inner">
                 {/* ESQUERDA: marca (duas linhas) */}
                 <div className="hero-brand">
                   <div className="hero-brand-mark">
-                    <Logo className="w-7 h-7" />
+                    <img
+                      src={brandSrc}
+                      alt="Logomarca Professor Yago Sales"
+                      onError={() => setBrandSrc('/logo.svg')}
+                    />
                   </div>
                   <div className="brand-title hero-brand-name">
                     Professor Yago Sales
@@ -898,26 +908,26 @@ export default function GradeWorkspace() {
                 {/* CENTRO: aluno */}
                 <div className="hero-center">
                   <div className="flex items-center gap-4">
-                    {essay?.student?.avatarUrl ? (
+                    {studentPhoto ? (
                       <img
-                        src={essay?.student?.avatarUrl}
-                        alt={essay?.student?.name}
+                        src={studentPhoto}
+                        alt={studentName}
                         className="hero-avatar"
                       />
                     ) : (
                       <div className="hero-avatar hero-avatar--fallback">
-                        {essay?.student?.name?.[0]}
+                        {studentInitials}
                       </div>
                     )}
 
-                    <div className="min-w-0 text-left md:text-center">
+                    <div className="min-w-0 text-left">
                       <h1 className="hero-name hero-brand-name truncate">
-                        {essay?.studentName || essay?.student?.name}
+                        {studentName}
                       </h1>
-                      <p className="pdf-md opacity-90 truncate">
-                        {essay?.classroom || essay?.className || (essay as any)?.student?.class} • {essay?.subject || 'Português'}, {essay?.bimester}º bimestre
+                      <p className="pdf-md truncate">
+                        {infoLine || '—'}
                         <br />
-                        {essay?.type}, {essay?.theme}
+                        {detailLine || '—'}
                       </p>
                     </div>
                   </div>
@@ -925,16 +935,16 @@ export default function GradeWorkspace() {
 
                 {/* DIREITA: cartões colados na borda do hero */}
                 <div className="hero-score flex items-center gap-3">
-                  <div className="hero-stat">
-                    <span className="hero-stat__label">{essayType === 'PAS' ? 'TOTAL PAS' : 'TOTAL ENEM'}</span>
+                  <div className="hero-stat hero-stat--total">
+                    <span className="hero-stat__label">{totalLabel}</span>
                     <span className="hero-stat__value">
-                      {finalScore}
-                      {essayType === 'PAS' ? ' / 10' : ' / 1000'}
+                      <span className="hero-stat__value-main">{finalScore}</span>
+                      <span className="hero-stat__value-suffix">{totalSuffix}</span>
                     </span>
                   </div>
-                  <div className="hero-stat">
-                    <span className="hero-stat__label">STATUS {essayType === 'PAS' ? 'PAS' : 'ENEM'}</span>
-                    <span className="hero-stat__value">{statusLabel || (essayType === 'PAS' ? 'PAS' : 'ENEM')}</span>
+                  <div className="hero-stat hero-stat--status">
+                    <span className="hero-stat__label">STATUS {statusTypeLabel}</span>
+                    <span className="hero-stat__value hero-stat__value--status">{statusValue}</span>
                   </div>
                 </div>
               </div>
