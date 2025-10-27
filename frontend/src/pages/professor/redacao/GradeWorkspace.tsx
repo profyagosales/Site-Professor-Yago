@@ -869,57 +869,46 @@ export default function GradeWorkspace() {
         <div className="grid grid-cols-1 gap-3 items-start md:grid-cols-[260px_minmax(0,1fr)_clamp(260px,20%,360px)]" aria-label="Workspace de correção">
           {/* HERO: spans center and right columns on md+ */}
           <header
-            className="hero hero--compact mb-3 rounded-2xl border border-orange-300 bg-orange-500/95 p-2 text-white shadow-md md:col-start-2 md:col-span-2 w-full"
+            className="md:col-start-2 md:col-span-2 w-full"
             aria-label="Cabeçalho de correção"
             style={{ ['--gw-hero-h' as any]: '72px' }}
           >
-            <div className="hero-inner grid w-full h-[var(--gw-hero-h)] grid-cols-[auto_1fr_auto] items-center gap-3">
-              {/* BRAND (left): ícone em cima, texto centralizado embaixo */}
-              <div className="hero-brand flex flex-col items-center justify-center">
-                <div className="h-9 w-9 md:h-9 md:w-9 rounded-xl overflow-hidden ring-2 ring-white/30 bg-white/15 flex items-center justify-center">
-                  <img
-                    src={brandSrc}
-                    alt="Logomarca Professor Yago Sales"
-                    onError={() => setBrandSrc('/pdf/brand-mark.png')}
-                    className="h-full w-full object-contain"
-                  />
+            <div className="hero hero--compact">
+              <div className="hero-inner">
+                {/* ESQUERDA: marca */}
+                <div className="hero-brand">
+                  <div className="hero-brand-mark">{/* <Logo /> */}</div>
+                  <div className="brand-title hero-brand-name">Professor Yago Sales</div>
                 </div>
-                <span className="brand-title hero-brand-label mt-1 text-[12px] font-semibold leading-tight text-white text-center whitespace-nowrap">
-                  Professor Yago Sales
-                </span>
-              </div>
 
-              {/* STUDENT INFO (center): centralizado no hero */}
-              <div className="hero-center flex items-center justify-center">
-                <div className="flex items-center justify-center gap-2">
-                  <div className="h-9 w-9 md:h-10 md:w-10 overflow-hidden rounded-full ring-2 ring-white/30 bg-white/20 flex items-center justify-center text-[11px] font-bold">
+                {/* CENTRO: aluno */}
+                <div className="hero-center">
+                  <div className="flex items-center gap-4">
                     {studentPhoto ? (
-                      <img src={studentPhoto} alt={studentName} className="h-full w-full object-cover" />
+                      <img src={studentPhoto} alt={studentName} className="hero-avatar" />
                     ) : (
-                      <span className="text-white">{studentInitials}</span>
+                      <div className="hero-avatar hero-avatar--fallback">{studentName?.[0]}</div>
                     )}
-                  </div>
-                  <div className="flex flex-col leading-tight text-white/95 text-center">
-                    <p className="hero-name text-[12px] font-semibold leading-tight text-white whitespace-nowrap">{firstInfoLine}</p>
-                    <p className="text-[10px] leading-tight">{secondInfoLine}</p>
-                    <p className="text-[10px] leading-tight">{thirdInfoLine}</p>
+                    <div className="text-left md:text-center">
+                      <h1 className="hero-name hero-brand-name truncate">{studentName}</h1>
+                      <p className="pdf-md opacity-90 truncate">
+                        {turmaLabel} • {subjectName}, {bimestreRaw}º bimestre
+                        <br />
+                        {typeLabel}, {themeLabel}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* SCORE (right): alinhado ao canto direito do hero */}
-              <div className="hero-score ml-auto flex justify-end">
-                <div className="flex items-center gap-3 rounded-xl border border-white/25 bg-white/10 px-3 py-2 backdrop-blur">
-                  <div className="flex min-w-[92px] flex-col items-center text-center">
-                    <span className="text-[9px] uppercase tracking-wide text-white/85">Nota final</span>
-                    <span className="text-[18px] font-extrabold leading-none">
-                      {essayType === 'PAS'
-                        ? (pasDerived.nr != null
-                            ? Number(pasDerived.nr).toFixed(1).replace('.', ',')
-                            : '0,0')
-                        : Math.max(0, Math.round(Number(enemTotal) || 0)).toString()}
-                    </span>
-                    <span className="text-[9px] font-semibold text-white/85">{essayType === 'PAS' ? 'PAS/UnB' : 'ENEM'}</span>
+                {/* DIREITA: cartões */}
+                <div className="hero-score flex items-center gap-3">
+                  <div className="hero-stat">
+                    <span className="hero-stat__label">TOTAL ENEM</span>
+                    <span className="hero-stat__value">{Math.max(0, Math.round(Number(enemTotal) || 0)).toString()}</span>
+                  </div>
+                  <div className="hero-stat">
+                    <span className="hero-stat__label">STATUS</span>
+                    <span className="hero-stat__value">{statusLabel}</span>
                   </div>
                 </div>
               </div>
