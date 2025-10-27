@@ -878,40 +878,51 @@ export default function GradeWorkspace() {
               <div className="hero-inner">
                 {/* ESQUERDA: marca (duas linhas) */}
                 <div className="hero-brand">
-                  <div className="hero-brand-mark">{/* <Logo/> */}</div>
-                  <div className="brand-title hero-brand-name">Professor Yago Sales</div>
+                  <div className="hero-brand-mark">
+                    <Logo className="w-7 h-7" />
+                  </div>
+                  <div className="brand-title hero-brand-name">
+                    Professor Yago Sales
+                  </div>
                 </div>
 
                 {/* CENTRO: aluno */}
                 <div className="hero-center">
                   <div className="flex items-center gap-4">
-                    {studentPhoto ? (
-                      <img src={studentPhoto} alt={studentName} className="hero-avatar" />
+                    {essay?.student?.avatarUrl ? (
+                      <img
+                        src={essay?.student?.avatarUrl}
+                        alt={essay?.student?.name}
+                        className="hero-avatar"
+                      />
                     ) : (
-                      <div className="hero-avatar hero-avatar--fallback">{studentName?.[0]}</div>
+                      <div className="hero-avatar hero-avatar--fallback">
+                        {essay?.student?.name?.[0]}
+                      </div>
                     )}
-                    <div className="text-left md:text-center min-w-0">
-                      <h1 className="hero-name hero-brand-name truncate">{essay?.studentName || studentName}</h1>
+
+                    <div className="min-w-0 text-left md:text-center">
+                      <h1 className="hero-name hero-brand-name truncate">
+                        {essay?.studentName || essay?.student?.name}
+                      </h1>
                       <p className="pdf-md opacity-90 truncate">
-                        {turmaLabel || essay?.className}{bimestreLabel ? ` • ${bimestreLabel}` : ''}
+                        {essay?.classroom || essay?.className || (essay as any)?.student?.class} • {essay?.subject || 'Português'}, {essay?.bimester}º bimestre
                         <br />
-                        {typeLabel || essay?.type}, {themeLabel}
+                        {essay?.type}, {essay?.theme}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                {/* DIREITA: cartões colados à borda */}
+                {/* DIREITA: cartões colados na borda do hero */}
                 <div className="hero-score flex items-center gap-3">
                   <div className="hero-stat">
                     <span className="hero-stat__label">NOTA FINAL</span>
-                    <span className="hero-stat__value">{essayType === 'PAS'
-                        ? (pasDerived.nr != null
-                            ? Number(pasDerived.nr).toFixed(1).replace('.', ',')
-                            : '0,0')
-                        : Math.max(0, Math.round(Number(enemTotal) || 0)).toString()}</span>
+                    <span className="hero-stat__value">{finalScore}</span>
                     <span className="pdf-xs">ENEM</span>
                   </div>
+
+                  {/* Opcional: manter status; remova se não quiser dois cartões */}
                   {statusLabel && (
                     <div className="hero-stat">
                       <span className="hero-stat__label">STATUS</span>
