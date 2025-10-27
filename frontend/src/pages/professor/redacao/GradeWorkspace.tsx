@@ -856,6 +856,7 @@ export default function GradeWorkspace() {
   const typeLabel = essayType || '-';
   const themeLabel = essay?.theme || essay?.topic || '-';
   const thirdInfoLine = [typeLabel, themeLabel].filter(Boolean).join(', ') || '-';
+  const statusLabel = (essay as any)?.statusLabel || (essay as any)?.status || '';
 
   return (
     <div
