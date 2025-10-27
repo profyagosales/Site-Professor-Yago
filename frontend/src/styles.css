@@ -1324,3 +1324,32 @@ a {
   flex-wrap:nowrap;
   margin-left: auto;
 }
+
+/* Lateral esquerda: card ocupa altura da viewport e fica sticky */
+.LeftRailCard{
+  position: sticky;
+  top: var(--ws-rail-top);
+  height: calc(100vh - var(--ws-rail-top) - 12px);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Corpo do card compacto */
+.LeftRailCard .card-body{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;          /* gap menor entre blocos do card */
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Botões juntos no fim do card */
+.btn-stack{
+  margin-top: auto;  /* gruda na base do card */
+  display: grid;
+  gap: 8px;          /* diminui espaço entre os dois botões */
+}
+.enem-justif { font-size: var(--pdf-fz-md); line-height: 1.35; color: var(--pdf-text); }
+.enem-justif small { font-size: var(--pdf-fz-sm); color: var(--pdf-text-subtle); }
+.enem-token { font-weight: 800; letter-spacing: .02em; color: var(--pdf-brand-title); }
+.enem-token[data-k="neg"] { color: #b91c1c; }

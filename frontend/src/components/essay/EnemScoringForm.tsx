@@ -7,6 +7,22 @@ import {
   type RubricGroup,
 } from '@/features/essay/rubrics/enem2024';
 import { highlightUppercaseTokens } from '@/utils/text';
+
+const HIGHLIGHT_RE = /\b(E\/OU|E|OU|COM|MAS|NÃO|NENHUMA|ALGUMAS?)\b/gi;
+function highlightTokens(text: string) {
+  return text.split(HIGHLIGHT_RE).map((part, i) => {
+    if (!part) return null;
+    const key = part.toUpperCase();
+    const isNeg = key === 'NÃO' || key === 'NENHUMA';
+    return HIGHLIGHT_RE.test(part)
+      ? (
+          <mark key={i} className={`enem-token${isNeg ? ' ' : ''}`} data-k={isNeg ? 'neg' : undefined}>
+            {key}
+          </mark>
+        )
+      : <span key={i}>{part}</span>;
+  });
+}
 import { ENEM_COLORS_HEX, toRoman } from '@/features/redacao/pdf/theme';
 
 type CompetencyKey = EnemCompetency['key'];
@@ -941,6 +957,47 @@ function RenderC5Overrides({
 }
 
 export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props) {
+  const [ouState, setOuState] = useState<Record<string, { value?: string; open: boolean }>>({});
+
+  function renderOUSelector(compId: string, options: { value: string; label: string }[]) {
+    const s = ouState[compId] ?? { open: true };
+    if (!options?.length) return null;
+
+    if (!s.open && s.value) {
+      return (
+        <div className="flex items-center justify-between gap-2">
+          <small className="text-slate-500">Opção (OU) selecionada</small>
+          <button
+            type="button"
+            className="btn btn-ghost btn-xs"
+            onClick={() => setOuState((p) => ({ ...p, [compId]: { ...p[compId], open: true } }))}
+          >
+            editar
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="mb-2">
+        <label className="block text-xs font-semibold text-slate-500 mb-1">Selecione um item (OU)</label>
+        <select
+          className="input w-full"
+          value={s.value ?? ''}
+          onChange={(e) => setOuState((p) => ({ ...p, [compId]: { value: e.target.value, open: false } }))}
+        >
+          <option value="" disabled>
+            — escolher —
+          </option>
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
   return (
     <div className="space-y-5">
       {ENEM_2024.map((competency) => {
@@ -1034,12 +1091,14 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
 
             {!(competency.key === 'C2' || competency.key === 'C3' || competency.key === 'C4' || competency.key === 'C5') && (
               <div
-                className="rounded-xl border px-3 py-2 pdf-xs leading-tight"
+                className="rounded-xl border px-3 py-2 leading-tight"
                 style={{ backgroundColor: palette.pastel, borderColor: palette.pastel, color: palette.title }}
               >
-                {renderSummary(levelData.summary, palette).map((part, index) => (
-                  <Fragment key={index}>{part}</Fragment>
-                ))}
+                <div className="pdf-md">
+                  {renderSummary(levelData.summary, palette).map((part, index) => (
+                    <Fragment key={index}>{part}</Fragment>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -1087,35 +1146,55 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
               )
             )}
 
-            {/* Dynamic summary for C2–C5 */}
-            {(competency.key === 'C2' || competency.key === 'C3' || competency.key === 'C4' || competency.key === 'C5') && (
-              <div
-                className="rounded-xl border px-3 py-2 leading-tight"
-                style={{ backgroundColor: palette.pastel, borderColor: palette.pastel, color: palette.title }}
-              >
-                <span className="pdf-xs font-semibold" style={{ color: palette.title }}>
-                  <span style={{ color: palette.strong }}>Justificativa selecionada:</span>
-                </span>{' '}
-                {labelsToShow.length === 0 ? (
-                  <span className="opacity-70">— nenhuma seleção ainda —</span>
-                ) : (
-                  <span>
-                    {labelsToShow.map((lbl, idx) => (
-                      <Fragment key={`sel-${idx}`}>
-                        {idx > 0 && (
-                          <span style={{ backgroundColor: palette.pastel, color: palette.strong, fontWeight: 700, padding: '0 2px', borderRadius: 3 }}>
-                            {' '}E{' '}
-                          </span>
-                        )}
-                        <span className="text-xs">
-                          {renderHighlighted(lbl, palette)}
-                        </span>
-                      </Fragment>
-                    ))}
-                  </span>
-                )}
-              </div>
-            )}
+            {/* OU selector on top, then justification block */}
+            {(() => {
+              // Build OU options by scanning rationale labels containing 'OU'
+              const ouOptions: { value: string; label: string }[] = [];
+              if (levelData.rationale) {
+                const collect = (node: RubricGroup | RubricCriterion) => {
+                  if ('id' in node) {
+                    const lbl = fixLabel(node.label);
+                    if (/\bOU\b/i.test(lbl)) {
+                      ouOptions.push({ value: node.id, label: lbl });
+                    }
+                    return;
+                  }
+                  node.items.forEach(collect);
+                };
+                collect(levelData.rationale);
+              }
+
+              // Selected labels for justification
+              let labelsToShow = orderedSelectedLabels(levelData.rationale as RubricGroup, Array.from(selectedReasonIds));
+              // If OU exists, show only chosen option
+              const s = ouState[competency.key] ?? { open: true };
+              if (ouOptions.length) {
+                if (s.value) {
+                  const lbl = findCriterionLabelById(levelData.rationale as RubricGroup, s.value);
+                  labelsToShow = lbl ? [lbl] : [];
+                } else {
+                  labelsToShow = [];
+                }
+              }
+
+              return (
+                <>
+                  {renderOUSelector(competency.key, ouOptions)}
+                  <div className="enem-justif mt-1">
+                    <strong className="block text-slate-600 mb-1 pdf-sm">Justificativa selecionada:</strong>
+                    {labelsToShow.length === 0 ? (
+                      <span className="opacity-70">— nenhuma seleção ainda —</span>
+                    ) : (
+                      <span className="pdf-md">
+                        {labelsToShow.map((lbl, idx) => (
+                          <Fragment key={`j-${idx}`}>{highlightTokens(lbl)}</Fragment>
+                        ))}
+                      </span>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
           </section>
         );
       })}

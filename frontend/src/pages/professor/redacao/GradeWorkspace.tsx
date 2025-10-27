@@ -858,6 +858,14 @@ export default function GradeWorkspace() {
   const themeLabel = essay?.theme || essay?.topic || '-';
   const thirdInfoLine = [typeLabel, themeLabel].filter(Boolean).join(', ') || '-';
   const statusLabel = (essay as any)?.statusLabel || (essay as any)?.status || '';
+  const finalScore = ((): string => {
+    if (essayType === 'PAS') {
+      const v = pasDerived?.nr;
+      return v != null ? Number(v).toFixed(1).replace('.', ',') : '0,0';
+    }
+    const enem = Math.max(0, Math.round(Number(enemTotal) || 0));
+    return String(enem);
+  })();
 
   return (
     <div
@@ -960,7 +968,7 @@ export default function GradeWorkspace() {
 
               <AnnotationToolbar active={activeCategory} onChange={setActiveCategory} orientation="horizontal" />
 
-              <div className="rail-actions flex flex-wrap items-center gap-2">
+              <div className="rail-actions btn-stack">
                 <Button
                   className="btn btn--neutral"
                   onClick={handleSave}
@@ -979,7 +987,7 @@ export default function GradeWorkspace() {
             </div>
             {/* Desktop: action buttons + toolbar + action buttons (vertical) */}
             <div className="hidden md:block ws-left-rail gw-rail-raise md:sticky md:top-2 md:max-h-[calc(100vh-0.5rem)]">
-              <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm min-h-[560px] h-full flex flex-col">
+              <div className="card LeftRailCard ws-left-rail rounded-xl border border-slate-200 bg-white p-3 shadow-sm min-h-[560px] h-full flex flex-col">
                 <div className="flex-1 overflow-y-auto pr-1">
                   <div className="rail-actions flex flex-wrap items-center gap-2">
                     <Button className="btn btn--neutral" onClick={backToList}>
@@ -1013,7 +1021,7 @@ export default function GradeWorkspace() {
                   <div className="h-3" aria-hidden />
                 </div>
                 {/* footer CTA, outside the scrollable area */}
-                <div className="rail-actions mt-2 flex flex-wrap items-center gap-2 border-t border-slate-100/80 bg-white/95 px-1 pt-3 backdrop-blur supports-[backdrop-filter]:bg-white/80">
+                <div className="rail-actions btn-stack mt-2 border-t border-slate-100/80 bg-white/95 px-1 pt-3 backdrop-blur supports-[backdrop-filter]:bg-white/80">
                   <Button
                     className="btn btn--neutral"
                     onClick={handleSave}
