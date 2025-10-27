@@ -27,6 +27,7 @@ import {
 import { generateCorrectedPdf } from '@/features/redacao/pdf/generateCorrectedPdf';
 import type { AnnotationKind, EssayPdfData, EssayModel } from '@/features/redacao/pdf/types';
 import { renderFirstPageToPng } from '@/features/redacao/pdf/pdfPreview';
+import Logo from '@/components/Logo';
 
 
 
