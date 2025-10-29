@@ -306,6 +306,7 @@ export default function NewEssayModal({
       const apiModel = toApiModel(type);
       form.append('model', apiModel);
       form.append('type', type);
+      form.append('status', 'pending');
 
       if (bimester) {
         const normalizedBimester = String(bimester).trim();
