@@ -156,7 +156,7 @@ function normalizeEssayDetail(essay) {
 
   return {
     id: String(essay._id),
-    status: essay.status || 'PENDING',
+    status: essay.status || 'pendente',
     type: essay.type || null,
     theme: themeName,
     topic: themeName,
@@ -171,7 +171,7 @@ function normalizeEssayDetail(essay) {
     fileUrl: essay.originalUrl || null,
     correctedUrl: essay.correctedUrl || null,
     correctionPdf: essay.correctionPdf || essay.correctedUrl || null,
-    isCorrected: Boolean(essay.isCorrected || essay.correctionPdf || essay.correctedUrl || essay.status === 'GRADED'),
+    isCorrected: Boolean(essay.isCorrected || essay.correctionPdf || essay.correctedUrl || essay.status === 'corrigida'),
     correctedAt: essay.correctedAt || null,
     grade: normalizeEssayGrade(essay),
     comments: essay.comments || null,
@@ -253,7 +253,7 @@ function normalizeEssaySummary(essay) {
   const student = normalizeStudent(essay.studentId, essay.classId);
   return {
     id: String(essay._id),
-    status: essay.status || 'PENDING',
+    status: essay.status || 'pendente',
     type: essay.type || null,
     theme: essay.customTheme || essay.themeId?.name || 'Tema não informado',
     term: essay.bimester ?? null,
@@ -263,8 +263,8 @@ function normalizeEssaySummary(essay) {
     studentName: student?.name || essay.studentName || null,
     classId: essay.classId?._id ? String(essay.classId._id) : essay.classId || null,
     className: student?.className || null,
-    corrected: Boolean(essay.correctedUrl || essay.correctionPdf || essay.isCorrected || essay.status === 'GRADED'),
-    isCorrected: Boolean(essay.isCorrected || essay.correctionPdf || essay.correctedUrl || essay.status === 'GRADED'),
+    corrected: Boolean(essay.correctedUrl || essay.correctionPdf || essay.isCorrected || essay.status === 'corrigida'),
+    isCorrected: Boolean(essay.isCorrected || essay.correctionPdf || essay.correctedUrl || essay.status === 'corrigida'),
     correctedAt: essay.correctedAt || null,
     fileUrl: essay.originalUrl || null,
     correctedUrl: essay.correctedUrl || null,
@@ -672,11 +672,13 @@ async function listEssays(req, res) {
   const { status, classId, studentId, bimester, type, q } = req.query;
 
   if (typeof status === 'string' && status.trim()) {
-    const normalizedStatus = status.trim().toUpperCase();
-    if (normalizedStatus === 'CORRECTED') {
-      filter.status = 'GRADED';
-    } else if (normalizedStatus === 'PENDING' || normalizedStatus === 'GRADED') {
-      filter.status = normalizedStatus;
+    const normalizedStatus = status.trim().toLowerCase();
+    if (normalizedStatus === 'corrected' || normalizedStatus === 'corrigida') {
+      filter.status = 'corrigida';
+    } else if (normalizedStatus === 'pending' || normalizedStatus === 'pendente') {
+      filter.status = 'pendente';
+    } else if (normalizedStatus === 'archived' || normalizedStatus === 'arquivada') {
+      filter.status = 'arquivada';
     } else {
       filter.status = normalizedStatus;
     }
@@ -847,7 +849,7 @@ async function gradeEssay(req, res) {
     essay.enemCompetencies = essay.type === 'ENEM' ? enemCompetencies : undefined;
     essay.correctedUrl = correctedUrl;
     essay.teacherId = req.user._id;
-    essay.status = 'GRADED';
+    essay.status = 'corrigida';
     essay.comments = comments || null;
     essay.isCorrected = true;
     if (!essay.correctedAt) essay.correctedAt = new Date();
@@ -1527,8 +1529,19 @@ async function saveEssayScoreController(req, res) {
     }
 
     essay.updatedAt = new Date();
+    essay.status = 'corrigida';
+    essay.isCorrected = true;
+    essay.correctedAt = new Date();
     await essay.save();
-    return res.json({ data: normalizeEssayScoreResponse(essay) });
+    const normalized = normalizeEssayScoreResponse(essay);
+    return res.json({
+      data: {
+        ...normalized,
+        status: essay.status,
+        isCorrected: essay.isCorrected,
+        correctedAt: essay.correctedAt,
+      },
+    });
   } catch (err) {
     console.error('[essays] save score failed', err);
     return res.status(500).json({ message: 'Erro ao salvar espelho' });
@@ -1559,12 +1572,21 @@ async function generateFinalPdf(req, res) {
     const corrected = await uploadBuffer(buffer, 'essays/corrected', 'application/pdf', { returnResult: true });
     essay.correctedUrl = corrected?.secure_url || corrected || essay.correctedUrl;
     essay.correctionPdf = essay.correctionPdf || essay.correctedUrl;
-    essay.status = 'GRADED';
+    essay.status = 'corrigida';
     essay.isCorrected = true;
     essay.correctedAt = new Date();
     await essay.save();
 
-    return res.json({ data: { correctedUrl: essay.correctedUrl } });
+    const normalized = normalizeEssayScoreResponse(essay);
+    return res.json({
+      data: {
+        ...normalized,
+        status: essay.status,
+        isCorrected: essay.isCorrected,
+        correctedAt: essay.correctedAt,
+        correctedUrl: essay.correctedUrl,
+      },
+    });
   } catch (err) {
     console.error('[essays] final pdf failed', err);
     return res.status(500).json({ message: 'Erro ao gerar PDF corrigido' });
@@ -1615,7 +1637,7 @@ async function uploadCorrectionPdf(req, res) {
     if (!essay.correctedUrl) {
       essay.correctedUrl = correctionUrl;
     }
-    essay.status = 'GRADED';
+    essay.status = 'corrigida';
     essay.isCorrected = true;
     essay.correctedAt = new Date();
 
@@ -1629,7 +1651,7 @@ async function uploadCorrectionPdf(req, res) {
         isCorrected: essay.isCorrected,
         correctedAt: essay.correctedAt,
         status: essay.status,
-      }
+      },
     });
   } catch (err) {
     const status = err?.status || 500;

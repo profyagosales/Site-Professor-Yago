@@ -1,10 +1,18 @@
 // Bridge: Composer <-> reasonIds + justification
 
+import C1_N0 from './composers/C1_N0';
+import C1_N1 from './composers/C1_N1';
+import C1_N2 from './composers/C1_N2';
+import C1_N3 from './composers/C1_N3';
+import C1_N4 from './composers/C1_N4';
+import C1_N5 from './composers/C1_N5';
 import C2_N1 from './composers/C2_N1';
 import C2_N2 from './composers/C2_N2';
 import C2_N3 from './composers/C2_N3';
 import C2_N4 from './composers/C2_N4';
 import C2_N5 from './composers/C2_N5';
+import C3_N0 from './composers/C3_N0';
+import C3_N1 from './composers/C3_N1';
 import C3_N2 from './composers/C3_N2';
 import C3_N3 from './composers/C3_N3';
 import C3_N4 from './composers/C3_N4';
@@ -23,11 +31,19 @@ import C5_N5 from './composers/C5_N5';
 import type { RubricReasonId } from './rubricReasonIds';
 
 export type ComposerId =
+  | 'C1_N0'
+  | 'C1_N1'
+  | 'C1_N2'
+  | 'C1_N3'
+  | 'C1_N4'
+  | 'C1_N5'
   | 'C2_N1'
   | 'C2_N2'
   | 'C2_N3'
   | 'C2_N4'
   | 'C2_N5'
+  | 'C3_N0'
+  | 'C3_N1'
   | 'C3_N2'
   | 'C3_N3'
   | 'C3_N4'
@@ -61,15 +77,34 @@ export type LevelComposer = {
 
 export type ComposerSelection = Record<string, string | string[] | boolean>;
 
-type MandatoryReason = { kind: 'MANDATORY'; reasonId?: RubricReasonId };
-type ChoiceSingleReason = { kind: 'CHOICE_SINGLE'; options: Record<string, RubricReasonId> };
-type ChoiceMultiReason = { kind: 'CHOICE_MULTI'; options: Record<string, RubricReasonId> };
-type MonoblockReason = { kind: 'MONOBLOCK'; optionId: string; reasonId: RubricReasonId };
+type MaybeReasonId = RubricReasonId | '';
+type MandatoryReason = { kind: 'MANDATORY'; reasonId?: MaybeReasonId };
+type ChoiceSingleReason = { kind: 'CHOICE_SINGLE'; options: Record<string, MaybeReasonId> };
+type ChoiceMultiReason = { kind: 'CHOICE_MULTI'; options: Record<string, MaybeReasonId> };
+type MonoblockReason = { kind: 'MONOBLOCK'; optionId: string; reasonId: MaybeReasonId };
 type ReasonEntry = MandatoryReason | ChoiceSingleReason | ChoiceMultiReason | MonoblockReason;
 type ReasonMap = Record<ComposerId, Record<string, ReasonEntry | undefined>>;
 
 /** Mapa inicial com IDs REAIS para C2-N3 (dados enviados pelo Yago) */
 export const REASON_MAP: ReasonMap = {
+  C1_N0: {
+    c1n0_m1: { kind: 'MANDATORY', reasonId: '' },
+  },
+  C1_N1: {
+    c1n1_m1: { kind: 'MANDATORY', reasonId: '' },
+  },
+  C1_N2: {
+    c1n2_m1: { kind: 'MANDATORY', reasonId: '' },
+  },
+  C1_N3: {
+    c1n3_m1: { kind: 'MANDATORY', reasonId: '' },
+  },
+  C1_N4: {
+    c1n4_m1: { kind: 'MANDATORY', reasonId: '' },
+  },
+  C1_N5: {
+    c1n5_m1: { kind: 'MANDATORY', reasonId: '' },
+  },
   C2_N1: {
     c2n1_ou: {
       kind: 'CHOICE_SINGLE',
@@ -81,7 +116,7 @@ export const REASON_MAP: ReasonMap = {
     },
   },
   C2_N2: {
-    c2n2_abordagem: { kind: 'MANDATORY' },
+    c2n2_abordagem: { kind: 'MANDATORY', reasonId: '' },
     c2n2_ou: {
       kind: 'CHOICE_SINGLE',
       options: {
@@ -98,7 +133,7 @@ export const REASON_MAP: ReasonMap = {
   },
   C2_N3: {
     // OBS: rubric não expõe reasonId para "Abordagem completa do tema"
-    c2n3_abordagem: { kind: 'MANDATORY' },
+    c2n3_abordagem: { kind: 'MANDATORY', reasonId: '' },
     c2n3_partes: { kind: 'MANDATORY', reasonId: 'c2_l3_3partes_1_embrionaria' },
     c2n3_rep: {
       kind: 'CHOICE_MULTI',
@@ -109,16 +144,22 @@ export const REASON_MAP: ReasonMap = {
     },
   },
   C2_N4: {
-    c2n4_abordagem: { kind: 'MANDATORY' },
+    c2n4_abordagem: { kind: 'MANDATORY', reasonId: '' },
     c2n4_partes: { kind: 'MANDATORY', reasonId: 'c2_l4_3partes_nenhuma_embrionaria' },
     c2n4_rep_leg: { kind: 'MANDATORY', reasonId: 'c2_l4_repertorio_legitimado' },
     c2n4_rep_pert: { kind: 'MANDATORY', reasonId: 'c2_l4_pertinente_sem_produtivo' },
   },
   C2_N5: {
-    c2n5_abordagem: { kind: 'MANDATORY' },
+    c2n5_abordagem: { kind: 'MANDATORY', reasonId: '' },
     c2n5_partes: { kind: 'MANDATORY', reasonId: 'c2_l5_3partes_nenhuma_embrionaria' },
     c2n5_rep_leg: { kind: 'MANDATORY', reasonId: 'c2_l5_repertorio_legitimado' },
     c2n5_rep_pert: { kind: 'MANDATORY', reasonId: 'c2_l5_pertinente_com_produtivo' },
+  },
+  C3_N0: {
+    nivel0_base: { kind: 'MANDATORY', reasonId: '' },
+  },
+  C3_N1: {
+    nivel1_base: { kind: 'MANDATORY', reasonId: '' },
   },
   C3_N2: {
     c3n2_proj: { kind: 'MANDATORY', reasonId: 'c3_l2_muitas_falhas' },
@@ -129,11 +170,20 @@ export const REASON_MAP: ReasonMap = {
         dev_uma_info: 'c3_l2_desenvolvimento_um',
       },
     },
-    c3n2_flag: { kind: 'CHOICE_MULTI', options: { contradicao_grave: 'c3_l2_contradicao_grave' } },
+    c3n2_flag: { kind: 'MONOBLOCK', optionId: 'contradicao_grave', reasonId: 'c3_l2_contradicao_grave' },
   },
-  C3_N3: {},
-  C3_N4: {},
-  C3_N5: {},
+  C3_N3: {
+    c3n3_proj: { kind: 'MANDATORY', reasonId: '' },
+    c3n3_dev: { kind: 'MANDATORY', reasonId: '' },
+  },
+  C3_N4: {
+    c3n4_proj: { kind: 'MANDATORY', reasonId: '' },
+    c3n4_dev: { kind: 'MANDATORY', reasonId: '' },
+  },
+  C3_N5: {
+    c3n5_proj: { kind: 'MANDATORY', reasonId: '' },
+    c3n5_dev: { kind: 'MANDATORY', reasonId: '' },
+  },
   C4_N1: {
     c4n1_multi: {
       kind: 'CHOICE_MULTI',
@@ -153,7 +203,7 @@ export const REASON_MAP: ReasonMap = {
         inadequ_muitas: 'c4_l2_muitas_inadequacoes',
       },
     },
-    c4n2_flag: { kind: 'CHOICE_MULTI', options: { monobloco: 'c4_l2_texto_monobloco' } },
+    c4n2_flag: { kind: 'MONOBLOCK', optionId: 'monobloco', reasonId: 'c4_l2_texto_monobloco' },
   },
   C4_N3: {
     c4n3_multi: {
@@ -214,17 +264,31 @@ export const REASON_MAP: ReasonMap = {
       },
     },
   },
-  C5_N3: {},
-  C5_N4: {},
-  C5_N5: {},
+  C5_N3: {
+    c5n3_fix: { kind: 'MANDATORY', reasonId: '' },
+  },
+  C5_N4: {
+    c5n4_fix: { kind: 'MANDATORY', reasonId: '' },
+  },
+  C5_N5: {
+    c5n5_fix: { kind: 'MANDATORY', reasonId: '' },
+  },
 };
 
 export const COMPOSERS: Record<ComposerId, LevelComposer> = {
+  C1_N0,
+  C1_N1,
+  C1_N2,
+  C1_N3,
+  C1_N4,
+  C1_N5,
   C2_N1,
   C2_N2,
   C2_N3,
   C2_N4,
   C2_N5,
+  C3_N0,
+  C3_N1,
   C3_N2,
   C3_N3,
   C3_N4,
@@ -377,15 +441,13 @@ export function composeJustification(
 }
 
 export function buildSavePayload(
-  competence: 'C1' | 'C2' | 'C3' | 'C4' | 'C5',
-  level: number,
-  composerId: ComposerId,
   composer: LevelComposer,
   selections: ComposerSelection
 ) {
   const justification = composeJustification(composer, selections).trim();
-  const { reasonIds } = collectReasonIds(composerId, composer, selections);
-  return { competence, level, reasonIds, justification };
+  const { reasonIds } = collectReasonIds(composer.id, composer, selections);
+  const normalized = Array.from(new Set(reasonIds)).filter((id): id is string => Boolean(id && id.length)).sort();
+  return { reasonIds: normalized, justification };
 }
 
 export function buildSelectionFromReasonIds(
@@ -471,21 +533,41 @@ export function composeJustificationFromReasonIds(
   return composeJustification(composer, selection).trim();
 }
 
+export function getComposerForLevel(
+  competence: CompKey,
+  level: number
+): LevelComposer | null {
+  const entry = COMPOSER_REGISTRY[competence]?.[level];
+  if (!entry) return null;
+  try {
+    return getComposerById(entry.id);
+  } catch (err) {
+    console.warn('[composerBridge] Composer não encontrado para', competence, level, err);
+    return null;
+  }
+}
+
 export function buildJustificationFromReasonIds(
   competence: CompKey,
   level: number,
   reasonIds: readonly string[] | undefined
 ): string | undefined {
-  const entry = COMPOSER_REGISTRY[competence]?.[level];
-  if (!entry) return undefined;
-  const composer = getComposerById(entry.id);
+  const composer = getComposerForLevel(competence, level);
+  if (!composer) return undefined;
   const selection = buildSelectionFromReasonIds(composer, reasonIds);
   const justification = composeJustification(composer, selection).trim();
   return justification || undefined;
 }
 
 export const COMPOSER_REGISTRY: ComposerRegistry = {
-  C1: {},
+  C1: {
+    0: { id: 'C1_N0' },
+    1: { id: 'C1_N1' },
+    2: { id: 'C1_N2' },
+    3: { id: 'C1_N3' },
+    4: { id: 'C1_N4' },
+    5: { id: 'C1_N5' },
+  },
   C2: {
     1: { id: 'C2_N1' },
     2: { id: 'C2_N2' },
@@ -494,6 +576,8 @@ export const COMPOSER_REGISTRY: ComposerRegistry = {
     5: { id: 'C2_N5' },
   },
   C3: {
+    0: { id: 'C3_N0' },
+    1: { id: 'C3_N1' },
     2: { id: 'C3_N2' },
     3: { id: 'C3_N3' },
     4: { id: 'C3_N4' },

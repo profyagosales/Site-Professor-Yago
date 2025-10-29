@@ -38,9 +38,7 @@ export function selfTestRoundTrip() {
     });
 
     const selection = buildSelectionFromReasonIds(composer, picked);
-    const compKey = composerId.split('_')[0] as 'C1' | 'C2' | 'C3' | 'C4' | 'C5';
-    const level = Number(composerId.split('_N')[1] ?? 0);
-    const payload = buildSavePayload(compKey, level, composerId, composer, selection);
+    const payload = buildSavePayload(composer, selection);
     const check = (payload.reasonIds ?? []).slice().sort().join('|');
     const orig = picked.slice().sort().join('|');
     if (check !== orig) {

@@ -145,7 +145,7 @@ const essaySchema = new mongoose.Schema({
   email: {
     lastSentAt: { type: Date, default: null }
   },
-  status: { type: String, enum: ['PENDING', 'GRADED'], default: 'PENDING' },
+  status: { type: String, enum: ['pendente', 'corrigida', 'arquivada'], default: 'pendente' },
   comments: { type: String, default: null }
 }, { timestamps: true });
 

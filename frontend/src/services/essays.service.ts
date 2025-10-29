@@ -63,7 +63,9 @@ function normalizeId(value: any): string {
 function normalizeEssayStatus(value: unknown): StudentEssayStatus {
   if (typeof value !== 'string') return 'PENDING';
   const upper = value.trim().toUpperCase();
-  if (upper === 'GRADED' || upper === 'CORRECTED') return 'GRADED';
+  if (upper === 'CORRIGIDA' || upper === 'CORRIGIDAS' || upper === 'GRADED' || upper === 'CORRECTED') {
+    return 'GRADED';
+  }
   return 'PENDING';
 }
 
@@ -327,9 +329,9 @@ export async function fetchEssays(params: FetchEssaysParams): Promise<EssaysPage
 
   const statusParam =
     status === 'pending'
-      ? 'PENDING'
+      ? 'pendente'
       : status === 'corrected'
-        ? 'GRADED'
+        ? 'corrigida'
         : status;
 
   const { data } = await api.get('/essays', {
@@ -368,9 +370,9 @@ export async function fetchEssaysPage(params: FetchEssaysPageParams): Promise<Es
     ...params,
     status:
       params.status === 'pending'
-        ? 'PENDING'
+        ? 'pendente'
         : params.status === 'corrected'
-          ? 'GRADED'
+          ? 'corrigida'
           : params.status,
   };
   const { data } = await api.get('/essays', { params: mappedParams });

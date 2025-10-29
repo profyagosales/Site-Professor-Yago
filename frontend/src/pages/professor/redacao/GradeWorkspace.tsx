@@ -70,10 +70,14 @@ function sanitizeEnemSelection(
     ? selection.reasonIds.filter((id) => validReasonIds.includes(id))
     : [];
   const justification = typeof selection.justification === 'string' ? selection.justification.trim() : undefined;
+  const fallbackJustification =
+    (!justification && reasonIds.length > 0)
+      ? buildJustificationFromReasonIds(key, levelData.level, reasonIds)
+      : undefined;
   return {
     level: levelData.level,
     reasonIds,
-    justification: justification || undefined,
+    justification: justification || fallbackJustification || undefined,
   };
 }
 
@@ -249,53 +253,6 @@ export default function GradeWorkspace() {
     () => Object.values(annulState).some(Boolean),
     [annulState]
   );
-
-  useEffect(() => {
-    if (!id || essayType !== 'ENEM') return;
-    const updates: Array<{
-      key: (typeof ENEM_COMPETENCY_KEYS)[number];
-      justification: string;
-      selection: EnemSelection;
-    }> = [];
-    ENEM_COMPETENCY_KEYS.forEach((compKey) => {
-      const selection = enemSelections[compKey];
-      if (!selection) return;
-      if (selection.justification && selection.justification.trim().length > 0) return;
-      if (!Array.isArray(selection.reasonIds) || selection.reasonIds.length === 0) return;
-      const justification = buildJustificationFromReasonIds(compKey, selection.level, selection.reasonIds);
-      if (justification) {
-        updates.push({ key: compKey, justification, selection });
-      }
-    });
-    if (!updates.length) return;
-
-    setEnemSelections((prev) => {
-      const next = { ...prev };
-      updates.forEach(({ key, justification }) => {
-        const current = next[key];
-        next[key] = current ? { ...current, justification } : { level: 0, reasonIds: [], justification };
-      });
-      return next;
-    });
-
-    updates.forEach(({ key, justification, selection }) => {
-      void saveEssayScore(id, {
-        type: 'ENEM',
-        annulled,
-        enem: {
-          competencies: {
-            [key]: {
-              level: selection.level,
-              reasonIds: selection.reasonIds,
-              justification,
-            },
-          },
-        },
-      }).catch((err) => {
-        console.warn('[ENEM backfill justification]', key, err);
-      });
-    });
-  }, [id, essayType, enemSelections, annulled]);
 
   const pasDerived = useMemo(() => {
     const parseMacro = (value: string, max: number) => {
@@ -693,6 +650,7 @@ export default function GradeWorkspace() {
       await saveEssayScore(id, scorePayload);
       setDirty(false);
       toast.success('Correção salva.');
+      navigate('/professor/redacao?tab=corrigidas&refresh=1', { replace: true });
     } catch (err: any) {
       console.error(err);
       toast.error(err?.response?.data?.message || 'Erro ao salvar correção.');
@@ -871,6 +829,7 @@ export default function GradeWorkspace() {
         console.error('[GradeWorkspace] Failed to upload corrected PDF', uploadErr);
         toast.warn('PDF gerado, mas falhou ao salvar no servidor.');
       }
+      navigate('/professor/redacao?tab=corrigidas&refresh=1', { replace: true });
     } catch (err: any) {
       console.error(err);
       toast.error(err?.response?.data?.message || 'Erro ao gerar PDF corrigido.');

@@ -1220,6 +1220,47 @@ a {
 .enem-c5-card .card-title, .enem-c5-card h3, .enem-c5-card h4 { color: var(--enem-c5-title) !important; }
 .enem-c5-strong { color: var(--enem-c5-strong) !important; font-weight: var(--pdf-fw-bold); }
 
+.enem-connector{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:2px 6px;
+  border-radius:12px;
+  font-size:10px;
+  font-weight:var(--pdf-fw-bold);
+  letter-spacing:.04em;
+  color:rgba(15,23,42,0.72);
+  background:rgba(15,23,42,0.08);
+}
+
+.enem-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:2px 8px;
+  border-radius:10px;
+  border:1px solid var(--c-border);
+  background:#fff;
+  font-size:11px;
+  font-weight:500;
+  color:#0f172a;
+  line-height:1.2;
+  max-width:100%;
+}
+.enem-chip strong{ font-weight:700; }
+.enem-chip--takeover{
+  border-color:#ef4444;
+  color:#991b1b;
+  font-weight:600;
+}
+
+.enem-just-line{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:6px;
+}
+
 /* === Comments Rail: sticky + internal scroll helpers === */
 .RightRailCard {
   display: flex;

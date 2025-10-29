@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ENEM_2024,
   type EnemCompetency,
@@ -11,8 +11,7 @@ import {
   buildSavePayload,
   buildSelectionFromReasonIds,
   buildJustificationFromReasonIds,
-  COMPOSER_REGISTRY,
-  getComposerById,
+  getComposerForLevel,
   type ComposerSelection,
   type LevelComposer,
 } from '@/features/enem/composerBridge';
@@ -23,14 +22,19 @@ import { ChoiceSelect, ChoiceMulti } from '@/features/enem/ui/ChoiceSelect';
 import { selfTestRoundTrip } from '@/features/enem/testRoundTrip';
 
 const HIGHLIGHT_RE = /\b(E\/OU|E|OU|COM|MAS|NÃO|NENHUMA|ALGUMAS?)\b/gi;
-function highlightTokens(text: string) {
+function highlightTokens(text: string, strongClass?: string) {
   return text.split(HIGHLIGHT_RE).map((part, i) => {
     if (!part) return null;
     const key = part.toUpperCase();
     const isNeg = key === 'NÃO' || key === 'NENHUMA';
+    HIGHLIGHT_RE.lastIndex = 0;
     return HIGHLIGHT_RE.test(part)
       ? (
-          <mark key={i} className={`enem-token${isNeg ? ' ' : ''}`} data-k={isNeg ? 'neg' : undefined}>
+          <mark
+            key={i}
+            className={[`enem-token${isNeg ? ' ' : ''}`, strongClass].filter(Boolean).join(' ')}
+            data-k={isNeg ? 'neg' : undefined}
+          >
             {key}
           </mark>
         )
@@ -65,6 +69,14 @@ type GroupRenderProps = {
 
 const HIGHLIGHT_CLASS = 'bg-amber-100 text-amber-700 font-semibold px-1 rounded';
 
+const COMPETENCY_CARD_TONE: Record<CompetencyKey, string> = {
+  C1: 'enem-c1-card',
+  C2: 'enem-c2-card',
+  C3: 'enem-c3-card',
+  C4: 'enem-c4-card',
+  C5: 'enem-c5-card',
+};
+
 const CONNECTOR_SET = new Set(['E', 'OU', 'E/OU']);
 function isConnectorToken(txt: string) {
   const t = (txt ?? '').trim();
@@ -83,11 +95,11 @@ function debugCheck(ids: string[], ctx: string) {
 }
 
 // Helper to render a label string with highlights (for justification summary)
-function renderHighlighted(label: string, palette: { strong: string; title: string; pastel: string }) {
+function renderHighlighted(label: string, palette: { strong: string; title: string; pastel: string }, strongClass?: string) {
   // Use renderSummary to highlight tokens in the label string
-  return renderSummary(label, palette);
+  return renderSummary(label, palette, strongClass);
 }
-function renderSummary(summary: string, palette: { strong: string; title: string; pastel: string }) {
+function renderSummary(summary: string, palette: { strong: string; title: string; pastel: string }, strongClass?: string) {
   // keep uppercase highlights, but also force E/OU tokens
   const parts = highlightUppercaseTokens(summary);
   return parts.flatMap((part, index) => {
@@ -95,6 +107,7 @@ function renderSummary(summary: string, palette: { strong: string; title: string
       return (
         <span
           key={`sum-${index}`}
+          className={strongClass}
           style={{ backgroundColor: palette.pastel, color: palette.strong, fontWeight: 600, padding: '0 2px', borderRadius: '3px' }}
         >
           {part.text}
@@ -108,6 +121,7 @@ function renderSummary(summary: string, palette: { strong: string; title: string
       return (
         <span
           key={`sum-${index}-${i}`}
+          className={hi ? strongClass : undefined}
           style={hi ? { backgroundColor: palette.pastel, color: palette.strong, fontWeight: 600, padding: '0 2px', borderRadius: '3px' } : undefined}
         >
           {tok}
@@ -187,10 +201,12 @@ function ComposerViewGeneric({
   composer,
   initialReasonIds,
   onConfirm,
+  connectorClassName,
 }: {
   composer: LevelComposer;
   initialReasonIds?: string[];
   onConfirm: (sel: ComposerSelection) => void;
+  connectorClassName?: string;
 }) {
   const baseSelection = useMemo(() => {
     const defaults: ComposerSelection = {};
@@ -231,149 +247,267 @@ function ComposerViewGeneric({
     setSelection(mergedInitial);
   }, [mergedInitial]);
 
-  const apply = () => {
-    onConfirm(selection);
-  };
-
-  const singlePieces = composer.pieces.filter((piece) => piece.kind === 'CHOICE_SINGLE');
-  const singlesValid = singlePieces.every((piece) => {
-    const value = selection[piece.key];
-    return typeof value === 'string' && value.trim().length > 0;
-  });
-
   const connectors = composer.connectors ?? [];
-  const mandatoryPieces = composer.pieces.filter((piece) => piece.kind === 'MANDATORY');
-  const optionalPieces = composer.pieces
-    .map((piece, index) => ({ piece, index }))
-    .filter(({ piece }) => piece.kind !== 'MANDATORY')
-    .map((entry, ordinal) => ({ ...entry, ordinal }));
+  const mandatoryPieces = useMemo(
+    () => composer.pieces.filter((piece) => piece.kind === 'MANDATORY'),
+    [composer]
+  );
+  const optionalPieces = useMemo(
+    () => composer.pieces
+      .map((piece, index) => ({ piece, index }))
+      .filter(({ piece }) => piece.kind !== 'MANDATORY'),
+    [composer]
+  );
+  const takeoverPieces = optionalPieces.filter(({ piece }) => piece.kind === 'MONOBLOCK');
+  const activeTakeover = takeoverPieces.find(({ piece }) => Boolean(selection[piece.key]));
 
-  const connectorFor = (
+  const connectorFor = useCallback((
     ordinal: number,
     pieceIndex: number,
     kind: typeof composer.pieces[number]['kind']
   ): 'E' | 'OU' | 'E/OU' => {
-    const configuredByIndex = connectors[Math.min(Math.max(pieceIndex - 1, 0), Math.max(0, connectors.length - 1))];
-    const configuredByOrdinal = connectors[Math.min(ordinal, Math.max(0, connectors.length - 1))];
-    const configured = configuredByIndex ?? configuredByOrdinal;
-    if (configured) return configured;
-    if (ordinal === 0) {
+    if (connectors.length === 0) {
       if (kind === 'CHOICE_SINGLE') return 'OU';
       if (kind === 'CHOICE_MULTI') return 'E/OU';
       return 'E';
     }
-    if (kind === 'CHOICE_SINGLE') return 'OU';
-    if (kind === 'CHOICE_MULTI') return 'E/OU';
-    return 'E';
-  };
+    const configuredByIndex = connectors[Math.min(Math.max(pieceIndex - 1, 0), connectors.length - 1)];
+    const configuredByOrdinal = connectors[Math.min(Math.max(ordinal, 0), connectors.length - 1)];
+    const fallback = kind === 'CHOICE_SINGLE' ? 'OU' : kind === 'CHOICE_MULTI' ? 'E/OU' : 'E';
+    return configuredByIndex ?? configuredByOrdinal ?? fallback;
+  }, [connectors]);
 
-  const renderOptionalPiece = ({
-    piece,
-    index,
-    ordinal,
-  }: {
-    piece: typeof composer.pieces[number];
-    index: number;
-    ordinal: number;
-  }) => {
-    const connectorKind = connectorFor(ordinal, index, piece.kind);
-    if (piece.kind === 'CHOICE_SINGLE') {
-      const value = typeof selection[piece.key] === 'string' ? (selection[piece.key] as string) : '';
-      const opts = piece.options.map((opt) => ({ value: opt.id, label: opt.label }));
-      const hasSelection = Boolean(value);
-      const handlePick = (v: string) => {
-        setSelection((prev) => ({ ...prev, [piece.key]: v }));
-      };
-      const handleEdit = () => {
-        setSelection((prev) => ({ ...prev, [piece.key]: '' }));
-      };
-      return (
-        <div key={piece.key} className="mt-2 flex w-full flex-wrap items-center gap-1">
-          <Connector kind={connectorKind} />
-          <ChoiceSelect value={value} options={opts} onChange={handlePick} />
-          {hasSelection && (
-            <button
-              type="button"
-              className="ml-auto text-[10px] font-semibold text-slate-500 underline"
-              onClick={handleEdit}
-            >
-              editar
-            </button>
-          )}
-        </div>
-      );
+  type Segment = { key: string; label: string; connector?: 'E' | 'OU' | 'E/OU'; variant?: 'takeover' };
+
+  const segments = useMemo<Segment[]>(() => {
+    if (activeTakeover) {
+      return [
+        {
+          key: activeTakeover.piece.key,
+          label: activeTakeover.piece.label,
+          variant: 'takeover',
+        },
+      ];
     }
 
-    if (piece.kind === 'CHOICE_MULTI') {
-      const values = Array.isArray(selection[piece.key]) ? (selection[piece.key] as string[]) : [];
-      const opts = piece.options.map((opt) => ({ value: opt.id, label: opt.label }));
-      const hasSelection = values.length > 0;
-      const handleToggle = (val: string, checked: boolean) => {
-        setSelection((prev) => {
-          const current = Array.isArray(prev[piece.key]) ? [...(prev[piece.key] as string[])] : [];
-          if (checked && !current.includes(val)) current.push(val);
-          if (!checked) {
-            const idx = current.indexOf(val);
-            if (idx >= 0) current.splice(idx, 1);
-          }
-          return { ...prev, [piece.key]: current };
+    const list: Segment[] = [];
+
+    mandatoryPieces.forEach((piece, idx) => {
+      list.push({
+        key: `${piece.key}-${idx}`,
+        label: piece.label,
+        connector: idx === 0 ? undefined : 'E',
+      });
+    });
+
+    let ordinal = 0;
+    optionalPieces.forEach(({ piece, index }) => {
+      if (piece.kind === 'CHOICE_SINGLE') {
+        const value = typeof selection[piece.key] === 'string' ? (selection[piece.key] as string) : '';
+        if (!value) return;
+        const option = piece.options.find((opt) => opt.id === value);
+        if (!option) return;
+        const connector = list.length === 0 ? undefined : connectorFor(ordinal, index, piece.kind);
+        list.push({
+          key: `${piece.key}-${value}`,
+          label: option.label,
+          connector,
         });
-      };
-      const handleEdit = () => {
-        setSelection((prev) => ({ ...prev, [piece.key]: [] }));
-      };
-      return (
-        <div key={piece.key} className="mt-2 flex w-full flex-wrap items-center gap-1">
-          <Connector kind={connectorKind} />
-          <ChoiceMulti values={values} options={opts} onToggle={handleToggle} />
-          {hasSelection && (
-            <button
-              type="button"
-              className="ml-auto text-[10px] font-semibold text-slate-500 underline"
-              onClick={handleEdit}
-            >
-              editar
-            </button>
-          )}
-        </div>
-      );
-    }
+        ordinal += 1;
+      } else if (piece.kind === 'CHOICE_MULTI') {
+        const values = Array.isArray(selection[piece.key]) ? (selection[piece.key] as string[]) : [];
+        if (!values.length) return;
+        const labels = values
+          .map((id) => piece.options.find((opt) => opt.id === id))
+          .filter(Boolean) as { id: string; label: string }[];
+        if (!labels.length) return;
+        labels.forEach((opt, idx) => {
+          const connector =
+            list.length === 0 && idx === 0
+              ? undefined
+              : idx === 0
+              ? connectorFor(ordinal, index, piece.kind)
+              : 'E/OU';
+          list.push({
+            key: `${piece.key}-${opt.id}-${idx}`,
+            label: opt.label,
+            connector,
+          });
+        });
+        ordinal += 1;
+      } else if (piece.kind === 'MONOBLOCK') {
+        const active = Boolean(selection[piece.key]);
+        if (!active) return;
+        const connector = list.length === 0 ? undefined : connectorFor(ordinal, index, piece.kind);
+        list.push({
+          key: `${piece.key}-mono`,
+          label: piece.label,
+          connector,
+          variant: 'takeover',
+        });
+        ordinal += 1;
+      }
+    });
 
-    if (piece.kind === 'MONOBLOCK') {
-      const active = Boolean(selection[piece.key]);
-      const handleToggle = (checked: boolean) => {
-        setSelection((prev) => ({ ...prev, [piece.key]: checked }));
-      };
-      return (
-        <div key={piece.key} className="mt-2 flex w-full flex-wrap items-center gap-1">
-          <Connector kind={connectorKind} />
-          <label className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px]">
+    return list;
+  }, [activeTakeover, connectorFor, mandatoryPieces, optionalPieces, selection]);
+
+  const controls = useMemo(() => {
+    if (activeTakeover) return [] as React.ReactNode[];
+    return optionalPieces.map(({ piece }) => {
+      if (piece.kind === 'CHOICE_SINGLE') {
+        const value = typeof selection[piece.key] === 'string' ? (selection[piece.key] as string) : '';
+        if (value) return null;
+        const options = piece.options.map((opt) => ({ value: opt.id, label: opt.label }));
+        const handlePick = (val: string) => {
+          setSelection((prev) => ({ ...prev, [piece.key]: val }));
+        };
+        return (
+          <div key={piece.key} className="flex flex-wrap items-center gap-2">
+            <span className="pdf-sm text-slate-500">{piece.label}</span>
+            <ChoiceSelect value={value} options={options} onChange={handlePick} />
+          </div>
+        );
+      }
+      if (piece.kind === 'CHOICE_MULTI') {
+        const values = Array.isArray(selection[piece.key]) ? (selection[piece.key] as string[]) : [];
+        const options = piece.options.map((opt) => ({ value: opt.id, label: opt.label }));
+        const handleToggle = (val: string, checked: boolean) => {
+          setSelection((prev) => {
+            const current = Array.isArray(prev[piece.key]) ? [...(prev[piece.key] as string[])] : [];
+            if (checked) {
+              if (!current.includes(val)) current.push(val);
+            } else {
+              const idx = current.indexOf(val);
+              if (idx >= 0) current.splice(idx, 1);
+            }
+            return { ...prev, [piece.key]: current };
+          });
+        };
+        return (
+          <div key={piece.key} className="space-y-1">
+            <span className="pdf-sm text-slate-500">{piece.label}</span>
+            <ChoiceMulti values={values} options={options} onToggle={handleToggle} />
+          </div>
+        );
+      }
+      if (piece.kind === 'MONOBLOCK') {
+        const active = Boolean(selection[piece.key]);
+        const handleToggle = (checked: boolean) => {
+          setSelection((prev) => ({ ...prev, [piece.key]: checked }));
+        };
+        return (
+          <label key={piece.key} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] text-slate-600">
             <input
               type="checkbox"
               className="scale-90"
               checked={active}
-              onChange={(e) => handleToggle(e.target.checked)}
+              onChange={(event) => handleToggle(event.target.checked)}
             />
             {piece.label}
           </label>
-        </div>
-      );
-    }
+        );
+      }
+      return null;
+    }).filter(Boolean) as React.ReactNode[];
+  }, [activeTakeover, optionalPieces, selection]);
 
-    return null;
+  const lineActions: React.ReactNode[] = [];
+
+  if (activeTakeover) {
+    lineActions.push(
+      <button
+        key="takeover-edit"
+        type="button"
+        className="text-[10px] font-semibold text-slate-500 underline"
+        onClick={() => {
+          setSelection((prev) => ({
+            ...prev,
+            [activeTakeover.piece.key]: false,
+          }));
+        }}
+      >
+        editar
+      </button>
+    );
+  } else {
+    optionalPieces.forEach(({ piece }) => {
+      if (piece.kind === 'CHOICE_SINGLE') {
+        const value = typeof selection[piece.key] === 'string' ? (selection[piece.key] as string) : '';
+        if (value) {
+          lineActions.push(
+            <button
+              key={`${piece.key}-edit`}
+              type="button"
+              className="text-[10px] font-semibold text-slate-500 underline"
+              onClick={() => setSelection((prev) => ({ ...prev, [piece.key]: '' }))}
+            >
+              editar
+            </button>
+          );
+        }
+      }
+    });
+  }
+
+  const singlesValid = activeTakeover
+    ? true
+    : composer.pieces
+        .filter((piece) => piece.kind === 'CHOICE_SINGLE')
+        .every((piece) => {
+          const value = selection[piece.key];
+          return typeof value === 'string' && value.trim().length > 0;
+        });
+
+  const apply = () => {
+    onConfirm(selection);
   };
 
+  const chipLine = (
+    <div className="enem-just-line">
+      {segments.length === 0 ? (
+        <span className="pdf-sm text-slate-500">Selecione itens para montar a justificativa.</span>
+      ) : (
+        segments.flatMap((segment, idx) => {
+          const nodes: React.ReactNode[] = [];
+          if (idx > 0 || segment.connector) {
+            const connectorValue = segment.connector ?? 'E';
+            nodes.push(
+              <Connector
+                key={`${segment.key}-connector`}
+                kind={connectorValue}
+                className={connectorClassName}
+              />
+            );
+          }
+          const chipClasses = ['enem-chip'];
+          if (segment.variant === 'takeover') chipClasses.push('enem-chip--takeover');
+          if (connectorClassName) chipClasses.push(connectorClassName);
+          nodes.push(
+            <span key={segment.key} className={chipClasses.join(' ')}>
+              {segment.label}
+            </span>
+          );
+          return nodes;
+        })
+      )}
+      {lineActions.length > 0 && (
+        <div className="ml-auto flex items-center gap-2">
+          {lineActions}
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-      <div className="flex flex-wrap items-center gap-1">
-        {mandatoryPieces.map((piece, idx) => (
-          <MandatoryChip key={`${piece.key}-${idx}`} label={piece.label} />
-        ))}
-      </div>
-
-      {optionalPieces.map(renderOptionalPiece)}
-
-      <div className="flex justify-end">
+    <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+      {chipLine}
+      {!activeTakeover && controls.length > 0 && (
+        <div className="space-y-2">
+          {controls}
+        </div>
+      )}
+      <div className="flex justify-end pt-1">
         <button
           type="button"
           className="btn btn-primary"
@@ -1204,6 +1338,8 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
         const roman = toRoman(parseInt(String(competency.key).replace('C', ''), 10) || 0);
         const selection = selections[competency.key] || { level: competency.levels[0]?.level ?? 0, reasonIds: [] };
         const categoryForScroll = mapCompetencyToCategory(competency.key);
+        const strongClass = `enem-${competency.key.toLowerCase()}-strong`;
+        const cardToneClass = COMPETENCY_CARD_TONE[competency.key] ?? 'border border-slate-200 bg-white';
         const levelData =
           competency.levels.find((level) => level.level === selection.level) ?? competency.levels[0];
         const availableReasonIds = levelData?.rationale ? collectReasonIds(levelData.rationale) : [];
@@ -1212,8 +1348,7 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
         debugCheck(filteredReasonIds, `Comp ${competency.key} / Nível ${levelData.level} (loaded)`);
 
         // Memoized ordered labels for summary panel
-        const composerEntry = COMPOSER_REGISTRY[competency.key]?.[levelData.level];
-        const composer = composerEntry?.id ? getComposerById(composerEntry.id) : null;
+        const composer = getComposerForLevel(competency.key, levelData.level);
         const useComposer = Boolean(composer);
         const orderedLabels = useMemo(
           () => (levelData?.rationale ? orderedSelectedLabels(levelData.rationale, Array.from(selectedReasonIds)) : []),
@@ -1235,15 +1370,7 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
         }, [useComposer, competency.key, levelData.level, selection.reasonIds]);
 
         const handleLevelChange = (level: EnemLevel) => {
-          const nextEntry = COMPOSER_REGISTRY[competency.key]?.[level.level];
-          let nextComposer: LevelComposer | null = null;
-          if (nextEntry?.id) {
-            try {
-              nextComposer = getComposerById(nextEntry.id);
-            } catch (err) {
-              console.warn('[EnemScoringForm] Composer não encontrado:', nextEntry.id, err);
-            }
-          }
+          const nextComposer = getComposerForLevel(competency.key, level.level);
 
           if (nextComposer) {
             onChange(competency.key, { level: level.level, reasonIds: [], justification: undefined });
@@ -1275,16 +1402,10 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
           if (onFocusCategory) onFocusCategory(categoryForScroll);
         };
 
-        const renderComposer = () => {
+        const renderComposer = (connectorClassName?: string) => {
           if (!composer || !useComposer) return null;
           const confirm = (sel: ComposerSelection) => {
-            const payload = buildSavePayload(
-              competency.key,
-              levelData.level,
-              composer.id,
-              composer,
-              sel
-            );
+            const payload = buildSavePayload(composer, sel);
             debugCheck(payload.reasonIds, `Comp ${competency.key} / Nível ${levelData.level} (composer)`);
             onChange(competency.key, {
               level: levelData.level,
@@ -1299,16 +1420,17 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
               composer={composer}
               initialReasonIds={selection.reasonIds}
               onConfirm={confirm}
+              connectorClassName={connectorClassName}
             />
           );
         };
 
-        const composerUI = renderComposer();
+        const composerUI = renderComposer(strongClass);
 
         return (
           <section
             key={competency.key}
-            className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
+            className={`space-y-2.5 rounded-2xl p-2.5 shadow-sm ${cardToneClass}`}
             id={`competencia-${competency.key}`}
           >
             <header className="flex flex-col gap-1.5">
@@ -1354,7 +1476,7 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
                 style={{ backgroundColor: palette.pastel, borderColor: palette.pastel, color: palette.title }}
               >
                 <div className="pdf-md">
-                  {renderSummary(levelData.summary, palette).map((part, index) => (
+                  {renderSummary(levelData.summary, palette, strongClass).map((part, index) => (
                     <Fragment key={index}>{part}</Fragment>
                   ))}
                 </div>
@@ -1414,9 +1536,9 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
                   <span style={{ color: palette.strong }}>Justificativa selecionada:</span>
                 </span>{' '}
                 {justificationText ? (
-                  <span className="pdf-md">{highlightTokens(justificationText)}</span>
+                  <span className="pdf-md">{highlightTokens(justificationText, strongClass)}</span>
                 ) : composerFallbackJustification ? (
-                  <span className="pdf-md">{highlightTokens(composerFallbackJustification)}</span>
+                  <span className="pdf-md">{highlightTokens(composerFallbackJustification, strongClass)}</span>
                 ) : labelsToShow.length === 0 ? (
                   <span className="opacity-70">— nenhuma seleção ainda —</span>
                 ) : (
@@ -1429,7 +1551,7 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
                           </span>
                         )}
                         <span className="text-xs">
-                          {renderHighlighted(lbl, palette)}
+                          {renderHighlighted(lbl, palette, strongClass)}
                         </span>
                       </Fragment>
                     ))}

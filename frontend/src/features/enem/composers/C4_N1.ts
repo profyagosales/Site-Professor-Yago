@@ -6,11 +6,11 @@ const C4_N1: LevelComposer = {
     {
       kind: 'CHOICE_MULTI',
       key: 'c4n1_multi',
-      label: 'Selecione um ou mais (E/OU)',
+      label: 'Selecione um ou mais itens (E/OU)',
       options: [
-        { id: 'elem_intra_inter', label: 'elementos coesivos intra E/OU interparágrafos' },
-        { id: 'repet_excessivas', label: 'EXCESSIVAS repetições' },
-        { id: 'inadequ_excessivas', label: 'EXCESSIVAS inadequações' },
+        { id: 'elem_intra_inter', label: 'Elementos coesivos intra E/OU interparágrafos' },
+        { id: 'repet_excessivas', label: 'E/OU EXCESSIVAS repetições' },
+        { id: 'inadequ_excessivas', label: 'E/OU EXCESSIVAS inadequações' },
       ],
     },
   ],

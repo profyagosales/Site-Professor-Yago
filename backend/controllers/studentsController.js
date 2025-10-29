@@ -20,7 +20,7 @@ async function getOne(req, res) {
   if (!student) return res.status(404).json({ message: 'Aluno não encontrado' });
   const totalEssays = await Essay.countDocuments({ studentId: id });
   const graded = await Essay.aggregate([
-    { $match: { studentId: student._id, status: 'GRADED' } },
+    { $match: { studentId: student._id, status: 'corrigida' } },
     { $group: { _id: null, avg: { $avg: '$rawScore' } } },
   ]);
   res.json({
@@ -36,8 +36,8 @@ async function getEssays(req, res) {
   const { id } = req.params;
   const { status, page = 1, pageSize = 10 } = req.query;
   const filter = { studentId: id };
-  if (status === 'pending') filter.status = 'PENDING';
-  if (status === 'corrected') filter.status = 'GRADED';
+  if (status === 'pending') filter.status = 'pendente';
+  if (status === 'corrected') filter.status = 'corrigida';
   const skip = (Number(page) - 1) * Number(pageSize);
   const [items, total] = await Promise.all([
     Essay.find(filter).sort({ submittedAt: -1 }).skip(skip).limit(Number(pageSize)),

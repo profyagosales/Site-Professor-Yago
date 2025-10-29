@@ -219,7 +219,7 @@ export default function RedacaoProfessorPage() {
                 const all = Array.isArray(data?.items) ? (data!.items as any[]) : [];
                 // Predicado robusto: considera status, flags e URLs
                 const isRowCorrected = (row: any) =>
-                  Boolean(row?.isCorrected || row?.correctionPdf || row?.correctedUrl || row?.status === 'GRADED');
+                  Boolean(row?.isCorrected || row?.correctionPdf || row?.correctedUrl || row?.status === 'corrigida' || row?.status === 'GRADED');
                 const filtered = all.filter((row) =>
                   status === 'pending' ? !isRowCorrected(row) : isRowCorrected(row),
                 );

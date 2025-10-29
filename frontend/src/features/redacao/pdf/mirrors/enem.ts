@@ -242,9 +242,20 @@ export async function renderEnemMirrorPage(
     const key = (`C${index + 1}`) as 'C1' | 'C2' | 'C3' | 'C4' | 'C5';
     const colors = ENEM_COLORS_HEX[key];
 
-    const storedJustification = Array.isArray(data.enem.justifications)
-      ? data.enem.justifications[index]
-      : undefined;
+    const storedJustification = (() => {
+      const source = data.enem?.justifications as unknown;
+      if (!source) return undefined;
+      if (Array.isArray(source)) {
+        const raw = source[index];
+        return typeof raw === 'string' && raw.trim().length > 0 ? raw.trim() : undefined;
+      }
+      if (typeof source === 'object' && source !== null) {
+        const record = source as Record<string, unknown>;
+        const raw = record[key];
+        return typeof raw === 'string' && raw.trim().length > 0 ? raw.trim() : undefined;
+      }
+      return undefined;
+    })();
     const composedJustification = buildJustificationFromReasonIds(key, level, reasons);
     const justificationText =
       typeof storedJustification === 'string' && storedJustification.trim().length > 0
@@ -407,7 +418,12 @@ function buildCompetencyLayout(
       gapAfter: LINE_GAP,
     });
 
-    const wrapped = wrapText(fonts.regular, trimmedJustification, BODY_SIZE, textWidth - BULLET_INDENT);
+    let wrapped = wrapText(fonts.regular, trimmedJustification, BODY_SIZE, textWidth - BULLET_INDENT);
+    if (wrapped.length > 2) {
+      wrapped = wrapped.slice(0, 2);
+      const lastIndex = wrapped.length - 1;
+      wrapped[lastIndex] = `${wrapped[lastIndex]}…`;
+    }
     const richLines = wrapped.length ? wrapped : [''];
     const startIdx = operations.length;
     richLines.forEach((line, idx) => {

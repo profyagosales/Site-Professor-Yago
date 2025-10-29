@@ -10,6 +10,7 @@ const C3_N5: LevelComposer = {
       label: 'Desenvolvimento de informações, fatos e opiniões em TODO o texto',
     },
   ],
+  connectors: ['E'],
 };
 
 export default C3_N5;

@@ -13,5 +13,8 @@
     "dev": "npm --workspace frontend run dev",
     "preview:start": "bash scripts/start_preview.sh",
     "preview:stop": "bash scripts/stop_preview.sh"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0"
   }
 }

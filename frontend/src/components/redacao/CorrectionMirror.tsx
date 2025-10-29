@@ -3,6 +3,8 @@ import { ENEM_2024 } from '@/features/essay/rubrics/enem2024';
 import EnemScoringForm, {
   type EnemSelectionsMap,
 } from '@/components/essay/EnemScoringForm';
+import { buildJustificationFromReasonIds } from '@/features/enem/composerBridge';
+import { ENEM_COLORS_HEX, toRoman } from '@/features/redacao/pdf/theme';
 
 export const ANNUL_OPTIONS = [
   { key: 'MENOS_7_LINHAS', label: 'Menos de 7 linhas' },
@@ -12,6 +14,38 @@ export const ANNUL_OPTIONS = [
   { key: 'FUGA_GENERO', label: 'Fuga ao gênero' },
   { key: 'OUTROS', label: 'Outros (especificar)', hasInput: true },
 ] as const;
+
+const SUMMARY_TOKEN_SET = new Set([
+  'E',
+  'OU',
+  'E/OU',
+  'COM',
+  'MAS',
+  'NÃO',
+  'NENHUMA',
+  'ALGUMA',
+  'ALGUMAS',
+]);
+
+function renderEnemSummaryText(text: string, palette: { strong: string; title: string }) {
+  return text.split(/(\s+)/).map((part, index) => {
+    if (part.trim().length === 0) {
+      return <span key={`sum-${index}`}>{part}</span>;
+    }
+    const cleaned = part.replace(/[.,;:!?)]$/, '').replace(/^[(]/, '');
+    const upper = cleaned.toUpperCase();
+    const isToken = SUMMARY_TOKEN_SET.has(upper);
+    const isUpper = cleaned.length >= 3 && cleaned === cleaned.toUpperCase();
+    if (isToken || isUpper) {
+      return (
+        <span key={`sum-${index}`} style={{ color: palette.strong, fontWeight: 700 }}>
+          {part}
+        </span>
+      );
+    }
+    return <span key={`sum-${index}`} style={{ color: '#1f2937' }}>{part}</span>;
+  });
+}
 
 export type PasState = {
   apresentacao: string;
@@ -233,11 +267,31 @@ export function CorrectionMirror({
           )}
 
           {!annulled && type === 'PAS' && (
-            <div className="space-y-2.5 rounded-xl border border-blue-200 bg-blue-50 p-2.5 shadow-sm pas-macro-card">
+            <div className="pas-macro-card space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-2.5 shadow-sm">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <h3 className="text-[13px] font-semibold text-slate-800 leading-tight">ASPECTOS MACROESTRUTURAIS</h3>
                 <p className="text-[11px] leading-tight text-slate-500">NR = NC − 2 × (NE / TL)</p>
               </div>
+
+              <div className="rounded-md border border-slate-200 bg-white p-2.5 text-[12px] leading-tight shadow-sm">
+                <h4 className="text-[12px] font-semibold text-slate-800">Resumo do espelho</h4>
+                <p className="text-[11px] text-slate-500">NR = NC − 2 × (NE / TL)</p>
+                <dl className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1">
+                  <dt className="text-[11px] text-slate-500">NC</dt>
+                  <dd className="text-right font-semibold" style={{ color: 'var(--pas-macro-title)' }}>{formatNumber(pasComputed.nc)}</dd>
+                  <dt className="text-[11px] text-slate-500">TL</dt>
+                  <dd className="text-right">{pasComputed.tl ?? '—'}</dd>
+                  <dt className="text-[11px] text-slate-500">NE</dt>
+                  <dd className="text-right">{pasComputed.ne}</dd>
+                  <dt className="text-[11px] text-slate-500">Desconto</dt>
+                  <dd className="text-right">{pasComputed.discount != null ? pasComputed.discount.toFixed(3) : '—'}</dd>
+                  <dt className="col-span-2 mt-1 text-[11px] text-slate-500">Nota final (NR)</dt>
+                  <dd className="col-span-2 text-right text-[18px] font-semibold text-slate-900">
+                    {formattedPasResult}
+                  </dd>
+                </dl>
+              </div>
+
               <div className="overflow-hidden rounded-lg border border-slate-200">
                 <table className="w-full text-[12px] text-slate-700">
                   <thead className="bg-white text-[11px] uppercase tracking-wide text-slate-500">
@@ -289,86 +343,63 @@ export function CorrectionMirror({
                       )
                     )}
                     <tr>
-                      <td className="px-1.5 py-1 leading-tight font-semibold" style={{ color: 'var(--pas-macro-title)' }}>Nota de conteúdo (NC)</td>
-                      <td className="px-1.5 py-1 leading-tight" style={{ color: 'var(--pas-macro-title)' }}>0,00 a 10,00</td>
-                      <td className="px-1.5 py-1 leading-tight font-semibold" style={{ color: 'var(--pas-macro-title)' }}>{formatNumber(pasComputed.nc)}</td>
-                    </tr>
+                    <td className="px-1.5 py-1 leading-tight font-semibold" style={{ color: 'var(--pas-macro-title)' }}>Nota de conteúdo (NC)</td>
+                    <td className="px-1.5 py-1 leading-tight" style={{ color: 'var(--pas-macro-title)' }}>0,00 a 10,00</td>
+                    <td className="px-1.5 py-1 leading-tight font-semibold" style={{ color: 'var(--pas-macro-title)' }}>{formatNumber(pasComputed.nc)}</td>
+                  </tr>
                   </tbody>
                 </table>
               </div>
-              <div className="grid gap-2">
-                <div className="rounded-lg border border-pink-200 bg-pink-50 p-2.5 text-[13px] text-slate-700 pas-micro-card">
-                  <div className="mb-2 flex items-center justify-between">
-                    <h4 className="text-[13px] font-semibold text-slate-800">ASPECTOS MICROESTRUTURAIS</h4>
-                    <span className="text-[11px] leading-tight text-slate-500">NR = NC − 2 × (NE / TL)</span>
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-[1fr,220px]">
-                    {/* Coluna esquerda: inputs e tabela */}
-                    <div className="space-y-2.5">
-                      <label className="flex flex-col text-[11px] font-medium text-slate-600">
-                        TL (número total de linhas)
-                        <input
-                          type="number"
-                          min={8}
-                          max={30}
-                          step={1}
-                          value={pasState.TL}
-                          onInput={handlePasFieldChange('TL')}
-                          onWheel={(e) => e.currentTarget.blur()}
-                          inputMode="numeric"
-                          tabIndex={5}
-                          className="mt-1 w-20 rounded-lg border border-slate-300 px-2 py-1 text-[13px] outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200 text-right"
-                        />
-                      </label>
-                      <div className="overflow-hidden rounded-lg border border-slate-200">
-                        <table className="w-full text-xs text-slate-700">
-                          <thead className="bg-white text-[10px] uppercase tracking-wide text-slate-500">
-                            <tr>
-                              <th className="px-1.5 py-1 text-left font-medium">Tipo de erro</th>
-                              <th className="px-1.5 py-1 text-left font-medium">Quantidade</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {errorRows.map((row) => (
-                              <tr key={row.key}>
-                                <td className="px-1.5 py-1 leading-tight">{row.label}</td>
-                                <td className="px-1.5 py-1 leading-tight">
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    step={1}
-                                    value={pasState.erros[row.key]}
-                                    onInput={handlePasFieldChange(`erros.${row.key}` as PasFieldKey)}
-                                    onWheel={(e) => e.currentTarget.blur()}
-                                    inputMode="numeric"
-                                    tabIndex={row.key === 'grafia' ? 6 : row.key === 'pontuacao' ? 7 : row.key === 'propriedade' ? 8 : undefined}
-                                    className="w-14 rounded-lg border border-slate-300 px-2 py-1 text-[13px] outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200 text-right"
-                                  />
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                    {/* Coluna direita: Resumo do espelho */}
-                    <aside className="rounded-md border border-slate-200 bg-white p-2.5 text-[12px] leading-tight shadow-sm">
-                      <h5 className="mb-1 text-[12px] font-semibold text-slate-800">Resumo do espelho</h5>
-                      <dl className="grid grid-cols-2 gap-x-2 gap-y-1">
-                        <dt className="text-[11px] text-slate-500">NC</dt>
-                        <dd className="text-right font-semibold" style={{ color: 'var(--pas-macro-title)' }}>{formatNumber(pasComputed.nc)}</dd>
-                        <dt className="text-[11px] text-slate-500">TL</dt>
-                        <dd className="text-right">{pasComputed.tl ?? '—'}</dd>
-                        <dt className="text-[11px] text-slate-500">NE</dt>
-                        <dd className="text-right">{pasComputed.ne}</dd>
-                        <dt className="text-[11px] text-slate-500">Desconto</dt>
-                        <dd className="text-right">{pasComputed.discount != null ? pasComputed.discount.toFixed(3) : '—'}</dd>
-                        <dt className="col-span-2 mt-1 text-[11px] text-slate-500">Nota final (NR)</dt>
-                        <dd className="col-span-2 text-right text-[18px] font-semibold text-slate-900">
-                          {formattedPasResult}
-                        </dd>
-                      </dl>
-                    </aside>
+              <div className="pas-micro-card w-full rounded-lg border border-pink-200 bg-pink-50 p-2.5 text-[13px] text-slate-700 shadow-sm">
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="text-[13px] font-semibold text-slate-800">ASPECTOS MICROESTRUTURAIS</h4>
+                  <span className="text-[11px] leading-tight text-slate-500">Avalie TL e contagem de erros</span>
+                </div>
+                <div className="space-y-2.5">
+                  <label className="flex flex-col text-[11px] font-medium text-slate-600">
+                    TL (número total de linhas)
+                    <input
+                      type="number"
+                      min={8}
+                      max={30}
+                      step={1}
+                      value={pasState.TL}
+                      onInput={handlePasFieldChange('TL')}
+                      onWheel={(e) => e.currentTarget.blur()}
+                      inputMode="numeric"
+                      tabIndex={5}
+                      className="mt-1 w-20 rounded-lg border border-slate-300 px-2 py-1 text-[13px] text-right outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
+                    />
+                  </label>
+                  <div className="overflow-hidden rounded-lg border border-slate-200">
+                    <table className="w-full text-xs text-slate-700">
+                      <thead className="bg-white text-[10px] uppercase tracking-wide text-slate-500">
+                        <tr>
+                          <th className="px-1.5 py-1 text-left font-medium">Tipo de erro</th>
+                          <th className="px-1.5 py-1 text-left font-medium">Quantidade</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {errorRows.map((row) => (
+                          <tr key={row.key}>
+                            <td className="px-1.5 py-1 leading-tight">{row.label}</td>
+                            <td className="px-1.5 py-1 leading-tight">
+                              <input
+                                type="number"
+                                min={0}
+                                step={1}
+                                value={pasState.erros[row.key]}
+                                onInput={handlePasFieldChange(`erros.${row.key}` as PasFieldKey)}
+                                onWheel={(e) => e.currentTarget.blur()}
+                                inputMode="numeric"
+                                tabIndex={row.key === 'grafia' ? 6 : row.key === 'pontuacao' ? 7 : row.key === 'propriedade' ? 8 : undefined}
+                                className="w-14 rounded-lg border border-slate-300 px-2 py-1 text-[13px] text-right outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </div>
@@ -376,7 +407,39 @@ export function CorrectionMirror({
           )}
 
           {!annulled && type === 'ENEM' && (
-            <EnemScoringForm selections={enemSelections} onChange={onEnemSelectionChange} />
+            <>
+              <div className="rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm">
+                <h3 className="text-[12px] font-semibold text-slate-800">Resumo rápido das competências</h3>
+                <div className="mt-2 space-y-2">
+                  {ENEM_2024.map((competency) => {
+                    const selection = enemSelections[competency.key];
+                    const level = selection?.level ?? competency.levels[0]?.level ?? 0;
+                    const justification =
+                      selection?.justification?.trim() ||
+                      buildJustificationFromReasonIds(competency.key, level, selection?.reasonIds ?? []) ||
+                      '— nenhuma justificativa selecionada —';
+                    const palette = ENEM_COLORS_HEX[competency.key];
+                    const roman = toRoman(parseInt(competency.key.replace('C', ''), 10) || 0);
+                    return (
+                      <div key={competency.key} className="rounded-xl border border-slate-200/60 bg-slate-50/70 p-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold" style={{ color: palette.title }}>
+                            Competência {roman}
+                          </span>
+                          <span className="text-[10px] font-medium" style={{ color: palette.title }}>
+                            Nível <span style={{ color: palette.strong }}>{level}</span>
+                          </span>
+                        </div>
+                        <p className="line-clamp-2 text-[11px] leading-snug text-slate-600">
+                          {renderEnemSummaryText(justification, palette)}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <EnemScoringForm selections={enemSelections} onChange={onEnemSelectionChange} />
+            </>
           )}
         </div>
       </div>

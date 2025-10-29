@@ -218,11 +218,12 @@ function drawMicroTable(
   },
   fonts: Fonts
 ) {
-  const headerHeight = BODY_SIZE + 4;
-  const rowHeight = BODY_SIZE + 4;
+  const microSize = Math.max(BODY_SIZE - 1, 10);
+  const headerHeight = microSize + 4;
+  const rowHeight = microSize + 4;
   let cursor = y;
 
-  drawSectionHeader(page, x, cursor, width, 'ASPECTOS MICROESTRUTURAIS', fonts, PAS_MICRO);
+  drawSectionHeader(page, x, cursor, width, 'ASPECTOS MICROESTRUTURAIS', fonts, PAS_MICRO, microSize);
   cursor -= headerHeight;
 
   MICRO_ROWS.forEach((row) => {
@@ -236,7 +237,9 @@ function drawMicroTable(
       [
         { text: row.label, widthRatio: 0.8, font: fonts.regular, color: TEXT },
         { text: `${value}`, widthRatio: 0.2, font: fonts.bold, color: TEXT, align: 'right' },
-      ]
+      ],
+      false,
+      microSize
     );
   });
 
@@ -250,11 +253,12 @@ function drawMicroTable(
       { text: 'Total de erros (NE)', widthRatio: 0.8, font: fonts.bold, color: TEXT },
       { text: `${data.totalErros}`, widthRatio: 0.2, font: fonts.bold, color: TEXT, align: 'right' },
     ],
-    true
+    true,
+    microSize
   );
 
   cursor -= headerHeight;
-  drawSectionHeader(page, x, cursor + headerHeight, width, 'Cálculo da nota resultante (NR)', fonts, PAS_MICRO);
+  drawSectionHeader(page, x, cursor + headerHeight, width, 'Cálculo da nota resultante (NR)', fonts, PAS_MICRO, microSize);
   cursor -= rowHeight;
   const formula = `NR = max(0, NC - NE * (2/NL))`;
   drawRow(
@@ -271,7 +275,9 @@ function drawMicroTable(
         color: PAS_MICRO.title,
         align: 'right',
       },
-    ]
+    ],
+    false,
+    microSize
   );
 
   cursor -= rowHeight;
@@ -284,7 +290,9 @@ function drawMicroTable(
     x,
     cursor,
     width,
-    [{ text: detailText, widthRatio: 1, font: fonts.regular, color: TEXT_SUBTLE }]
+    [{ text: detailText, widthRatio: 1, font: fonts.regular, color: TEXT_SUBTLE }],
+    false,
+    microSize
   );
 
   return cursor;
@@ -297,21 +305,22 @@ function drawSectionHeader(
   width: number,
   text: string,
   fonts: Fonts,
-  palette: { pastel: string; border: string; title: string }
+  palette: { pastel: string; border: string; title: string },
+  fontSize = BODY_SIZE
 ) {
   page.drawRectangle({
     x,
-    y: y - (BODY_SIZE + 5),
+    y: y - (fontSize + 5),
     width,
-    height: BODY_SIZE + 5,
+    height: fontSize + 5,
     color: colorFromHex(palette.pastel),
     borderColor: colorFromHex(palette.border),
     borderWidth: 1,
   });
   page.drawText(text, {
     x: x + 8,
-    y: y - BODY_SIZE - 2,
-    size: BODY_SIZE,
+    y: y - fontSize - 2,
+    size: fontSize,
     font: fonts.bold,
     color: colorFromHex(palette.title),
   });
@@ -323,13 +332,14 @@ function drawRow(
   y: number,
   width: number,
   cells: Array<{ text: string; widthRatio: number; font: PDFFont; color: string; align?: 'left' | 'center' | 'right' }>,
-  highlight = false
+  highlight = false,
+  fontSize = BODY_SIZE
 ) {
   page.drawRectangle({
     x,
     y,
     width,
-    height: BODY_SIZE + 5,
+    height: fontSize + 5,
     color: highlight ? colorFromHex('#f3f4f6') : colorFromHex(BG),
     borderColor: colorFromHex(GRAY),
     borderWidth: 1,
@@ -338,7 +348,7 @@ function drawRow(
   let cursorX = x;
   cells.forEach((cell) => {
     const cellWidth = width * cell.widthRatio;
-    const textWidth = cell.font.widthOfTextAtSize(cell.text, BODY_SIZE);
+    const textWidth = cell.font.widthOfTextAtSize(cell.text, fontSize);
     let textX = cursorX + 6;
     if (cell.align === 'center') {
       textX = cursorX + cellWidth / 2 - textWidth / 2;
@@ -347,8 +357,8 @@ function drawRow(
     }
     page.drawText(cell.text, {
       x: textX,
-      y: y + 3,
-      size: BODY_SIZE,
+      y: y + (fontSize > 10 ? 3 : 2),
+      size: fontSize,
       font: cell.font,
       color: colorFromHex(cell.color),
     });
