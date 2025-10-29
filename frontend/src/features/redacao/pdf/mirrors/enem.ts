@@ -14,7 +14,8 @@ import {
   ENEM_COLORS_HEX,
   toRoman,
 } from '../theme';
-import { buildJustificationFromReasonIds } from '../../enem/composerBridge';
+import { buildJustificationFromReasonIds } from '@/features/enem/composerBridge';
+import { getComposerForLevel } from '@/features/enem/composerBridge';
 
 type HeroRenderer = (args: {
   pdfDoc: PDFDocument;
