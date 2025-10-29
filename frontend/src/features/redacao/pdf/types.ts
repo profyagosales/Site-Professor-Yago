@@ -34,12 +34,14 @@ export interface EssayPdfData {
   score?: {
     finalFormatted: string;
     final?: number | null;
+    justification?: string | null;
   };
   pagesPng: string[];
   annotations: Annotation[];
   enem?: {
     levels: [number, number, number, number, number];
     reasons: string[][];
+    justifications?: (string | null | undefined)[];
     /** pontuação final (0..1000) opcional; se ausente, o gerador formata via score.finalFormatted */
     total?: number;
   };

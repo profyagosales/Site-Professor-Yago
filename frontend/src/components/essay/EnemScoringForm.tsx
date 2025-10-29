@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import {
   ENEM_2024,
   type EnemCompetency,
@@ -7,6 +7,20 @@ import {
   type RubricGroup,
 } from '@/features/essay/rubrics/enem2024';
 import { highlightUppercaseTokens } from '@/utils/text';
+import {
+  buildSavePayload,
+  buildSelectionFromReasonIds,
+  buildJustificationFromReasonIds,
+  COMPOSER_REGISTRY,
+  getComposerById,
+  type ComposerSelection,
+  type LevelComposer,
+} from '@/features/enem/composerBridge';
+import { ALL_RUBRIC_REASON_IDS } from '@/features/enem/rubricReasonIds';
+import { MandatoryChip } from '@/features/enem/ui/MandatoryChip';
+import { Connector } from '@/features/enem/ui/Connector';
+import { ChoiceSelect, ChoiceMulti } from '@/features/enem/ui/ChoiceSelect';
+import { selfTestRoundTrip } from '@/features/enem/testRoundTrip';
 
 const HIGHLIGHT_RE = /\b(E\/OU|E|OU|COM|MAS|NÃO|NENHUMA|ALGUMAS?)\b/gi;
 function highlightTokens(text: string) {
@@ -30,6 +44,7 @@ type CompetencyKey = EnemCompetency['key'];
 export type EnemSelection = {
   level: number;
   reasonIds: string[];
+  justification?: string;
 };
 
 export type EnemSelectionsMap = Record<CompetencyKey, EnemSelection>;
@@ -56,6 +71,15 @@ function isConnectorToken(txt: string) {
   const norm = t.replace(/[.,;:!?)]$/, '').replace(/^[(]/, '');
   // match ONLY uppercase exact tokens
   return CONNECTOR_SET.has(norm);
+}
+
+const RUBRIC_SET = new Set<string>(ALL_RUBRIC_REASON_IDS);
+
+function debugCheck(ids: string[], ctx: string) {
+  const bad = ids.filter((id) => !RUBRIC_SET.has(id));
+  if (bad.length) {
+    console.warn(`[ENEM verify] IDs fora do rubric em ${ctx}:`, bad);
+  }
 }
 
 // Helper to render a label string with highlights (for justification summary)
@@ -157,6 +181,210 @@ function orderedSelectedLabels(rationale: RubricGroup | undefined | null, select
   }
   if (rationale) walk(rationale);
   return out;
+}
+
+function ComposerViewGeneric({
+  composer,
+  initialReasonIds,
+  onConfirm,
+}: {
+  composer: LevelComposer;
+  initialReasonIds?: string[];
+  onConfirm: (sel: ComposerSelection) => void;
+}) {
+  const baseSelection = useMemo(() => {
+    const defaults: ComposerSelection = {};
+    composer.pieces.forEach((piece) => {
+      switch (piece.kind) {
+        case 'MANDATORY':
+          defaults[piece.key] = true;
+          break;
+        case 'CHOICE_SINGLE':
+          defaults[piece.key] = '';
+          break;
+        case 'CHOICE_MULTI':
+          defaults[piece.key] = [] as string[];
+          break;
+        case 'MONOBLOCK':
+          defaults[piece.key] = false;
+          break;
+        default:
+          break;
+      }
+    });
+    return defaults;
+  }, [composer]);
+
+  const loadedSelection = useMemo(
+    () => buildSelectionFromReasonIds(composer, initialReasonIds),
+    [composer, initialReasonIds?.slice().sort().join('|')]
+  );
+
+  const mergedInitial = useMemo(
+    () => ({ ...baseSelection, ...loadedSelection }),
+    [baseSelection, loadedSelection]
+  );
+
+  const [selection, setSelection] = useState<ComposerSelection>(mergedInitial);
+
+  useEffect(() => {
+    setSelection(mergedInitial);
+  }, [mergedInitial]);
+
+  const apply = () => {
+    onConfirm(selection);
+  };
+
+  const singlePieces = composer.pieces.filter((piece) => piece.kind === 'CHOICE_SINGLE');
+  const singlesValid = singlePieces.every((piece) => {
+    const value = selection[piece.key];
+    return typeof value === 'string' && value.trim().length > 0;
+  });
+
+  const connectors = composer.connectors ?? [];
+  const mandatoryPieces = composer.pieces.filter((piece) => piece.kind === 'MANDATORY');
+  const optionalPieces = composer.pieces
+    .map((piece, index) => ({ piece, index }))
+    .filter(({ piece }) => piece.kind !== 'MANDATORY')
+    .map((entry, ordinal) => ({ ...entry, ordinal }));
+
+  const connectorFor = (
+    ordinal: number,
+    pieceIndex: number,
+    kind: typeof composer.pieces[number]['kind']
+  ): 'E' | 'OU' | 'E/OU' => {
+    const configuredByIndex = connectors[Math.min(Math.max(pieceIndex - 1, 0), Math.max(0, connectors.length - 1))];
+    const configuredByOrdinal = connectors[Math.min(ordinal, Math.max(0, connectors.length - 1))];
+    const configured = configuredByIndex ?? configuredByOrdinal;
+    if (configured) return configured;
+    if (ordinal === 0) {
+      if (kind === 'CHOICE_SINGLE') return 'OU';
+      if (kind === 'CHOICE_MULTI') return 'E/OU';
+      return 'E';
+    }
+    if (kind === 'CHOICE_SINGLE') return 'OU';
+    if (kind === 'CHOICE_MULTI') return 'E/OU';
+    return 'E';
+  };
+
+  const renderOptionalPiece = ({
+    piece,
+    index,
+    ordinal,
+  }: {
+    piece: typeof composer.pieces[number];
+    index: number;
+    ordinal: number;
+  }) => {
+    const connectorKind = connectorFor(ordinal, index, piece.kind);
+    if (piece.kind === 'CHOICE_SINGLE') {
+      const value = typeof selection[piece.key] === 'string' ? (selection[piece.key] as string) : '';
+      const opts = piece.options.map((opt) => ({ value: opt.id, label: opt.label }));
+      const hasSelection = Boolean(value);
+      const handlePick = (v: string) => {
+        setSelection((prev) => ({ ...prev, [piece.key]: v }));
+      };
+      const handleEdit = () => {
+        setSelection((prev) => ({ ...prev, [piece.key]: '' }));
+      };
+      return (
+        <div key={piece.key} className="mt-2 flex w-full flex-wrap items-center gap-1">
+          <Connector kind={connectorKind} />
+          <ChoiceSelect value={value} options={opts} onChange={handlePick} />
+          {hasSelection && (
+            <button
+              type="button"
+              className="ml-auto text-[10px] font-semibold text-slate-500 underline"
+              onClick={handleEdit}
+            >
+              editar
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    if (piece.kind === 'CHOICE_MULTI') {
+      const values = Array.isArray(selection[piece.key]) ? (selection[piece.key] as string[]) : [];
+      const opts = piece.options.map((opt) => ({ value: opt.id, label: opt.label }));
+      const hasSelection = values.length > 0;
+      const handleToggle = (val: string, checked: boolean) => {
+        setSelection((prev) => {
+          const current = Array.isArray(prev[piece.key]) ? [...(prev[piece.key] as string[])] : [];
+          if (checked && !current.includes(val)) current.push(val);
+          if (!checked) {
+            const idx = current.indexOf(val);
+            if (idx >= 0) current.splice(idx, 1);
+          }
+          return { ...prev, [piece.key]: current };
+        });
+      };
+      const handleEdit = () => {
+        setSelection((prev) => ({ ...prev, [piece.key]: [] }));
+      };
+      return (
+        <div key={piece.key} className="mt-2 flex w-full flex-wrap items-center gap-1">
+          <Connector kind={connectorKind} />
+          <ChoiceMulti values={values} options={opts} onToggle={handleToggle} />
+          {hasSelection && (
+            <button
+              type="button"
+              className="ml-auto text-[10px] font-semibold text-slate-500 underline"
+              onClick={handleEdit}
+            >
+              editar
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    if (piece.kind === 'MONOBLOCK') {
+      const active = Boolean(selection[piece.key]);
+      const handleToggle = (checked: boolean) => {
+        setSelection((prev) => ({ ...prev, [piece.key]: checked }));
+      };
+      return (
+        <div key={piece.key} className="mt-2 flex w-full flex-wrap items-center gap-1">
+          <Connector kind={connectorKind} />
+          <label className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px]">
+            <input
+              type="checkbox"
+              className="scale-90"
+              checked={active}
+              onChange={(e) => handleToggle(e.target.checked)}
+            />
+            {piece.label}
+          </label>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+      <div className="flex flex-wrap items-center gap-1">
+        {mandatoryPieces.map((piece, idx) => (
+          <MandatoryChip key={`${piece.key}-${idx}`} label={piece.label} />
+        ))}
+      </div>
+
+      {optionalPieces.map(renderOptionalPiece)}
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={apply}
+          disabled={!singlesValid}
+        >
+          Aplicar justificativa
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function RenderGroup({
@@ -959,47 +1187,16 @@ function RenderC5Overrides({
 }
 
 export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props) {
-  const [ouState, setOuState] = useState<Record<string, { value?: string; open: boolean }>>({});
-
-  function renderOUSelector(compId: string, options: { value: string; label: string }[]) {
-    const s = ouState[compId] ?? { open: true };
-    if (!options?.length) return null;
-
-    if (!s.open && s.value) {
-      return (
-        <div className="flex items-center justify-between gap-2">
-          <small className="text-slate-500">Opção (OU) selecionada</small>
-          <button
-            type="button"
-            className="btn btn-ghost btn-xs"
-            onClick={() => setOuState((p) => ({ ...p, [compId]: { ...p[compId], open: true } }))}
-          >
-            editar
-          </button>
-        </div>
-      );
+  useEffect(() => {
+    if ((import.meta as any)?.env?.DEV) {
+      try {
+        selfTestRoundTrip();
+      } catch (err) {
+        console.warn('[ENEM composer RT] erro na verificação', err);
+      }
     }
+  }, []);
 
-    return (
-      <div className="mb-2">
-        <label className="block text-xs font-semibold text-slate-500 mb-1">Selecione um item (OU)</label>
-        <select
-          className="input w-full"
-          value={s.value ?? ''}
-          onChange={(e) => setOuState((p) => ({ ...p, [compId]: { value: e.target.value, open: false } }))}
-        >
-          <option value="" disabled>
-            — escolher —
-          </option>
-          {options.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </div>
-    );
-  }
   return (
     <div className="space-y-5">
       {ENEM_2024.map((competency) => {
@@ -1012,23 +1209,51 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
         const availableReasonIds = levelData?.rationale ? collectReasonIds(levelData.rationale) : [];
         const filteredReasonIds = selection.reasonIds.filter((id) => availableReasonIds.includes(id));
         const selectedReasonIds = new Set(filteredReasonIds);
+        debugCheck(filteredReasonIds, `Comp ${competency.key} / Nível ${levelData.level} (loaded)`);
 
         // Memoized ordered labels for summary panel
+        const composerEntry = COMPOSER_REGISTRY[competency.key]?.[levelData.level];
+        const composer = composerEntry?.id ? getComposerById(composerEntry.id) : null;
+        const useComposer = Boolean(composer);
         const orderedLabels = useMemo(
           () => (levelData?.rationale ? orderedSelectedLabels(levelData.rationale, Array.from(selectedReasonIds)) : []),
           [levelData?.rationale, selectedReasonIds]
         );
-        // Static fallback for levels without selection controls
         const staticJust = levelData?.staticJustification ? fixLabel(levelData.staticJustification) : '';
-        const labelsToShow = orderedLabels.length > 0 ? orderedLabels : (staticJust ? [staticJust] : []);
+        const justificationText = selection.justification?.trim() || '';
+        const labelsToShow = useComposer
+          ? []
+          : orderedLabels.length > 0
+            ? orderedLabels
+            : staticJust
+            ? [staticJust]
+            : [];
+        const composerFallbackJustification = useMemo(() => {
+          if (!useComposer) return '';
+          const fallback = buildJustificationFromReasonIds(competency.key as any, levelData.level, selection.reasonIds);
+          return fallback ?? '';
+        }, [useComposer, competency.key, levelData.level, selection.reasonIds]);
 
         const handleLevelChange = (level: EnemLevel) => {
-          if (competency.key === 'C2' && (level.level === 4 || level.level === 5) && level.rationale) {
+          const nextEntry = COMPOSER_REGISTRY[competency.key]?.[level.level];
+          let nextComposer: LevelComposer | null = null;
+          if (nextEntry?.id) {
+            try {
+              nextComposer = getComposerById(nextEntry.id);
+            } catch (err) {
+              console.warn('[EnemScoringForm] Composer não encontrado:', nextEntry.id, err);
+            }
+          }
+
+          if (nextComposer) {
+            onChange(competency.key, { level: level.level, reasonIds: [], justification: undefined });
+          } else if (competency.key === 'C2' && (level.level === 4 || level.level === 5) && level.rationale) {
             const needles = level.level === 4
               ? ['Abordagem completa do tema', '3 partes do texto (nenhuma embrionária)', 'repertório legitimado', 'pertinente ao tema', 'SEM uso produtivo']
               : ['Abordagem completa do tema', '3 partes do texto (nenhuma embrionária)', 'repertório legitimado', 'pertinente ao tema', 'COM uso produtivo'];
             const ids = ensureUnique(needles.map((n) => findCriterionIdByContains(level.rationale!, n)));
-            onChange(competency.key, { level: level.level, reasonIds: ids });
+            debugCheck(ids, `Comp ${competency.key} / Nível ${level.level} (auto static)`);
+            onChange(competency.key, { level: level.level, reasonIds: ids, justification: undefined });
           } else if (competency.key === 'C3' && (level.level === 3 || level.level === 4 || level.level === 5) && level.rationale) {
             const needles = level.level === 3
               ? ['ALGUMAS falhas', 'Desenvolvimento de informações, fatos e opiniões com ALGUMAS lacunas']
@@ -1036,17 +1261,49 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
               ? ['POUCAS falhas', 'Desenvolvimento de informações, fatos e opiniões com POUCAS lacunas']
               : ['Projeto de texto estratégico', 'Desenvolvimento de informações, fatos e opiniões em TODO o texto'];
             const ids = ensureUnique(needles.map((n) => findCriterionIdByContains(level.rationale!, n)));
-            onChange(competency.key, { level: level.level, reasonIds: ids });
+            debugCheck(ids, `Comp ${competency.key} / Nível ${level.level} (auto static)`);
+            onChange(competency.key, { level: level.level, reasonIds: ids, justification: undefined });
           } else {
-            onChange(competency.key, { level: level.level, reasonIds: [] });
+            onChange(competency.key, { level: level.level, reasonIds: [], justification: undefined });
           }
           if (onFocusCategory) onFocusCategory(categoryForScroll);
         };
 
         const handleReasonsChange = (reasonIds: string[]) => {
-          onChange(competency.key, { level: levelData.level, reasonIds });
+          debugCheck(reasonIds, `Comp ${competency.key} / Nível ${levelData.level} (manual)`);
+          onChange(competency.key, { level: levelData.level, reasonIds, justification: undefined });
           if (onFocusCategory) onFocusCategory(categoryForScroll);
         };
+
+        const renderComposer = () => {
+          if (!composer || !useComposer) return null;
+          const confirm = (sel: ComposerSelection) => {
+            const payload = buildSavePayload(
+              competency.key,
+              levelData.level,
+              composer.id,
+              composer,
+              sel
+            );
+            debugCheck(payload.reasonIds, `Comp ${competency.key} / Nível ${levelData.level} (composer)`);
+            onChange(competency.key, {
+              level: levelData.level,
+              reasonIds: payload.reasonIds,
+              justification: payload.justification,
+            });
+            if (onFocusCategory) onFocusCategory(categoryForScroll);
+          };
+
+          return (
+            <ComposerViewGeneric
+              composer={composer}
+              initialReasonIds={selection.reasonIds}
+              onConfirm={confirm}
+            />
+          );
+        };
+
+        const composerUI = renderComposer();
 
         return (
           <section
@@ -1104,7 +1361,7 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
               </div>
             )}
 
-            {levelData.rationale && (
+            {composerUI ?? (levelData.rationale ? (
               competency.key === 'C2' ? (
                 <RenderC2Overrides
                   level={levelData}
@@ -1146,57 +1403,41 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
                   onUpdateReasons={handleReasonsChange}
                 />
               )
+            ) : null)}
+
+            {(competency.key === 'C2' || competency.key === 'C3' || competency.key === 'C4' || competency.key === 'C5') && (
+              <div
+                className="rounded-xl border px-3 py-2 leading-tight"
+                style={{ backgroundColor: palette.pastel, borderColor: palette.pastel, color: palette.title }}
+              >
+                <span className="pdf-xs font-semibold" style={{ color: palette.title }}>
+                  <span style={{ color: palette.strong }}>Justificativa selecionada:</span>
+                </span>{' '}
+                {justificationText ? (
+                  <span className="pdf-md">{highlightTokens(justificationText)}</span>
+                ) : composerFallbackJustification ? (
+                  <span className="pdf-md">{highlightTokens(composerFallbackJustification)}</span>
+                ) : labelsToShow.length === 0 ? (
+                  <span className="opacity-70">— nenhuma seleção ainda —</span>
+                ) : (
+                  <span>
+                    {labelsToShow.map((lbl, idx) => (
+                      <Fragment key={`sel-${idx}`}>
+                        {idx > 0 && (
+                          <span style={{ backgroundColor: palette.pastel, color: palette.strong, fontWeight: 700, padding: '0 2px', borderRadius: 3 }}>
+                            {' '}E{' '}
+                          </span>
+                        )}
+                        <span className="text-xs">
+                          {renderHighlighted(lbl, palette)}
+                        </span>
+                      </Fragment>
+                    ))}
+                  </span>
+                )}
+              </div>
             )}
 
-            {/* OU selector on top, then justification block */}
-            {(() => {
-              // Build OU options by scanning rationale labels containing 'OU'
-              const ouOptions: { value: string; label: string }[] = [];
-              if (levelData.rationale) {
-                const collect = (node: RubricGroup | RubricCriterion) => {
-                  if ('id' in node) {
-                    const lbl = fixLabel(node.label);
-                    if (/\bOU\b/i.test(lbl)) {
-                      ouOptions.push({ value: node.id, label: lbl });
-                    }
-                    return;
-                  }
-                  node.items.forEach(collect);
-                };
-                collect(levelData.rationale);
-              }
-
-              // Selected labels for justification
-              let labelsToShow = orderedSelectedLabels(levelData.rationale as RubricGroup, Array.from(selectedReasonIds));
-              // If OU exists, show only chosen option
-              const s = ouState[competency.key] ?? { open: true };
-              if (ouOptions.length) {
-                if (s.value) {
-                  const lbl = findCriterionLabelById(levelData.rationale as RubricGroup, s.value);
-                  labelsToShow = lbl ? [lbl] : [];
-                } else {
-                  labelsToShow = [];
-                }
-              }
-
-              return (
-                <>
-                  {renderOUSelector(competency.key, ouOptions)}
-                  <div className="enem-justif mt-1">
-                    <strong className="block text-slate-600 mb-1 pdf-sm">Justificativa selecionada:</strong>
-                    {labelsToShow.length === 0 ? (
-                      <span className="opacity-70">— nenhuma seleção ainda —</span>
-                    ) : (
-                      <span className="pdf-md">
-                        {labelsToShow.map((lbl, idx) => (
-                          <Fragment key={`j-${idx}`}>{highlightTokens(lbl)}</Fragment>
-                        ))}
-                      </span>
-                    )}
-                  </div>
-                </>
-              );
-            })()}
           </section>
         );
       })}

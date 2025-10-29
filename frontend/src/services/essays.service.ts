@@ -586,7 +586,7 @@ export type EssayScorePayload = {
     levels?: number[];
     points?: number[];
     total?: number;
-    competencies?: Record<string, { level: number; reasonIds: string[] }>;
+    competencies?: Record<string, { level: number; reasonIds: string[]; justification?: string | null }>;
   };
 };
 

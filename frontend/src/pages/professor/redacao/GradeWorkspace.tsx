@@ -12,7 +12,7 @@ import { HIGHLIGHT_CATEGORIES, type HighlightCategoryKey } from '@/constants/ann
 import { useAuth } from '@/components/AuthContext';
 import { ENEM_2024 } from '@/features/essay/rubrics/enem2024';
 import type { RubricGroup, RubricCriterion } from '@/features/essay/rubrics/enem2024';
-import type { EnemSelectionsMap } from '@/components/essay/EnemScoringForm';
+import type { EnemSelection, EnemSelectionsMap } from '@/components/essay/EnemScoringForm';
 import {
   fetchEssayById,
   issueFileToken,
@@ -27,6 +27,7 @@ import {
 import { generateCorrectedPdf } from '@/features/redacao/pdf/generateCorrectedPdf';
 import type { AnnotationKind, EssayPdfData, EssayModel } from '@/features/redacao/pdf/types';
 import { renderFirstPageToPng } from '@/features/redacao/pdf/pdfPreview';
+import { buildJustificationFromReasonIds } from '@/features/enem/composerBridge';
 
 
 
@@ -34,7 +35,7 @@ function createInitialEnemSelections(): EnemSelectionsMap {
   return ENEM_2024.reduce(
     (acc, competency) => {
       const defaultLevel = competency.levels[0]?.level ?? 0;
-      acc[competency.key] = { level: defaultLevel, reasonIds: [] };
+      acc[competency.key] = { level: defaultLevel, reasonIds: [], justification: undefined };
       return acc;
     },
     {} as EnemSelectionsMap
@@ -49,12 +50,17 @@ function calculateEnemTotal(selections: EnemSelectionsMap) {
   }, 0);
 }
 
+const ENEM_COMPETENCY_KEYS = ['C1', 'C2', 'C3', 'C4', 'C5'] as const;
+
 function collectReasonIds(node: RubricGroup | RubricCriterion): string[] {
   if ('id' in node) return [node.id];
   return node.items.flatMap((child) => collectReasonIds(child));
 }
 
-function sanitizeEnemSelection(key: keyof EnemSelectionsMap, selection: { level: number; reasonIds: string[] }) {
+function sanitizeEnemSelection(
+  key: keyof EnemSelectionsMap,
+  selection: { level: number; reasonIds: string[]; justification?: string }
+) {
   const competency = ENEM_2024.find((comp) => comp.key === key);
   if (!competency) return { level: selection.level, reasonIds: [] };
   const levelData =
@@ -63,7 +69,12 @@ function sanitizeEnemSelection(key: keyof EnemSelectionsMap, selection: { level:
   const reasonIds = Array.isArray(selection.reasonIds)
     ? selection.reasonIds.filter((id) => validReasonIds.includes(id))
     : [];
-  return { level: levelData.level, reasonIds };
+  const justification = typeof selection.justification === 'string' ? selection.justification.trim() : undefined;
+  return {
+    level: levelData.level,
+    reasonIds,
+    justification: justification || undefined,
+  };
 }
 
 function toInputValue(value?: number | null) {
@@ -239,6 +250,53 @@ export default function GradeWorkspace() {
     [annulState]
   );
 
+  useEffect(() => {
+    if (!id || essayType !== 'ENEM') return;
+    const updates: Array<{
+      key: (typeof ENEM_COMPETENCY_KEYS)[number];
+      justification: string;
+      selection: EnemSelection;
+    }> = [];
+    ENEM_COMPETENCY_KEYS.forEach((compKey) => {
+      const selection = enemSelections[compKey];
+      if (!selection) return;
+      if (selection.justification && selection.justification.trim().length > 0) return;
+      if (!Array.isArray(selection.reasonIds) || selection.reasonIds.length === 0) return;
+      const justification = buildJustificationFromReasonIds(compKey, selection.level, selection.reasonIds);
+      if (justification) {
+        updates.push({ key: compKey, justification, selection });
+      }
+    });
+    if (!updates.length) return;
+
+    setEnemSelections((prev) => {
+      const next = { ...prev };
+      updates.forEach(({ key, justification }) => {
+        const current = next[key];
+        next[key] = current ? { ...current, justification } : { level: 0, reasonIds: [], justification };
+      });
+      return next;
+    });
+
+    updates.forEach(({ key, justification, selection }) => {
+      void saveEssayScore(id, {
+        type: 'ENEM',
+        annulled,
+        enem: {
+          competencies: {
+            [key]: {
+              level: selection.level,
+              reasonIds: selection.reasonIds,
+              justification,
+            },
+          },
+        },
+      }).catch((err) => {
+        console.warn('[ENEM backfill justification]', key, err);
+      });
+    });
+  }, [id, essayType, enemSelections, annulled]);
+
   const pasDerived = useMemo(() => {
     const parseMacro = (value: string, max: number) => {
       const num = Number(value);
@@ -407,7 +465,8 @@ export default function GradeWorkspace() {
               const reasonIds = Array.isArray(fromPayload?.reasonIds)
                 ? fromPayload.reasonIds.filter((id: string) => validReasonIds.includes(id))
                 : [];
-              nextSelections[key] = { level, reasonIds };
+              const justification = typeof fromPayload?.justification === 'string' ? fromPayload.justification : undefined;
+              nextSelections[key] = sanitizeEnemSelection(key, { level, reasonIds, justification });
             });
             setEnemSelections(nextSelections);
           } else {
@@ -548,7 +607,10 @@ export default function GradeWorkspace() {
     setDirty(true);
   };
 
-  const handleEnemSelectionChange = (key: keyof EnemSelectionsMap, selection: { level: number; reasonIds: string[] }) => {
+  const handleEnemSelectionChange = (
+    key: keyof EnemSelectionsMap,
+    selection: { level: number; reasonIds: string[]; justification?: string }
+  ) => {
     setEnemSelections((prev) => ({
       ...prev,
       [key]: sanitizeEnemSelection(key, selection),
@@ -606,7 +668,7 @@ export default function GradeWorkspace() {
         scorePayload.type = 'ENEM';
         const levels: number[] = [];
         const points: number[] = [];
-        const competencyPayload: Record<string, { level: number; reasonIds: string[] }> = {};
+        const competencyPayload: Record<string, { level: number; reasonIds: string[]; justification?: string | null }> = {};
         ENEM_2024.forEach((competency) => {
           const selection = enemSelections[competency.key];
           const levelData = competency.levels.find((lvl) => lvl.level === selection?.level) ?? competency.levels[0];
@@ -617,6 +679,7 @@ export default function GradeWorkspace() {
           competencyPayload[competency.key] = {
             level: levelData.level,
             reasonIds,
+            justification: selection?.justification?.trim() || undefined,
           };
         });
         scorePayload.enem = {
@@ -702,8 +765,7 @@ export default function GradeWorkspace() {
         }
       }
 
-      const enemCompetencyKeys = ['C1', 'C2', 'C3', 'C4', 'C5'] as const;
-      const enemLevels: [number, number, number, number, number] = enemCompetencyKeys.map((key) => {
+      const enemLevels: [number, number, number, number, number] = ENEM_COMPETENCY_KEYS.map((key) => {
         const selection = enemSelections[key];
         const level = selection?.level;
         if (Number.isFinite(level)) {
@@ -711,12 +773,13 @@ export default function GradeWorkspace() {
         }
         return 0;
       }) as [number, number, number, number, number];
-      const enemReasons = enemCompetencyKeys.map((key) => {
+      const enemReasons = ENEM_COMPETENCY_KEYS.map((key) => {
         const selection = enemSelections[key];
         return Array.isArray(selection?.reasonIds)
           ? selection.reasonIds.filter((id) => typeof id === 'string' && id.trim().length > 0)
           : [];
       });
+      const enemJustifications = ENEM_COMPETENCY_KEYS.map((key) => enemSelections[key]?.justification ?? null);
 
       const pasSummary = {
         apresentacao: Number(pasDerived.macros.apresentacao ?? 0) || 0,
@@ -739,6 +802,7 @@ export default function GradeWorkspace() {
       const scoreInfo = {
         finalFormatted: finalScore,
         final: model === 'ENEM' ? Number(enemTotal ?? 0) : pasDerived.nr ?? null,
+        justification: model === 'ENEM' ? enemSelections.C2?.justification ?? null : null,
       };
 
       const pdfData: EssayPdfData = {
@@ -765,6 +829,7 @@ export default function GradeWorkspace() {
             ? {
                 levels: enemLevels,
                 reasons: enemReasons,
+                justifications: enemJustifications,
                 total: enemTotal,
               }
             : undefined,

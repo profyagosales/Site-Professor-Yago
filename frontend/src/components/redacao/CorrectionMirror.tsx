@@ -46,7 +46,10 @@ type CorrectionMirrorProps = {
   pasState: PasState;
   onPasChange: (field: PasFieldKey, value: string) => void;
   enemSelections: EnemSelectionsMap;
-  onEnemSelectionChange: (key: keyof EnemSelectionsMap, selection: { level: number; reasonIds: string[] }) => void;
+  onEnemSelectionChange: (
+    key: keyof EnemSelectionsMap,
+    selection: { level: number; reasonIds: string[]; justification?: string }
+  ) => void;
   enemTotal: number;
 };
 

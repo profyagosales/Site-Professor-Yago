@@ -14,6 +14,7 @@ import {
   ENEM_COLORS_HEX,
   toRoman,
 } from '../theme';
+import { buildJustificationFromReasonIds } from '../../enem/composerBridge';
 
 type HeroRenderer = (args: {
   pdfDoc: PDFDocument;
@@ -241,12 +242,22 @@ export async function renderEnemMirrorPage(
     const key = (`C${index + 1}`) as 'C1' | 'C2' | 'C3' | 'C4' | 'C5';
     const colors = ENEM_COLORS_HEX[key];
 
+    const storedJustification = Array.isArray(data.enem.justifications)
+      ? data.enem.justifications[index]
+      : undefined;
+    const composedJustification = buildJustificationFromReasonIds(key, level, reasons);
+    const justificationText =
+      typeof storedJustification === 'string' && storedJustification.trim().length > 0
+        ? storedJustification.trim()
+        : composedJustification ?? undefined;
+
     const layout = buildCompetencyLayout(
       centerW,
       index,
       competencyTitles[index] ?? '',
       level,
       points,
+      justificationText,
       reasons,
       fonts,
       colors
@@ -353,6 +364,7 @@ function buildCompetencyLayout(
   title: string,
   level: number,
   points: number,
+  justification: string | undefined,
   reasons: string[],
   fonts: { regular: PDFFont; bold: PDFFont },
   colors: { strong: string; title: string; pastel: string }
@@ -383,6 +395,48 @@ function buildCompetencyLayout(
       { text: ' pts', font: 'regular', color: colors.title },
     ],
   });
+
+  const trimmedJustification = justification?.trim();
+
+  if (trimmedJustification) {
+    operations.push({
+      text: 'Justificativa selecionada:',
+      font: 'regular',
+      size: BODY_SIZE,
+      color: colors.title,
+      gapAfter: LINE_GAP,
+    });
+
+    const wrapped = wrapText(fonts.regular, trimmedJustification, BODY_SIZE, textWidth - BULLET_INDENT);
+    const richLines = wrapped.length ? wrapped : [''];
+    const startIdx = operations.length;
+    richLines.forEach((line, idx) => {
+      const text = idx === 0 ? `• ${line}` : line;
+      const rich = makeRichLine(text, colors.strong, TEXT);
+      operations.push({
+        text,
+        font: 'regular',
+        size: BODY_SIZE,
+        color: TEXT,
+        indent: idx === 0 ? 0 : BULLET_INDENT,
+        gapAfter: LINE_GAP,
+        rich,
+      });
+    });
+    if (operations.length > 0) {
+      operations[operations.length - 1].gapAfter = 0;
+    }
+
+    const contentHeight = operations.reduce((sum, op) => sum + op.size + (op.gapAfter ?? 0), 0);
+    const cardHeight = CARD_PADDING * 2 + contentHeight;
+
+    return {
+      operations,
+      cardHeight,
+      reasonStartIdx: startIdx,
+      reasonCount: richLines.length,
+    };
+  }
 
   if (reasons.length > 0) {
     operations.push({
