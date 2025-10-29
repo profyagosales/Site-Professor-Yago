@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   ENEM_2024,
   type EnemCompetency,
@@ -76,6 +76,8 @@ const COMPETENCY_CARD_TONE: Record<CompetencyKey, string> = {
   C4: 'enem-c4-card',
   C5: 'enem-c5-card',
 };
+
+const COMPOSER_ON = (import.meta.env?.VITE_ENEM_COMPOSER ?? '1') === '1';
 
 const CONNECTOR_SET = new Set(['E', 'OU', 'E/OU']);
 function isConnectorToken(txt: string) {
@@ -518,6 +520,175 @@ function ComposerViewGeneric({
         </button>
       </div>
     </div>
+  );
+}
+
+type LegacyEnemLevelFormProps = {
+  competency: EnemCompetency;
+  palette: { strong: string; title: string; pastel: string };
+  roman: string;
+  levelData: EnemLevel;
+  selectedReasonIds: Set<string>;
+  handleLevelChange: (level: EnemLevel) => void;
+  handleReasonsChange: (reasonIds: string[]) => void;
+  composerUI: ReactNode;
+  labelsToShow: string[];
+  fallbackJustification: string;
+  justificationText: string;
+  strongClass: string;
+  cardToneClass: string;
+};
+
+function LegacyEnemLevelForm({
+  competency,
+  palette,
+  roman,
+  levelData,
+  selectedReasonIds,
+  handleLevelChange,
+  handleReasonsChange,
+  composerUI,
+  labelsToShow,
+  fallbackJustification,
+  justificationText,
+  strongClass,
+  cardToneClass,
+}: LegacyEnemLevelFormProps) {
+  const fallbackText = fallbackJustification?.trim() ?? '';
+  const hasLabels = labelsToShow.length > 0;
+
+  return (
+    <section
+      id={`competencia-${competency.key}`}
+      className={`space-y-2.5 rounded-2xl p-2.5 shadow-sm ${cardToneClass}`}
+    >
+      <header className="flex flex-col gap-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <h4 className="text-[15px] font-semibold leading-tight" style={{ color: palette.title }}>
+            Competência {roman} — {competency.description}
+          </h4>
+          <span className="text-[13px] font-medium" style={{ color: palette.title }}>
+            Nível selecionado:{' '}
+            <span style={{ color: palette.strong, fontWeight: 700 }}>{levelData.level}</span>{' '}
+            (<span style={{ color: palette.strong, fontWeight: 700 }}>{levelData.points}</span> pts)
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {competency.levels.map((level) => {
+            const isSelected = level.level === levelData.level;
+            return (
+              <button
+                key={level.level}
+                type="button"
+                onClick={() => handleLevelChange(level)}
+                className={`rounded-lg border px-2 py-1 text-[13px] transition ${
+                  isSelected
+                    ? 'border-orange-400 bg-orange-50 text-orange-700 shadow-sm'
+                    : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-orange-200'
+                }`}
+                style={
+                  isSelected
+                    ? { borderColor: palette.title, backgroundColor: palette.pastel, color: palette.strong }
+                    : undefined
+                }
+              >
+                Nível {level.level} • {level.points}
+              </button>
+            );
+          })}
+        </div>
+      </header>
+
+      {!(competency.key === 'C2' || competency.key === 'C3' || competency.key === 'C4' || competency.key === 'C5') && (
+        <div
+          className="rounded-xl border px-3 py-2 leading-tight"
+          style={{ backgroundColor: palette.pastel, borderColor: palette.pastel, color: palette.title }}
+        >
+          <div className="pdf-md">
+            {renderSummary(levelData.summary, palette, strongClass).map((part, index) => (
+              <Fragment key={index}>{part}</Fragment>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {composerUI ?? (levelData.rationale ? (
+        competency.key === 'C2' ? (
+          <RenderC2Overrides
+            level={levelData}
+            rationale={levelData.rationale}
+            selectedReasonIds={selectedReasonIds}
+            onUpdateReasons={handleReasonsChange}
+            palette={palette}
+          />
+        ) : competency.key === 'C3' ? (
+          <RenderC3Overrides
+            level={levelData}
+            rationale={levelData.rationale}
+            selectedReasonIds={selectedReasonIds}
+            onUpdateReasons={handleReasonsChange}
+            palette={palette}
+          />
+        ) : competency.key === 'C4' ? (
+          <RenderC4Overrides
+            level={levelData}
+            rationale={levelData.rationale}
+            selectedReasonIds={selectedReasonIds}
+            onUpdateReasons={handleReasonsChange}
+            palette={palette}
+          />
+        ) : competency.key === 'C5' ? (
+          <RenderC5Overrides
+            level={levelData}
+            rationale={levelData.rationale}
+            selectedReasonIds={selectedReasonIds}
+            onUpdateReasons={handleReasonsChange}
+            palette={palette}
+          />
+        ) : (
+          <RenderGroup
+            competencyKey={competency.key}
+            level={levelData}
+            group={levelData.rationale}
+            selectedReasonIds={selectedReasonIds}
+            onUpdateReasons={handleReasonsChange}
+          />
+        )
+      ) : null)}
+
+      {(competency.key === 'C2' || competency.key === 'C3' || competency.key === 'C4' || competency.key === 'C5') && (
+        <div
+          className="rounded-xl border px-3 py-2 leading-tight"
+          style={{ backgroundColor: palette.pastel, borderColor: palette.pastel, color: palette.title }}
+        >
+          <span className="pdf-xs font-semibold" style={{ color: palette.title }}>
+            <span style={{ color: palette.strong }}>Justificativa selecionada:</span>
+          </span>{' '}
+          {justificationText ? (
+            <span className="pdf-md">{highlightTokens(justificationText, strongClass)}</span>
+          ) : fallbackText ? (
+            <span className="pdf-md">{highlightTokens(fallbackText, strongClass)}</span>
+          ) : hasLabels ? (
+            <span>
+              {labelsToShow.map((lbl, idx) => (
+                <Fragment key={`legacy-sel-${idx}`}>
+                  {idx > 0 && (
+                    <span style={{ backgroundColor: palette.pastel, color: palette.strong, fontWeight: 700, padding: '0 2px', borderRadius: 3 }}>
+                      {' '}E{' '}
+                    </span>
+                  )}
+                  <span className="text-xs">
+                    {renderHighlighted(lbl, palette, strongClass)}
+                  </span>
+                </Fragment>
+              ))}
+            </span>
+          ) : (
+            <span className="opacity-70">— nenhuma seleção ainda —</span>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -1348,26 +1519,21 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
         debugCheck(filteredReasonIds, `Comp ${competency.key} / Nível ${levelData.level} (loaded)`);
 
         // Memoized ordered labels for summary panel
-        const composer = getComposerForLevel(competency.key, levelData.level);
-        const useComposer = Boolean(composer);
+        const composer = COMPOSER_ON ? getComposerForLevel(competency.key, levelData.level) : null;
         const orderedLabels = useMemo(
           () => (levelData?.rationale ? orderedSelectedLabels(levelData.rationale, Array.from(selectedReasonIds)) : []),
           [levelData?.rationale, selectedReasonIds]
         );
         const staticJust = levelData?.staticJustification ? fixLabel(levelData.staticJustification) : '';
         const justificationText = selection.justification?.trim() || '';
-        const labelsToShow = useComposer
-          ? []
-          : orderedLabels.length > 0
+        const labelsToShowBase =
+          orderedLabels.length > 0
             ? orderedLabels
             : staticJust
             ? [staticJust]
             : [];
-        const composerFallbackJustification = useMemo(() => {
-          if (!useComposer) return '';
-          const fallback = buildJustificationFromReasonIds(competency.key as any, levelData.level, selection.reasonIds);
-          return fallback ?? '';
-        }, [useComposer, competency.key, levelData.level, selection.reasonIds]);
+        const fallbackJustification =
+          buildJustificationFromReasonIds(competency.key as any, levelData.level, filteredReasonIds) ?? '';
 
         const handleLevelChange = (level: EnemLevel) => {
           const nextComposer = getComposerForLevel(competency.key, level.level);
@@ -1402,14 +1568,36 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
           if (onFocusCategory) onFocusCategory(categoryForScroll);
         };
 
+        if (!composer) {
+          return (
+            <LegacyEnemLevelForm
+              key={competency.key}
+              competency={competency}
+              palette={palette}
+              roman={roman}
+              levelData={levelData}
+              selectedReasonIds={selectedReasonIds}
+              handleLevelChange={handleLevelChange}
+              handleReasonsChange={handleReasonsChange}
+              composerUI={null}
+              labelsToShow={labelsToShowBase}
+              fallbackJustification={fallbackJustification}
+              justificationText={justificationText}
+              strongClass={strongClass}
+              cardToneClass={cardToneClass}
+            />
+          );
+        }
+
         const renderComposer = (connectorClassName?: string) => {
-          if (!composer || !useComposer) return null;
+          if (!composer) return null;
           const confirm = (sel: ComposerSelection) => {
             const payload = buildSavePayload(composer, sel);
-            debugCheck(payload.reasonIds, `Comp ${competency.key} / Nível ${levelData.level} (composer)`);
+            const reasonIds = Array.from(new Set(payload.reasonIds)).sort();
+            debugCheck(reasonIds, `Comp ${competency.key} / Nível ${levelData.level} (composer)`);
             onChange(competency.key, {
               level: levelData.level,
-              reasonIds: payload.reasonIds,
+              reasonIds,
               justification: payload.justification,
             });
             if (onFocusCategory) onFocusCategory(categoryForScroll);
@@ -1418,7 +1606,7 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
           return (
             <ComposerViewGeneric
               composer={composer}
-              initialReasonIds={selection.reasonIds}
+              initialReasonIds={filteredReasonIds}
               onConfirm={confirm}
               connectorClassName={connectorClassName}
             />
@@ -1428,139 +1616,22 @@ export function EnemScoringForm({ selections, onChange, onFocusCategory }: Props
         const composerUI = renderComposer(strongClass);
 
         return (
-          <section
+          <LegacyEnemLevelForm
             key={competency.key}
-            className={`space-y-2.5 rounded-2xl p-2.5 shadow-sm ${cardToneClass}`}
-            id={`competencia-${competency.key}`}
-          >
-            <header className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <h4 className="text-[15px] font-semibold leading-tight" style={{ color: palette.title }}>
-                  Competência {roman} — {competency.description}
-                </h4>
-                <span className="text-[13px] font-medium" style={{ color: palette.title }}>
-                  Nível selecionado:{' '}
-                  <span style={{ color: palette.strong, fontWeight: 700 }}>{levelData.level}</span>{' '}
-                  (<span style={{ color: palette.strong, fontWeight: 700 }}>{levelData.points}</span> pts)
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {competency.levels.map((level) => {
-                  const isSelected = level.level === levelData.level;
-                  return (
-                    <button
-                      key={level.level}
-                      type="button"
-                      onClick={() => handleLevelChange(level)}
-                      className={`rounded-lg border px-2 py-1 text-[13px] transition ${
-                        isSelected
-                          ? 'border-orange-400 bg-orange-50 text-orange-700 shadow-sm'
-                          : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-orange-200'
-                      }`}
-                      style={
-                        isSelected
-                          ? { borderColor: palette.title, backgroundColor: palette.pastel, color: palette.strong }
-                          : undefined
-                      }
-                    >
-                      Nível {level.level} • {level.points}
-                    </button>
-                  );
-                })}
-              </div>
-            </header>
-
-            {!(competency.key === 'C2' || competency.key === 'C3' || competency.key === 'C4' || competency.key === 'C5') && (
-              <div
-                className="rounded-xl border px-3 py-2 leading-tight"
-                style={{ backgroundColor: palette.pastel, borderColor: palette.pastel, color: palette.title }}
-              >
-                <div className="pdf-md">
-                  {renderSummary(levelData.summary, palette, strongClass).map((part, index) => (
-                    <Fragment key={index}>{part}</Fragment>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {composerUI ?? (levelData.rationale ? (
-              competency.key === 'C2' ? (
-                <RenderC2Overrides
-                  level={levelData}
-                  rationale={levelData.rationale}
-                  selectedReasonIds={selectedReasonIds}
-                  onUpdateReasons={handleReasonsChange}
-                  palette={palette}
-                />
-              ) : competency.key === 'C3' ? (
-                <RenderC3Overrides
-                  level={levelData}
-                  rationale={levelData.rationale}
-                  selectedReasonIds={selectedReasonIds}
-                  onUpdateReasons={handleReasonsChange}
-                  palette={palette}
-                />
-              ) : competency.key === 'C4' ? (
-                <RenderC4Overrides
-                  level={levelData}
-                  rationale={levelData.rationale}
-                  selectedReasonIds={selectedReasonIds}
-                  onUpdateReasons={handleReasonsChange}
-                  palette={palette}
-                />
-              ) : competency.key === 'C5' ? (
-                <RenderC5Overrides
-                  level={levelData}
-                  rationale={levelData.rationale}
-                  selectedReasonIds={selectedReasonIds}
-                  onUpdateReasons={handleReasonsChange}
-                  palette={palette}
-                />
-              ) : (
-                <RenderGroup
-                  competencyKey={competency.key}
-                  level={levelData}
-                  group={levelData.rationale}
-                  selectedReasonIds={selectedReasonIds}
-                  onUpdateReasons={handleReasonsChange}
-                />
-              )
-            ) : null)}
-
-            {(competency.key === 'C2' || competency.key === 'C3' || competency.key === 'C4' || competency.key === 'C5') && (
-              <div
-                className="rounded-xl border px-3 py-2 leading-tight"
-                style={{ backgroundColor: palette.pastel, borderColor: palette.pastel, color: palette.title }}
-              >
-                <span className="pdf-xs font-semibold" style={{ color: palette.title }}>
-                  <span style={{ color: palette.strong }}>Justificativa selecionada:</span>
-                </span>{' '}
-                {justificationText ? (
-                  <span className="pdf-md">{highlightTokens(justificationText, strongClass)}</span>
-                ) : composerFallbackJustification ? (
-                  <span className="pdf-md">{highlightTokens(composerFallbackJustification, strongClass)}</span>
-                ) : labelsToShow.length === 0 ? (
-                  <span className="opacity-70">— nenhuma seleção ainda —</span>
-                ) : (
-                  <span>
-                    {labelsToShow.map((lbl, idx) => (
-                      <Fragment key={`sel-${idx}`}>
-                        {idx > 0 && (
-                          <span style={{ backgroundColor: palette.pastel, color: palette.strong, fontWeight: 700, padding: '0 2px', borderRadius: 3 }}>
-                            {' '}E{' '}
-                          </span>
-                        )}
-                        <span className="text-xs">
-                          {renderHighlighted(lbl, palette, strongClass)}
-                        </span>
-                      </Fragment>
-                    ))}
-                  </span>
-                )}
-              </div>
-            )}
-
-          </section>
+            competency={competency}
+            palette={palette}
+            roman={roman}
+            levelData={levelData}
+            selectedReasonIds={selectedReasonIds}
+            handleLevelChange={handleLevelChange}
+            handleReasonsChange={handleReasonsChange}
+            composerUI={composerUI}
+            labelsToShow={labelsToShowBase}
+            fallbackJustification={fallbackJustification}
+            justificationText={justificationText}
+            strongClass={strongClass}
+            cardToneClass={cardToneClass}
+          />
         );
       })}
     </div>

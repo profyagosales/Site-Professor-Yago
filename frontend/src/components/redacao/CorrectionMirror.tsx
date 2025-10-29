@@ -414,9 +414,11 @@ export function CorrectionMirror({
                   {ENEM_2024.map((competency) => {
                     const selection = enemSelections[competency.key];
                     const level = selection?.level ?? competency.levels[0]?.level ?? 0;
+                    const trimmed = selection?.justification?.trim();
+                    const composed = buildJustificationFromReasonIds(competency.key, level, selection?.reasonIds ?? []);
                     const justification =
-                      selection?.justification?.trim() ||
-                      buildJustificationFromReasonIds(competency.key, level, selection?.reasonIds ?? []) ||
+                      (trimmed && trimmed.length > 0 ? trimmed : undefined) ??
+                      composed ??
                       '— nenhuma justificativa selecionada —';
                     const palette = ENEM_COLORS_HEX[competency.key];
                     const roman = toRoman(parseInt(competency.key.replace('C', ''), 10) || 0);

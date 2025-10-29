@@ -14,8 +14,7 @@ import {
   ENEM_COLORS_HEX,
   toRoman,
 } from '../theme';
-import { buildJustificationFromReasonIds } from '@/features/enem/composerBridge';
-import { getComposerForLevel } from '@/features/enem/composerBridge';
+import { buildJustificationFromReasonIds, composeJustificationFromReasonIds, getComposerForLevel } from '@/features/enem/composerBridge';
 
 type HeroRenderer = (args: {
   pdfDoc: PDFDocument;
@@ -257,11 +256,21 @@ export async function renderEnemMirrorPage(
       }
       return undefined;
     })();
-    const composedJustification = buildJustificationFromReasonIds(key, level, reasons);
+    const composer = getComposerForLevel(key, level);
+    const composedJustification = composer
+      ? composeJustificationFromReasonIds(composer.id, reasons)
+      : buildJustificationFromReasonIds(key, level, reasons);
     const justificationText =
-      typeof storedJustification === 'string' && storedJustification.trim().length > 0
+      (typeof storedJustification === 'string' && storedJustification.trim().length > 0
         ? storedJustification.trim()
-        : composedJustification ?? undefined;
+        : undefined)
+        ?? composedJustification
+        ?? '';
+
+    const trimmedJustification = justificationText.trim();
+    const justificationForLayout = trimmedJustification.length > 0
+      ? trimmedJustification
+      : (reasons.length === 0 ? '— nenhuma seleção ainda —' : undefined);
 
     const layout = buildCompetencyLayout(
       centerW,
@@ -269,7 +278,7 @@ export async function renderEnemMirrorPage(
       competencyTitles[index] ?? '',
       level,
       points,
-      justificationText,
+      justificationForLayout,
       reasons,
       fonts,
       colors

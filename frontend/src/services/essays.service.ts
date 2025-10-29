@@ -121,6 +121,31 @@ export function joinApi(base: string, path: string) {
   return new URL(cleanedPath, normalizedBase).toString();
 }
 
+export function fetchWithTimeout(
+  input: RequestInfo,
+  init: RequestInit & { timeoutMs?: number } = {}
+) {
+  const { timeoutMs = 45_000, signal: externalSignal, ...rest } = init;
+  const controller = new AbortController();
+  const timerId = setTimeout(() => controller.abort(), timeoutMs);
+
+  const abortHandler = () => controller.abort();
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      controller.abort((externalSignal as any).reason);
+    } else {
+      externalSignal.addEventListener('abort', abortHandler, { once: true });
+    }
+  }
+
+  return fetch(input, { ...rest, signal: controller.signal }).finally(() => {
+    clearTimeout(timerId);
+    if (externalSignal) {
+      externalSignal.removeEventListener('abort', abortHandler);
+    }
+  });
+}
+
 function toStudentEssaySummary(raw: any): StudentEssaySummary {
   const themeName =
     typeof raw?.customTheme === 'string' && raw.customTheme.trim()
@@ -446,14 +471,98 @@ export async function getSubmission(id: EssayId, options?: { signal?: AbortSigna
   return fetchEssayById(id, options);
 }
 
+const DEFAULT_API_BASE = 'https://api.professoryagosales.com.br/api';
+
+function resolveEssaysApiUrl(path: string) {
+  const base = typeof api.defaults?.baseURL === 'string' && api.defaults.baseURL
+    ? api.defaults.baseURL
+    : DEFAULT_API_BASE;
+  return joinApi(base, path);
+}
+
+async function parseEssayResponse(res: Response) {
+  if (!res.ok) {
+    const status = res.status;
+    const requestId =
+      res.headers.get('x-request-id') ||
+      res.headers.get('cf-ray') ||
+      undefined;
+    const data =
+      (await res
+        .json()
+        .catch(async () => {
+          const text = await res.text();
+          return text ? { message: text } : null;
+        })) ?? {};
+    const rawMessage =
+      typeof data?.message === 'string' && data.message.trim().length > 0
+        ? data.message.trim()
+        : 'erro desconhecido';
+    let friendly = rawMessage;
+    let suffix = requestId ? ` (req:${requestId})` : '';
+
+    if (status === 400 || status === 422) {
+      const detail = rawMessage && rawMessage !== 'erro desconhecido' ? ` Detalhes: ${rawMessage}` : '';
+      friendly = `Dados inválidos. Revise os campos.${detail}`.trim();
+    } else if (status === 401) {
+      friendly = 'Sua sessão expirou. Entre novamente.';
+      suffix = '';
+    } else if (status === 413) {
+      friendly = 'Arquivo muito grande. Máx.: 15 MB.';
+    } else if (status === 415) {
+      friendly = 'Formato não suportado. Envie PDF, PNG ou JPG.';
+    } else if (status >= 500) {
+      friendly = 'Erro interno no servidor. Se persistir, informe o código.';
+      suffix = requestId ? ` (req:${requestId})` : '';
+    } else if (!rawMessage || rawMessage === 'erro desconhecido') {
+      friendly = 'Falha ao enviar redação.';
+    }
+
+    throw new Error(`[upload-failed ${status}] ${friendly}${suffix}`);
+  }
+
+  const json = await res
+    .json()
+    .catch(() => undefined);
+  return json?.data ?? json;
+}
+
 export async function createEssay(form: FormData) {
-  const { data } = await api.post('/essays', form, { headers: { 'Content-Type': 'multipart/form-data' } });
-  return data?.data ?? data;
+  const endpoint = resolveEssaysApiUrl('essays');
+  try {
+    const res = await fetchWithTimeout(endpoint, {
+      method: 'POST',
+      body: form,
+      credentials: 'include',
+      mode: 'cors',
+      timeoutMs: 60_000,
+    });
+    return parseEssayResponse(res);
+  } catch (error: any) {
+    if (error?.name === 'AbortError') {
+      throw new Error('[upload-failed 408] Tempo excedido. Tente novamente.');
+    }
+    throw error;
+  }
 }
 
 export async function updateEssay(id: string, form: FormData) {
-  const { data } = await api.put(`/essays/${id}`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
-  return data?.data ?? data;
+  const endpoint = resolveEssaysApiUrl(`essays/${id}`);
+  try {
+    const res = await fetchWithTimeout(endpoint, {
+      method: 'PUT',
+      body: form,
+      credentials: 'include',
+      mode: 'cors',
+      timeoutMs: 60_000,
+    });
+    return parseEssayResponse(res);
+  } catch (error: any) {
+    if (error?.name === 'AbortError') {
+      throw new Error('[upload-failed 408] Tempo excedido. Tente novamente.');
+    }
+    throw error;
+  }
 }
 
 export async function deleteEssay(id: string) {

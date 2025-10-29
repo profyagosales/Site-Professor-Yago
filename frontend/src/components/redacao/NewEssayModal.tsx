@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import Modal from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
@@ -9,6 +9,8 @@ import {
   updateEssay,
   type EssayTheme,
 } from '@/services/essays.service';
+import { sanitizeFileName } from '@/shared/files';
+import { toApiModel, type UiModel } from '@/shared/enemModel';
 
 type Props = {
   open: boolean;
@@ -22,6 +24,18 @@ type Props = {
 };
 
 const CUSTOM_THEME_ID = '__custom__';
+
+function debugLogFormData(form: FormData) {
+  console.groupCollapsed('[essay-upload] formData');
+  for (const [key, value] of form.entries()) {
+    if (value instanceof File) {
+      console.log(`${key} => File(${value.name}, ${value.type || 'unknown'}, ${value.size} bytes)`);
+    } else {
+      console.log(`${key} =>`, value);
+    }
+  }
+  console.groupEnd();
+}
 
 export default function NewEssayModal({
   open,
@@ -41,7 +55,7 @@ export default function NewEssayModal({
   const [students, setStudents] = useState<any[]>([]);
   const [studentId, setStudentId] = useState<string | undefined>(defaultStudentId);
 
-  const [type, setType] = useState<'ENEM' | 'PAS'>('PAS');
+  const [type, setType] = useState<UiModel>('PAS');
   const [bimester, setBimester] = useState('');
 
   const [themes, setThemes] = useState<EssayTheme[]>([]);
@@ -50,8 +64,24 @@ export default function NewEssayModal({
 
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [loadingThemes, setLoadingThemes] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
+  const [requestId, setRequestId] = useState<string | null>(null);
+
+  const handleCopyRequestId = useCallback(async () => {
+    if (!requestId) return;
+    try {
+      if (!navigator?.clipboard?.writeText) {
+        toast.warn('Copie manualmente o protocolo: ' + requestId);
+        return;
+      }
+      await navigator.clipboard.writeText(requestId);
+      toast.info('Protocolo copiado para a área de transferência.');
+    } catch (copyErr) {
+      console.warn('[essay-modal] Falha ao copiar requestId', copyErr);
+    }
+  }, [requestId]);
 
   const isEditMode = mode === 'edit' && Boolean(essayId);
   const requiresBimester = type === 'PAS';
@@ -143,6 +173,8 @@ export default function NewEssayModal({
       setThemeId(CUSTOM_THEME_ID);
       setCustomTheme('');
       setError(null);
+      setErrorDetails(null);
+      setRequestId(null);
     }
   }, [open, defaultClassId, defaultStudentId]);
 
@@ -167,7 +199,7 @@ export default function NewEssayModal({
     setStudentId(initialStudentId || undefined);
 
     if (initialEssay.type === 'ENEM' || initialEssay.type === 'PAS') {
-      setType(initialEssay.type);
+      setType(initialEssay.type as UiModel);
     } else {
       setType('PAS');
     }
@@ -198,46 +230,111 @@ export default function NewEssayModal({
   const primaryButtonLabel = isEditMode ? 'Salvar alterações' : 'Enviar';
 
   async function handleSubmit() {
+    if (isSubmitting) return;
     if (!isEditMode && !file) {
       setError('Anexe o arquivo da redação.');
+      setErrorDetails(null);
+      setRequestId(null);
       return;
     }
     if (!studentId) {
       setError('Selecione um aluno.');
+      setErrorDetails(null);
+      setRequestId(null);
       return;
     }
     if (!classId) {
       setError('Selecione a turma.');
+      setErrorDetails(null);
+      setRequestId(null);
       return;
     }
     if (requiresBimester && !bimester) {
       setError('Selecione o bimestre.');
+      setErrorDetails(null);
+      setRequestId(null);
       return;
     }
     if (showCustomThemeInput && !customTheme.trim()) {
       setError('Descreva o tema da redação.');
+      setErrorDetails(null);
+      setRequestId(null);
       return;
     }
 
+    if (file) {
+      const maxBytes = 15 * 1024 * 1024;
+      if (file.size > maxBytes) {
+        const message = 'Arquivo excede 15MB.';
+        setError(message);
+        setErrorDetails(null);
+        setRequestId(null);
+        toast.error(message);
+        return;
+      }
+      const allowedMime = /^(application\/pdf|image\/(png|jpe?g))$/i;
+      const extension = file.name?.split('.').pop()?.toLowerCase() ?? '';
+      if (
+        !allowedMime.test(file.type || '') &&
+        !['pdf', 'png', 'jpg', 'jpeg'].includes(extension)
+      ) {
+        const message = 'Formato não suportado. Envie PDF, PNG ou JPG.';
+        setError(message);
+        setErrorDetails(null);
+        setRequestId(null);
+        toast.error(message);
+        return;
+      }
+    }
+
     try {
-      setSubmitting(true);
+      setIsSubmitting(true);
       setError(null);
+      setErrorDetails(null);
+      setRequestId(null);
 
       const form = new FormData();
       if (file) {
-        form.append('file', file);
+        const safeName = sanitizeFileName(file.name || 'arquivo.pdf');
+        const safeFile = new File([file], safeName, { type: file.type, lastModified: file.lastModified });
+        form.append('file', safeFile);
       }
+
       form.append('studentId', studentId);
       form.append('classId', classId);
+
+      const apiModel = toApiModel(type);
+      form.append('model', apiModel);
       form.append('type', type);
+
       if (bimester) {
-        form.append('bimester', bimester);
+        const normalizedBimester = String(bimester).trim();
+        form.append('bimester', normalizedBimester);
+        form.append('bimestre', normalizedBimester);
       }
+
+      const themeLabel = showCustomThemeInput
+        ? customTheme.trim()
+        : (selectedTheme?.title ?? selectedTheme?.name ?? selectedTheme?.description ?? themeId ?? '').trim();
+
+      if (!themeLabel) {
+        const message = 'Informe o tema da redação.';
+        setError(message);
+        setErrorDetails(null);
+        setRequestId(null);
+        setIsSubmitting(false);
+        return;
+      }
+
+      form.append('tema', themeLabel);
+
       if (showCustomThemeInput) {
-        form.append('customTheme', customTheme.trim());
+        form.append('customTheme', themeLabel);
       } else if (themeId && themeId !== CUSTOM_THEME_ID) {
         form.append('themeId', themeId);
       }
+
+      debugLogFormData(form);
 
       if (isEditMode && essayId) {
         await updateEssay(essayId, form);
@@ -249,13 +346,35 @@ export default function NewEssayModal({
 
       onSuccess();
       onClose();
+      setErrorDetails(null);
+      setRequestId(null);
     } catch (err: any) {
-      const message =
-        err?.response?.data?.message || err?.message || (isEditMode ? 'Erro ao atualizar redação.' : 'Erro ao enviar redação.');
-      setError(message);
-      toast.error(message);
+      const fallbackMessage = isEditMode ? 'Erro ao atualizar redação.' : 'Erro ao enviar redação.';
+      const resolvedMessage =
+        (err?.message && typeof err.message === 'string' && err.message.trim()) ||
+        err?.response?.data?.message ||
+        fallbackMessage;
+
+      const uploadMatch = /^\[upload-failed\s+(\d+)\]\s*(.*?)(?:\s*\(req:([^)]+)\))?\s*$/.exec(resolvedMessage);
+      const messageBody = uploadMatch?.[2]?.trim() || resolvedMessage;
+      const req = uploadMatch?.[3]?.trim() || null;
+
+      let baseMessage = messageBody;
+      let technicalDetails: string | null = null;
+
+      const detailMatch = /Detalhes:\s*(.*)$/i.exec(messageBody);
+      if (detailMatch) {
+        baseMessage = messageBody.replace(detailMatch[0], '').trim();
+        technicalDetails = detailMatch[1]?.trim() || null;
+      }
+
+      setError(baseMessage || fallbackMessage);
+      setErrorDetails(technicalDetails && technicalDetails !== 'erro desconhecido' ? technicalDetails : null);
+      setRequestId(req);
+
+      toast.error(resolvedMessage);
     } finally {
-      setSubmitting(false);
+      setIsSubmitting(false);
     }
   }
 
@@ -331,7 +450,7 @@ export default function NewEssayModal({
               <label className="block text-sm font-medium text-[#111827]">Modelo</label>
               <select
                 value={type}
-                onChange={(event) => setType(event.target.value as 'ENEM' | 'PAS')}
+                onChange={(event) => setType(event.target.value as UiModel)}
                 className="w-full rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
               >
                 <option value="PAS">PAS/UnB</option>
@@ -405,15 +524,37 @@ export default function NewEssayModal({
         </div>
 
         {error && (
-          <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
+          <div className="mt-3 space-y-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+            <p className="font-medium">{error}</p>
+            {requestId && (
+              <button
+                type="button"
+                onClick={handleCopyRequestId}
+                className="inline-flex items-center gap-1 rounded bg-red-100 px-2 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-200"
+              >
+                Protocolo: <span className="font-mono text-[11px]">{requestId}</span>
+                <span aria-hidden="true">(copiar)</span>
+              </button>
+            )}
+            {errorDetails && (
+              <details className="text-xs">
+                <summary className="cursor-pointer select-none text-red-700 underline">Detalhes técnicos</summary>
+                <pre className="mt-1 whitespace-pre-wrap break-words text-red-700">{errorDetails}</pre>
+              </details>
+            )}
+          </div>
         )}
 
         <div className="mt-6 flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose} type="button">
             Cancelar
           </Button>
-          <Button onClick={handleSubmit} disabled={submitting} type="button">
-            {submitting ? 'Salvando…' : primaryButtonLabel}
+          <Button
+            onClick={handleSubmit}
+            disabled={isSubmitting || (!isEditMode && !file)}
+            type="button"
+          >
+            {isSubmitting ? 'Salvando…' : primaryButtonLabel}
           </Button>
         </div>
       </div>

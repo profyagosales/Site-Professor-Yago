@@ -77,7 +77,7 @@ function sanitizeEnemSelection(
   return {
     level: levelData.level,
     reasonIds,
-    justification: justification || fallbackJustification || undefined,
+    justification: justification ?? fallbackJustification ?? undefined,
   };
 }
 

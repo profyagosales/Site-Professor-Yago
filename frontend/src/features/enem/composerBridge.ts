@@ -321,35 +321,56 @@ export function collectReasonIds(
   reasonMap: ReasonMap = REASON_MAP
 ) {
   const map = reasonMap[composerId] || {};
-  const reasonIds: string[] = [];
+  const collected: MaybeReasonId[] = [];
   const missing: string[] = [];
 
-  for (const piece of composer.pieces) {
+  outer: for (const piece of composer.pieces) {
     const entry = map[piece.key];
 
     if (piece.kind === 'MANDATORY') {
-      const reasonId = entry && entry.kind === 'MANDATORY' ? entry.reasonId : undefined;
-      if (reasonId) reasonIds.push(reasonId);
+      if (entry?.kind === 'MANDATORY') {
+        if (entry.reasonId && entry.reasonId.length > 0) {
+          collected.push(entry.reasonId);
+        } else {
+          missing.push(`${composerId}:${piece.key}`);
+        }
+      } else {
+        missing.push(`${composerId}:${piece.key}`);
+      }
       continue;
     }
 
     if (piece.kind === 'CHOICE_SINGLE') {
       const chosen = selections[piece.key];
-      if (typeof chosen === 'string' && entry && entry.kind === 'CHOICE_SINGLE') {
-        const rid = entry.options[chosen];
-        if (rid) reasonIds.push(rid);
-        else missing.push(`${piece.key}:${chosen}`);
+      if (typeof chosen === 'string') {
+        if (entry?.kind === 'CHOICE_SINGLE') {
+          const rid = entry.options[chosen];
+          if (rid && rid.length > 0) {
+            collected.push(rid);
+          } else {
+            missing.push(`${composerId}:${piece.key}:${chosen}`);
+          }
+        } else {
+          missing.push(`${composerId}:${piece.key}:${chosen}`);
+        }
       }
       continue;
     }
 
     if (piece.kind === 'CHOICE_MULTI') {
       const chosen = selections[piece.key];
-      if (Array.isArray(chosen) && entry && entry.kind === 'CHOICE_MULTI') {
-        for (const opt of chosen) {
-          const rid = entry.options[opt];
-          if (rid) reasonIds.push(rid);
-          else missing.push(`${piece.key}:${opt}`);
+      if (Array.isArray(chosen)) {
+        if (entry?.kind === 'CHOICE_MULTI') {
+          for (const opt of chosen) {
+            const rid = entry.options[opt];
+            if (rid && rid.length > 0) {
+              collected.push(rid);
+            } else {
+              missing.push(`${composerId}:${piece.key}:${opt}`);
+            }
+          }
+        } else {
+          chosen.forEach((opt) => missing.push(`${composerId}:${piece.key}:${opt}`));
         }
       }
       continue;
@@ -357,16 +378,23 @@ export function collectReasonIds(
 
     if (piece.kind === 'MONOBLOCK') {
       const checked = selections[piece.key];
-      if (checked && entry && entry.kind === 'MONOBLOCK' && entry.reasonId) {
-        reasonIds.length = 0;
-        reasonIds.push(entry.reasonId);
-        break;
+      if (checked) {
+        if (entry?.kind === 'MONOBLOCK' && entry.reasonId && entry.reasonId.length > 0) {
+          collected.length = 0;
+          collected.push(entry.reasonId);
+        } else {
+          collected.length = 0;
+          missing.push(`${composerId}:${piece.key}`);
+        }
+        break outer;
       }
     }
   }
 
+  const reasonIds = Array.from(new Set(collected.filter((id): id is RubricReasonId => Boolean(id && id.length)))).sort();
+
   if (missing.length) {
-    console.warn('[composerBridge] REASON_MAP faltando reasonId para:', missing);
+    console.warn('[ENEM-bridge] reasonId ausente para:', missing);
   }
 
   return { reasonIds, missing };
@@ -515,7 +543,7 @@ export function buildSelectionFromReasonIds(
   });
   const missing = list.filter((rid) => !matched.has(rid));
   if (missing.length) {
-    console.warn('[composerBridge] reasonIds sem mapping para', composer.id, missing);
+    console.warn('[ENEM-bridge] reasonIds sem mapping para', composer.id, missing);
   }
 
   return selection;
@@ -542,7 +570,7 @@ export function getComposerForLevel(
   try {
     return getComposerById(entry.id);
   } catch (err) {
-    console.warn('[composerBridge] Composer não encontrado para', competence, level, err);
+    console.warn('[ENEM-bridge] Composer não encontrado para', competence, level, err);
     return null;
   }
 }
