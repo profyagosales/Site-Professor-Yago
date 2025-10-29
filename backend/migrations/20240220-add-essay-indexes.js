@@ -24,7 +24,7 @@ async function initDefaults() {
     enemCompetencies: { c1: null, c2: null, c3: null, c4: null, c5: null },
     pasBreakdown: { NC: null, NE: null, NL: null },
     annotations: [],
-    status: 'PENDING',
+    status: 'pending',
     comments: null,
   };
   for (const [field, value] of Object.entries(defaults)) {

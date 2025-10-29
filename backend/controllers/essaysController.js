@@ -153,10 +153,11 @@ function normalizeEssayDetail(essay) {
     essay.customTheme ||
     essay.themeId?.name ||
     'Tema não informado';
+  const statusValue = normalizeStatusValue(essay.status);
 
   return {
     id: String(essay._id),
-    status: essay.status || 'pendente',
+    status: statusValue,
     type: essay.type || null,
     theme: themeName,
     topic: themeName,
@@ -171,7 +172,7 @@ function normalizeEssayDetail(essay) {
     fileUrl: essay.originalUrl || null,
     correctedUrl: essay.correctedUrl || null,
     correctionPdf: essay.correctionPdf || essay.correctedUrl || null,
-    isCorrected: Boolean(essay.isCorrected || essay.correctionPdf || essay.correctedUrl || essay.status === 'corrigida'),
+    isCorrected: Boolean(essay.isCorrected || essay.correctionPdf || essay.correctedUrl || statusValue === 'ready'),
     correctedAt: essay.correctedAt || null,
     grade: normalizeEssayGrade(essay),
     comments: essay.comments || null,
@@ -249,11 +250,26 @@ const LEGACY_ANNUL_REASONS = new Set([
   'MENOS_7_LINHAS',
 ]);
 
+const VALID_STATUS = new Set(['pending', 'processing', 'ready', 'failed']);
+
+function normalizeStatusValue(status, { defaultValue = 'pending' } = {}) {
+  const raw = (status ?? '').toString().trim().toLowerCase();
+  if (!raw) return defaultValue;
+  if (raw === 'corrigida' || raw === 'corrected') return 'ready';
+  if (raw === 'ready') return 'ready';
+  if (raw === 'pendente' || raw === 'pending') return 'pending';
+  if (raw === 'processando' || raw === 'processing') return 'processing';
+  if (raw === 'arquivada' || raw === 'erro' || raw === 'errored' || raw === 'failed') return 'failed';
+  if (VALID_STATUS.has(raw)) return raw;
+  return defaultValue;
+}
+
 function normalizeEssaySummary(essay) {
   const student = normalizeStudent(essay.studentId, essay.classId);
+  const statusValue = normalizeStatusValue(essay.status);
   return {
     id: String(essay._id),
-    status: essay.status || 'pendente',
+    status: statusValue,
     type: essay.type || null,
     theme: essay.customTheme || essay.themeId?.name || 'Tema não informado',
     term: essay.bimester ?? null,
@@ -263,8 +279,8 @@ function normalizeEssaySummary(essay) {
     studentName: student?.name || essay.studentName || null,
     classId: essay.classId?._id ? String(essay.classId._id) : essay.classId || null,
     className: student?.className || null,
-    corrected: Boolean(essay.correctedUrl || essay.correctionPdf || essay.isCorrected || essay.status === 'corrigida'),
-    isCorrected: Boolean(essay.isCorrected || essay.correctionPdf || essay.correctedUrl || essay.status === 'corrigida'),
+    corrected: Boolean(essay.correctedUrl || essay.correctionPdf || essay.isCorrected || statusValue === 'ready'),
+    isCorrected: Boolean(essay.isCorrected || essay.correctionPdf || essay.correctedUrl || statusValue === 'ready'),
     correctedAt: essay.correctedAt || null,
     fileUrl: essay.originalUrl || null,
     correctedUrl: essay.correctedUrl || null,
@@ -566,6 +582,9 @@ async function deleteTheme(req, res) {
 // Create essay
 async function createEssay(req, res) {
   try {
+    if (req.body && req.body.status) {
+      req.body.status = String(req.body.status).toLowerCase();
+    }
     const { type, bimester, themeId, customTheme } = req.body;
     const typeNormalized = typeof type === 'string' ? type.trim().toUpperCase() : '';
     const requiresBimester = typeNormalized !== 'ENEM';
@@ -600,8 +619,7 @@ async function createEssay(req, res) {
       themeId: themeId || null,
       customTheme: customTheme || null,
       originalUrl,
-      originalMimeType: (req.file && req.file.mimetype) ? req.file.mimetype : 'application/pdf',
-      status: 'PENDING'
+      originalMimeType: (req.file && req.file.mimetype) ? req.file.mimetype : 'application/pdf'
     });
 
     essay = await essay.populate([
@@ -672,14 +690,8 @@ async function listEssays(req, res) {
   const { status, classId, studentId, bimester, type, q } = req.query;
 
   if (typeof status === 'string' && status.trim()) {
-    const normalizedStatus = status.trim().toLowerCase();
-    if (normalizedStatus === 'corrected' || normalizedStatus === 'corrigida') {
-      filter.status = 'corrigida';
-    } else if (normalizedStatus === 'pending' || normalizedStatus === 'pendente') {
-      filter.status = 'pendente';
-    } else if (normalizedStatus === 'archived' || normalizedStatus === 'arquivada') {
-      filter.status = 'arquivada';
-    } else {
+    const normalizedStatus = normalizeStatusValue(status, { defaultValue: null });
+    if (normalizedStatus) {
       filter.status = normalizedStatus;
     }
   }
@@ -849,7 +861,7 @@ async function gradeEssay(req, res) {
     essay.enemCompetencies = essay.type === 'ENEM' ? enemCompetencies : undefined;
     essay.correctedUrl = correctedUrl;
     essay.teacherId = req.user._id;
-    essay.status = 'corrigida';
+    essay.status = 'ready';
     essay.comments = comments || null;
     essay.isCorrected = true;
     if (!essay.correctedAt) essay.correctedAt = new Date();
@@ -1529,7 +1541,7 @@ async function saveEssayScoreController(req, res) {
     }
 
     essay.updatedAt = new Date();
-    essay.status = 'corrigida';
+    essay.status = 'ready';
     essay.isCorrected = true;
     essay.correctedAt = new Date();
     await essay.save();
@@ -1572,7 +1584,7 @@ async function generateFinalPdf(req, res) {
     const corrected = await uploadBuffer(buffer, 'essays/corrected', 'application/pdf', { returnResult: true });
     essay.correctedUrl = corrected?.secure_url || corrected || essay.correctedUrl;
     essay.correctionPdf = essay.correctionPdf || essay.correctedUrl;
-    essay.status = 'corrigida';
+    essay.status = 'ready';
     essay.isCorrected = true;
     essay.correctedAt = new Date();
     await essay.save();
@@ -1637,7 +1649,7 @@ async function uploadCorrectionPdf(req, res) {
     if (!essay.correctedUrl) {
       essay.correctedUrl = correctionUrl;
     }
-    essay.status = 'corrigida';
+    essay.status = 'ready';
     essay.isCorrected = true;
     essay.correctedAt = new Date();
 

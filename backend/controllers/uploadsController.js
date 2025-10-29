@@ -91,7 +91,7 @@ async function uploadEssay(req, res) {
       originalUrl,
       originalMimeType: originalMimeType,
       submittedAt: new Date(),
-      status: 'PENDING',
+      status: 'pending',
     });
 
     res.status(201).json({ success: true, data: essay });

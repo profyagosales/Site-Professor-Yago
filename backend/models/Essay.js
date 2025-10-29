@@ -23,6 +23,8 @@ const annotationSchema = new mongoose.Schema({
   number: { type: Number, default: null }
 }, { _id: false });
 
+const STATUS = ['pending', 'processing', 'ready', 'failed'];
+
 const essaySchema = new mongoose.Schema({
   studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
   classId: { type: mongoose.Schema.Types.ObjectId, ref: 'Class', required: true },
@@ -145,7 +147,12 @@ const essaySchema = new mongoose.Schema({
   email: {
     lastSentAt: { type: Date, default: null }
   },
-  status: { type: String, enum: ['pendente', 'corrigida', 'arquivada'], default: 'pendente' },
+  status: {
+    type: String,
+    enum: STATUS,
+    default: 'pending',
+    set: (v) => String(v || 'pending').toLowerCase()
+  },
   comments: { type: String, default: null }
 }, { timestamps: true });
 
