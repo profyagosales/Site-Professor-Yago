@@ -82,18 +82,19 @@ export default function RedacaoProfessorPage() {
 
   return (
     <Page title="Redação" subtitle="Gerencie as redações dos alunos">
-      <div className="page-wide mb-3 flex flex-wrap items-center justify-between gap-2">
-        <Button variant="ghost" onClick={() => setThemesOpen(true)}>
-          Temas
-        </Button>
-        <Button onClick={() => setModalConfig({ mode: 'create' })}>
-          Nova Redação
-        </Button>
-      </div>
+      <div className="page-wide space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setThemesOpen(true)}>
+            Temas
+          </Button>
+          <Button size="sm" onClick={() => setModalConfig({ mode: 'create' })}>
+            Nova Redação
+          </Button>
+        </div>
 
-      <div className="page-wide mb-4">
-        <Tabs items={statusTabs} className="mb-4" />
-        <div className="mb-4 grid gap-3 md:grid-cols-5">
+        <Tabs items={statusTabs} className="tabs-compact" />
+
+        <div className="filters-grid">
           <input
             value={q}
             onChange={(e) => {
@@ -101,7 +102,7 @@ export default function RedacaoProfessorPage() {
               setPage(1);
             }}
             placeholder="Buscar aluno"
-            className="rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+            className="filter-control"
           />
           <select
             value={classId || ''}
@@ -109,7 +110,7 @@ export default function RedacaoProfessorPage() {
               setClassId(e.target.value || undefined);
               setPage(1);
             }}
-            className="rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+            className="filter-control"
           >
             <option value="">Todas as turmas</option>
             {classes.map((c: any) => (
@@ -126,7 +127,7 @@ export default function RedacaoProfessorPage() {
               setExtra({ ...extra, bimester: v || undefined });
               setPage(1);
             }}
-            className="rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+            className="filter-control"
           >
             <option value="">Todos os bimestres</option>
             <option value="1">1º</option>
@@ -142,20 +143,36 @@ export default function RedacaoProfessorPage() {
               setExtra({ ...extra, type: v || undefined });
               setPage(1);
             }}
-            className="rounded-lg border border-[#E5E7EB] p-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
+            className="filter-control"
           >
             <option value="">Todos os tipos</option>
             <option value="PAS">PAS</option>
             <option value="ENEM">ENEM</option>
           </select>
         </div>
-      </div>
 
-      <div className="page-wide">
-        <div className="table-card--wide overflow-hidden rounded-xl border border-[#E5E7EB] bg-white shadow-ys-md">
+        <div className="table-card--wide overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-ys-md">
           <div className="table-wide-wrap">
             <table className="table-wide text-sm text-[#111827]">
-              <thead className="bg-[#F3F4F6] text-left text-[#374151]">
+              <colgroup>
+                <col className="col-avatar" />
+                <col className="col-student" />
+                <col className="col-class" />
+                <col className="col-theme" />
+                <col className="col-type" />
+                <col className="col-bimester" />
+                <col className="col-date" />
+                {status === 'pending' ? (
+                  <col className="col-file" />
+                ) : (
+                  <>
+                    <col className="col-score" />
+                    <col className="col-file" />
+                  </>
+                )}
+                <col className="col-actions" />
+              </colgroup>
+              <thead className="bg-[#F3F4F6] text-[#374151]">
                 <tr className="align-middle">
                   <th className="col-avatar px-3 py-3 font-semibold" />
                   <th className="col-student px-4 py-3 font-semibold">Aluno</th>
@@ -179,7 +196,7 @@ export default function RedacaoProfessorPage() {
               <tbody className="divide-y divide-[#F3F4F6]">
             {loading && (
               <tr>
-                <td className="px-4 py-4 text-ys-ink-2 whitespace-normal" colSpan={columnsCount}>
+                <td className="px-4 py-4 text-sm text-slate-500 whitespace-normal" colSpan={columnsCount}>
                   Carregando…
                 </td>
               </tr>
@@ -198,7 +215,7 @@ export default function RedacaoProfessorPage() {
                 if (filtered.length === 0) {
                   return (
                     <tr>
-                      <td className="px-4 py-4 text-ys-ink-2 whitespace-normal" colSpan={columnsCount}>
+                      <td className="px-4 py-4 text-sm text-slate-500 whitespace-normal" colSpan={columnsCount}>
                         Sem redações {status === 'pending' ? 'pendentes' : 'corrigidas'}.
                       </td>
                     </tr>
@@ -264,24 +281,34 @@ export default function RedacaoProfessorPage() {
                         })()}
                       </td>
 
-                      <td className="col-student px-4 py-3">{e.studentName}</td>
-                      <td className="col-class px-4 py-3">{e.className ?? '-'}</td>
-
-                      <td
-                        className="col-theme px-4 py-3"
-                        title={String((e as any).theme ?? (e as any).topic ?? '-')}
-                      >
-                        {(e as any).theme ?? (e as any).topic ?? '-'}
+                      <td className="col-student px-4 py-3">
+                        <span className="ellipsis-cell" title={e.studentName || '-'}>
+                          {e.studentName}
+                        </span>
+                      </td>
+                      <td className="col-class px-4 py-3">
+                        <span className="ellipsis-cell" title={e.className ?? '-'}>
+                          {e.className ?? '-'}
+                        </span>
                       </td>
 
-                      <td className="col-type px-4 py-3">{(e as any).type || '-'}</td>
-                      <td className="col-bimester px-4 py-3">{(e as any).bimester ?? '-'}</td>
-                      <td className="col-date px-4 py-3">
+                      <td className="col-theme px-4 py-3">
+                        <span
+                          className="ellipsis-cell"
+                          title={String((e as any).theme ?? (e as any).topic ?? '-')}
+                        >
+                          {(e as any).theme ?? (e as any).topic ?? '-'}
+                        </span>
+                      </td>
+
+                      <td className="col-type px-4 py-3 text-center">{(e as any).type || '-'}</td>
+                      <td className="col-bimester px-4 py-3 text-center">{(e as any).bimester ?? '-'}</td>
+                      <td className="col-date px-4 py-3 text-center">
                         {e.submittedAt ? new Date(e.submittedAt).toLocaleDateString() : '-'}
                       </td>
 
                       {status === 'pending' ? (
-                        <td className="col-file px-4 py-3">
+                        <td className="col-file px-4 py-3 text-center">
                           <Button
                             type="button"
                             variant="ghost"
@@ -303,7 +330,7 @@ export default function RedacaoProfessorPage() {
                       ) : (
                         <>
                           <td className="col-score px-4 py-3 text-center">{(e as any).score ?? '-'}</td>
-                          <td className="col-file px-4 py-3">
+                          <td className="col-file px-4 py-3 text-center">
                             <Button type="button" variant="ghost" size="sm" onClick={openCorrectedPdf} disabled={!essayId}>
                               Visualizar
                             </Button>
@@ -417,45 +444,45 @@ export default function RedacaoProfessorPage() {
             </table>
           </div>
         </div>
-      </div>
 
-      {/* Paginação */}
-      <div className="page-wide mt-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <button
-            className="rounded border border-[#E5E7EB] px-3 py-1 disabled:opacity-50"
-            onClick={() => setPage(Math.max(1, page - 1))}
-            disabled={page <= 1}
-          >
-            Anterior
-          </button>
-          <span className="text-sm text-ys-ink-2">
-            Página {page} de {totalPages}
-          </span>
-          <button
-            className="rounded border border-[#E5E7EB] px-3 py-1 disabled:opacity-50"
-            onClick={() => setPage(Math.min(totalPages, page + 1))}
-            disabled={page >= totalPages}
-          >
-            Próxima
-          </button>
-        </div>
-        <div className="flex items-center gap-2 text-sm">
-          <span>Tamanho:</span>
-          <select
-            className="rounded border border-[#E5E7EB] p-1"
-            value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
-              setPage(1);
-            }}
-          >
-            {[10, 20, 50].map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+        {/* Paginação */}
+        <div className="table-footer">
+          <div className="table-pagination">
+            <button
+              className="pagination-btn"
+              onClick={() => setPage(Math.max(1, page - 1))}
+              disabled={page <= 1}
+            >
+              Anterior
+            </button>
+            <span className="text-sm text-ys-ink-2">
+              Página {page} de {totalPages}
+            </span>
+            <button
+              className="pagination-btn"
+              onClick={() => setPage(Math.min(totalPages, page + 1))}
+              disabled={page >= totalPages}
+            >
+              Próxima
+            </button>
+          </div>
+          <div className="table-page-size">
+            <span>Tamanho:</span>
+            <select
+              className="rounded border border-[#E5E7EB] p-1"
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setPage(1);
+              }}
+            >
+              {[10, 20, 50].map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
