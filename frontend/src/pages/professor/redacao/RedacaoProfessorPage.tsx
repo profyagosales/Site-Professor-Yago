@@ -126,7 +126,7 @@ export default function RedacaoProfessorPage() {
 
   return (
     <Page title="Redação" subtitle="Gerencie as redações dos alunos">
-      <div className="page-wide space-y-4">
+      <div className="page-wide space-y-4" style={{ maxWidth: 'none', width: 'calc(100vw - 32px)', marginInline: '16px' }}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Button variant="ghost" size="sm" onClick={() => setThemesOpen(true)}>
             Temas
