@@ -1,44 +1,43 @@
-import type { ButtonHTMLAttributes } from 'react';
+import React from 'react';
+import { Button } from '../../../components/ui/Button';
 
-type ButtonVariant = 'primary' | 'ghost' | 'outline' | 'link';
-type ButtonSize = 'md' | 'sm' | 'xs';
+export function GradeWorkspace() {
+  const [generating, setGenerating] = React.useState(false);
 
-type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: ButtonVariant;
-  size?: ButtonSize;
-};
-
-export function Button({
-  variant = 'primary',
-  size = 'md',
-  className = '',
-  ...props
-}: Props) {
-    const baseClass = [
-      'btn inline-flex items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition duration-fast',
-      'disabled:cursor-not-allowed disabled:opacity-[var(--op-disabled)]',
-      'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200 focus-visible:ring-offset-0',
-    ].join(' ');
-
-  const sizeStyles: Record<ButtonSize, string> = {
-    md: 'h-10 px-4',
-    sm: 'h-9 px-3 text-sm',
-    xs: 'h-8 px-2.5 text-xs',
-  };
-
-  const variantStyles: Record<ButtonVariant, string> = {
-    primary: 'bg-brand-grad text-white shadow-soft hover:opacity-95 active:opacity-90',
-    ghost: 'border border-border bg-surface text-text hover:bg-surface2',
-    outline: 'border border-borderStrong bg-surface text-text hover:bg-surface2',
-    link: 'h-auto rounded-lg border-none bg-transparent px-0 py-0 text-brand hover:text-brand-600 underline-offset-4 hover:underline focus-visible:ring-0',
-  };
-
-  const resolvedSize = variant === 'link' ? '' : sizeStyles[size];
+  function handleGeneratePdf() {
+    setGenerating(true);
+    // PDF generation logic here
+    setTimeout(() => setGenerating(false), 2000);
+  }
 
   return (
-    <button
-      className={[baseClass, resolvedSize, variantStyles[variant], className].filter(Boolean).join(' ')}
-      {...props}
-    />
+    <div className="grade-workspace">
+      <aside className="left-rail">
+        {/* Other left rail content */}
+        <header className="head-group">
+          <Button
+            size="xs"
+            className="btn btn--neutral rail-btn"
+            onClick={handleOpenOriginal}
+            title="Abrir original"
+          >
+            Abrir PDF
+          </Button>
+          {/* The other top button */}
+        </header>
+        <footer>
+          <Button
+            size="xs"
+            className="btn btn--brand rail-btn rail-btn--primary"
+            onClick={handleGeneratePdf}
+            disabled={generating}
+            title="Gerar PDF corrigido"
+          >
+            {generating ? 'Gerando…' : 'Gerar PDF'}
+          </Button>
+        </footer>
+      </aside>
+      {/* Rest of the workspace */}
+    </div>
   );
 }

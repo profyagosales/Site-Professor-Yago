@@ -943,7 +943,7 @@ export default function GradeWorkspace() {
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:p-5">
         {/* Unified 3-column grid */}
-        <div className="grid grid-cols-1 gap-3 items-start md:grid-cols-[clamp(140px,9%,180px)_minmax(0,1fr)_clamp(220px,12%,300px)]" aria-label="Workspace de correção">
+        <div className="grid grid-cols-1 gap-3 items-start md:grid-cols-[clamp(120px,7%,140px)_minmax(0,1fr)_clamp(220px,12%,300px)]" aria-label="Workspace de correção">
           {/* HERO: spans center and right columns on md+ */}
           <header
             className="md:col-start-2 md:col-span-2 w-full"
@@ -1003,12 +1003,13 @@ export default function GradeWorkspace() {
           </header>
           {/* LEFT RAIL */}
           <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail text-[13px]">
-            <div className="ws-rail-sticky rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-              <div className="ws-rail-head">
+            <div className="ws-rail-sticky rounded-xl border border-slate-200 bg-white p-2 shadow-sm flex flex-col gap-1.5">
+              <div className="ws-rail-head grid grid-cols-2 gap-1.5">
                 <Button
                   size="xs"
                   className="btn btn--neutral rail-btn rail-btn--ghost"
                   onClick={handleBack}
+                  title="Voltar"
                 >
                   Voltar
                 </Button>
@@ -1016,6 +1017,7 @@ export default function GradeWorkspace() {
                   size="xs"
                   className="btn btn--neutral rail-btn"
                   onClick={handleOpenOriginal}
+                  title="Abrir original"
                 >
                   Abrir original
                 </Button>
@@ -1025,12 +1027,13 @@ export default function GradeWorkspace() {
                 {railMenu}
               </div>
 
-              <div className="ws-rail-footer">
+              <div className="ws-rail-footer grid grid-cols-2 gap-1.5">
                 <Button
                   size="xs"
                   className="btn btn--neutral rail-btn rail-btn--secondary"
                   onClick={handleSave}
                   disabled={saving || !dirty}
+                  title="Salvar"
                 >
                   {saving ? 'Salvando…' : 'Salvar'}
                 </Button>
@@ -1039,6 +1042,7 @@ export default function GradeWorkspace() {
                   className="btn btn--brand rail-btn rail-btn--primary"
                   onClick={handleGeneratePdf}
                   disabled={generating}
+                  title="Gerar PDF corrigido"
                 >
                   {generating ? 'Gerando…' : 'Gerar PDF corrigido'}
                 </Button>

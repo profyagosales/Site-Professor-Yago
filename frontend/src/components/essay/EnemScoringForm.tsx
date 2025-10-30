@@ -515,8 +515,9 @@ function ComposerViewGeneric({
           className="btn btn-primary"
           onClick={apply}
           disabled={!singlesValid}
+          title="Aplicar justificativa"
         >
-          Aplicar justificativa
+          Aplicar
         </button>
       </div>
     </div>

@@ -1290,7 +1290,7 @@ a {
 /* === Workspace action rail (left) === */
 .ws-rail{
   width: auto;
-  max-width: clamp(140px, 9%, 180px);
+  max-width: clamp(120px, 7%, 140px);
 }
 
 .ws-rail-sticky{
@@ -1299,14 +1299,14 @@ a {
   display: flex;
   flex-direction: column;
   height: calc(100vh - var(--rail-top));
-  gap: 12px;
+  gap: 8px;
 }
 
 .ws-rail-head,
 .ws-rail-footer{
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
 }
 
 .ws-rail-body{
@@ -1315,7 +1315,7 @@ a {
   padding-right: 4px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .ws-rail-body > *{
@@ -1348,11 +1348,27 @@ a {
 /* Compact overrides for left action rail */
 .ws-rail .btn,
 .ws-rail .rail-btn { 
-  height: 32px; 
-  font-size: 13px; 
-  line-height: 1.1;
-  padding: 6px 10px; 
-  border-radius: 12px; 
+  height: 30px; 
+  font-size: 12px; 
+  line-height: 1;
+  padding: 4px 8px; 
+  border-radius: 10px; 
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Compact category chips inside left rail */
+.ws-rail .chip,
+.ws-rail .rail-chip,
+.ws-rail [data-rail-chip] {
+  padding: 6px 8px;
+  font-size: 12px;
+  border-radius: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rail-btn--xl{

@@ -225,7 +225,7 @@ export function CorrectionMirror({
       <div className="mt-4">
         <div className="space-y-3">
           <div className="rounded-xl border border-dashed border-slate-300 bg-white p-2 shadow-sm">
-            <h3 className="text-xs font-semibold text-slate-800 leading-tight">Anulação da redação</h3>
+            <h3 className="text-xs font-semibold text-slate-800 leading-tight truncate">Anulação</h3>
             <p className="mt-1 text-[11px] text-slate-500 leading-snug">
               Selecione os motivos aplicáveis. Quando marcado, a nota final é zerada automaticamente.
             </p>
@@ -269,7 +269,7 @@ export function CorrectionMirror({
           {!annulled && type === 'PAS' && (
             <div className="pas-macro-card space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-2 shadow-sm">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                <h3 className="text-[12px] font-semibold text-slate-800 leading-tight">ASPECTOS MACROESTRUTURAIS</h3>
+                <h3 className="text-[12px] font-semibold text-slate-800 leading-tight truncate">MACROESTRUTURAIS</h3>
                 <p className="text-[11px] leading-tight text-slate-500">NR = NC − 2 × (NE / TL)</p>
               </div>
 
@@ -352,7 +352,7 @@ export function CorrectionMirror({
               </div>
               <div className="pas-micro-card w-full rounded-lg border border-pink-200 bg-pink-50 p-2 text-[12px] text-slate-700 shadow-sm">
                 <div className="mb-1.5 flex items-center justify-between">
-                  <h4 className="text-[12px] font-semibold text-slate-800">ASPECTOS MICROESTRUTURAIS</h4>
+                  <h4 className="text-[12px] font-semibold text-slate-800 truncate">MICROESTRUTURAIS</h4>
                   <span className="text-[11px] leading-tight text-slate-500">Avalie TL e contagem de erros</span>
                 </div>
                 <div className="space-y-2.5">
@@ -409,7 +409,7 @@ export function CorrectionMirror({
           {!annulled && type === 'ENEM' && (
             <>
               <div className="rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-sm">
-                <h3 className="text-[12px] font-semibold text-slate-800">Resumo rápido das competências</h3>
+                <h3 className="text-[12px] font-semibold text-slate-800 truncate">Resumo das competências</h3>
                 <div className="mt-2 space-y-2">
                   {ENEM_2024.map((competency) => {
                     const selection = enemSelections[competency.key];
