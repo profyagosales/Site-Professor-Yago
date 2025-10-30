@@ -55,6 +55,10 @@ export function useEssays(initialStatus: EssayStatus) {
   useEffect(() => { load(); }, [status, page, pageSize, q, classId, extra.bimester, extra.type]);
 
   useEffect(() => {
+    setPage(1);
+  }, [status, q, classId, extra.bimester, extra.type]);
+
+  useEffect(() => {
     try {
       localStorage.setItem(PAGE_SIZE_KEY, String(pageSize));
     } catch {}

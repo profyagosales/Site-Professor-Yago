@@ -619,7 +619,10 @@ async function createEssay(req, res) {
       themeId: themeId || null,
       customTheme: customTheme || null,
       originalUrl,
-      originalMimeType: (req.file && req.file.mimetype) ? req.file.mimetype : 'application/pdf'
+      originalMimeType: (req.file && req.file.mimetype) ? req.file.mimetype : 'application/pdf',
+      status: 'pending',
+      submittedAt: new Date(),
+      isCorrected: false
     });
 
     essay = await essay.populate([
@@ -689,13 +692,38 @@ async function listEssays(req, res) {
   const filter = {};
   const { status, classId, studentId, bimester, type, q } = req.query;
 
+  let normalizedStatus = null;
   if (typeof status === 'string' && status.trim()) {
-    const normalizedStatus = normalizeStatusValue(status, { defaultValue: null });
-    if (normalizedStatus === 'graded') {
-      filter.status = { $in: ['graded', 'ready'] }; // include legacy
-    } else if (normalizedStatus) {
-      filter.status = normalizedStatus;
-    }
+    normalizedStatus = normalizeStatusValue(status, { defaultValue: null });
+  }
+  if (normalizedStatus === 'graded') {
+    // Qualquer evidência de correção deve aparecer em "corrigidas"
+    filter.$or = [
+      { status: { $in: ['graded', 'ready'] } },
+      { correctedUrl: { $exists: true, $ne: null } },
+      { correctionPdf: { $exists: true, $ne: null } },
+      { isCorrected: true },
+    ];
+  } else if (normalizedStatus === 'pending') {
+    // Pendentes = não corrigidas (sem PDFs e flag) e status não finalizado
+    filter.$and = [
+      {
+        $or: [
+          { status: { $exists: false } },
+          { status: null },
+          { status: { $in: ['pending', 'processing'] } },
+        ],
+      },
+      {
+        $and: [
+          { $or: [ { correctedUrl: { $exists: false } }, { correctedUrl: null } ] },
+          { $or: [ { correctionPdf: { $exists: false } }, { correctionPdf: null } ] },
+          { $or: [ { isCorrected: { $exists: false } }, { isCorrected: false } ] },
+        ],
+      },
+    ];
+  } else if (normalizedStatus) {
+    filter.status = normalizedStatus;
   }
 
   if (bimester) filter.bimester = Number(bimester);
@@ -719,7 +747,7 @@ async function listEssays(req, res) {
 
   // Build pagination
   const page = Math.max(1, Number(req.query.page || 1));
-  const limit = Math.max(1, Math.min(50, Number(req.query.limit || 10)));
+  const limit = Math.max(1, Math.min(50, Number(req.query.pageSize || req.query.limit || 10)));
   const skip = (page - 1) * limit;
 
   // Optional search by student name (q)
@@ -741,7 +769,7 @@ async function listEssays(req, res) {
       .populate('studentId', 'name rollNumber photo class')
       .populate('classId', 'series letter discipline name')
       .populate('themeId', 'name type')
-      .sort({ submittedAt: -1 })
+      .sort({ submittedAt: -1, createdAt: -1, updatedAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean(),
@@ -757,6 +785,7 @@ async function listEssays(req, res) {
     total,
     page,
     limit,
+    pageSize: limit,
   });
 }
 

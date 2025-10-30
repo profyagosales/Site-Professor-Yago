@@ -1,4 +1,4 @@
-export type EssayStatus = 'pending' | 'ready' | 'processing' | 'failed' | 'corrected';
+export type EssayStatus = 'pending' | 'graded' | 'ready' | 'processing' | 'failed' | 'corrected';
 
 // Minimal student summary used across correction flows
 export interface StudentSummary {
@@ -23,6 +23,9 @@ export interface Essay {
   sentAt?: string | null;
   fileUrl?: string | null;
   correctedUrl?: string | null;
+  status?: EssayStatus | string;
+  correctionPdf?: string | null;
+  finalPdfUrl?: string | null;
   score?: number | null;
   comments?: string | null;
   studentAvatarUrl?: string | null; // novo: atalho normalizado para a lista

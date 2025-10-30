@@ -375,16 +375,18 @@ export async function fetchEssays(params: FetchEssaysParams): Promise<EssaysPage
 
   const statusParam = normalizeEssayListStatus(status);
 
+  const baseParams: any = {
+    status: statusParam,
+    page,
+    limit: pageSize,
+    pageSize,
+    q,
+    classId,
+    bimester,
+    type,
+  };
   const { data } = await api.get('/essays', {
-    params: {
-      status: statusParam,
-      page,
-      limit: pageSize,
-      q,
-      classId,
-      bimester,
-      type,
-    },
+    params: baseParams,
     withCredentials: true,
   });
 
@@ -397,13 +399,43 @@ export async function fetchEssays(params: FetchEssaysParams): Promise<EssaysPage
         ? payload
         : [];
 
-  const items = rawItems.map((item) => normalizeEssayListItem(item));
+  // Fallback: some backends still expect status=ready/corrected for graded lists
+  let effectivePayload = payload;
+  let effectiveRawItems = rawItems;
+  if ((!effectiveRawItems || effectiveRawItems.length === 0) && statusParam === 'graded') {
+    for (const legacy of ['ready', 'corrected']) {
+      const { data: alt } = await api.get('/essays', {
+        params: { ...baseParams, status: legacy },
+        withCredentials: true,
+      });
+      const altPayload = alt && typeof alt === 'object' ? alt : {};
+      const altRaw: any[] = Array.isArray(altPayload.data)
+        ? altPayload.data
+        : Array.isArray(altPayload.items)
+          ? altPayload.items
+          : Array.isArray(altPayload)
+            ? altPayload
+            : [];
+      if (altRaw.length > 0) {
+        effectivePayload = altPayload;
+        effectiveRawItems = altRaw;
+        break;
+      }
+    }
+  }
+
+  const items = effectiveRawItems.map((item) => normalizeEssayListItem(item));
+
+  if ((import.meta as any)?.env?.DEV) {
+    // eslint-disable-next-line no-console
+    console.debug('[fetchEssays]', { params: baseParams, page: effectivePayload.page, total: effectivePayload.total, count: items.length });
+  }
 
   return {
     items,
-    page: payload.page ?? page,
-    pageSize: payload.limit ?? payload.pageSize ?? pageSize,
-    total: payload.total ?? rawItems.length,
+    page: effectivePayload.page ?? page,
+    pageSize: effectivePayload.limit ?? effectivePayload.pageSize ?? pageSize,
+    total: effectivePayload.total ?? effectiveRawItems.length,
   };
 }
 
