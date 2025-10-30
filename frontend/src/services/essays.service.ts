@@ -344,15 +344,6 @@ export function buildEssayPdfUrl(
   return joinApi(base, query);
 }
 
-/** -------- short token + PDF helpers -------- */
-export async function getFileToken(essayId: string, options?: { signal?: AbortSignal }): Promise<string> {
-  const { data } = await api.post(
-    `/essays/${essayId}/file-token`,
-    undefined,
-    { signal: options?.signal, meta: { skipAuthRedirect: true } }
-  );
-  return data?.token;
-}
 
 export async function prepareEssayFileToken(
   essayId: string,
