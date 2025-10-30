@@ -3,10 +3,23 @@ import React from 'react';
 export type ButtonSize = 'md' | 'sm' | 'xs';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  /** Tamanho do botão */
   size?: ButtonSize;
+  /** Faz o botão ocupar toda a largura do container (equivalente a w-full) */
+  block?: boolean;
 }
 
-const baseClass = 'btn inline-flex items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition duration-fast truncate min-w-0';
+const baseClass = [
+  'btn',
+  'inline-flex items-center justify-center gap-2',
+  'rounded-2xl',
+  'text-sm font-semibold leading-tight',
+  'transition duration-fast',
+  // truncation seguro dentro de cards estreitos/rails
+  'truncate whitespace-nowrap min-w-0',
+  // sem margem externa inesperada
+  'm-0',
+].join(' ');
 
 const sizeStyles: Record<ButtonSize, string> = {
   md: 'h-10 px-4',
@@ -18,10 +31,20 @@ function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
 }
 
-export function Button({ size = 'md', className, ...props }: ButtonProps) {
-  return (
-    <button {...props} className={cx(baseClass, sizeStyles[size], className)} />
-  );
-}
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ size = 'md', block = false, className, type, ...props }, ref) => {
+    const btnType = type ?? 'button';
+    return (
+      <button
+        ref={ref}
+        type={btnType}
+        className={cx(baseClass, sizeStyles[size], block && 'w-full', className)}
+        {...props}
+      />
+    );
+  }
+);
+
+Button.displayName = 'Button';
 
 export default Button;

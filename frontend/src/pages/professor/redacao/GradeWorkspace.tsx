@@ -1053,7 +1053,8 @@ const railMenu = (
               <div className="ws-rail-head grid grid-cols-2 gap-2">
                 <Button
                   size="xs"
-                  className="btn btn--neutral rail-btn rail-btn--ghost w-full"
+                  block
+                  className="btn btn--neutral rail-btn rail-btn--ghost"
                   onClick={handleBack}
                   title="Voltar"
                 >
@@ -1061,7 +1062,8 @@ const railMenu = (
                 </Button>
                 <Button
                   size="xs"
-                  className="btn btn--neutral rail-btn w-full"
+                  block
+                  className="btn btn--neutral rail-btn"
                   onClick={handleOpenOriginal}
                   title="Abrir original"
                 >
@@ -1076,7 +1078,8 @@ const railMenu = (
               <div className="ws-rail-footer grid grid-cols-2 gap-2">
                 <Button
                   size="xs"
-                  className="btn btn--neutral rail-btn rail-btn--secondary w-full"
+                  block
+                  className="btn btn--neutral rail-btn rail-btn--secondary"
                   onClick={handleSave}
                   disabled={saving || !dirty}
                   title="Salvar"
@@ -1085,7 +1088,8 @@ const railMenu = (
                 </Button>
                 <Button
                   size="xs"
-                  className="btn btn--brand rail-btn rail-btn--primary w-full"
+                  block
+                  className="btn btn--brand rail-btn rail-btn--primary"
                   onClick={handleGeneratePdf}
                   disabled={generating}
                   title="Gerar PDF corrigido"
