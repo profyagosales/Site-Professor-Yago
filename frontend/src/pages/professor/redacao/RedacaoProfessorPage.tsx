@@ -267,10 +267,12 @@ export default function RedacaoProfessorPage() {
                       <td className="col-student px-4 py-3">{e.studentName}</td>
                       <td className="col-class px-4 py-3">{e.className ?? '-'}</td>
 
-                      {/* Tema (clamp 2 linhas) */}
-                          <td className="col-theme px-4 py-3" title={String((e as any).theme ?? (e as any).topic ?? '-')}">
-                            {(e as any).theme ?? (e as any).topic ?? '-'}
-                          </td>
+                      <td
+                        className="col-theme px-4 py-3"
+                        title={String((e as any).theme ?? (e as any).topic ?? '-')}
+                      >
+                        {(e as any).theme ?? (e as any).topic ?? '-'}
+                      </td>
 
                       <td className="col-type px-4 py-3">{(e as any).type || '-'}</td>
                       <td className="col-bimester px-4 py-3">{(e as any).bimester ?? '-'}</td>
