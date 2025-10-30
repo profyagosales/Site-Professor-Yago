@@ -1043,6 +1043,13 @@ const railMenu = (
                       <span className="hero-stat__value-suffix">{totalDen}</span>
                     </span>
                   </div>
+
+                  <div className="hero-stat hero-stat--model">
+                    <span className="hero-stat__label">MODELO</span>
+                    <span className="hero-stat__value">
+                      <span className="hero-stat__value-main">{typeLabel}</span>
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
