@@ -1,4 +1,3 @@
-import React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useEssays } from '@/hooks/useEssays';
@@ -29,15 +28,7 @@ export default function RedacaoProfessorPage() {
   const [bimester, setBimester] = useState<string>('');
   const [type, setType] = useState<string>('');
   const navigate = useNavigate();
-  const containerCls = 'mx-auto w-full max-w-[1200px] px-3 sm:px-4 lg:px-5';
-
   // helpers visuais/layout
-  const clamp2: React.CSSProperties = {
-    display: '-webkit-box',
-    WebkitLineClamp: 2,
-    WebkitBoxOrient: 'vertical',
-    overflow: 'hidden',
-  };
   const pickAvatarUrl = (row: any): string | undefined => {
     const candidates = [
       row?.studentAvatar,
@@ -78,11 +69,11 @@ export default function RedacaoProfessorPage() {
       },
     },
     {
-      key: 'corrected',
+      key: 'ready',
       label: 'Corrigidas',
-      isActive: status === 'corrected',
+      isActive: status === 'ready',
       onClick: () => {
-        setStatus('corrected');
+        setStatus('ready');
         setPage(1);
       },
     },
@@ -91,7 +82,7 @@ export default function RedacaoProfessorPage() {
 
   return (
     <Page title="Redação" subtitle="Gerencie as redações dos alunos">
-      <div className={`${containerCls} mb-2 flex items-center justify-end gap-2`}>
+      <div className="page-wide mb-3 flex flex-wrap items-center justify-between gap-2">
         <Button variant="ghost" onClick={() => setThemesOpen(true)}>
           Temas
         </Button>
@@ -100,7 +91,7 @@ export default function RedacaoProfessorPage() {
         </Button>
       </div>
 
-      <div className={`${containerCls} mb-4`}>
+      <div className="page-wide mb-4">
         <Tabs items={statusTabs} className="mb-4" />
         <div className="mb-4 grid gap-3 md:grid-cols-5">
           <input
@@ -160,55 +151,35 @@ export default function RedacaoProfessorPage() {
         </div>
       </div>
 
-      <div className={`${containerCls} overflow-hidden rounded-xl border border-[#E5E7EB] bg-white shadow-ys-md`}>
-        <table className="w-full text-sm text-[#111827]">
-          {/* largura das colunas */}
-          <colgroup>
-            <col style={{ width: 40 }} />
-            <col />
-            <col />
-            <col style={{ width: 'clamp(260px,30vw,540px)' }} />
-            <col style={{ width: 90 }} />
-            <col style={{ width: 90 }} />
-            <col style={{ width: 120 }} />
-            {status === 'pending' ? (
-              <>
-                <col style={{ width: 110 }} />
-              </>
-            ) : (
-              <>
-                <col style={{ width: 90 }} />
-                <col style={{ width: 120 }} />
-              </>
-            )}
-            <col style={{ width: 220 }} />
-          </colgroup>
+      <div className="page-wide">
+        <div className="table-card--wide overflow-hidden rounded-xl border border-[#E5E7EB] bg-white shadow-ys-md">
+          <div className="table-wide-wrap">
+            <table className="table-wide text-sm text-[#111827]">
+              <thead className="bg-[#F3F4F6] text-left text-[#374151]">
+                <tr className="align-middle">
+                  <th className="col-avatar px-3 py-3 font-semibold" />
+                  <th className="col-student px-4 py-3 font-semibold">Aluno</th>
+                  <th className="col-class px-4 py-3 font-semibold">Turma</th>
+                  <th className="col-theme px-4 py-3 font-semibold">Tema</th>
+                  <th className="col-type px-4 py-3 font-semibold">Tipo</th>
+                  <th className="col-bimester px-4 py-3 font-semibold">Bimestre</th>
+                  <th className="col-date px-4 py-3 font-semibold">Enviado em</th>
+                  {status === 'pending' ? (
+                    <th className="col-file px-4 py-3 font-semibold">Arquivo</th>
+                  ) : (
+                    <>
+                      <th className="col-score px-4 py-3 font-semibold">Nota</th>
+                      <th className="col-file px-4 py-3 font-semibold">Visualizar</th>
+                    </>
+                  )}
+                  <th className="col-actions px-4 py-3 font-semibold">Ações</th>
+                </tr>
+              </thead>
 
-          <thead className="bg-[#F3F4F6] text-left text-[#374151]">
-            <tr className="align-middle">
-              <th className="px-3 py-3 font-semibold" />
-              <th className="px-4 py-3 font-semibold">Aluno</th>
-              <th className="px-4 py-3 font-semibold">Turma</th>
-              <th className="px-4 py-3 font-semibold">Tema</th>
-              <th className="px-4 py-3 font-semibold">Tipo</th>
-              <th className="px-4 py-3 font-semibold">Bimestre</th>
-              <th className="px-4 py-3 font-semibold">Enviado em</th>
-              {status === 'pending' ? (
-                <th className="px-4 py-3 font-semibold">Arquivo</th>
-              ) : (
-                <>
-                  <th className="px-4 py-3 font-semibold">Nota</th>
-                  <th className="px-4 py-3 font-semibold">Visualizar</th>
-                </>
-              )}
-              <th className="px-4 py-3 font-semibold">Ações</th>
-            </tr>
-          </thead>
-
-          <tbody className="divide-y divide-[#F3F4F6]">
+              <tbody className="divide-y divide-[#F3F4F6]">
             {loading && (
               <tr>
-                <td className="px-4 py-4 text-ys-ink-2" colSpan={columnsCount}>
+                <td className="px-4 py-4 text-ys-ink-2 whitespace-normal" colSpan={columnsCount}>
                   Carregando…
                 </td>
               </tr>
@@ -227,7 +198,7 @@ export default function RedacaoProfessorPage() {
                 if (filtered.length === 0) {
                   return (
                     <tr>
-                      <td className="px-4 py-4 text-ys-ink-2" colSpan={columnsCount}>
+                      <td className="px-4 py-4 text-ys-ink-2 whitespace-normal" colSpan={columnsCount}>
                         Sem redações {status === 'pending' ? 'pendentes' : 'corrigidas'}.
                       </td>
                     </tr>
@@ -271,7 +242,7 @@ export default function RedacaoProfessorPage() {
                   return (
                     <tr key={essayId ?? `${e.studentName}-${e.submittedAt}`} className="odd:bg-[#F9FAFB] align-middle">
                       {/* avatar */}
-                      <td className="px-3 py-2.5">
+                      <td className="col-avatar px-3 py-2.5">
                         {(() => {
                           const url = pickAvatarUrl(e);
                           const initials = getInitials(e.studentName);
@@ -293,24 +264,22 @@ export default function RedacaoProfessorPage() {
                         })()}
                       </td>
 
-                      <td className="px-4 py-3">{e.studentName}</td>
-                      <td className="px-4 py-3">{e.className ?? '-'}</td>
+                      <td className="col-student px-4 py-3">{e.studentName}</td>
+                      <td className="col-class px-4 py-3">{e.className ?? '-'}</td>
 
                       {/* Tema (clamp 2 linhas) */}
-                      <td className="px-4 py-3" title={String((e as any).theme ?? (e as any).topic ?? '-')}>
-                        <div style={clamp2} className="max-w-[540px] min-w-[260px]">
-                          {(e as any).theme ?? (e as any).topic ?? '-'}
-                        </div>
-                      </td>
+                          <td className="col-theme px-4 py-3" title={String((e as any).theme ?? (e as any).topic ?? '-')}">
+                            {(e as any).theme ?? (e as any).topic ?? '-'}
+                          </td>
 
-                      <td className="px-4 py-3">{(e as any).type || '-'}</td>
-                      <td className="px-4 py-3">{(e as any).bimester ?? '-'}</td>
-                      <td className="px-4 py-3">
+                      <td className="col-type px-4 py-3">{(e as any).type || '-'}</td>
+                      <td className="col-bimester px-4 py-3">{(e as any).bimester ?? '-'}</td>
+                      <td className="col-date px-4 py-3">
                         {e.submittedAt ? new Date(e.submittedAt).toLocaleDateString() : '-'}
                       </td>
 
                       {status === 'pending' ? (
-                        <td className="px-4 py-3">
+                        <td className="col-file px-4 py-3">
                           <Button
                             type="button"
                             variant="ghost"
@@ -331,8 +300,8 @@ export default function RedacaoProfessorPage() {
                         </td>
                       ) : (
                         <>
-                          <td className="px-4 py-3">{(e as any).score ?? '-'}</td>
-                          <td className="px-4 py-3">
+                          <td className="col-score px-4 py-3 text-center">{(e as any).score ?? '-'}</td>
+                          <td className="col-file px-4 py-3">
                             <Button type="button" variant="ghost" size="sm" onClick={openCorrectedPdf} disabled={!essayId}>
                               Visualizar
                             </Button>
@@ -340,7 +309,7 @@ export default function RedacaoProfessorPage() {
                         </>
                       )}
 
-                      <td className="px-4 py-3">
+                      <td className="col-actions px-4 py-3">
                         <div className="flex flex-wrap items-center gap-2">
                           {status === 'pending' ? (
                             <Button
@@ -353,7 +322,7 @@ export default function RedacaoProfessorPage() {
                             </Button>
                           ) : null}
 
-                          {status === 'corrected' && (
+                          {status === 'ready' && (
                             <Button
                               size="sm"
                               onClick={() => correctionUrl && navigate(correctionUrl)}
@@ -364,7 +333,7 @@ export default function RedacaoProfessorPage() {
                             </Button>
                           )}
 
-                          {status === 'corrected' && (
+                          {status === 'ready' && (
                             <Button
                               type="button"
                               variant="ghost"
@@ -406,7 +375,7 @@ export default function RedacaoProfessorPage() {
                               }}
                               disabled={!essayId || editLoadingId === essayId || deletingId === essayId}
                             >
-                              {editLoadingId === essayId ? 'Abrindo…' : 'Editar'}
+                              {editLoadingId === essayId ? 'Carregando…' : 'Editar'}
                             </Button>
                           )}
 
@@ -442,12 +411,14 @@ export default function RedacaoProfessorPage() {
                   );
                 });
               })()}
-          </tbody>
-        </table>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       {/* Paginação */}
-      <div className={`${containerCls} mt-4 flex items-center justify-between`}>
+      <div className="page-wide mt-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <button
             className="rounded border border-[#E5E7EB] px-3 py-1 disabled:opacity-50"

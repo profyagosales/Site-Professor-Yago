@@ -17,6 +17,7 @@ import C3_N2 from './composers/C3_N2';
 import C3_N3 from './composers/C3_N3';
 import C3_N4 from './composers/C3_N4';
 import C3_N5 from './composers/C3_N5';
+import C4_N0 from './composers/C4_N0';
 import C4_N1 from './composers/C4_N1';
 import C4_N2 from './composers/C4_N2';
 import C4_N3 from './composers/C4_N3';
@@ -48,6 +49,7 @@ export type ComposerId =
   | 'C3_N3'
   | 'C3_N4'
   | 'C3_N5'
+  | 'C4_N0'
   | 'C4_N1'
   | 'C4_N2'
   | 'C4_N3'
@@ -60,14 +62,16 @@ export type ComposerId =
   | 'C5_N4'
   | 'C5_N5'
   | (string & {});
-export type PieceKind = 'MANDATORY' | 'CHOICE_SINGLE' | 'CHOICE_MULTI' | 'MONOBLOCK';
+export type PieceKind = 'MANDATORY' | 'CHOICE_SINGLE' | 'CHOICE_MULTI' | 'MONOBLOCK' | 'PLACEHOLDER';
 
 export type ComposerOption = { id: string; label: string };
+type BasePiece = { key: string; label: string; noId?: boolean };
 export type ComposerPiece =
-  | { kind: 'MANDATORY'; key: string; label: string }
-  | { kind: 'CHOICE_SINGLE'; key: string; label: string; options: ComposerOption[] }
-  | { kind: 'CHOICE_MULTI'; key: string; label: string; options: ComposerOption[] }
-  | { kind: 'MONOBLOCK'; key: string; label: string; optionId: string };
+  | (BasePiece & { kind: 'MANDATORY' })
+  | (BasePiece & { kind: 'CHOICE_SINGLE'; options: ComposerOption[] })
+  | (BasePiece & { kind: 'CHOICE_MULTI'; options: ComposerOption[] })
+  | (BasePiece & { kind: 'MONOBLOCK'; optionId: string })
+  | (BasePiece & { kind: 'PLACEHOLDER' });
 
 export type LevelComposer = {
   id: ComposerId;
@@ -87,24 +91,12 @@ type ReasonMap = Record<ComposerId, Record<string, ReasonEntry | undefined>>;
 
 /** Mapa inicial com IDs REAIS para C2-N3 (dados enviados pelo Yago) */
 export const REASON_MAP: ReasonMap = {
-  C1_N0: {
-    c1n0_m1: { kind: 'MANDATORY', reasonId: '' },
-  },
-  C1_N1: {
-    c1n1_m1: { kind: 'MANDATORY', reasonId: '' },
-  },
-  C1_N2: {
-    c1n2_m1: { kind: 'MANDATORY', reasonId: '' },
-  },
-  C1_N3: {
-    c1n3_m1: { kind: 'MANDATORY', reasonId: '' },
-  },
-  C1_N4: {
-    c1n4_m1: { kind: 'MANDATORY', reasonId: '' },
-  },
-  C1_N5: {
-    c1n5_m1: { kind: 'MANDATORY', reasonId: '' },
-  },
+  C1_N0: {},
+  C1_N1: {},
+  C1_N2: {},
+  C1_N3: {},
+  C1_N4: {},
+  C1_N5: {},
   C2_N1: {
     c2n1_ou: {
       kind: 'CHOICE_SINGLE',
@@ -116,7 +108,6 @@ export const REASON_MAP: ReasonMap = {
     },
   },
   C2_N2: {
-    c2n2_abordagem: { kind: 'MANDATORY', reasonId: '' },
     c2n2_ou: {
       kind: 'CHOICE_SINGLE',
       options: {
@@ -132,8 +123,6 @@ export const REASON_MAP: ReasonMap = {
     },
   },
   C2_N3: {
-    // OBS: rubric não expõe reasonId para "Abordagem completa do tema"
-    c2n3_abordagem: { kind: 'MANDATORY', reasonId: '' },
     c2n3_partes: { kind: 'MANDATORY', reasonId: 'c2_l3_3partes_1_embrionaria' },
     c2n3_rep: {
       kind: 'CHOICE_MULTI',
@@ -144,23 +133,17 @@ export const REASON_MAP: ReasonMap = {
     },
   },
   C2_N4: {
-    c2n4_abordagem: { kind: 'MANDATORY', reasonId: '' },
     c2n4_partes: { kind: 'MANDATORY', reasonId: 'c2_l4_3partes_nenhuma_embrionaria' },
     c2n4_rep_leg: { kind: 'MANDATORY', reasonId: 'c2_l4_repertorio_legitimado' },
     c2n4_rep_pert: { kind: 'MANDATORY', reasonId: 'c2_l4_pertinente_sem_produtivo' },
   },
   C2_N5: {
-    c2n5_abordagem: { kind: 'MANDATORY', reasonId: '' },
     c2n5_partes: { kind: 'MANDATORY', reasonId: 'c2_l5_3partes_nenhuma_embrionaria' },
     c2n5_rep_leg: { kind: 'MANDATORY', reasonId: 'c2_l5_repertorio_legitimado' },
     c2n5_rep_pert: { kind: 'MANDATORY', reasonId: 'c2_l5_pertinente_com_produtivo' },
   },
-  C3_N0: {
-    nivel0_base: { kind: 'MANDATORY', reasonId: '' },
-  },
-  C3_N1: {
-    nivel1_base: { kind: 'MANDATORY', reasonId: '' },
-  },
+  C3_N0: {},
+  C3_N1: {},
   C3_N2: {
     c3n2_proj: { kind: 'MANDATORY', reasonId: 'c3_l2_muitas_falhas' },
     c3n2_dev: {
@@ -172,18 +155,10 @@ export const REASON_MAP: ReasonMap = {
     },
     c3n2_flag: { kind: 'MONOBLOCK', optionId: 'contradicao_grave', reasonId: 'c3_l2_contradicao_grave' },
   },
-  C3_N3: {
-    c3n3_proj: { kind: 'MANDATORY', reasonId: '' },
-    c3n3_dev: { kind: 'MANDATORY', reasonId: '' },
-  },
-  C3_N4: {
-    c3n4_proj: { kind: 'MANDATORY', reasonId: '' },
-    c3n4_dev: { kind: 'MANDATORY', reasonId: '' },
-  },
-  C3_N5: {
-    c3n5_proj: { kind: 'MANDATORY', reasonId: '' },
-    c3n5_dev: { kind: 'MANDATORY', reasonId: '' },
-  },
+  C3_N3: {},
+  C3_N4: {},
+  C3_N5: {},
+  C4_N0: {},
   C4_N1: {
     c4n1_multi: {
       kind: 'CHOICE_MULTI',
@@ -264,15 +239,9 @@ export const REASON_MAP: ReasonMap = {
       },
     },
   },
-  C5_N3: {
-    c5n3_fix: { kind: 'MANDATORY', reasonId: '' },
-  },
-  C5_N4: {
-    c5n4_fix: { kind: 'MANDATORY', reasonId: '' },
-  },
-  C5_N5: {
-    c5n5_fix: { kind: 'MANDATORY', reasonId: '' },
-  },
+  C5_N3: {},
+  C5_N4: {},
+  C5_N5: {},
 };
 
 export const COMPOSERS: Record<ComposerId, LevelComposer> = {
@@ -293,6 +262,7 @@ export const COMPOSERS: Record<ComposerId, LevelComposer> = {
   C3_N3,
   C3_N4,
   C3_N5,
+  C4_N0,
   C4_N1,
   C4_N2,
   C4_N3,
@@ -305,6 +275,81 @@ export const COMPOSERS: Record<ComposerId, LevelComposer> = {
   C5_N4,
   C5_N5,
 };
+
+function shouldSkipMissing(piece: ComposerPiece): boolean {
+  return piece.noId === true || piece.kind === 'MANDATORY' || piece.kind === 'PLACEHOLDER';
+}
+
+function logMissing(piece: ComposerPiece, composerId: ComposerId, detail?: string) {
+  if (shouldSkipMissing(piece)) return;
+  const suffix = detail ? `${piece.key}:${detail}` : piece.key;
+  console.warn('[ENEM-bridge] reasonId ausente para:', [`${composerId}:${suffix}`]);
+}
+
+type ResolveResult = {
+  ids: MaybeReasonId[];
+  missing: Array<string | undefined>;
+  takeover: boolean;
+};
+
+function resolvePieceIds(
+  piece: ComposerPiece,
+  entry: ReasonEntry | undefined,
+  selections: ComposerSelection
+): ResolveResult {
+  switch (piece.kind) {
+    case 'MANDATORY': {
+      if (entry?.kind === 'MANDATORY' && entry.reasonId) {
+        return { ids: [entry.reasonId], missing: [], takeover: false };
+      }
+      return { ids: [], missing: shouldSkipMissing(piece) ? [] : [undefined], takeover: false };
+    }
+    case 'CHOICE_SINGLE': {
+      const chosen = selections[piece.key];
+      if (typeof chosen !== 'string') {
+        return { ids: [], missing: [], takeover: false };
+      }
+      if (entry?.kind === 'CHOICE_SINGLE') {
+        const rid = entry.options[chosen];
+        if (rid) {
+          return { ids: [rid], missing: [], takeover: false };
+        }
+      }
+      return { ids: [], missing: shouldSkipMissing(piece) ? [] : [chosen], takeover: false };
+    }
+    case 'CHOICE_MULTI': {
+      const chosen = selections[piece.key];
+      if (!Array.isArray(chosen) || chosen.length === 0) {
+        return { ids: [], missing: [], takeover: false };
+      }
+      if (entry?.kind === 'CHOICE_MULTI') {
+        const ids = chosen
+          .map((opt) => entry.options[opt])
+          .filter((rid): rid is MaybeReasonId => Boolean(rid));
+        const missingOpts = chosen.filter((opt) => !entry.options[opt]);
+        return {
+          ids,
+          missing: shouldSkipMissing(piece) ? [] : missingOpts,
+          takeover: false,
+        };
+      }
+      return { ids: [], missing: shouldSkipMissing(piece) ? [] : chosen, takeover: false };
+    }
+    case 'MONOBLOCK': {
+      const active = Boolean(selections[piece.key]);
+      if (!active) {
+        return { ids: [], missing: [], takeover: false };
+      }
+      if (entry?.kind === 'MONOBLOCK' && entry.reasonId) {
+        return { ids: [entry.reasonId], missing: [], takeover: true };
+      }
+      return { ids: [], missing: shouldSkipMissing(piece) ? [] : [undefined], takeover: true };
+    }
+    case 'PLACEHOLDER':
+    default:
+      return { ids: [], missing: [], takeover: false };
+  }
+}
 
 export function getComposerById(id: ComposerId): LevelComposer {
   const composer = COMPOSERS[id];
@@ -324,78 +369,34 @@ export function collectReasonIds(
   const collected: MaybeReasonId[] = [];
   const missing: string[] = [];
 
-  outer: for (const piece of composer.pieces) {
+  for (const piece of composer.pieces) {
     const entry = map[piece.key];
+    const { ids, missing: pieceMissing, takeover } = resolvePieceIds(piece, entry, selections);
 
-    if (piece.kind === 'MANDATORY') {
-      if (entry?.kind === 'MANDATORY') {
-        if (entry.reasonId && entry.reasonId.length > 0) {
-          collected.push(entry.reasonId);
-        } else {
-          missing.push(`${composerId}:${piece.key}`);
+    if (pieceMissing.length) {
+      pieceMissing.forEach((detail) => {
+        logMissing(piece, composerId, detail);
+        if (!shouldSkipMissing(piece)) {
+          const formatted = detail ? `${composerId}:${piece.key}:${detail}` : `${composerId}:${piece.key}`;
+          missing.push(formatted);
         }
-      } else {
-        missing.push(`${composerId}:${piece.key}`);
-      }
-      continue;
+      });
     }
 
-    if (piece.kind === 'CHOICE_SINGLE') {
-      const chosen = selections[piece.key];
-      if (typeof chosen === 'string') {
-        if (entry?.kind === 'CHOICE_SINGLE') {
-          const rid = entry.options[chosen];
-          if (rid && rid.length > 0) {
-            collected.push(rid);
-          } else {
-            missing.push(`${composerId}:${piece.key}:${chosen}`);
-          }
-        } else {
-          missing.push(`${composerId}:${piece.key}:${chosen}`);
-        }
+    if (takeover) {
+      collected.length = 0;
+      if (ids.length) {
+        collected.push(...ids);
       }
-      continue;
+      break;
     }
 
-    if (piece.kind === 'CHOICE_MULTI') {
-      const chosen = selections[piece.key];
-      if (Array.isArray(chosen)) {
-        if (entry?.kind === 'CHOICE_MULTI') {
-          for (const opt of chosen) {
-            const rid = entry.options[opt];
-            if (rid && rid.length > 0) {
-              collected.push(rid);
-            } else {
-              missing.push(`${composerId}:${piece.key}:${opt}`);
-            }
-          }
-        } else {
-          chosen.forEach((opt) => missing.push(`${composerId}:${piece.key}:${opt}`));
-        }
-      }
-      continue;
-    }
-
-    if (piece.kind === 'MONOBLOCK') {
-      const checked = selections[piece.key];
-      if (checked) {
-        if (entry?.kind === 'MONOBLOCK' && entry.reasonId && entry.reasonId.length > 0) {
-          collected.length = 0;
-          collected.push(entry.reasonId);
-        } else {
-          collected.length = 0;
-          missing.push(`${composerId}:${piece.key}`);
-        }
-        break outer;
-      }
+    if (ids.length) {
+      collected.push(...ids);
     }
   }
 
   const reasonIds = Array.from(new Set(collected.filter((id): id is RubricReasonId => Boolean(id && id.length)))).sort();
-
-  if (missing.length) {
-    console.warn('[ENEM-bridge] reasonId ausente para:', missing);
-  }
 
   return { reasonIds, missing };
 }
@@ -489,6 +490,10 @@ export function buildSelectionFromReasonIds(
 
   composer.pieces.forEach((piece) => {
     const entry = mapping[piece.key];
+    if (piece.noId === true && (piece.kind === 'MANDATORY' || piece.kind === 'PLACEHOLDER')) {
+      selection[piece.key] = true;
+      return;
+    }
     switch (piece.kind) {
       case 'MANDATORY':
         selection[piece.key] = true;
@@ -612,6 +617,7 @@ export const COMPOSER_REGISTRY: ComposerRegistry = {
     5: { id: 'C3_N5' },
   },
   C4: {
+    0: { id: 'C4_N0' },
     1: { id: 'C4_N1' },
     2: { id: 'C4_N2' },
     3: { id: 'C4_N3' },

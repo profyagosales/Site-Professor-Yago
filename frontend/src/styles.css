@@ -1092,6 +1092,11 @@ a {
   .RightRailCard { display: none !important; }
 }
 
+/* Oculta o rail de ações durante geração de PDF */
+[data-printing="1"] .ws-rail {
+  display: none !important;
+}
+
 /* Right rail visual compaction */
 .RightRailCard { font-size: 9px; line-height: 1.25; }
 .RightRailCard .card-title { font-size: 10px; }
@@ -1099,56 +1104,12 @@ a {
 .RightRailCard [data-annotation-id] h4 { font-size: 10px; line-height: 1.15; margin: 0 0 2px 0; }
 .RightRailCard [data-annotation-id] p { font-size: 9px; line-height: 1.25; margin: 0; }
 /* Fallback sticky for rails when ws-* helpers are not attached */
-.LeftRailCard, .RightRailCard { position: sticky; top: var(--ws-rail-top); }
-.LeftRailCard { max-height: calc(100vh - var(--ws-rail-top) - 12px); overflow: auto; }
+.RightRailCard { position: sticky; top: var(--ws-rail-top); }
 
 /* === Correção Inline: ações no card do marca‑texto (lateral esquerda) === */
 /* Esconde o grupo antigo de ações do cabeçalho (envolvido por .header-actions--deprecated) */
 .header-actions--deprecated { display: none !important; }
 
-/* Container de ações com quebra automática (usado na lateral) */
-.rail-actions {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 8px;
-}
-.rail-actions .btn {
-  white-space: normal;   /* permite quebra de linha em rótulos longos */
-  line-height: 1.15;
-  padding: 10px 12px;
-}
-
-/* Oculta a lateral esquerda durante geração de PDF/impressão (caso essas classes existam na página) */
-[data-printing="1"] .correction-rail,
-[data-printing="1"] .redacao-left-rail,
-[data-printing="1"] .LeftRailCard {
-  display: none !important;
-}
-/* ===== Left-rail actions: responsive gaps + category color variants ===== */
-/* ===== Left-rail actions: responsive gaps + category color variants ===== */
-/* Responsive gap: mais compacto em telas pequenas, mais folga em desktops grandes */
-.rail-actions { gap: 8px; }
-@media (max-width: 640px) { .rail-actions { gap: 6px; } }
-@media (min-width: 1280px) { .rail-actions { gap: 10px; } }
-
-/* Vertical spacing between action groups and the toolbar in the left rail */
-.redacao-left-rail .rail-actions + .AnnotationToolbar,
-.redacao-left-rail .AnnotationToolbar + .rail-actions,
-.LeftRailCard .rail-actions + .AnnotationToolbar,
-.LeftRailCard .AnnotationToolbar + .rail-actions {
-  margin-top: 12px;
-}
-/* Center actions inside the left rail card and make buttons full-width for visual balance */
-.LeftRailCard .rail-actions { justify-items: center; }
-.LeftRailCard .rail-actions .btn { width: 100%; }
-@media (min-width: 1024px) {
-  .redacao-left-rail .rail-actions + .AnnotationToolbar,
-  .redacao-left-rail .AnnotationToolbar + .rail-actions,
-  .LeftRailCard .rail-actions + .AnnotationToolbar,
-  .LeftRailCard .AnnotationToolbar + .rail-actions {
-    margin-top: 14px;
-  }
-}
 
 /* Botões/Chips com variação de cor por categoria (Argumentação, Ortografia, Coesão, Apresentação, Comentários) */
 /* Use em botões da lateral: class="btn btn--arg" etc. Também funciona em chips: class="chip chip--arg" */
@@ -1303,32 +1264,180 @@ a {
   gap: 0.5rem;
 }
 /* === Workspace sticky rails (micro) === */
-:root{ --ws-hero-h: 72px; --ws-gap: 16px; --ws-rail-top: calc(var(--ws-hero-h) + var(--ws-gap)); }
-
-/* Left rail gruda no topo do hero e ganha rolagem própria */
-.ws-left-rail{
-  position: sticky;
-  top: var(--ws-rail-top);
-  max-height: calc(100vh - var(--ws-rail-top) - 12px);
-  overflow: auto;
+:root{
+  --app-header-h: 72px;
+  --hero-gap: 24px;
+  --rail-top: calc(var(--app-header-h) + var(--hero-gap));
+  --rail-w: 340px;
+  --workspace-min-width: 1200px;
+  --ws-rail-top: var(--rail-top);
 }
 
 /* Right rail pode usar o mesmo topo para sincronizar com o hero */
 .ws-right-rail{ position: sticky; top: var(--ws-rail-top); }
 
-/* === Left rail: espaçamento explícito entre grupos (micro) === */
-.redacao-left-rail .rail-actions:first-of-type{ margin-bottom: 12px; }
-.redacao-left-rail .AnnotationToolbar{ margin: 12px 0; }
-.redacao-left-rail .rail-actions:last-of-type{ margin-top: 12px; }
-@media (min-width: 1024px){
-  .redacao-left-rail .rail-actions:first-of-type{ margin-bottom: 16px; }
-  .redacao-left-rail .AnnotationToolbar{ margin: 16px 0; }
-  .redacao-left-rail .rail-actions:last-of-type{ margin-top: 16px; }
+/* === Workspace action rail (left) === */
+.ws-rail{
+  width: var(--rail-w);
 }
-.ws-left-rail-stretch{
-  align-self: stretch;
-  height: auto;
+
+.ws-rail-sticky{
+  position: sticky;
+  top: var(--rail-top);
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--rail-top));
+  gap: 12px;
 }
+
+.ws-rail-head,
+.ws-rail-footer{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.ws-rail-body{
+  flex: 1;
+  overflow: auto;
+  padding-right: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ws-rail-body > *{
+  width: 100%;
+}
+
+.ws-rail-body::-webkit-scrollbar{ width: 6px; }
+.ws-rail-body::-webkit-scrollbar-thumb{
+  border-radius: 9999px;
+  background: rgba(0,0,0,.15);
+}
+
+.ws-rail-head .rail-btn,
+.ws-rail-footer .rail-btn{
+  width: 100%;
+}
+
+.rail-btn{
+  height: 44px;
+  font-size: 16px;
+  line-height: 1;
+  padding-inline: 16px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.rail-btn--xl{
+  height: 48px;
+  font-weight: 600;
+}
+
+.rail-btn--ghost{
+  background: #f6f7f9;
+}
+
+.rail-btn--secondary{
+  background: #eef2f7;
+}
+
+.rail-btn--primary{
+  background: #f97316;
+  color: #ffffff;
+}
+
+.ws-rail-toolbar{
+  margin: 0 !important;
+  border: 0 !important;
+  padding: 0 !important;
+}
+
+.ws-rail-toolbar button{
+  border-radius: 12px;
+}
+
+.comments-pane{
+  max-height: calc(100vh - var(--rail-top));
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.comment-textarea{
+  resize: none;
+  overflow: hidden;
+}
+
+.pdf-canvas-container{
+  scroll-behavior: auto;
+}
+
+.page-wide {
+  max-width: var(--workspace-min-width, 1200px);
+  width: min(96vw, var(--workspace-min-width, 1200px));
+  margin-inline: auto;
+  padding-inline: clamp(16px, 3vw, 24px);
+}
+
+.table-card--wide {
+  width: 100%;
+}
+
+.table-wide-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable both-edges;
+}
+
+.table-wide {
+  width: 100%;
+  min-width: 1100px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table-wide th,
+.table-wide td {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.table-wide thead th {
+  position: sticky;
+  top: 0;
+  background: #F3F4F6;
+  z-index: 2;
+}
+
+.col-avatar { min-width: 48px; width: 1%; text-align: center; }
+.col-student { min-width: 220px; }
+.col-class { min-width: 160px; }
+.col-theme { min-width: 220px; }
+.col-type { min-width: 110px; text-align: center; }
+.col-bimester { min-width: 110px; text-align: center; }
+.col-date { min-width: 140px; text-align: center; }
+.col-file { min-width: 110px; text-align: center; }
+.col-score { min-width: 110px; text-align: center; }
+.col-actions { min-width: 240px; width: 1%; white-space: normal; }
+
+@media (max-width: 1024px){
+  .ws-rail{ width: auto; }
+  .ws-rail-sticky{
+    position: static;
+    height: auto;
+  }
+  .ws-rail-body{
+    overflow: visible;
+    padding-right: 0;
+  }
+}
+
 /* === Hero internal grid (left=logo, center=aluno, right=nota) === */
 .hero-inner{ 
   display:grid; 
@@ -1356,9 +1465,13 @@ a {
 }
 
 /* Centro realmente no meio do hero */
-.hero-center{ 
-  justify-self:center; 
-  text-align:center; 
+.hero-center{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:16px;
+  justify-self:center;
+  text-align:left;
   min-width:0; /* enable truncate */
 }
 
@@ -1371,30 +1484,6 @@ a {
 }
 
 /* Lateral esquerda: card ocupa altura da viewport e fica sticky */
-.LeftRailCard{
-  position: sticky;
-  top: var(--ws-rail-top);
-  height: calc(100vh - var(--ws-rail-top) - 12px);
-  display: flex;
-  flex-direction: column;
-}
-
-/* Corpo do card compacto */
-.LeftRailCard .card-body{
-  display: flex;
-  flex-direction: column;
-  gap: 8px;          /* gap menor entre blocos do card */
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
-/* Botões juntos no fim do card */
-.btn-stack{
-  margin-top: auto;  /* gruda na base do card */
-  display: grid;
-  gap: 8px;          /* diminui espaço entre os dois botões */
-}
-
 /* === Grade Workspace hero (3-col layout) === */
 .gw-hero{
   background:#fff;
@@ -1440,11 +1529,6 @@ a {
 }
 .gw-hero .hero-center{
   justify-self:stretch;
-  text-align:left;
-}
-.gw-hero .hero-center .flex{
-  align-items:center;
-  gap:20px;
 }
 .gw-hero .hero-avatar{
   width:96px;
@@ -1492,10 +1576,6 @@ a {
   background:#fff7ed;
   border-color:#fdba74;
 }
-.gw-hero .hero-stat--status{
-  background:#ffffff;
-  border-color:#e2e8f0;
-}
 .gw-hero .hero-stat__label{
   font-size:12px;
   letter-spacing:0.14em;
@@ -1523,17 +1603,36 @@ a {
   color:#94a3b8;
   font-weight:600;
 }
-.gw-hero .hero-stat__value-suffix::before{
-  content:' / ';
-}
-.gw-hero .hero-stat--status .hero-stat__value{
-  font-size:1.4rem;
-}
-.gw-hero .hero-stat__value--status{
-  font-size:1.35rem;
-  letter-spacing:0.08em;
-}
 .enem-justif { font-size: var(--pdf-fz-md); line-height: 1.35; color: var(--pdf-text); }
 .enem-justif small { font-size: var(--pdf-fz-sm); color: var(--pdf-text-subtle); }
 .enem-token { font-weight: 800; letter-spacing: .02em; color: var(--pdf-brand-title); }
 .enem-token[data-k="neg"] { color: #b91c1c; }
+
+/* PAS – mini cards no Resumo do espelho */
+.pas-mini {
+  border: 1px solid var(--border-soft, #eaeaea);
+  border-radius: 12px;
+  padding: 12px 16px;
+  background: var(--surface, #fff);
+}
+
+/* destaque para a nota final da redação */
+.pas-mini--final {
+  background: #fff7ed;
+  border-color: #fdba74;
+  box-shadow: 0 0 0 2px rgba(253, 186, 116, 0.25) inset;
+}
+
+.pas-mini .pas-mini__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.pas-mini .pas-mini__value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+}

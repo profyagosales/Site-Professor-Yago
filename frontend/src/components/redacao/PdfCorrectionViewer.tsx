@@ -3,6 +3,7 @@ import { pdfjsLib, ensureWorker } from '@/lib/pdf';
 import { HIGHLIGHT_ALPHA, HIGHLIGHT_CATEGORIES, type HighlightCategoryKey } from '@/constants/annotations';
 import { hexToRgba } from '@/utils/color';
 import type { AnnotationItem, NormalizedRect } from './annotationTypes';
+import type { ScrollLockControls } from '@/hooks/useScrollLock';
 
 type PdfCorrectionViewerProps = {
   fileUrl: string | null;
@@ -21,6 +22,7 @@ type PdfCorrectionViewerProps = {
     saving?: boolean;
     generating?: boolean;
   };
+  scrollLock?: ScrollLockControls;
 };
 
 type DrawingState = {
@@ -61,6 +63,7 @@ export function PdfCorrectionViewer({
   onMoveAnnotation,
   onSelectAnnotation,
   disabled,
+  scrollLock,
 }: PdfCorrectionViewerProps) {
   const [pdfDoc, setPdfDoc] = useState<any>(null);
   const [numPages, setNumPages] = useState(0);
@@ -256,7 +259,7 @@ export function PdfCorrectionViewer({
 
 
   useEffect(() => {
-    if (!selectedId) return;
+    if (!selectedId || scrollLock?.isLocked?.()) return;
     const el = annRefs.current[selectedId];
     if (el) {
       // scroll the highlight into view (centro do contêiner rolável)
@@ -277,7 +280,8 @@ export function PdfCorrectionViewer({
         /* ignore */
       }
     }
-  }, [selectedId, idToPage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
 
   const handlePointerDown = (pageNumber: number, event: React.PointerEvent<HTMLDivElement>) => {
     if (disabled) return;

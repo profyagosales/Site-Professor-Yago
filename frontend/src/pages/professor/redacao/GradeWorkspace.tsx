@@ -28,6 +28,8 @@ import { generateCorrectedPdf } from '@/features/redacao/pdf/generateCorrectedPd
 import type { AnnotationKind, EssayPdfData, EssayModel } from '@/features/redacao/pdf/types';
 import { renderFirstPageToPng } from '@/features/redacao/pdf/pdfPreview';
 import { buildJustificationFromReasonIds } from '@/features/enem/composerBridge';
+import { Logo } from '@/components/brand/Logo';
+import { useScrollLock } from '@/hooks/useScrollLock';
 
 
 
@@ -157,24 +159,32 @@ function MirrorSummaryInline(props: {
     <div className="rounded-xl border border-orange-200 bg-orange-50/60 p-3">
       <h3 className="text-[11px] font-semibold tracking-wide text-orange-700">Resumo do espelho</h3>
       {type === 'PAS' && pas ? (
-        <div className="mt-2 grid grid-cols-2 gap-2 text-slate-800">
-          <div className="rounded-lg border border-slate-200 bg-white p-2">
-            <span className="block text-[10px] text-slate-500">NC</span>
-            <span className="text-base font-bold leading-none">{pas.nc.toFixed(2)}</span>
-          </div>
-          <div className="rounded-lg border border-slate-200 bg-white p-2">
-            <span className="block text-[10px] text-slate-500">NR previsto</span>
-            <span className="text-base font-bold leading-none">{(pas.nr ?? 0).toFixed(2)}</span>
-          </div>
-          <div className="rounded-lg border border-slate-200 bg-white p-2">
-            <span className="block text-[10px] text-slate-500">TL</span>
-            <span className="text-base font-semibold leading-none">{pas.tl ?? 0}</span>
-          </div>
-          <div className="rounded-lg border border-slate-200 bg-white p-2">
-            <span className="block text-[10px] text-slate-500">NE total</span>
-            <span className="text-base font-semibold leading-none">{pas.ne}</span>
-          </div>
-        </div>
+        (() => {
+          const formatValue = (key: string, value: number | null | undefined) => {
+            if (value == null) return '—';
+            if (key === 'tl' || key === 'ne_total') return String(value);
+            return value.toFixed(2);
+          };
+          const cards = [
+            { key: 'tl', label: 'Total de linhas', value: pas.tl },
+            { key: 'nc', label: 'Nota de conteúdo', value: pas.nc },
+            { key: 'ne_total', label: 'Número de erros', value: pas.ne },
+            { key: 'nr_prev', label: 'Nota final da redação', value: pas.nr, highlight: true },
+          ] as const;
+          return (
+            <div className="mt-2 grid grid-cols-2 gap-2 text-slate-800">
+              {cards.map((card) => (
+                <div
+                  key={card.key}
+                  className={`pas-mini ${card.highlight ? 'pas-mini--final' : ''}`}
+                >
+                  <span className="pas-mini__label">{card.label}</span>
+                  <span className="pas-mini__value">{formatValue(card.key, card.value)}</span>
+                </div>
+              ))}
+            </div>
+          );
+        })()
       ) : (
         <div className="mt-2 grid grid-cols-1 gap-2 text-slate-800">
           <div className="rounded-lg border border-slate-200 bg-white p-2">
@@ -229,10 +239,10 @@ export default function GradeWorkspace() {
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const scrollLock = useScrollLock();
 
   const [annulState, setAnnulState] = useState<Record<string, boolean>>({});
   const [annulOther, setAnnulOther] = useState('');
-  const [brandSrc, setBrandSrc] = useState('/pdf/brand-mark.png');
   const createEmptyPasState = (): PasState => ({
     apresentacao: '',
     argumentacao: '',
@@ -799,9 +809,12 @@ export default function GradeWorkspace() {
                 coesaoCoerencia: pasSummary.coesaoCoerencia,
                 conteudo: pasSummary.conteudo,
                 nl: pasSummary.nl,
+                tl: Number(pasDerived.tl ?? 0),
+                nc: Number(pasDerived.nc ?? 0),
                 erros: pasSummary.erros,
                 neTotal: pasDerived.ne ?? 0,
                 nr: pasDerived.nr ?? 0,
+                nrPrevisto: pasDerived.nr ?? 0,
               }
             : undefined,
       };
@@ -838,7 +851,17 @@ export default function GradeWorkspace() {
     }
   };
 
-  const backToList = () => navigate(-1);
+  const handleOpenOriginal = () => {
+    if (essay?.originalUrl) {
+      window.open(essay.originalUrl, '_blank', 'noopener,noreferrer');
+    } else if (pdfUrl) {
+      window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      toast.info('Nenhum PDF disponível para abrir.');
+    }
+  };
+
+  const handleBack = () => navigate(-1);
 
   const studentName = essay?.student?.name || essay?.studentName || '-';
   const rawPhoto =
@@ -883,7 +906,6 @@ export default function GradeWorkspace() {
   const typeLabel = essayType === 'PAS' ? 'PAS/UnB' : 'ENEM';
   const themeLabel = essay?.theme || essay?.topic || '';
   const detailLine = joinPieces(typeLabel, themeLabel).join(', ');
-  const statusLabel = (essay as any)?.statusLabel || (essay as any)?.status || '';
   const finalScore = ((): string => {
     if (essayType === 'PAS') {
       const v = pasDerived?.nr;
@@ -892,10 +914,25 @@ export default function GradeWorkspace() {
     const enem = Math.max(0, Math.round(Number(enemTotal) || 0));
     return String(enem);
   })();
-  const totalLabel = essayType === 'PAS' ? 'TOTAL PAS' : 'TOTAL ENEM';
-  const totalSuffix = essayType === 'PAS' ? '10' : '1000';
-  const statusTypeLabel = essayType === 'PAS' ? 'PAS' : 'ENEM';
-  const statusValue = (statusLabel ? String(statusLabel) : statusTypeLabel).toUpperCase();
+  const isPas = essayType === 'PAS';
+  const totalLabel = isPas ? 'TOTAL PAS' : 'TOTAL ENEM';
+  const totalDen = isPas ? '/10' : '/1000';
+  const railMenu = (
+    <>
+      <AnnotationToolbar
+        active={activeCategory}
+        onChange={setActiveCategory}
+        orientation="horizontal"
+        className="md:hidden w-full"
+      />
+      <AnnotationToolbar
+        active={activeCategory}
+        onChange={setActiveCategory}
+        orientation="vertical"
+        className="hidden md:flex ws-rail-toolbar w-full md:static md:top-auto md:self-stretch"
+      />
+    </>
+  );
 
   return (
     <div
@@ -906,7 +943,7 @@ export default function GradeWorkspace() {
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:p-5">
         {/* Unified 3-column grid */}
-        <div className="grid grid-cols-1 gap-3 items-start md:grid-cols-[260px_minmax(0,1fr)_clamp(260px,20%,360px)]" aria-label="Workspace de correção">
+        <div className="grid grid-cols-1 gap-3 items-start md:grid-cols-[var(--rail-w)_minmax(0,1fr)_clamp(260px,20%,360px)]" aria-label="Workspace de correção">
           {/* HERO: spans center and right columns on md+ */}
           <header
             className="md:col-start-2 md:col-span-2 w-full"
@@ -914,15 +951,11 @@ export default function GradeWorkspace() {
             style={{ ['--gw-hero-h' as any]: '72px' }}
           >
             <div className="hero hero--compact gw-hero w-full">
-              <div className="hero-inner">
+              <div className="hero-inner grid grid-cols-[auto,1fr,auto]">
                 {/* ESQUERDA: marca (duas linhas) */}
                 <div className="hero-brand">
                   <div className="hero-brand-mark">
-                    <img
-                      src={brandSrc}
-                      alt="Logomarca Professor Yago Sales"
-                      onError={() => setBrandSrc('/logo.svg')}
-                    />
+                    <Logo className="h-14 w-14" />
                   </div>
                   <div className="brand-title hero-brand-name">
                     Professor Yago Sales
@@ -930,145 +963,81 @@ export default function GradeWorkspace() {
                 </div>
 
                 {/* CENTRO: aluno */}
-                <div className="hero-center">
-                  <div className="flex items-center gap-4">
-                    {studentPhoto ? (
-                      <img
-                        src={studentPhoto}
-                        alt={studentName}
-                        className="hero-avatar"
-                      />
-                    ) : (
-                      <div className="hero-avatar hero-avatar--fallback">
-                        {studentInitials}
-                      </div>
-                    )}
-
-                    <div className="min-w-0 text-left">
-                      <h1 className="hero-name hero-brand-name truncate">
-                        {studentName}
-                      </h1>
-                      <p className="pdf-md truncate">
-                        {infoLine || '—'}
-                        <br />
-                        {detailLine || '—'}
-                      </p>
+                <div className="hero-center flex items-center justify-center gap-4">
+                  {studentPhoto ? (
+                    <img
+                      src={studentPhoto}
+                      alt={studentName}
+                      className="hero-avatar"
+                    />
+                  ) : (
+                    <div className="hero-avatar hero-avatar--fallback">
+                      {studentInitials}
                     </div>
+                  )}
+
+                  <div className="min-w-0 text-left">
+                    <h1 className="hero-name hero-brand-name truncate">
+                      {studentName}
+                    </h1>
+                    <p className="pdf-md truncate text-left">
+                      {infoLine || '—'}
+                      <br />
+                      {detailLine || '—'}
+                    </p>
                   </div>
                 </div>
 
                 {/* DIREITA: cartões colados na borda do hero */}
-                <div className="hero-score flex items-center gap-3">
+                <div className="hero-score flex items-center gap-3 justify-self-end">
                   <div className="hero-stat hero-stat--total">
                     <span className="hero-stat__label">{totalLabel}</span>
                     <span className="hero-stat__value">
                       <span className="hero-stat__value-main">{finalScore}</span>
-                      <span className="hero-stat__value-suffix">{totalSuffix}</span>
+                      <span className="hero-stat__value-suffix">{totalDen}</span>
                     </span>
-                  </div>
-                  <div className="hero-stat hero-stat--status">
-                    <span className="hero-stat__label">STATUS {statusTypeLabel}</span>
-                    <span className="hero-stat__value hero-stat__value--status">{statusValue}</span>
                   </div>
                 </div>
               </div>
             </div>
           </header>
           {/* LEFT RAIL */}
-          <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:w-[260px] md:shrink-0 redacao-left-rail ws-left-rail-stretch">
-            {/* Mobile: action buttons + toolbar + action buttons */}
-            <div className="mb-3 md:hidden flex flex-col gap-4">
-              <div className="rail-actions flex flex-wrap items-center gap-2">
-                <Button className="btn btn--neutral" onClick={backToList}>
+          <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail">
+            <div className="ws-rail-sticky rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+              <div className="ws-rail-head">
+                <Button
+                  className="btn btn--neutral rail-btn rail-btn--ghost"
+                  onClick={handleBack}
+                >
                   Voltar
                 </Button>
                 <Button
-                  className="btn btn--neutral"
-                  onClick={() => {
-                    if (essay?.originalUrl) {
-                      window.open(essay.originalUrl, '_blank', 'noopener,noreferrer');
-                    } else if (pdfUrl) {
-                      window.open(pdfUrl, '_blank', 'noopener,noreferrer');
-                    } else {
-                      toast.info('Nenhum PDF disponível para abrir.');
-                    }
-                  }}
+                  className="btn btn--neutral rail-btn"
+                  onClick={handleOpenOriginal}
                 >
                   Abrir original
                 </Button>
               </div>
 
-              <AnnotationToolbar active={activeCategory} onChange={setActiveCategory} orientation="horizontal" />
+              <div className="ws-rail-body">
+                {railMenu}
+              </div>
 
-              <div className="rail-actions btn-stack">
+              <div className="ws-rail-footer">
                 <Button
-                  className="btn btn--neutral"
+                  className="btn btn--neutral rail-btn rail-btn--secondary"
                   onClick={handleSave}
                   disabled={saving || !dirty}
                 >
                   {saving ? 'Salvando…' : 'Salvar'}
                 </Button>
                 <Button
-                  className="btn btn--brand"
+                  className="btn btn--brand rail-btn rail-btn--primary rail-btn--xl"
                   onClick={handleGeneratePdf}
                   disabled={generating}
                 >
                   {generating ? 'Gerando…' : 'Gerar PDF corrigido'}
                 </Button>
-              </div>
-            </div>
-            {/* Desktop: action buttons + toolbar + action buttons (vertical) */}
-            <div className="hidden md:block ws-left-rail gw-rail-raise md:sticky md:top-2 md:max-h-[calc(100vh-0.5rem)]">
-              <div className="card LeftRailCard ws-left-rail rounded-xl border border-slate-200 bg-white p-3 shadow-sm min-h-[560px] h-full flex flex-col">
-                <div className="flex-1 overflow-y-auto pr-1">
-                  <div className="rail-actions flex flex-wrap items-center gap-2">
-                    <Button className="btn btn--neutral" onClick={backToList}>
-                      Voltar
-                    </Button>
-                    <Button
-                      className="btn btn--neutral"
-                      onClick={() => {
-                        if (essay?.originalUrl) {
-                          window.open(essay.originalUrl, '_blank', 'noopener,noreferrer');
-                        } else if (pdfUrl) {
-                          window.open(pdfUrl, '_blank', 'noopener,noreferrer');
-                        } else {
-                          toast.info('Nenhum PDF disponível para abrir.');
-                        }
-                      }}
-                    >
-                      Abrir original
-                    </Button>
-                  </div>
-
-                  <div className="h-3" aria-hidden />
-                  <div className="flex justify-center">
-                    <AnnotationToolbar
-                      active={activeCategory}
-                      onChange={setActiveCategory}
-                      orientation="vertical"
-                      centered
-                    />
-                  </div>
-                  <div className="h-3" aria-hidden />
-                </div>
-                {/* footer CTA, outside the scrollable area */}
-                <div className="rail-actions btn-stack mt-2 border-t border-slate-100/80 bg-white/95 px-1 pt-3 backdrop-blur supports-[backdrop-filter]:bg-white/80">
-                  <Button
-                    className="btn btn--neutral"
-                    onClick={handleSave}
-                    disabled={saving || !dirty}
-                  >
-                    {saving ? 'Salvando…' : 'Salvar'}
-                  </Button>
-                  <Button
-                    className="btn btn--brand"
-                    onClick={handleGeneratePdf}
-                    disabled={generating}
-                  >
-                    {generating ? 'Gerando…' : 'Gerar PDF corrigido'}
-                  </Button>
-                </div>
               </div>
             </div>
           </aside>
@@ -1080,7 +1049,7 @@ export default function GradeWorkspace() {
               </p>
             )}
             <div className="pdf-canvas-wrap p-1">
-              <div className="h-[78vh] min-h-[560px] w-full overflow-auto">
+              <div className="pdf-canvas-container h-[78vh] min-h-[560px] w-full overflow-auto">
                 <PdfCorrectionViewer
                   fileUrl={pdfUrl}
                   annotations={orderedAnnotations}
@@ -1089,6 +1058,7 @@ export default function GradeWorkspace() {
                   onCreateAnnotation={handleCreateAnnotation}
                   onMoveAnnotation={handleMoveAnnotation}
                   onSelectAnnotation={setSelectedAnnotationId}
+                  scrollLock={scrollLock}
                 />
               </div>
             </div>
@@ -1107,6 +1077,7 @@ export default function GradeWorkspace() {
                   onCommentChange={handleCommentChange}
                   focusId={focusAnnotationId}
                   liveMessage={liveMessage}
+                  scrollLock={scrollLock}
                 />
               </div>
             </div>

@@ -138,13 +138,13 @@ function CadernoAluno({ classId }: { classId?: string }) {
 }
 
 function ListaRedacoesAluno({ id }: { id: string }) {
-  const [status, setStatus] = useState<'pending'|'corrected'>('pending');
+  const [status, setStatus] = useState<'pending' | 'ready'>('pending');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [data, setData] = useState<any>({ items: [], total: 0 });
   const statusTabs = [
     { key: 'pending', label: 'Pendentes', isActive: status === 'pending', onClick: () => { setStatus('pending'); setPage(1); } },
-    { key: 'corrected', label: 'Corrigidas', isActive: status === 'corrected', onClick: () => { setStatus('corrected'); setPage(1); } },
+    { key: 'ready', label: 'Corrigidas', isActive: status === 'ready', onClick: () => { setStatus('ready'); setPage(1); } },
   ];
 
   useEffect(() => {

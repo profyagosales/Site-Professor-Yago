@@ -15,8 +15,35 @@ export async function getStudent(id: string) {
   return data as { student: any; stats: { totalEssays: number; averageScore: number | null } };
 }
 
-export async function getStudentEssays(id: string, params: { status?: 'pending' | 'corrected'; page?: number; pageSize?: number }) {
-  const { data } = await api.get(`/students2/${id}/essays`, { params });
+const STUDENT_STATUS_SYNONYMS: Record<string, string> = {
+  pendente: 'pending',
+  pending: 'pending',
+  corrigida: 'ready',
+  corrigidas: 'ready',
+  corrected: 'ready',
+  ready: 'ready',
+  processando: 'processing',
+  processing: 'processing',
+  erro: 'failed',
+  errored: 'failed',
+  failed: 'failed',
+};
+
+function normalizeStudentEssayStatus(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const raw = value.trim().toLowerCase();
+  if (!raw) return undefined;
+  return STUDENT_STATUS_SYNONYMS[raw] ?? raw;
+}
+
+export async function getStudentEssays(id: string, params: { status?: 'pending' | 'ready' | 'processing' | 'failed' | 'corrected'; page?: number; pageSize?: number }) {
+  const normalizedStatus = normalizeStudentEssayStatus(params?.status);
+  const { data } = await api.get(`/students2/${id}/essays`, {
+    params: {
+      ...params,
+      status: normalizedStatus,
+    },
+  });
   return data as { items: any[]; page: number; pageSize: number; total: number };
 }
 // Reexports para compatibilidade

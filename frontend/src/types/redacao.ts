@@ -1,4 +1,4 @@
-export type EssayStatus = 'pending' | 'corrected';
+export type EssayStatus = 'pending' | 'ready' | 'processing' | 'failed' | 'corrected';
 
 // Minimal student summary used across correction flows
 export interface StudentSummary {

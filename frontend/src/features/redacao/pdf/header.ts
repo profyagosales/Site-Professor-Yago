@@ -214,29 +214,38 @@ export const renderHeroHeader: HeroRenderer = async ({
   const model = data.model === 'ENEM' ? 'ENEM' : 'PAS/UnB';
 
   const nameLine = fitLine(name, bold, PDF_FONT.MD, infoW);
+  const metaLine = [classLabel, discipline, term ? `${term}º bimestre` : '']
+    .filter(Boolean)
+    .join(' • ');
+  const metaLineF = fitLine(metaLine, regular, 8, infoW);
+  const themeLine = fitLine(`Tema: ${theme}`, regular, 8, infoW);
+
+  const infoContentWidth = Math.max(
+    bold.widthOfTextAtSize(nameLine, PDF_FONT.MD),
+    regular.widthOfTextAtSize(metaLineF, 8),
+    regular.widthOfTextAtSize(themeLine, 8),
+    48
+  );
+  const infoStartX = infoX + Math.max(0, (infoW - infoContentWidth) / 2);
+
   page.drawText(nameLine, {
-    x: infoX,
+    x: infoStartX,
     y: top - PAD - 16,
     size: PDF_FONT.MD,
     font: bold,
     color: colorFromHex('#ffffff'),
   });
 
-  const metaLine = [classLabel, discipline, term ? `${term}º bimestre` : '']
-    .filter(Boolean)
-    .join(' • ');
-  const metaLineF = fitLine(metaLine, regular, 8, infoW);
   page.drawText(metaLineF, {
-    x: infoX,
+    x: infoStartX,
     y: top - PAD - 30,
     size: 8,
     font: regular,
     color: colorFromHex('#ffffffde'),
   });
 
-  const themeLine = fitLine(`Tema: ${theme}`, regular, 8, infoW);
   page.drawText(themeLine, {
-    x: infoX,
+    x: infoStartX,
     y: top - PAD - 42,
     size: 8,
     font: regular,
@@ -249,37 +258,55 @@ export const renderHeroHeader: HeroRenderer = async ({
   const sW = scoreW;
   const sH = 56;
 
-  drawCard(page, sX, sY, sW, sH, 'rgba(255,255,255,0.08)', 'rgba(255,255,255,0.25)');
+  drawCard(page, sX, sY, sW, sH, '#FFF7ED', '#FDBA74');
 
-  const scoreLabel = 'Nota final';
   const scoreText = resolveScoreText(data);
   const modelText = model;
+  const isPas = data.model === 'PAS/UnB';
+  const totalLabel = isPas ? 'TOTAL PAS' : 'TOTAL ENEM';
+  const totalDen = isPas ? '/10' : '/1000';
 
-  // Rótulo
-  page.drawText(scoreLabel.toUpperCase(), {
-    x: sX + 10,
+  const labelSize = 8;
+  const labelWidth = bold.widthOfTextAtSize(totalLabel, labelSize);
+  const labelX = sX + sW - 10 - labelWidth;
+  page.drawText(totalLabel, {
+    x: labelX,
     y: sY - 14,
-    size: 8,
-    font: regular,
-    color: colorFromHex('#ffffffd9'),
-  });
-
-  // Valor
-  page.drawText(String(scoreText), {
-    x: sX + 10,
-    y: sY - 34,
-    size: PDF_FONT.LG + 4, // destaque
+    size: labelSize,
     font: bold,
-    color: colorFromHex('#ffffff'),
+    color: colorFromHex('#fb923c'),
   });
 
-  // Modelo
+  const valueSize = PDF_FONT.LG + 4;
+  const suffixSize = PDF_FONT.MD;
+  const suffixGap = 4;
+  const scoreValue = String(scoreText);
+  const valueWidth = bold.widthOfTextAtSize(scoreValue, valueSize);
+  const suffixWidth = bold.widthOfTextAtSize(totalDen, suffixSize);
+  const valueX = sX + sW - 10 - (valueWidth + suffixGap + suffixWidth);
+  const valueY = sY - 34;
+  page.drawText(scoreValue, {
+    x: valueX,
+    y: valueY,
+    size: valueSize,
+    font: bold,
+    color: colorFromHex('#0f172a'),
+  });
+  page.drawText(totalDen, {
+    x: valueX + valueWidth + suffixGap,
+    y: valueY + (valueSize - suffixSize) / 2,
+    size: suffixSize,
+    font: bold,
+    color: colorFromHex('#64748b'),
+  });
+
+  const modelWidth = bold.widthOfTextAtSize(modelText, 8);
   page.drawText(modelText, {
-    x: sX + 10,
+    x: sX + sW - 10 - modelWidth,
     y: sY - 48,
     size: 8,
     font: bold,
-    color: colorFromHex('#ffffffcc'),
+    color: colorFromHex('#7c2d12'),
   });
 
   // Retorna o novo cursor (início do conteúdo logo abaixo do hero)

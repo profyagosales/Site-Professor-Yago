@@ -50,6 +50,27 @@ type ListStudentEssaysOptions = {
   limit?: number;
 };
 
+const STATUS_SYNONYMS: Record<string, string> = {
+  pendente: 'pending',
+  pending: 'pending',
+  corrigida: 'ready',
+  corrigidas: 'ready',
+  corrected: 'ready',
+  ready: 'ready',
+  processando: 'processing',
+  processing: 'processing',
+  erro: 'failed',
+  errored: 'failed',
+  failed: 'failed',
+};
+
+function normalizeEssayListStatus(value: EssayStatus | undefined): string | undefined {
+  if (!value) return undefined;
+  const raw = String(value).trim().toLowerCase();
+  if (!raw) return undefined;
+  return STATUS_SYNONYMS[raw] ?? raw;
+}
+
 function normalizeId(value: any): string {
   if (!value) return '';
   if (typeof value === 'string') return value;
@@ -352,12 +373,7 @@ export async function fetchEssays(params: FetchEssaysParams): Promise<EssaysPage
     type,
   } = params;
 
-  const statusParam =
-    status === 'pending'
-      ? 'pendente'
-      : status === 'corrected'
-        ? 'corrigida'
-        : status;
+  const statusParam = normalizeEssayListStatus(status);
 
   const { data } = await api.get('/essays', {
     params: {
@@ -393,12 +409,7 @@ export async function fetchEssays(params: FetchEssaysParams): Promise<EssaysPage
 export async function fetchEssaysPage(params: FetchEssaysPageParams): Promise<EssaysPage & { items: EssayListItem[] }> {
   const mappedParams = {
     ...params,
-    status:
-      params.status === 'pending'
-        ? 'pendente'
-        : params.status === 'corrected'
-          ? 'corrigida'
-          : params.status,
+    status: normalizeEssayListStatus(params.status),
   };
   const { data } = await api.get('/essays', { params: mappedParams });
   const payload = data && typeof data === 'object' ? data : {};

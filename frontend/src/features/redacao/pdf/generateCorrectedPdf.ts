@@ -24,6 +24,7 @@ import {
   PDF_FONT,
   columns,
   columns8020,
+  colorFromHex,
 } from './theme';
 import { renderEnemMirrorPage } from './mirrors/enem';
 import { renderPasMirrorPage } from './mirrors/pas';
@@ -195,21 +196,9 @@ async function renderHeroHeader({
     color: rgb(1, 1, 1),
   });
 
-  const midX = brandX + BRAND.ICON + HERO.GAP;
+  const centerStart = brandX + BRAND.ICON + HERO.GAP;
   const scoreBlockX = card.x + card.w - SCORE.W - HERO.PAD_X;
-  const centralWidth = Math.max(0, scoreBlockX - HERO.GAP - midX);
-
-  if (centralWidth > 0) {
-    drawRoundedRect(page, {
-      x: midX,
-      y: card.y + 10,
-      width: centralWidth,
-      height: card.h - 20,
-      radius: 10,
-      borderColor: BRAND_COLORS.ORANGE_DARK,
-      borderWidth: 0,
-    });
-  }
+  const centerWidth = Math.max(0, scoreBlockX - HERO.GAP - centerStart);
 
   const studentName = ellipsize(data.student?.name ?? 'Aluno', 32);
   const classLabel = ellipsize(data.student?.classLabel ?? data.klass?.label ?? '', 40);
@@ -219,49 +208,66 @@ async function renderHeroHeader({
       ? `${data.student.bimester}º bimestre`
       : '');
   const themeLabel = ellipsize(data.theme ?? 'Tema não informado', 40);
+  const themeLine = `Tema: ${themeLabel}`;
+
+  const nameWidth = fonts.bold.widthOfTextAtSize(studentName, PDF_FONT.LG);
+  const classWidth = classLabel ? fonts.regular.widthOfTextAtSize(classLabel, PDF_FONT.SM) : 0;
+  const bimesterWidth = bimesterLabel ? fonts.regular.widthOfTextAtSize(bimesterLabel, PDF_FONT.SM) : 0;
+  const themeWidth = fonts.regular.widthOfTextAtSize(themeLine, PDF_FONT.SM);
+  const infoWidth = Math.max(nameWidth, classWidth, bimesterWidth, themeWidth, 48);
+
+  const avatarDataUri = data.student?.avatarDataUri;
+  const hasAvatar = Boolean(avatarDataUri) && centerWidth > AVATAR.SIZE + 32;
+  const avatarGap = hasAvatar ? 16 : 0;
+  const blockWidth = Math.min(centerWidth, infoWidth + (hasAvatar ? AVATAR.SIZE + avatarGap : 0));
+  const blockStartX = centerStart + Math.max(0, (centerWidth - blockWidth) / 2);
+  const textStartX = blockStartX + (hasAvatar ? AVATAR.SIZE + avatarGap : 0);
 
   const nameY = card.y + card.h - HERO.PAD_Y - PDF_FONT.LG;
   page.drawText(studentName, {
-    x: midX + 12,
+    x: textStartX,
     y: nameY,
     size: PDF_FONT.LG,
     font: fonts.bold,
     color: rgb(1, 1, 1),
   });
 
-  page.drawText(classLabel, {
-    x: midX + 12,
-    y: nameY - (PDF_FONT.MD + 4),
-    size: PDF_FONT.SM,
-    font: fonts.regular,
-    color: rgb(1, 1, 1),
-  });
-
-  if (bimesterLabel) {
-    page.drawText(bimesterLabel, {
-      x: midX + 12,
-      y: nameY - (PDF_FONT.MD + 4) - (PDF_FONT.SM + 4),
+  const classY = nameY - (PDF_FONT.MD + 4);
+  if (classLabel) {
+    page.drawText(classLabel, {
+      x: textStartX,
+      y: classY,
       size: PDF_FONT.SM,
       font: fonts.regular,
       color: rgb(1, 1, 1),
     });
   }
 
-  page.drawText(`Tema: ${themeLabel}`, {
-    x: midX + 12,
+  if (bimesterLabel) {
+    const bimY = classY - (PDF_FONT.SM + 4);
+    page.drawText(bimesterLabel, {
+      x: textStartX,
+      y: bimY,
+      size: PDF_FONT.SM,
+      font: fonts.regular,
+      color: rgb(1, 1, 1),
+    });
+  }
+
+  page.drawText(themeLine, {
+    x: textStartX,
     y: card.y + HERO.PAD_Y,
     size: PDF_FONT.SM,
     font: fonts.regular,
     color: rgb(1, 1, 1),
   });
 
-  const avatarDataUri = data.student?.avatarDataUri;
-  if (avatarDataUri && centralWidth > AVATAR.SIZE + 24) {
+  if (hasAvatar && avatarDataUri) {
     const avatarBytes = dataUriToBytes(avatarDataUri);
     if (avatarBytes) {
       try {
         const avatarImage = await pdfDoc.embedPng(avatarBytes);
-        const avatarX = Math.min(midX + centralWidth - AVATAR.SIZE - 12, midX + 220);
+        const avatarX = blockStartX;
         const avatarY = card.y + (card.h - AVATAR.SIZE) / 2;
         drawRoundedRect(page, {
           x: avatarX,
@@ -283,6 +289,15 @@ async function renderHeroHeader({
     }
   }
 
+  const isPas = (data.model || '').toString() === 'PAS/UnB';
+  const totalLabel = isPas ? 'TOTAL PAS' : 'TOTAL ENEM';
+  const totalDen = isPas ? '/10' : '/1000';
+  const accentFill = colorFromHex('#FFF7ED');
+  const accentBorder = colorFromHex('#FDBA74');
+  const accentLabel = colorFromHex('#FB923C');
+  const accentValue = colorFromHex('#0F172A');
+  const accentSuffix = colorFromHex('#64748B');
+
   const scoreX = scoreBlockX;
   const scoreY = card.y + (card.h - SCORE.H) / 2;
   drawRoundedRect(page, {
@@ -291,18 +306,20 @@ async function renderHeroHeader({
     width: SCORE.W,
     height: SCORE.H,
     radius: SCORE.R,
-    color: BRAND_COLORS.CHIP_BG,
-    borderColor: BRAND_COLORS.CHIP_BORDER,
+    color: accentFill,
+    borderColor: accentBorder,
     borderWidth: 1,
   });
 
   const labelY = scoreY + SCORE.H - SCORE.PAD - PDF_FONT.SM;
-  page.drawText('Nota final', {
-    x: scoreX + SCORE.PAD,
+  const labelWidth = fonts.bold.widthOfTextAtSize(totalLabel, PDF_FONT.SM);
+  const labelX = scoreX + SCORE.W - SCORE.PAD - labelWidth;
+  page.drawText(totalLabel, {
+    x: labelX,
     y: labelY,
     size: PDF_FONT.SM,
-    font: fonts.regular,
-    color: colorFromHex(TEXT_SUBTLE),
+    font: fonts.bold,
+    color: accentLabel,
   });
 
   const scoreStr =
@@ -310,19 +327,33 @@ async function renderHeroHeader({
     data.finalScore?.trim() ||
     '--';
   const scoreSize = PDF_FONT.LG + 6;
+  const suffixSize = PDF_FONT.MD;
+  const suffixGap = 4;
+  const valueWidth = fonts.bold.widthOfTextAtSize(scoreStr, scoreSize);
+  const suffixWidth = fonts.bold.widthOfTextAtSize(totalDen, suffixSize);
+  const valueX = scoreX + SCORE.W - SCORE.PAD - (valueWidth + suffixGap + suffixWidth);
+  const valueY = scoreY + SCORE.PAD + 8;
   page.drawText(scoreStr, {
-    x: scoreX + SCORE.PAD,
-    y: scoreY + SCORE.PAD + 6,
+    x: valueX,
+    y: valueY,
     size: scoreSize,
     font: fonts.bold,
-    color: colorFromHex(TEXT),
+    color: accentValue,
+  });
+
+  page.drawText(totalDen, {
+    x: valueX + valueWidth + suffixGap,
+    y: valueY + (scoreSize - suffixSize) / 2,
+    size: suffixSize,
+    font: fonts.bold,
+    color: accentSuffix,
   });
 
   const modelLabel = (data.model || '').toString().toUpperCase() || '-';
   const modelWidth = fonts.bold.widthOfTextAtSize(modelLabel, PDF_FONT.SM);
   page.drawText(modelLabel, {
     x: scoreX + SCORE.W - SCORE.PAD - modelWidth,
-    y: scoreY + SCORE.PAD + 6,
+    y: scoreY + SCORE.PAD + 2,
     size: PDF_FONT.SM,
     font: fonts.bold,
     color: colorFromHex(TEXT_SUBTLE),

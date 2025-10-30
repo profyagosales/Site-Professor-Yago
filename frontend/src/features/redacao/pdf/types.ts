@@ -51,14 +51,18 @@ export interface EssayPdfData {
     coesaoCoerencia: number;
     conteudo: number;
     nl: number;
+    tl: number;
+    nc: number;
     erros: {
       grafiaAcentuacao: number;
       pontuacaoMorfossintaxe: number;
       propriedadeVocabular: number;
     };
     /** soma de erros (NE) opcional para referência direta */
-    neTotal?: number;
+    neTotal: number;
     /** nota final calculada (NR) opcional; se ausente, o gerador calcula on-the-fly */
     nr?: number;
+    /** nota final prevista usada nos cards (alias de NR quando informado) */
+    nrPrevisto: number;
   };
 }

@@ -18,7 +18,8 @@ export function getMockPage(params: { status: EssayStatus; page: number; pageSiz
   const { status, page, pageSize, q, classId } = params;
   const corrected = all.filter((e) => typeof e.score === 'number');
   const pending = all.filter((e) => typeof e.score !== 'number');
-  let items = status === 'corrected' ? corrected : pending;
+  const normalizedStatus = status === 'ready' || status === 'corrected' ? 'ready' : 'pending';
+  let items = normalizedStatus === 'ready' ? corrected : pending;
   if (q) items = items.filter((e) => e.studentName.toLowerCase().includes(q.toLowerCase()));
   if (classId) items = items.filter((e) => e.className === classId);
   const total = items.length;

@@ -1,4 +1,4 @@
-import { PDFDocument, PDFFont, PDFPage, rgb } from 'pdf-lib';
+import { PDFDocument, PDFFont, PDFPage } from 'pdf-lib';
 import {
   A4,
   MARGIN,
@@ -10,9 +10,11 @@ import {
   GRAY,
   BG,
   columns8020,
-  colorFromHex, PAS_MACRO_HEX, PAS_MICRO_HEX,
-} from '../theme';
-import type { EssayPdfData } from '../types';
+  colorFromHex,
+  PAS_MACRO_HEX,
+  PAS_MICRO_HEX,
+} from '@/features/redacao/pdf/theme';
+import type { EssayPdfData } from '@/features/redacao/pdf/types';
 
 type Fonts = { regular: PDFFont; bold: PDFFont };
 
@@ -104,9 +106,6 @@ export async function renderPasMirrorPage(
     macro.apresentacao + macro.conteudo + macro.generoTextual + macro.coesaoCoerencia,
     2
   );
-  cursor = drawMacroTable(page, leftX, cursor, leftW, macro, macroSum, fonts);
-  cursor -= CONTENT_GAP;
-
   const erros = {
     grafiaAcentuacao: clampPositiveInteger(data.pas.erros?.grafiaAcentuacao),
     pontuacaoMorfossintaxe: clampPositiveInteger(data.pas.erros?.pontuacaoMorfossintaxe),
@@ -116,6 +115,24 @@ export async function renderPasMirrorPage(
   const nl = clampNumber(data.pas.nl, 0, 30);
   const discount = nl > 0 ? 2 / nl : 0;
   const nr = roundDecimals(Math.max(0, macroSum - totalErros * discount), 2);
+
+  const summaryCards = [
+    { key: 'tl', label: 'Total de linhas', value: clampNumber(data.pas.tl, 0, 30) },
+    { key: 'nc', label: 'Nota de conteúdo', value: Number.isFinite(data.pas.nc) ? Number(data.pas.nc) : macroSum },
+    { key: 'ne_total', label: 'Número de erros', value: Number.isFinite(data.pas.neTotal) ? Number(data.pas.neTotal) : totalErros },
+    {
+      key: 'nr_prev',
+      label: 'Nota final da redação',
+      value: Number.isFinite(data.pas.nrPrevisto) ? Number(data.pas.nrPrevisto) : nr,
+      highlight: true,
+    },
+  ] as const;
+
+  cursor = drawPasSummary(page, leftX, cursor, leftW, summaryCards, fonts);
+  cursor -= CONTENT_GAP;
+
+  cursor = drawMacroTable(page, leftX, cursor, leftW, macro, macroSum, fonts);
+  cursor -= CONTENT_GAP;
 
   if (cursor - 200 < MARGIN) {
     page = doc.addPage([A4.w, A4.h]);
@@ -150,6 +167,85 @@ export async function renderPasMirrorPage(
     nc: macroSum,
     nr,
   }, fonts);
+}
+
+type PasSummaryCard = {
+  key: 'tl' | 'nc' | 'ne_total' | 'nr_prev';
+  label: string;
+  value: number;
+  highlight?: boolean;
+};
+
+function drawPasSummary(
+  page: PDFPage,
+  x: number,
+  yTop: number,
+  width: number,
+  cards: ReadonlyArray<PasSummaryCard>,
+  fonts: Fonts
+) {
+  if (!cards.length) return yTop;
+
+  const titleSize = BODY_SIZE;
+  let cursor = yTop;
+  drawBold(page, 'Resumo do espelho', x, cursor, titleSize, fonts.bold);
+  cursor -= titleSize + 6;
+
+  const columns = 2;
+  const gapX = 12;
+  const gapY = 12;
+  const cardWidth = columns > 1 ? (width - gapX) / columns : width;
+  const cardHeight = 58;
+  const padX = 12;
+  const padY = 12;
+  const labelSize = 9;
+  const valueSize = 16;
+  const valueGap = 6;
+
+  cards.forEach((card, index) => {
+    const col = index % columns;
+    const row = Math.floor(index / columns);
+    const cardX = x + col * (cardWidth + gapX);
+    const cardTop = cursor - row * (cardHeight + gapY);
+    const fill = card.highlight ? '#FFF7ED' : '#FFFFFF';
+    const stroke = card.highlight ? '#FDBA74' : '#E6E8EB';
+
+    page.drawRectangle({
+      x: cardX,
+      y: cardTop - cardHeight,
+      width: cardWidth,
+      height: cardHeight,
+      color: colorFromHex(fill),
+      borderColor: colorFromHex(stroke),
+      borderWidth: 1,
+      borderRadius: 8,
+    });
+
+    const labelY = cardTop - padY - labelSize;
+    page.drawText(card.label, {
+      x: cardX + padX,
+      y: labelY,
+      size: labelSize,
+      font: fonts.regular,
+      color: colorFromHex('#6B7280'),
+    });
+
+    const valueText = formatSummaryCardValue(card.key, card.value);
+    const valueY = labelY - valueGap - valueSize;
+    page.drawText(valueText, {
+      x: cardX + padX,
+      y: valueY,
+      size: valueSize,
+      font: fonts.bold,
+      color: colorFromHex('#0F172A'),
+    });
+  });
+
+  const rows = Math.ceil(cards.length / columns);
+  const gridHeight = rows * cardHeight + (rows - 1) * gapY;
+  cursor -= gridHeight;
+
+  return cursor;
 }
 
 function drawMacroTable(
@@ -413,4 +509,11 @@ function formatScore(value: number, decimals: number) {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
+}
+
+function formatSummaryCardValue(key: PasSummaryCard['key'], raw: number) {
+  if (!Number.isFinite(raw)) return '—';
+  const value = Number(raw);
+  const decimals = key === 'tl' || key === 'ne_total' ? 0 : 2;
+  return formatScore(value, decimals);
 }

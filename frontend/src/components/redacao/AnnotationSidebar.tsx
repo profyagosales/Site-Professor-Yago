@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { HIGHLIGHT_ALPHA, HIGHLIGHT_CATEGORIES } from '@/constants/annotations';
 import { hexToRgba } from '@/utils/color';
 import type { AnnotationItem } from './annotationTypes';
+import { useScrollLock, type ScrollLockControls } from '@/hooks/useScrollLock';
 
 type AnnotationSidebarProps = {
   annotations: AnnotationItem[];
@@ -12,6 +13,7 @@ type AnnotationSidebarProps = {
   focusId?: string | null;
   liveMessage?: string | null;
   className?: string;
+  scrollLock?: ScrollLockControls;
 };
 
 export function AnnotationSidebar({
@@ -23,6 +25,7 @@ export function AnnotationSidebar({
   focusId,
   liveMessage,
   className,
+  scrollLock,
 }: AnnotationSidebarProps) {
   const ordered = useMemo(
     () => [...annotations].sort((a, b) => Number(a.number) - Number(b.number)),
@@ -31,6 +34,8 @@ export function AnnotationSidebar({
   const textareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const fallbackScrollLock = useScrollLock();
+  const { lock, forceUnlock } = scrollLock ?? fallbackScrollLock;
 
   // rAF handle to avoid overlapping animations
   const rafRef = useRef<number | null>(null);
@@ -98,8 +103,9 @@ export function AnnotationSidebar({
   useEffect(() => {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      forceUnlock();
     };
-  }, []);
+  }, [forceUnlock]);
 
   return (
     <aside
@@ -116,7 +122,7 @@ export function AnnotationSidebar({
       <div
         id="comments-rail-scroll"
         ref={containerRef}
-        className="card-body pt-0 flex-1 space-y-2.5 md:space-y-3 overflow-y-auto overscroll-contain pr-1"
+        className="card-body comments-pane pt-0 flex-1 space-y-2.5 md:space-y-3 pr-1"
         style={{ scrollbarGutter: 'stable' }}
       >
         {ordered.length === 0 && (
@@ -164,18 +170,38 @@ export function AnnotationSidebar({
                   textareaRefs.current[ann.id] = el;
                 }}
                 value={ann.comment}
-                onChange={(event) => onCommentChange(ann.id, event.target.value)}
-                onFocus={() => {
+                onChange={(event) => {
+                  lock(2000);
+                  onCommentChange(ann.id, event.target.value);
+                }}
+                onInput={() => {
+                  lock(2000);
+                }}
+                onFocus={(event) => {
+                  const target = event.currentTarget;
+                  try {
+                    target.focus({ preventScroll: true });
+                  } catch {
+                    /* ignore */
+                  }
+                  lock(2000);
+                  scrollChildIntoContainer(containerRef.current, target);
                   if (selectedId !== ann.id) onSelect(ann.id);
                 }}
-                className="mt-1 w-full resize-none rounded-md border border-slate-300 bg-white p-1 text-[10px] leading-tight break-words outline-none focus:ring-2 focus:ring-orange-400 max-h-20"
+                onBlur={() => {
+                  forceUnlock();
+                }}
+                className="comment-textarea mt-1 w-full resize-none rounded-md border border-slate-300 bg-white p-1 text-[10px] leading-tight break-words outline-none focus:ring-2 focus:ring-orange-400 max-h-20"
                 rows={2}
                 placeholder="Escreva comentários detalhados aqui…"
               />
               <div className="mt-1 flex justify-end">
                 <button
                   type="button"
-                  onClick={() => onDelete(ann.id)}
+                  onClick={() => {
+                    forceUnlock();
+                    onDelete(ann.id);
+                  }}
                   className="text-[10px] font-medium text-orange-600 hover:text-orange-700"
                 >
                   Remover

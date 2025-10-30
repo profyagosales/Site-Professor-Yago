@@ -1,4 +1,4 @@
-import { PDFDocument, PDFFont, PDFPage, rgb } from 'pdf-lib';
+import { PDFDocument, PDFFont, PDFPage } from 'pdf-lib';
 import {
   A4,
   MARGIN,
@@ -13,7 +13,8 @@ import {
   colorFromHex,
   ENEM_COLORS_HEX,
   toRoman,
-} from '../theme';
+} from '@/features/redacao/pdf/theme';
+import type { EssayPdfData } from '@/features/redacao/pdf/types';
 import { buildJustificationFromReasonIds, composeJustificationFromReasonIds, getComposerForLevel } from '@/features/enem/composerBridge';
 
 type HeroRenderer = (args: {

@@ -3,7 +3,12 @@ import type { LevelComposer } from '../composerBridge';
 const C2_N3: LevelComposer = {
   id: 'C2_N3',
   pieces: [
-    { kind: 'MANDATORY', key: 'c2n3_abordagem', label: 'Abordagem completa do tema' },
+    {
+      kind: 'MANDATORY',
+      key: 'c2n3_abordagem',
+      label: 'Abordagem completa do tema',
+      noId: true,
+    },
     { kind: 'MANDATORY', key: 'c2n3_partes', label: '3 partes do texto (1 delas embrionárias)' },
     {
       kind: 'CHOICE_MULTI',
