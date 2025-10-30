@@ -28,7 +28,7 @@ import { generateCorrectedPdf } from '@/features/redacao/pdf/generateCorrectedPd
 import type { AnnotationKind, EssayPdfData, EssayModel } from '@/features/redacao/pdf/types';
 import { renderFirstPageToPng } from '@/features/redacao/pdf/pdfPreview';
 import { buildJustificationFromReasonIds } from '@/features/enem/composerBridge';
-import { Logo } from '@/components/brand/Logo';
+import Logo from '@/components/Logo';
 import { useScrollLock } from '@/hooks/useScrollLock';
 
 
