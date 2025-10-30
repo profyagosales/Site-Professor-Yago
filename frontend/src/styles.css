@@ -1377,8 +1377,7 @@ a {
 }
 
 .page-wide {
-  max-width: var(--workspace-min-width, 1200px);
-  width: min(96vw, var(--workspace-min-width, 1200px));
+  width: min(1400px, calc(100vw - 48px));
   margin-inline: auto;
   padding-inline: clamp(16px, 3vw, 24px);
 }
@@ -1410,6 +1409,7 @@ a {
 
 .table-card--wide {
   width: 100%;
+  max-width: none;
 }
 
 .table-wide-wrap {

@@ -69,11 +69,11 @@ export default function RedacaoProfessorPage() {
       },
     },
     {
-      key: 'ready',
+      key: 'graded',
       label: 'Corrigidas',
-      isActive: status === 'ready',
+      isActive: status === 'graded',
       onClick: () => {
-        setStatus('ready');
+        setStatus('graded');
         setPage(1);
       },
     },
@@ -82,7 +82,14 @@ export default function RedacaoProfessorPage() {
 
   return (
     <Page title="Redação" subtitle="Gerencie as redações dos alunos">
-      <div className="page-wide space-y-4">
+      <div
+        className="page-wide space-y-4"
+        style={{
+          width: 'min(1400px, calc(100vw - 48px))',
+          marginInline: 'auto',
+          paddingInline: 'clamp(16px, 3vw, 24px)',
+        }}
+      >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Button variant="ghost" size="sm" onClick={() => setThemesOpen(true)}>
             Temas
@@ -206,8 +213,18 @@ export default function RedacaoProfessorPage() {
               (() => {
                 const all = Array.isArray(data?.items) ? (data!.items as any[]) : [];
                 // Predicado robusto: considera status, flags e URLs
-                const isRowCorrected = (row: any) =>
-                  Boolean(row?.isCorrected || row?.correctionPdf || row?.correctedUrl || row?.status === 'corrigida' || row?.status === 'GRADED');
+                const isRowCorrected = (row: any) => {
+                  const normalized = String(row?.status || '').toLowerCase();
+                  return Boolean(
+                    row?.isCorrected ||
+                    row?.correctionPdf ||
+                    row?.correctedUrl ||
+                    normalized === 'graded' ||
+                    normalized === 'ready' ||
+                    normalized === 'corrigida' ||
+                    normalized === 'corrigido'
+                  );
+                };
                 const filtered = all.filter((row) =>
                   status === 'pending' ? !isRowCorrected(row) : isRowCorrected(row),
                 );
@@ -351,7 +368,7 @@ export default function RedacaoProfessorPage() {
                             </Button>
                           ) : null}
 
-                          {status === 'ready' && (
+                          {status === 'graded' && (
                             <Button
                               size="sm"
                               onClick={() => correctionUrl && navigate(correctionUrl)}
@@ -362,7 +379,7 @@ export default function RedacaoProfessorPage() {
                             </Button>
                           )}
 
-                          {status === 'ready' && (
+                          {status === 'graded' && (
                             <Button
                               type="button"
                               variant="ghost"

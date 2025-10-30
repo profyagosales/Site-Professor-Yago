@@ -250,13 +250,13 @@ const LEGACY_ANNUL_REASONS = new Set([
   'MENOS_7_LINHAS',
 ]);
 
-const VALID_STATUS = new Set(['pending', 'processing', 'ready', 'failed']);
+const VALID_STATUS = new Set(['pending', 'processing', 'ready', 'graded', 'failed']);
 
 function normalizeStatusValue(status, { defaultValue = 'pending' } = {}) {
   const raw = (status ?? '').toString().trim().toLowerCase();
   if (!raw) return defaultValue;
-  if (raw === 'corrigida' || raw === 'corrected') return 'ready';
-  if (raw === 'ready') return 'ready';
+  if (raw === 'corrigida' || raw === 'corrected') return 'graded';
+  if (raw === 'ready') return 'graded';
   if (raw === 'pendente' || raw === 'pending') return 'pending';
   if (raw === 'processando' || raw === 'processing') return 'processing';
   if (raw === 'arquivada' || raw === 'erro' || raw === 'errored' || raw === 'failed') return 'failed';

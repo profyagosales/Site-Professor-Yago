@@ -53,10 +53,12 @@ type ListStudentEssaysOptions = {
 const STATUS_SYNONYMS: Record<string, string> = {
   pendente: 'pending',
   pending: 'pending',
-  corrigida: 'ready',
-  corrigidas: 'ready',
-  corrected: 'ready',
-  ready: 'ready',
+  corrigida: 'graded',
+  corrigidas: 'graded',
+  corrigido: 'graded',
+  corrected: 'graded',
+  ready: 'graded',
+  graded: 'graded',
   processando: 'processing',
   processing: 'processing',
   erro: 'failed',
@@ -196,7 +198,7 @@ function toStudentEssaySummary(raw: any): StudentEssaySummary {
     bimestralComputedScore:
       typeof raw?.bimestralComputedScore === 'number' ? raw.bimestralComputedScore : undefined,
     bimestreWeight: typeof raw?.bimestreWeight === 'number' ? raw.bimestreWeight : undefined,
-    correctedFileAvailable: Boolean(raw?.correctedUrl),
+    correctedFileAvailable: Boolean(raw?.correctedUrl || raw?.finalPdfUrl || raw?.correctionPdf),
   };
 }
 
@@ -230,7 +232,7 @@ function normalizeEssayListItem(raw: any): EssayListItem {
   const bimester = raw?.term ?? raw?.bimester ?? raw?.bimestre ?? null;
   const sentAt = raw?.sentAt || raw?.submittedAt || raw?.createdAt || null;
   const fileUrl = raw?.fileUrl || raw?.originalUrl || null;
-  const correctedUrl = raw?.correctedUrl || null;
+  const correctedUrl = raw?.correctedUrl || raw?.finalPdfUrl || raw?.correctionPdf || null;
   const score = raw?.rawScore ?? raw?.score ?? null;
   const comments = raw?.comments ?? null;
 
@@ -385,6 +387,7 @@ export async function fetchEssays(params: FetchEssaysParams): Promise<EssaysPage
       bimester,
       type,
     },
+    withCredentials: true,
   });
 
   const payload = data && typeof data === 'object' ? data : {};
@@ -411,7 +414,7 @@ export async function fetchEssaysPage(params: FetchEssaysPageParams): Promise<Es
     ...params,
     status: normalizeEssayListStatus(params.status),
   };
-  const { data } = await api.get('/essays', { params: mappedParams });
+  const { data } = await api.get('/essays', { params: mappedParams, withCredentials: true });
   const payload = data && typeof data === 'object' ? data : {};
   const rawItems: any[] = Array.isArray(payload.data)
     ? payload.data
@@ -450,6 +453,7 @@ export async function listStudentEssaysByStatus(
   const res = await api.get('/essays', {
     params,
     validateStatus: () => true,
+    withCredentials: true,
   });
 
   if (res.status >= 400) {
