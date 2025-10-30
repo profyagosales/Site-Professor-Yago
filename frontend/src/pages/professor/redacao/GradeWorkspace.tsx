@@ -943,7 +943,7 @@ export default function GradeWorkspace() {
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:p-5">
         {/* Unified 3-column grid */}
-        <div className="grid grid-cols-1 gap-3 items-start md:grid-cols-[var(--rail-w)_minmax(0,1fr)_clamp(260px,20%,360px)]" aria-label="Workspace de correção">
+        <div className="grid grid-cols-1 gap-3 items-start md:grid-cols-[var(--rail-w)_minmax(0,1fr)_clamp(220px,12%,300px)]" aria-label="Workspace de correção">
           {/* HERO: spans center and right columns on md+ */}
           <header
             className="md:col-start-2 md:col-span-2 w-full"
@@ -1002,16 +1002,18 @@ export default function GradeWorkspace() {
             </div>
           </header>
           {/* LEFT RAIL */}
-          <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail">
-            <div className="ws-rail-sticky rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+          <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail text-[13px]">
+            <div className="ws-rail-sticky rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
               <div className="ws-rail-head">
                 <Button
+                  size="sm"
                   className="btn btn--neutral rail-btn rail-btn--ghost"
                   onClick={handleBack}
                 >
                   Voltar
                 </Button>
                 <Button
+                  size="sm"
                   className="btn btn--neutral rail-btn"
                   onClick={handleOpenOriginal}
                 >
@@ -1025,6 +1027,7 @@ export default function GradeWorkspace() {
 
               <div className="ws-rail-footer">
                 <Button
+                  size="sm"
                   className="btn btn--neutral rail-btn rail-btn--secondary"
                   onClick={handleSave}
                   disabled={saving || !dirty}
@@ -1032,7 +1035,8 @@ export default function GradeWorkspace() {
                   {saving ? 'Salvando…' : 'Salvar'}
                 </Button>
                 <Button
-                  className="btn btn--brand rail-btn rail-btn--primary rail-btn--xl"
+                  size="sm"
+                  className="btn btn--brand rail-btn rail-btn--primary"
                   onClick={handleGeneratePdf}
                   disabled={generating}
                 >
@@ -1065,9 +1069,9 @@ export default function GradeWorkspace() {
           </main>
           {/* COMMENTS RAIL */}
           <aside
-            className={`RightRailCard comments-rail gw-rail-raise ws-right-rail md:self-start md:col-start-3 md:row-start-2 md:row-span-2 ${generating ? 'hidden' : ''}`}
+            className={`RightRailCard comments-rail gw-rail-raise ws-right-rail md:self-start md:col-start-3 md:row-start-2 md:row-span-2 text-[13px] ${generating ? 'hidden' : ''}`}
           >
-            <div className="flex h-full w-full flex-col rounded-xl border border-slate-200 bg-white p-2 min-h-[560px]">
+            <div className="flex h-full w-full flex-col rounded-xl border border-slate-200 bg-white p-1.5 min-h-[560px]">
               <div id="comments-rail-scroll" className="mt-0 flex-1 overflow-y-auto overscroll-contain max-h-full">
                 <AnnotationSidebar
                   annotations={orderedAnnotations}

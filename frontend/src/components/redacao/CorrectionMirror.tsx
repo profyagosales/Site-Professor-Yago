@@ -212,19 +212,19 @@ export function CorrectionMirror({
   const formattedPasResult = formatNumber(pasComputed.nr);
 
   return (
-    <section className="mt-6 rounded-2xl border border-orange-100 bg-white/90 p-3 shadow-sm ring-1 ring-orange-50/60 backdrop-blur-sm lg:p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <section className="mt-4 rounded-2xl border border-orange-100 bg-white/90 p-2 shadow-sm ring-1 ring-orange-50/60 backdrop-blur-sm lg:p-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <h2 className="text-base font-semibold text-slate-900">Espelho do aluno</h2>
+          <h2 className="text-sm font-semibold text-slate-900">Espelho do aluno</h2>
           <p className="text-xs text-slate-600">
             Revise motivos de anulação e notas antes de gerar o PDF final.
           </p>
         </div>
       </div>
 
-      <div className="mt-6">
-        <div className="space-y-4">
-          <div className="rounded-xl border border-dashed border-slate-300 bg-white p-2.5 shadow-sm">
+      <div className="mt-4">
+        <div className="space-y-3">
+          <div className="rounded-xl border border-dashed border-slate-300 bg-white p-2 shadow-sm">
             <h3 className="text-xs font-semibold text-slate-800 leading-tight">Anulação da redação</h3>
             <p className="mt-1 text-[11px] text-slate-500 leading-snug">
               Selecione os motivos aplicáveis. Quando marcado, a nota final é zerada automaticamente.
@@ -233,7 +233,7 @@ export function CorrectionMirror({
               {ANNUL_OPTIONS.map((opt) => (
                 <label
                   key={opt.key}
-                  className={`flex items-start gap-2 rounded-lg border px-2.5 py-1.5 text-[13px] transition ${
+                  className={`flex items-start gap-2 rounded-lg border px-2 py-1 text-[12px] transition ${
                     annulState[opt.key]
                       ? 'border-orange-300 bg-orange-50 text-orange-700'
                       : 'border-slate-200 bg-white text-slate-700 hover:border-orange-200'
@@ -254,26 +254,26 @@ export function CorrectionMirror({
                 value={annulOther}
                 onChange={(event) => onAnnulOtherChange(event.target.value)}
                 placeholder="Descreva o motivo"
-                className="mt-3 w-full rounded-lg border border-orange-200 bg-orange-50 p-1.5 text-[13px] text-orange-800 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
+                className="mt-2.5 w-full rounded-lg border border-orange-200 bg-orange-50 p-1 text-[12px] text-orange-800 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
                 rows={2}
               />
             )}
           </div>
 
             {annulled && (
-            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 shadow-sm">
+            <div className="rounded-xl border border-red-200 bg-red-50 p-2 text-[13px] text-red-700 shadow-sm">
               Redação anulada. A nota final será 0 e o espelho completo ficará oculto para o aluno.
             </div>
           )}
 
           {!annulled && type === 'PAS' && (
-            <div className="pas-macro-card space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-2.5 shadow-sm">
+            <div className="pas-macro-card space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-2 shadow-sm">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                <h3 className="text-[13px] font-semibold text-slate-800 leading-tight">ASPECTOS MACROESTRUTURAIS</h3>
+                <h3 className="text-[12px] font-semibold text-slate-800 leading-tight">ASPECTOS MACROESTRUTURAIS</h3>
                 <p className="text-[11px] leading-tight text-slate-500">NR = NC − 2 × (NE / TL)</p>
               </div>
 
-              <div className="rounded-md border border-slate-200 bg-white p-2.5 text-[12px] leading-tight shadow-sm">
+              <div className="rounded-md border border-slate-200 bg-white p-2 text-[12px] leading-tight shadow-sm">
                 <h4 className="text-[12px] font-semibold text-slate-800">Resumo do espelho</h4>
                 <p className="text-[11px] text-slate-500">NR = NC − 2 × (NE / TL)</p>
                 <dl className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1">
@@ -336,7 +336,7 @@ export function CorrectionMirror({
                               onWheel={(e) => e.currentTarget.blur()}
                               inputMode="decimal"
                               tabIndex={row.id === '1' ? 1 : row.id === '2.1' ? 2 : row.id === '2.2' ? 3 : row.id === '2.3' ? 4 : undefined}
-                              className="w-16 rounded-lg border border-slate-300 px-2 py-1 text-[13px] outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200 text-right"
+                              className="w-16 rounded-lg border border-slate-300 px-2 py-1 text-[12px] outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200 text-right"
                             />
                           </td>
                         </tr>
@@ -350,9 +350,9 @@ export function CorrectionMirror({
                   </tbody>
                 </table>
               </div>
-              <div className="pas-micro-card w-full rounded-lg border border-pink-200 bg-pink-50 p-2.5 text-[13px] text-slate-700 shadow-sm">
-                <div className="mb-2 flex items-center justify-between">
-                  <h4 className="text-[13px] font-semibold text-slate-800">ASPECTOS MICROESTRUTURAIS</h4>
+              <div className="pas-micro-card w-full rounded-lg border border-pink-200 bg-pink-50 p-2 text-[12px] text-slate-700 shadow-sm">
+                <div className="mb-1.5 flex items-center justify-between">
+                  <h4 className="text-[12px] font-semibold text-slate-800">ASPECTOS MICROESTRUTURAIS</h4>
                   <span className="text-[11px] leading-tight text-slate-500">Avalie TL e contagem de erros</span>
                 </div>
                 <div className="space-y-2.5">
@@ -368,7 +368,7 @@ export function CorrectionMirror({
                       onWheel={(e) => e.currentTarget.blur()}
                       inputMode="numeric"
                       tabIndex={5}
-                      className="mt-1 w-20 rounded-lg border border-slate-300 px-2 py-1 text-[13px] text-right outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
+                      className="mt-1 w-20 rounded-lg border border-slate-300 px-2 py-1 text-[12px] text-right outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
                     />
                   </label>
                   <div className="overflow-hidden rounded-lg border border-slate-200">
@@ -393,7 +393,7 @@ export function CorrectionMirror({
                                 onWheel={(e) => e.currentTarget.blur()}
                                 inputMode="numeric"
                                 tabIndex={row.key === 'grafia' ? 6 : row.key === 'pontuacao' ? 7 : row.key === 'propriedade' ? 8 : undefined}
-                                className="w-14 rounded-lg border border-slate-300 px-2 py-1 text-[13px] text-right outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
+                                className="w-14 rounded-lg border border-slate-300 px-2 py-1 text-[12px] text-right outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200"
                               />
                             </td>
                           </tr>
@@ -408,7 +408,7 @@ export function CorrectionMirror({
 
           {!annulled && type === 'ENEM' && (
             <>
-              <div className="rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm">
+              <div className="rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-sm">
                 <h3 className="text-[12px] font-semibold text-slate-800">Resumo rápido das competências</h3>
                 <div className="mt-2 space-y-2">
                   {ENEM_2024.map((competency) => {
@@ -440,7 +440,7 @@ export function CorrectionMirror({
                   })}
                 </div>
               </div>
-              <EnemScoringForm selections={enemSelections} onChange={onEnemSelectionChange} />
+              <div className="text-[13px]"><EnemScoringForm selections={enemSelections} onChange={onEnemSelectionChange} /></div>
             </>
           )}
         </div>

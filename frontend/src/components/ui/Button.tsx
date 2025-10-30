@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes } from 'react';
 
 type ButtonVariant = 'primary' | 'ghost' | 'outline' | 'link';
-type ButtonSize = 'md' | 'sm';
+type ButtonSize = 'md' | 'sm' | 'xs';
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
@@ -15,7 +15,7 @@ export function Button({
   ...props
 }: Props) {
     const baseClass = [
-      'inline-flex items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition duration-fast',
+      'btn inline-flex items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition duration-fast',
       'disabled:cursor-not-allowed disabled:opacity-[var(--op-disabled)]',
       'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-200 focus-visible:ring-offset-0',
     ].join(' ');
@@ -23,6 +23,7 @@ export function Button({
   const sizeStyles: Record<ButtonSize, string> = {
     md: 'h-10 px-4',
     sm: 'h-9 px-3 text-sm',
+    xs: 'h-8 px-2.5 text-xs',
   };
 
   const variantStyles: Record<ButtonVariant, string> = {
@@ -41,4 +42,3 @@ export function Button({
     />
   );
 }
-

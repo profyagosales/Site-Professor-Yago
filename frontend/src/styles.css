@@ -1033,7 +1033,7 @@ a {
 }
 
 /* Inline PDF workspace: 80/20 grid (doc/comments) */
-.pdf-inline-grid { display: grid; grid-template-columns: minmax(0, 4fr) minmax(220px, 1fr); gap: 10px; align-items: start; }
+.pdf-inline-grid { display: grid; grid-template-columns: minmax(0, 4fr) minmax(220px, 0.5fr); gap: 10px; align-items: start; }
 @media (max-width: 1024px) { .pdf-inline-grid { grid-template-columns: 1fr; } }
 .pdf-canvas-wrap { background:#fff; border-radius:16px; border:1px solid rgba(15,23,42,0.06); box-shadow:0 8px 24px rgba(15,23,42,0.06); overflow:hidden; }
 .comments-rail { font-size: 9px; line-height: 1.2; }
@@ -1105,6 +1105,17 @@ a {
 .RightRailCard [data-annotation-id] p { font-size: 9px; line-height: 1.25; margin: 0; }
 /* Fallback sticky for rails when ws-* helpers are not attached */
 .RightRailCard { position: sticky; top: var(--ws-rail-top); }
+/* Right rail/card: compact controls */
+.RightRailCard .btn,
+.RightRailCard .rail-btn,
+.ws-right-rail .btn,
+.ws-right-rail .rail-btn {
+  font-size: 13px;
+  line-height: 1.1;
+  padding: 8px 12px;
+  height: 36px;
+  border-radius: 12px;
+}
 
 /* === Correção Inline: ações no card do marca‑texto (lateral esquerda) === */
 /* Esconde o grupo antigo de ações do cabeçalho (envolvido por .header-actions--deprecated) */
