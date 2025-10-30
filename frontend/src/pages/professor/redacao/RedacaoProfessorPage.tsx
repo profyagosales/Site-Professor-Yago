@@ -47,6 +47,50 @@ export default function RedacaoProfessorPage() {
     return parts.map((p) => (p[0] ? p[0].toUpperCase() : '')).join('') || '??';
   };
 
+  const normalizeStatus = (status?: string) => {
+    const raw = (status ?? '').toString().trim().toLowerCase();
+    if (!raw) return '';
+    if (raw === 'graded' || raw === 'ready' || raw === 'corrected' || raw === 'corrigida' || raw === 'corrigido') return 'graded';
+    if (raw === 'uploaded' || raw === 'pending' || raw === 'enviada') return 'pending';
+    return raw;
+  };
+
+  const statusLabel = (status?: string) => {
+    const norm = normalizeStatus(status);
+    switch (norm) {
+      case 'graded':
+        return 'Corrigida';
+      case 'pending':
+        return 'Pendente';
+      default:
+        return status || '—';
+    }
+  };
+
+  const statusTooltip = (status?: string) => {
+    const norm = normalizeStatus(status);
+    switch (norm) {
+      case 'graded':
+        return 'Correção finalizada. PDF disponível para consulta.';
+      case 'pending':
+        return 'Enviada e aguardando correção.';
+      default:
+        return (status || '').toString();
+    }
+  };
+
+  const statusClass = (status?: string) => {
+    const norm = normalizeStatus(status);
+    switch (norm) {
+      case 'pending':
+        return 'bg-yellow-200 text-yellow-800';
+      case 'graded':
+        return 'bg-green-200 text-green-800';
+      default:
+        return 'bg-gray-200 text-black';
+    }
+  };
+
   useEffect(() => {
     (async () => {
       try {
@@ -78,18 +122,11 @@ export default function RedacaoProfessorPage() {
       },
     },
   ];
-  const columnsCount = status === 'pending' ? 9 : 10;
+  const columnsCount = status === 'pending' ? 10 : 11;
 
   return (
     <Page title="Redação" subtitle="Gerencie as redações dos alunos">
-      <div
-        className="page-wide space-y-4"
-        style={{
-          width: 'min(1400px, calc(100vw - 48px))',
-          marginInline: 'auto',
-          paddingInline: 'clamp(16px, 3vw, 24px)',
-        }}
-      >
+      <div className="page-wide space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Button variant="ghost" size="sm" onClick={() => setThemesOpen(true)}>
             Temas
@@ -169,6 +206,7 @@ export default function RedacaoProfessorPage() {
                 <col className="col-type" />
                 <col className="col-bimester" />
                 <col className="col-date" />
+                <col className="col-status" />
                 {status === 'pending' ? (
                   <col className="col-file" />
                 ) : (
@@ -188,6 +226,7 @@ export default function RedacaoProfessorPage() {
                   <th className="col-type px-4 py-3 font-semibold">Tipo</th>
                   <th className="col-bimester px-4 py-3 font-semibold">Bimestre</th>
                   <th className="col-date px-4 py-3 font-semibold">Enviado em</th>
+                  <th className="col-status px-4 py-3 font-semibold">Status</th>
                   {status === 'pending' ? (
                     <th className="col-file px-4 py-3 font-semibold">Arquivo</th>
                   ) : (
@@ -212,13 +251,14 @@ export default function RedacaoProfessorPage() {
             {!loading &&
               (() => {
                 const all = Array.isArray(data?.items) ? (data!.items as any[]) : [];
-                // Predicado robusto: considera status, flags e URLs
+                // Predicado robusto: considera status, flags, URLs e finalPdfUrl
                 const isRowCorrected = (row: any) => {
                   const normalized = String(row?.status || '').toLowerCase();
                   return Boolean(
                     row?.isCorrected ||
                     row?.correctionPdf ||
                     row?.correctedUrl ||
+                    row?.finalPdfUrl ||
                     normalized === 'graded' ||
                     normalized === 'ready' ||
                     normalized === 'corrigida' ||
@@ -322,6 +362,14 @@ export default function RedacaoProfessorPage() {
                       <td className="col-bimester px-4 py-3 text-center">{(e as any).bimester ?? '-'}</td>
                       <td className="col-date px-4 py-3 text-center">
                         {e.submittedAt ? new Date(e.submittedAt).toLocaleDateString() : '-'}
+                      </td>
+                      <td className="col-status px-4 py-3 text-center">
+                        <span
+                          className={`inline-flex px-2 py-1 rounded text-xs ${statusClass((e as any).status)}`}
+                          title={statusTooltip((e as any).status)}
+                        >
+                          {statusLabel((e as any).status)}
+                        </span>
                       </td>
 
                       {status === 'pending' ? (

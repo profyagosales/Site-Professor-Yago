@@ -169,9 +169,45 @@ function RedacaoPage() {
     }
   };
 
-  const statusClass = (status?: string) => {
-    switch (status) {
+  const normalizeStatus = (status?: string) => {
+    const raw = (status ?? '').toString().trim().toLowerCase();
+    if (!raw) return '';
+    if (raw === 'ready' || raw === 'corrected' || raw === 'corrigida' || raw === 'corrigido') return 'graded';
+    if (raw === 'uploaded' || raw === 'pending' || raw === 'enviada') return 'uploaded';
+    return raw;
+  };
+
+  const statusLabel = (status?: string) => {
+    const norm = normalizeStatus(status);
+    switch (norm) {
+      case 'graded':
+        return 'Corrigida';
       case 'uploaded':
+      case 'pending':
+        return 'Enviada';
+      default:
+        return status || '—';
+    }
+  };
+
+  const statusTooltip = (status?: string) => {
+    const norm = normalizeStatus(status);
+    switch (norm) {
+      case 'graded':
+        return 'Correção finalizada. PDF disponível para consulta.';
+      case 'uploaded':
+      case 'pending':
+        return 'Enviada e aguardando correção.';
+      default:
+        return (status || '').toString();
+    }
+  };
+
+  const statusClass = (status?: string) => {
+    const norm = normalizeStatus(status);
+    switch (norm) {
+      case 'uploaded':
+      case 'pending':
         return 'bg-yellow-200 text-yellow-800';
       case 'graded':
         return 'bg-green-200 text-green-800';
@@ -193,7 +229,7 @@ function RedacaoPage() {
   ));
 
   return (
-    <div className="pt-20 p-md space-y-md">
+    <div className="pt-20 p-md space-y-md page-wide">
       <div className="grid md:grid-cols-2 gap-md">
         <div className="ys-card space-y-md">
           <h2>Cadastrar tema</h2>
@@ -310,7 +346,9 @@ function RedacaoPage() {
               s.correctedUrl ||
               s.correctedPdfUrl ||
               s.correctionPdfUrl ||
-              (typeof (s as any)?.correctionPdf === 'string' ? (s as any).correctionPdf : null);
+              (typeof (s as any)?.correctionPdf === 'string' ? (s as any).correctionPdf : null) ||
+              (s as any)?.finalPdfUrl ||
+              null;
             const originalLink = s.originalUrl || s.fileUrl || null;
             return (
               <div
@@ -324,8 +362,9 @@ function RedacaoPage() {
                 <div className="flex flex-col items-start gap-2 sm:items-end sm:text-right">
                   <span
                     className={`inline-flex px-2 py-1 rounded text-xs ${statusClass(s.status)}`}
+                    title={statusTooltip(s.status)}
                   >
-                    {s.status || '—'}
+                    {statusLabel(s.status)}
                   </span>
                   <div className="flex flex-wrap gap-2">
                     {originalLink && (

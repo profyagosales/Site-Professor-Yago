@@ -86,7 +86,14 @@ function normalizeId(value: any): string {
 function normalizeEssayStatus(value: unknown): StudentEssayStatus {
   if (typeof value !== 'string') return 'PENDING';
   const upper = value.trim().toUpperCase();
-  if (upper === 'CORRIGIDA' || upper === 'CORRIGIDAS' || upper === 'GRADED' || upper === 'CORRECTED') {
+  if (
+    upper === 'CORRIGIDA' ||
+    upper === 'CORRIGIDAS' ||
+    upper === 'CORRIGIDO' ||
+    upper === 'GRADED' ||
+    upper === 'CORRECTED' ||
+    upper === 'READY'
+  ) {
     return 'GRADED';
   }
   return 'PENDING';
@@ -473,7 +480,7 @@ export async function listStudentEssaysByStatus(
 }
 
 export async function fetchEssayById(id: EssayId, options?: { signal?: AbortSignal }) {
-  const { data } = await api.get(`/essays/${id}`, { signal: options?.signal });
+  const { data } = await api.get(`/essays/${id}`, { signal: options?.signal, withCredentials: true });
   const payload = data?.data ?? data;
   if (payload && typeof payload === 'object') {
     if (payload.student) payload.student = normalizeStudent(payload.student);
@@ -581,7 +588,7 @@ export async function updateEssay(id: string, form: FormData) {
 }
 
 export async function deleteEssay(id: string) {
-  const { data } = await api.delete(`/essays/${id}`);
+  const { data } = await api.delete(`/essays/${id}`, { withCredentials: true });
   return data?.data ?? data ?? { success: true };
 }
 
@@ -618,17 +625,17 @@ export async function gradeEssay(id: EssayId, payload: GradeEssayPayload) {
     }
   }
 
-  const { data } = await api.patch(`/essays/${id}/grade`, body);
+  const { data } = await api.patch(`/essays/${id}/grade`, body, { withCredentials: true });
   return data?.data ?? data;
 }
 
 export async function renderCorrection(id: string, payload?: any) {
-  const { data } = await api.post(`/essays/${id}/render-correction`, payload || {});
+  const { data } = await api.post(`/essays/${id}/render-correction`, payload || {}, { withCredentials: true });
   return data?.data ?? data;
 }
 
 export async function sendCorrectionEmail(id: EssayId) {
-  const { data } = await api.post(`/essays/${id}/send-email`);
+  const { data } = await api.post(`/essays/${id}/send-email`, undefined, { withCredentials: true });
   return data?.data ?? data;
 }
 
@@ -643,7 +650,7 @@ export async function saveAnnotations(
   if (opts?.annos && (window as any).YS_USE_RICH_ANNOS) {
     body.richAnnotations = opts.annos;
   }
-  const { data } = await api.put(`/essays/${id}/annotations`, body);
+  const { data } = await api.put(`/essays/${id}/annotations`, body, { withCredentials: true });
   return data?.data ?? data;
 }
 
@@ -659,7 +666,7 @@ export async function updateEssayAnnotations(
   else if (Array.isArray(payload.rich)) body.richAnnotations = payload.rich;
   else body.richAnnotations = [];
 
-  const { data } = await api.patch(`/essays/${id}/annotations`, body);
+  const { data } = await api.patch(`/essays/${id}/annotations`, body, { withCredentials: true });
   return data?.data ?? data;
 }
 
@@ -682,19 +689,19 @@ export type EssayAnnotationPayload = {
 };
 
 export async function getEssayAnnotations(essayId: string) {
-  const res = await api.get(`/essays/${essayId}/annotations`);
+  const res = await api.get(`/essays/${essayId}/annotations`, { withCredentials: true });
   const payload = res?.data?.data ?? res?.data ?? [];
   return Array.isArray(payload) ? (payload as EssayAnnotationPayload[]) : [];
 }
 
 export async function saveEssayAnnotations(essayId: string, annotations: EssayAnnotationPayload[]) {
-  const res = await api.post(`/essays/${essayId}/annotations`, { annotations });
+  const res = await api.post(`/essays/${essayId}/annotations`, { annotations }, { withCredentials: true });
   const payload = res?.data?.data ?? res?.data ?? [];
   return Array.isArray(payload) ? (payload as EssayAnnotationPayload[]) : [];
 }
 
 export async function deleteEssayAnnotation(essayId: string, annotationId: string) {
-  await api.delete(`/essays/${essayId}/annotations/${annotationId}`);
+  await api.delete(`/essays/${essayId}/annotations/${annotationId}`, { withCredentials: true });
 }
 
 export type EssayScorePayload = {
@@ -717,17 +724,17 @@ export type EssayScorePayload = {
 };
 
 export async function getEssayScore(id: string) {
-  const res = await api.get(`/essays/${id}/score`);
+  const res = await api.get(`/essays/${id}/score`, { withCredentials: true });
   return res?.data?.data ?? res?.data ?? null;
 }
 
 export async function saveEssayScore(id: string, payload: EssayScorePayload) {
-  const res = await api.post(`/essays/${id}/score`, payload);
+  const res = await api.post(`/essays/${id}/score`, payload, { withCredentials: true });
   return res?.data?.data ?? res?.data ?? payload;
 }
 
 export async function generateCorrectedPdf(id: string) {
-  const res = await api.post(`/essays/${id}/final-pdf`);
+  const res = await api.post(`/essays/${id}/final-pdf`, undefined, { withCredentials: true });
   return res?.data?.data ?? res?.data ?? null;
 }
 
@@ -755,7 +762,7 @@ function normalizeTheme(raw: any): EssayTheme {
 }
 
 export async function fetchThemes(params?: { type?: 'ENEM' | 'PAS'; active?: boolean | 'all' }) {
-  const res = await api.get('/essays/themes', { params });
+  const res = await api.get('/essays/themes', { params, withCredentials: true });
   const payload = res?.data;
   const list: any[] = Array.isArray(payload?.data)
     ? payload.data
@@ -771,7 +778,7 @@ export async function createThemeApi(payload: { title: string; type: 'ENEM' | 'P
   form.append('type', payload.type);
   if (payload.description) form.append('description', payload.description);
   if (payload.file) form.append('file', payload.file);
-  const res = await api.post('/essays/themes', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  const res = await api.post('/essays/themes', form, { headers: { 'Content-Type': 'multipart/form-data' }, withCredentials: true });
   const data = res?.data?.data ?? res?.data;
   return normalizeTheme(data);
 }
@@ -792,13 +799,13 @@ export async function updateThemeApi(
     body = form;
     config.headers = { 'Content-Type': 'multipart/form-data' };
   }
-  const res = await api.patch(`/essays/themes/${id}`, body, config);
+  const res = await api.patch(`/essays/themes/${id}`, body, { ...config, withCredentials: true });
   const data = res?.data?.data ?? res?.data;
   return normalizeTheme(data);
 }
 
 export async function deleteThemeApi(id: string) {
-  const res = await api.delete(`/essays/themes/${id}`);
+  const res = await api.delete(`/essays/themes/${id}`, { withCredentials: true });
   return res?.data ?? { success: true };
 }
 
@@ -807,6 +814,15 @@ export type { EssayListItem };
 /** -------- compat helpers for file token + peek -------- */
 export async function issueFileToken(essayId: EssayId, options?: { signal?: AbortSignal }) {
   return getFileToken(essayId, options);
+}
+
+export async function getFileToken(essayId: string, options?: { signal?: AbortSignal }): Promise<string> {
+  const { data } = await api.post(
+    `/essays/${essayId}/file-token`,
+    undefined,
+    { signal: options?.signal, meta: { skipAuthRedirect: true }, withCredentials: true }
+  );
+  return data?.token;
 }
 
 export async function peekEssayFile(
@@ -820,6 +836,7 @@ export async function peekEssayFile(
       signal: options.signal,
       validateStatus: (status) => status >= 200 && status < 400,
       meta: { suppressErrorToast: true },
+      withCredentials: true,
     });
     const headers = res?.headers || {};
     const contentType = headers['content-type'];

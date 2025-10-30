@@ -13,7 +13,10 @@ declare module 'axios' {
 const isEssayPdf = (url?: string) =>
   !!url && /\/(?:api\/)?essays\/[^/]+\/pdf(?:\?|$)/i.test(url);
 
+api.defaults.withCredentials = true;
+
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  if (config.withCredentials == null) config.withCredentials = true;
   if (config.method?.toLowerCase() === 'get' && config.meta?.noCache) {
     const headers = (config.headers ?? {}) as Record<string, unknown>;
     headers['Cache-Control'] = 'no-store';

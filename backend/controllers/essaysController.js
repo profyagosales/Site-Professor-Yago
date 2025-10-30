@@ -172,7 +172,7 @@ function normalizeEssayDetail(essay) {
     fileUrl: essay.originalUrl || null,
     correctedUrl: essay.correctedUrl || null,
     correctionPdf: essay.correctionPdf || essay.correctedUrl || null,
-    isCorrected: Boolean(essay.isCorrected || essay.correctionPdf || essay.correctedUrl || statusValue === 'ready'),
+    isCorrected: Boolean(essay.isCorrected || essay.correctionPdf || essay.correctedUrl || statusValue === 'graded'),
     correctedAt: essay.correctedAt || null,
     grade: normalizeEssayGrade(essay),
     comments: essay.comments || null,
@@ -279,8 +279,8 @@ function normalizeEssaySummary(essay) {
     studentName: student?.name || essay.studentName || null,
     classId: essay.classId?._id ? String(essay.classId._id) : essay.classId || null,
     className: student?.className || null,
-    corrected: Boolean(essay.correctedUrl || essay.correctionPdf || essay.isCorrected || statusValue === 'ready'),
-    isCorrected: Boolean(essay.isCorrected || essay.correctionPdf || essay.correctedUrl || statusValue === 'ready'),
+    corrected: Boolean(essay.correctedUrl || essay.correctionPdf || essay.isCorrected || statusValue === 'graded'),
+    isCorrected: Boolean(essay.isCorrected || essay.correctionPdf || essay.correctedUrl || statusValue === 'graded'),
     correctedAt: essay.correctedAt || null,
     fileUrl: essay.originalUrl || null,
     correctedUrl: essay.correctedUrl || null,
@@ -691,7 +691,9 @@ async function listEssays(req, res) {
 
   if (typeof status === 'string' && status.trim()) {
     const normalizedStatus = normalizeStatusValue(status, { defaultValue: null });
-    if (normalizedStatus) {
+    if (normalizedStatus === 'graded') {
+      filter.status = { $in: ['graded', 'ready'] }; // include legacy
+    } else if (normalizedStatus) {
       filter.status = normalizedStatus;
     }
   }
@@ -861,7 +863,7 @@ async function gradeEssay(req, res) {
     essay.enemCompetencies = essay.type === 'ENEM' ? enemCompetencies : undefined;
     essay.correctedUrl = correctedUrl;
     essay.teacherId = req.user._id;
-    essay.status = 'ready';
+    essay.status = 'graded';
     essay.comments = comments || null;
     essay.isCorrected = true;
     if (!essay.correctedAt) essay.correctedAt = new Date();
@@ -1541,7 +1543,7 @@ async function saveEssayScoreController(req, res) {
     }
 
     essay.updatedAt = new Date();
-    essay.status = 'ready';
+    essay.status = 'graded';
     essay.isCorrected = true;
     essay.correctedAt = new Date();
     await essay.save();
@@ -1584,7 +1586,7 @@ async function generateFinalPdf(req, res) {
     const corrected = await uploadBuffer(buffer, 'essays/corrected', 'application/pdf', { returnResult: true });
     essay.correctedUrl = corrected?.secure_url || corrected || essay.correctedUrl;
     essay.correctionPdf = essay.correctionPdf || essay.correctedUrl;
-    essay.status = 'ready';
+    essay.status = 'graded';
     essay.isCorrected = true;
     essay.correctedAt = new Date();
     await essay.save();
@@ -1649,7 +1651,7 @@ async function uploadCorrectionPdf(req, res) {
     if (!essay.correctedUrl) {
       essay.correctedUrl = correctionUrl;
     }
-    essay.status = 'ready';
+    essay.status = 'graded';
     essay.isCorrected = true;
     essay.correctedAt = new Date();
 

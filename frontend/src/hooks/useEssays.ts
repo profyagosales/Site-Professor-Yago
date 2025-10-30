@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { fetchEssays } from '@/services/essays.service';
 import type { EssayStatus, EssaysPage } from '@/types/redacao';
 
@@ -24,28 +24,31 @@ export function useEssays(initialStatus: EssayStatus) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const reqSeq = useRef(0);
+
   async function load() {
     try {
-      setLoading(true);
-      setError(null);
+      const id = ++reqSeq.current;
+      if (id === reqSeq.current) setLoading(true);
+      if (id === reqSeq.current) setError(null);
       const normalizedStatus = (String(status).toLowerCase() as EssayStatus);
       const trimmedQ = q.trim();
 
       if ((import.meta as any).env?.VITE_MOCK === '1') {
         const { getMockPage } = await import('@/mocks/essays');
-        setData(getMockPage({ status: normalizedStatus, page, pageSize, q: trimmedQ, classId }));
-        return;
+        if (id === reqSeq.current) setData(getMockPage({ status: normalizedStatus, page, pageSize, q: trimmedQ, classId }));
+        if (id === reqSeq.current) setLoading(false); return;
       }
       const res = await fetchEssays({ status: normalizedStatus, page, pageSize, q: trimmedQ, classId, bimester: extra.bimester, type: extra.type });
-      setData(res as EssaysPage);
+      if (id === reqSeq.current) setData(res as EssaysPage);
     } catch (e: any) {
       if (e?.response?.status === 401) {
-        setError('Sessão expirada. Faça login para visualizar as redações.');
+        if (id === reqSeq.current) { setError('Sessão expirada. Faça login para visualizar as redações.'); }
       } else {
-        setError(e?.response?.data?.message ?? 'Erro ao carregar redações');
+        if (id === reqSeq.current) { setError(e?.response?.data?.message ?? 'Erro ao carregar redações'); }
       }
     } finally {
-      setLoading(false);
+      if (id === reqSeq.current) setLoading(false);
     }
   }
 
