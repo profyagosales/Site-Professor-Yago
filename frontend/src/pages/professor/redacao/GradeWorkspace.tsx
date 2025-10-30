@@ -943,7 +943,7 @@ export default function GradeWorkspace() {
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:p-5">
         {/* Unified 3-column grid */}
-        <div className="grid grid-cols-1 gap-3 items-start md:grid-cols-[var(--rail-w)_minmax(0,1fr)_clamp(220px,12%,300px)]" aria-label="Workspace de correção">
+        <div className="grid grid-cols-1 gap-3 items-start md:grid-cols-[clamp(140px,9%,180px)_minmax(0,1fr)_clamp(220px,12%,300px)]" aria-label="Workspace de correção">
           {/* HERO: spans center and right columns on md+ */}
           <header
             className="md:col-start-2 md:col-span-2 w-full"
@@ -1006,14 +1006,14 @@ export default function GradeWorkspace() {
             <div className="ws-rail-sticky rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
               <div className="ws-rail-head">
                 <Button
-                  size="sm"
+                  size="xs"
                   className="btn btn--neutral rail-btn rail-btn--ghost"
                   onClick={handleBack}
                 >
                   Voltar
                 </Button>
                 <Button
-                  size="sm"
+                  size="xs"
                   className="btn btn--neutral rail-btn"
                   onClick={handleOpenOriginal}
                 >
@@ -1027,7 +1027,7 @@ export default function GradeWorkspace() {
 
               <div className="ws-rail-footer">
                 <Button
-                  size="sm"
+                  size="xs"
                   className="btn btn--neutral rail-btn rail-btn--secondary"
                   onClick={handleSave}
                   disabled={saving || !dirty}
@@ -1035,7 +1035,7 @@ export default function GradeWorkspace() {
                   {saving ? 'Salvando…' : 'Salvar'}
                 </Button>
                 <Button
-                  size="sm"
+                  size="xs"
                   className="btn btn--brand rail-btn rail-btn--primary"
                   onClick={handleGeneratePdf}
                   disabled={generating}

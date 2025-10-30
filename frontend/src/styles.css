@@ -1279,7 +1279,7 @@ a {
   --app-header-h: 72px;
   --hero-gap: 24px;
   --rail-top: calc(var(--app-header-h) + var(--hero-gap));
-  --rail-w: 340px;
+  --rail-w: 180px;
   --workspace-min-width: 1200px;
   --ws-rail-top: var(--rail-top);
 }
@@ -1289,7 +1289,8 @@ a {
 
 /* === Workspace action rail (left) === */
 .ws-rail{
-  width: var(--rail-w);
+  width: auto;
+  max-width: clamp(140px, 9%, 180px);
 }
 
 .ws-rail-sticky{
@@ -1342,6 +1343,16 @@ a {
   align-items: center;
   justify-content: center;
   gap: 8px;
+}
+
+/* Compact overrides for left action rail */
+.ws-rail .btn,
+.ws-rail .rail-btn { 
+  height: 32px; 
+  font-size: 13px; 
+  line-height: 1.1;
+  padding: 6px 10px; 
+  border-radius: 12px; 
 }
 
 .rail-btn--xl{
