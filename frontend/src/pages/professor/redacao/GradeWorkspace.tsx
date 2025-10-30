@@ -125,6 +125,7 @@ function renumber(list: AnnotationItem[]) {
     .map((item, idx) => ({ ...item, number: idx + 1 }));
 }
 
+
 const HIGHLIGHT_TO_KIND: Record<HighlightCategoryKey, AnnotationKind> = {
   argumentacao: 'argument',
   ortografia: 'grammar',
@@ -132,6 +133,53 @@ const HIGHLIGHT_TO_KIND: Record<HighlightCategoryKey, AnnotationKind> = {
   apresentacao: 'presentation',
   comentarios: 'general',
 };
+
+const COMPACT_LABELS: Record<HighlightCategoryKey, string> = {
+  argumentacao: 'Arg',
+  ortografia: 'Ort',
+  coesao: 'Coe',
+  apresentacao: 'Apt',
+  comentarios: 'Com',
+};
+
+function CompactCategoryToolbar({
+  active,
+  onChange,
+  className,
+}: {
+  active: HighlightCategoryKey;
+  onChange: (key: HighlightCategoryKey) => void;
+  className?: string;
+}) {
+  const items = (Object.keys(HIGHLIGHT_CATEGORIES) as HighlightCategoryKey[]).map((key) => ({
+    key,
+    short: COMPACT_LABELS[key],
+    full: (HIGHLIGHT_CATEGORIES as any)[key]?.label ?? key,
+    color: (HIGHLIGHT_CATEGORIES as any)[key]?.color ?? '#999',
+  }));
+
+  return (
+    <div className={["grid gap-1.5", className].filter(Boolean).join(' ')}>
+      {items.map((it) => (
+        <button
+          key={it.key}
+          type="button"
+          title={it.full}
+          onClick={() => onChange(it.key)}
+          className={`flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-medium truncate ${
+            active === it.key ? 'ring-2 ring-orange-300 ring-offset-0' : ''
+          }`}
+        >
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: it.color }}
+          />
+          <span className="truncate">{it.short}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 
 function getInitialsFromName(name: string) {
@@ -917,22 +965,20 @@ export default function GradeWorkspace() {
   const isPas = essayType === 'PAS';
   const totalLabel = isPas ? 'TOTAL PAS' : 'TOTAL ENEM';
   const totalDen = isPas ? '/10' : '/1000';
-  const railMenu = (
-    <>
-      <AnnotationToolbar
-        active={activeCategory}
-        onChange={setActiveCategory}
-        orientation="horizontal"
-        className="md:hidden w-full"
-      />
-      <AnnotationToolbar
-        active={activeCategory}
-        onChange={setActiveCategory}
-        orientation="vertical"
-        className="hidden md:flex ws-rail-toolbar w-full md:static md:top-auto md:self-stretch"
-      />
-    </>
-  );
+const railMenu = (
+  <>
+    <CompactCategoryToolbar
+      active={activeCategory}
+      onChange={setActiveCategory}
+      className="md:hidden grid grid-flow-col auto-cols-max gap-2 overflow-x-auto"
+    />
+    <CompactCategoryToolbar
+      active={activeCategory}
+      onChange={setActiveCategory}
+      className="hidden md:grid w-full"
+    />
+  </>
+);
 
   return (
     <div
@@ -1003,11 +1049,11 @@ export default function GradeWorkspace() {
           </header>
           {/* LEFT RAIL */}
           <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail text-[13px]">
-            <div className="ws-rail-sticky rounded-xl border border-slate-200 bg-white p-2 shadow-sm flex flex-col gap-1.5">
-              <div className="ws-rail-head grid grid-cols-2 gap-1.5">
+            <div className="ws-rail-sticky rounded-xl border border-slate-200 bg-white p-2 shadow-sm grid grid-flow-row auto-rows-max gap-2">
+              <div className="ws-rail-head grid grid-cols-2 gap-2">
                 <Button
                   size="xs"
-                  className="btn btn--neutral rail-btn rail-btn--ghost"
+                  className="btn btn--neutral rail-btn rail-btn--ghost w-full"
                   onClick={handleBack}
                   title="Voltar"
                 >
@@ -1015,22 +1061,22 @@ export default function GradeWorkspace() {
                 </Button>
                 <Button
                   size="xs"
-                  className="btn btn--neutral rail-btn"
+                  className="btn btn--neutral rail-btn w-full"
                   onClick={handleOpenOriginal}
                   title="Abrir original"
                 >
-                  Abrir original
+                  Abrir
                 </Button>
               </div>
 
-              <div className="ws-rail-body">
+              <div className="ws-rail-body space-y-1.5">
                 {railMenu}
               </div>
 
-              <div className="ws-rail-footer grid grid-cols-2 gap-1.5">
+              <div className="ws-rail-footer grid grid-cols-2 gap-2">
                 <Button
                   size="xs"
-                  className="btn btn--neutral rail-btn rail-btn--secondary"
+                  className="btn btn--neutral rail-btn rail-btn--secondary w-full"
                   onClick={handleSave}
                   disabled={saving || !dirty}
                   title="Salvar"
@@ -1039,12 +1085,12 @@ export default function GradeWorkspace() {
                 </Button>
                 <Button
                   size="xs"
-                  className="btn btn--brand rail-btn rail-btn--primary"
+                  className="btn btn--brand rail-btn rail-btn--primary w-full"
                   onClick={handleGeneratePdf}
                   disabled={generating}
                   title="Gerar PDF corrigido"
                 >
-                  {generating ? 'Gerando…' : 'Gerar PDF corrigido'}
+                  {generating ? 'Gerando…' : 'Gerar'}
                 </Button>
               </div>
             </div>
