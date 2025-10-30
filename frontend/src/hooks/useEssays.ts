@@ -27,8 +27,8 @@ export function useEssays(initialStatus: EssayStatus) {
   const reqSeq = useRef(0);
 
   async function load() {
+    const id = ++reqSeq.current;
     try {
-      const id = ++reqSeq.current;
       if (id === reqSeq.current) setLoading(true);
       if (id === reqSeq.current) setError(null);
       const normalizedStatus = (String(status).toLowerCase() as EssayStatus);
