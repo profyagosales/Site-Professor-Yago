@@ -7,6 +7,23 @@ const VARIANT_BY_KEY: Partial<Record<HighlightCategoryKey, string>> = {
   // Fallbacks por label também serão aplicados abaixo
 };
 
+const COMPACT_LABELS: Partial<Record<HighlightCategoryKey, string>> = {
+  // Tente casar com as chaves reais do seu constants/annotations
+  argumentacao: 'Arg',
+  ortografia: 'Ort',
+  coesao: 'Coe',
+  apresentacao: 'Apt',
+  comentarios: 'Com',
+};
+
+function shortLabelFor(key: HighlightCategoryKey, label: string, compact?: boolean): string {
+  if (!compact) return label;
+  const mapped = COMPACT_LABELS[key];
+  if (mapped) return mapped;
+  // Fallback: encurta sem perder contexto
+  return label.length > 10 ? label.slice(0, 10) : label;
+}
+
 function variantFor(key: HighlightCategoryKey, label: string): string {
   const direct = VARIANT_BY_KEY[key as HighlightCategoryKey];
   if (direct) return `btn ${direct}`;
@@ -25,9 +42,10 @@ type AnnotationToolbarProps = {
   orientation?: 'horizontal' | 'vertical';
   className?: string;
   centered?: boolean;
+  compact?: boolean;
 };
 
-export function AnnotationToolbar({ active, onChange, orientation = 'horizontal', className, centered = false }: AnnotationToolbarProps) {
+export function AnnotationToolbar({ active, onChange, orientation = 'horizontal', className, centered = false, compact = false }: AnnotationToolbarProps) {
   const isVertical = orientation === 'vertical';
   const baseClasses = isVertical
     ? `row-span-2 md:sticky md:self-start md:top-[var(--hero-sticky-top,88px)] h-fit flex flex-col ${centered ? 'items-center' : 'items-stretch'} gap-1.5 mt-3 mb-3`
@@ -124,7 +142,7 @@ export function AnnotationToolbar({ active, onChange, orientation = 'horizontal'
               style={{ backgroundColor: meta.color }}
               aria-hidden
             />
-            <span className="text-slate-800">{meta.label}</span>
+            <span className="text-slate-800 truncate">{shortLabelFor(key, meta.label, compact)}</span>
           </button>
         );
       })}

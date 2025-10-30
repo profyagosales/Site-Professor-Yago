@@ -134,6 +134,7 @@ const HIGHLIGHT_TO_KIND: Record<HighlightCategoryKey, AnnotationKind> = {
   comentarios: 'general',
 };
 
+
 const COMPACT_LABELS: Record<HighlightCategoryKey, string> = {
   argumentacao: 'Arg',
   ortografia: 'Ort',
@@ -141,6 +142,22 @@ const COMPACT_LABELS: Record<HighlightCategoryKey, string> = {
   apresentacao: 'Apt',
   comentarios: 'Com',
 };
+
+function hexToRgba(hex: string, alpha = 1): string {
+  try {
+    const h = hex.replace('#', '').trim();
+    const full = h.length === 3
+      ? h.split('').map((c) => c + c).join('')
+      : h.padEnd(6, '0').slice(0, 6);
+    const r = parseInt(full.slice(0, 2), 16);
+    const g = parseInt(full.slice(2, 4), 16);
+    const b = parseInt(full.slice(4, 6), 16);
+    const a = Math.min(1, Math.max(0, alpha));
+    return `rgba(${r}, ${g}, ${b}, ${a})`;
+  } catch {
+    return hex; // fallback
+  }
+}
 
 function CompactCategoryToolbar({
   active,
@@ -166,9 +183,13 @@ function CompactCategoryToolbar({
           type="button"
           title={it.full}
           onClick={() => onChange(it.key)}
-          className={`flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-medium truncate ${
+          className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-[12px] font-medium truncate ${
             active === it.key ? 'ring-2 ring-orange-300 ring-offset-0' : ''
           }`}
+          style={{
+            backgroundColor: hexToRgba(it.color, 0.12),
+            borderColor: hexToRgba(it.color, 0.35),
+          }}
         >
           <span
             className="inline-block h-2.5 w-2.5 rounded-full"
@@ -912,6 +933,13 @@ export default function GradeWorkspace() {
   const handleBack = () => navigate(-1);
 
   const studentName = essay?.student?.name || essay?.studentName || '-';
+  const essayTitle =
+    (essay as any)?.title ||
+    (essay as any)?.name ||
+    (essay as any)?.fileName ||
+    (essay as any)?.originalName ||
+    essay?.theme ||
+    'Redação';
   const rawPhoto =
     (essay?.student as any)?.avatarUrl ||
     (essay as any)?.studentAvatarUrl ||
@@ -997,7 +1025,7 @@ const railMenu = (
             style={{ ['--gw-hero-h' as any]: '72px' }}
           >
             <div className="hero hero--compact gw-hero w-full">
-              <div className="hero-inner grid grid-cols-[auto,1fr,auto]">
+              <div className="hero-inner grid grid-cols-[auto,1fr,auto] gap-4 md:gap-6">
                 {/* ESQUERDA: marca (duas linhas) */}
                 <div className="hero-brand">
                   <div className="hero-brand-mark">
@@ -1024,7 +1052,7 @@ const railMenu = (
 
                   <div className="min-w-0 text-left">
                     <h1 className="hero-name hero-brand-name truncate">
-                      {studentName}
+                      {essayTitle}
                     </h1>
                     <p className="pdf-md truncate text-left">
                       {infoLine || '—'}
@@ -1035,8 +1063,8 @@ const railMenu = (
                 </div>
 
                 {/* DIREITA: cartões colados na borda do hero */}
-                <div className="hero-score flex items-center gap-3 justify-self-end">
-                  <div className="hero-stat hero-stat--total">
+                <div className="hero-score flex items-center gap-2 md:gap-3 justify-self-end">
+                  <div className="hero-stat hero-stat--total px-3 py-2">
                     <span className="hero-stat__label">{totalLabel}</span>
                     <span className="hero-stat__value">
                       <span className="hero-stat__value-main">{finalScore}</span>
@@ -1044,7 +1072,7 @@ const railMenu = (
                     </span>
                   </div>
 
-                  <div className="hero-stat hero-stat--model">
+                  <div className="hero-stat hero-stat--model px-3 py-2">
                     <span className="hero-stat__label">MODELO</span>
                     <span className="hero-stat__value">
                       <span className="hero-stat__value-main">{typeLabel}</span>
@@ -1057,11 +1085,11 @@ const railMenu = (
           {/* LEFT RAIL */}
           <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail text-[13px]">
             <div className="ws-rail-sticky rounded-xl border border-slate-200 bg-white p-2 shadow-sm grid grid-flow-row auto-rows-max gap-2">
-              <div className="ws-rail-head grid grid-cols-2 gap-2">
+              <div className="ws-rail-head grid grid-cols-1 gap-2">
                 <Button
                   size="xs"
                   block
-                  className="btn btn--neutral rail-btn rail-btn--ghost"
+                  className="btn btn--neutral rail-btn rail-btn--ghost w-full"
                   onClick={handleBack}
                   title="Voltar"
                 >
@@ -1070,23 +1098,25 @@ const railMenu = (
                 <Button
                   size="xs"
                   block
-                  className="btn btn--neutral rail-btn"
+                  className="btn btn--neutral rail-btn w-full"
                   onClick={handleOpenOriginal}
                   title="Abrir original"
                 >
                   Abrir
                 </Button>
               </div>
+              <div className="h-px bg-slate-200/70 my-1.5" />
 
-              <div className="ws-rail-body space-y-1.5">
+              <div className="ws-rail-body mt-3 space-y-2">
                 {railMenu}
               </div>
+              <div className="h-px bg-slate-200/70 my-1.5" />
 
-              <div className="ws-rail-footer grid grid-cols-2 gap-2">
+              <div className="ws-rail-footer grid grid-cols-1 gap-2 mt-3">
                 <Button
                   size="xs"
                   block
-                  className="btn btn--neutral rail-btn rail-btn--secondary"
+                  className="btn btn--neutral rail-btn rail-btn--secondary w-full"
                   onClick={handleSave}
                   disabled={saving || !dirty}
                   title="Salvar"
@@ -1096,7 +1126,7 @@ const railMenu = (
                 <Button
                   size="xs"
                   block
-                  className="btn btn--brand rail-btn rail-btn--primary"
+                  className="btn btn--brand rail-btn rail-btn--primary w-full"
                   onClick={handleGeneratePdf}
                   disabled={generating}
                   title="Gerar PDF corrigido"

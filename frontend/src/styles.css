@@ -1290,7 +1290,7 @@ a {
 /* === Workspace action rail (left) === */
 .ws-rail{
   width: auto;
-  max-width: clamp(120px, 7%, 140px);
+  max-width: clamp(60px, 3.5%, 70px);
 }
 
 .ws-rail-sticky{
@@ -1305,7 +1305,7 @@ a {
 .ws-rail-head,
 .ws-rail-footer{
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 8px;
 }
 
