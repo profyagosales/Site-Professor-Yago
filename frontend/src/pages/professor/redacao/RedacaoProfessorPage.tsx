@@ -127,72 +127,84 @@ export default function RedacaoProfessorPage() {
   return (
     <Page title="Redação" subtitle="Gerencie as redações dos alunos">
       <div className="space-y-4" style={{ width: '100%', marginInline: 0, paddingInline: '16px' }}>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <Button variant="ghost" size="sm" onClick={() => setThemesOpen(true)}>
-            Temas
-          </Button>
-          <Button size="sm" onClick={() => setModalConfig({ mode: 'create' })}>
-            Nova Redação
-          </Button>
-        </div>
+        <div
+          style={{
+            position: 'relative',
+            left: '50%',
+            right: '50%',
+            marginLeft: 'calc(-50vw + 16px)',
+            marginRight: 'calc(-50vw + 16px)',
+            width: 'calc(100vw - 32px)',
+            maxWidth: 'none',
+          }}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setThemesOpen(true)}>
+              Temas
+            </Button>
+            <Button size="sm" onClick={() => setModalConfig({ mode: 'create' })}>
+              Nova Redação
+            </Button>
+          </div>
 
-        <Tabs items={statusTabs} className="tabs-compact" />
+          <Tabs items={statusTabs} className="tabs-compact" />
 
-        <div className="filters-grid">
-          <input
-            value={q}
-            onChange={(e) => {
-              setQ(e.target.value);
-              setPage(1);
-            }}
-            placeholder="Buscar aluno"
-            className="filter-control"
-          />
-          <select
-            value={classId || ''}
-            onChange={(e) => {
-              setClassId(e.target.value || undefined);
-              setPage(1);
-            }}
-            className="filter-control"
-          >
-            <option value="">Todas as turmas</option>
-            {classes.map((c: any) => (
-              <option key={c._id || c.id} value={c._id || c.id}>
-                {`${c.series || ''}${c.letter || ''}`} {c.discipline ? `— ${c.discipline}` : ''}
-              </option>
-            ))}
-          </select>
-          <select
-            value={bimester}
-            onChange={(e) => {
-              const v = e.target.value;
-              setBimester(v);
-              setExtra({ ...extra, bimester: v || undefined });
-              setPage(1);
-            }}
-            className="filter-control"
-          >
-            <option value="">Todos os bimestres</option>
-            <option value="1">1º</option>
-            <option value="2">2º</option>
-            <option value="3">3º</option>
-            <option value="4">4º</option>
-          </select>
-          <select
-            value={type}
-            onChange={(e) => {
-              const v = e.target.value;
-              setType(v);
-              setExtra({ ...extra, type: v || undefined });
-              setPage(1);
-            }}
-            className="filter-control"
-          >
-            <option value="">Todos os tipos</option>
-            <option value="PAS">PAS</option>
-            <option value="ENEM">ENEM</option>
-          </select>
+          <div className="filters-grid">
+            <input
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Buscar aluno"
+              className="filter-control"
+            />
+            <select
+              value={classId || ''}
+              onChange={(e) => {
+                setClassId(e.target.value || undefined);
+                setPage(1);
+              }}
+              className="filter-control"
+            >
+              <option value="">Todas as turmas</option>
+              {classes.map((c: any) => (
+                <option key={c._id || c.id} value={c._id || c.id}>
+                  {`${c.series || ''}${c.letter || ''}`} {c.discipline ? `— ${c.discipline}` : ''}
+                </option>
+              ))}
+            </select>
+            <select
+              value={bimester}
+              onChange={(e) => {
+                const v = e.target.value;
+                setBimester(v);
+                setExtra({ ...extra, bimester: v || undefined });
+                setPage(1);
+              }}
+              className="filter-control"
+            >
+              <option value="">Todos os bimestres</option>
+              <option value="1">1º</option>
+              <option value="2">2º</option>
+              <option value="3">3º</option>
+              <option value="4">4º</option>
+            </select>
+            <select
+              value={type}
+              onChange={(e) => {
+                const v = e.target.value;
+                setType(v);
+                setExtra({ ...extra, type: v || undefined });
+                setPage(1);
+              }}
+              className="filter-control"
+            >
+              <option value="">Todos os tipos</option>
+              <option value="PAS">PAS</option>
+              <option value="ENEM">ENEM</option>
+            </select>
+          </div>
         </div>
 
         <div
