@@ -126,7 +126,7 @@ export default function RedacaoProfessorPage() {
 
   return (
     <Page title="Redação" subtitle="Gerencie as redações dos alunos">
-      <div className="page-wide space-y-4" style={{ maxWidth: 'none', width: 'calc(100vw - 32px)', marginInline: '16px' }}>
+      <div className="page-wide space-y-4" style={{ width: '100%', marginInline: 0, paddingInline: '16px' }}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Button variant="ghost" size="sm" onClick={() => setThemesOpen(true)}>
             Temas
@@ -195,8 +195,8 @@ export default function RedacaoProfessorPage() {
           </select>
         </div>
 
-        <div className="table-card--wide overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-ys-md">
-          <div className="table-wide-wrap">
+        <div className="table-card--wide overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-ys-md" style={{ width: '100%' }}>
+          <div className="table-wide-wrap" style={{ maxWidth: '100%', overflowX: 'auto' }}>
             <table className="table-wide text-sm text-[#111827]">
               <colgroup>
                 <col className="col-avatar" />
