@@ -229,7 +229,7 @@ function RedacaoPage() {
   ));
 
   return (
-    <div className="pt-20 p-md space-y-md page-wide">
+    <div className="pt-20 p-md space-y-md page-wide md:-ml-1">
       <div className="grid md:grid-cols-2 gap-md">
         <div className="ys-card space-y-md">
           <h2>Cadastrar tema</h2>

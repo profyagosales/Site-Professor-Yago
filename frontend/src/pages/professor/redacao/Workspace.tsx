@@ -172,9 +172,9 @@ function Workspace() {
   };
 
   return (
-    <div className="pt-20 p-md space-y-md">
+    <div className="pt-20 space-y-md page-wide md:-ml-1 w-full min-w-0 max-w-none">
       <h1 className="text-2xl font-bold">Correção de Redação</h1>
-      <div className="space-y-xs">
+      <div className="space-y-xs w-full">
         <p><strong>Aluno:</strong> {studentName || submission?.studentId || '-'}</p>
         <p><strong>Modelo:</strong> {submission?.model || '-'}</p>
         <p><strong>Tema:</strong> {themeName || '-'}</p>
@@ -203,7 +203,7 @@ function Workspace() {
       </div>
 
       {submission?.model === 'ENEM' && (
-        <div className="space-y-md">
+        <div className="space-y-md w-full">
           <div className="space-y-sm">
             <h2 className="font-semibold">Formas elementares de anulação</h2>
             {ANNUL_OPTS.map((opt) => (

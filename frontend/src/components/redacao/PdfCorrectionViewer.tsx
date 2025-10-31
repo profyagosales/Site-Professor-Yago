@@ -392,7 +392,7 @@ export function PdfCorrectionViewer({
   const previewColor = hexToRgba(HIGHLIGHT_CATEGORIES[activeCategory].color, HIGHLIGHT_ALPHA);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full min-w-0 max-w-none">
       {Array.from({ length: numPages }, (_, index) => {
         const pageNumber = index + 1;
         const pageAnnotations = byPage.get(pageNumber) ?? [];
@@ -408,7 +408,7 @@ export function PdfCorrectionViewer({
         return (
           <div
             key={pageNumber}
-            className="relative overflow-hidden rounded-md border border-slate-200 bg-white shadow"
+            className="relative w-full overflow-hidden rounded-md border border-slate-200 bg-white shadow"
             ref={(el) => {
               pageRefs.current[pageNumber] = el;
             }}

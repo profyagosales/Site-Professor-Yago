@@ -126,7 +126,7 @@ export default function RedacaoProfessorPage() {
 
   return (
     <Page title="Redação" subtitle="Gerencie as redações dos alunos">
-      <div className="space-y-4" style={{ width: '100%', marginInline: 0, paddingInline: '16px' }}>
+      <div className="space-y-4 w-full min-w-0" style={{ width: '100%', marginInline: 0, paddingInline: '16px' }}>
         <div
           style={{
             position: 'relative',
@@ -136,6 +136,7 @@ export default function RedacaoProfessorPage() {
             marginRight: 'calc(-50vw + 16px)',
             width: 'calc(100vw - 32px)',
             maxWidth: 'none',
+            minWidth: '0',
           }}
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -217,10 +218,11 @@ export default function RedacaoProfessorPage() {
             marginRight: 'calc(-50vw + 16px)',
             width: 'calc(100vw - 32px)',
             maxWidth: 'none',
+            minWidth: '0',
           }}
         >
-          <div className="table-wide-wrap" style={{ maxWidth: '100%', overflowX: 'auto' }}>
-            <table className="table-wide text-sm text-[#111827]">
+          <div className="table-wide-wrap w-full min-w-0" style={{ maxWidth: '100%', overflowX: 'auto' }}>
+            <table className="table-wide w-full text-sm text-[#111827]">
               <colgroup>
                 <col className="col-avatar" />
                 <col className="col-student" />
