@@ -1012,7 +1012,7 @@ const railMenu = (
     <div
       data-printing={generating ? '1' : '0'}
       className="mx-auto flex h-full w-full max-w-none flex-col gap-3 px-2 py-4 sm:px-3 lg:px-4"
-      style={{ ['--pdf-viewport-offset' as any]: '200px' }}
+      style={{ ['--pdf-viewport-offset' as any]: '160px' }}
     >
       {/* HERO COMPACTO ALINHADO AO PDF */}
 
@@ -1028,7 +1028,7 @@ const railMenu = (
             aria-label="Cabeçalho de correção"
           >
             <div className="hero hero--compact gw-hero w-full">
-              <div className="hero-inner grid grid-cols-[auto,1fr,auto] items-center gap-1 md:gap-1.5">
+              <div className="hero-inner grid grid-cols-[auto,1fr,clamp(300px,17%,420px)] items-center gap-1 md:gap-1.5 min-h-[64px] md:min-h-[72px] py-1 md:py-1.5">
                 {/* ESQUERDA: marca (duas linhas) */}
                 <div className="hero-brand">
                   <div className="hero-brand-mark">
@@ -1066,7 +1066,7 @@ const railMenu = (
                 </div>
 
                 {/* DIREITA: cartões colados na borda do hero */}
-                <div className="hero-score flex items-start gap-1.5 md:gap-2 justify-self-end self-start mt-0">
+                <div className="hero-score flex items-start gap-1.5 md:gap-2 justify-self-stretch justify-end self-start mt-0">
                   <div className="hero-stat hero-stat--total px-1.5 py-1">
                     <span className="hero-stat__label">{totalLabel}</span>
                     <span className="hero-stat__value">
@@ -1147,7 +1147,10 @@ const railMenu = (
               </p>
             )}
             <div className="pdf-canvas-wrap p-0">
-              <div className="pdf-canvas-container w-full min-w-0 aspect-[210/297] max-h-[calc(100vh-220px)]">
+              <div
+                className="pdf-canvas-container w-full min-w-0 aspect-[210/297]"
+                style={{ maxHeight: 'calc(100vh - var(--pdf-viewport-offset, 160px))' }}
+              >
                 <PdfCorrectionViewer
                   fileUrl={pdfUrl}
                   annotations={orderedAnnotations}
