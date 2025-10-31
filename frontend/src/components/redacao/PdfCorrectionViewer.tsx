@@ -394,8 +394,12 @@ export function PdfCorrectionViewer({
   return (
     <div className="w-full min-w-0 max-w-none min-h-0">
       <div
-        className="pdf-a4-viewport space-y-3"
-        style={{ ['--pdf-viewport-offset' as any]: '170px', ['--pdf-min-height' as any]: '700px' }}
+        className="pdf-a4-viewport space-y-2.5"
+        style={{
+          ['--pdf-viewport-offset' as any]: '170px',
+          ['--pdf-min-height' as any]: '700px',
+          scrollbarGutter: 'stable both-edges'
+        }}
       >
         {Array.from({ length: numPages }, (_, index) => {
         const pageNumber = index + 1;

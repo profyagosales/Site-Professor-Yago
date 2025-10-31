@@ -172,38 +172,68 @@ function Workspace() {
   };
 
   return (
-    <div className="pt-20 space-y-md page-wide md:-ml-1 w-full min-w-0 max-w-none">
-      <h1 className="text-2xl font-bold">Correção de Redação</h1>
-      <div className="space-y-xs w-full">
-        <p><strong>Aluno:</strong> {studentName || submission?.studentId || '-'}</p>
-        <p><strong>Modelo:</strong> {submission?.model || '-'}</p>
-        <p><strong>Tema:</strong> {themeName || '-'}</p>
-        <p><strong>Bimestre:</strong> {submission?.bimester ?? '-'}</p>
-        <p><strong>Peso:</strong> {weight}</p>
-        <p><strong>Professor:</strong> {user?.name || '-'}</p>
-      </div>
-      <div className="w-full h-96 border border-gray-200 rounded">
-        {fileLoading && (
-          <div className="w-full h-full flex items-center justify-center text-sm text-gray-500">
-            Carregando PDF…
+    <div
+      data-legacy-workspace="1"
+      className="mx-auto grid h-full w-full max-w-none grid-cols-[minmax(240px,260px)_1fr_minmax(340px,380px)] gap-x-[var(--ws-gutter-x,24px)] gap-y-3 px-2 py-4 sm:px-3 lg:px-4"
+      style={{ ['--pdf-viewport-offset' as any]: '170px', ['--hero-sticky-top' as any]: '68px' }}
+    >
+      <section className="col-start-2 col-span-2 rounded-2xl border border-orange-100 bg-white/90 p-2 shadow-sm ring-1 ring-orange-50/60">
+        <div className="gw-hero hero hero--compact">
+          <div className="hero-inner grid grid-cols-[auto,1fr,auto] items-center gap-2">
+            {/* Left brand mark (placeholder) */}
+            <div className="hero-brand-mark hidden sm:block">
+              <div className="h-7 w-7 rounded-lg bg-orange-500/10 ring-1 ring-orange-200" />
+            </div>
+            {/* Center info */}
+            <div className="hero-center min-w-0">
+              <h1 className="hero-name truncate text-[15px] md:text-[17px] leading-tight font-semibold">Correção de Redação</h1>
+              <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] md:text-[13px] text-slate-700">
+                <div><strong>Aluno:</strong> {studentName || submission?.studentId || '-'}</div>
+                <div><strong>Modelo:</strong> {submission?.model || '-'}</div>
+                <div><strong>Tema:</strong> {themeName || '-'}</div>
+                <div><strong>Bimestre:</strong> {submission?.bimester ?? '-'}</div>
+                <div><strong>Peso:</strong> {weight}</div>
+                <div><strong>Professor:</strong> {user?.name || '-'}</div>
+              </div>
+            </div>
+            {/* Right mini-cards (TOTAL / MODELO) */}
+            <div className="hero-score justify-self-end self-start flex items-start gap-2">
+              <div className="hero-stat px-2 py-1 rounded-lg border border-slate-200 bg-white text-[10px] uppercase tracking-wide">
+                <div className="opacity-60">TOTAL</div>
+                <div className="text-sm font-semibold">{enemScore}</div>
+              </div>
+              <div className="hero-stat px-2 py-1 rounded-lg border border-slate-200 bg-white text-[10px] uppercase tracking-wide">
+                <div className="opacity-60">MODELO</div>
+                <div className="text-sm font-semibold">{submission?.model || '-'}</div>
+              </div>
+            </div>
           </div>
-        )}
-        {!fileLoading && fileUrl && (
-          <embed
-            src={fileUrl}
-            type={fileMeta?.contentType || submission?.originalMimeType || 'application/pdf'}
-            className="w-full h-full"
-          />
-        )}
-        {!fileLoading && !fileUrl && (
-          <div className="w-full h-full flex items-center justify-center text-sm text-gray-500 text-center px-md">
-            {fileError || 'Nenhum arquivo disponível para esta redação.'}
-          </div>
-        )}
+        </div>
+      </section>
+      <div className="col-start-2 col-span-1 min-w-0">
+        <div className="pdf-a4-viewport rounded-2xl border border-slate-200 bg-white overflow-auto">
+          {fileLoading && (
+            <div className="w-full h-full min-h-[700px] flex items-center justify-center text-sm text-gray-500">
+              Carregando PDF…
+            </div>
+          )}
+          {!fileLoading && fileUrl && (
+            <embed
+              src={fileUrl}
+              type={fileMeta?.contentType || submission?.originalMimeType || 'application/pdf'}
+              className="w-full h-full min-h-[700px]"
+            />
+          )}
+          {!fileLoading && !fileUrl && (
+            <div className="w-full h-full min-h-[700px] flex items-center justify-center text-sm text-gray-500 text-center px-md">
+              {fileError || 'Nenhum arquivo disponível para esta redação.'}
+            </div>
+          )}
+        </div>
       </div>
 
       {submission?.model === 'ENEM' && (
-        <div className="space-y-md w-full">
+        <div className="col-start-2 col-span-1 space-y-md w-full min-w-0">
           <div className="space-y-sm">
             <h2 className="font-semibold">Formas elementares de anulação</h2>
             {ANNUL_OPTS.map((opt) => (

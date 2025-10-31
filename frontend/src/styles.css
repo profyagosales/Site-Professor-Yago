@@ -57,7 +57,16 @@
   --ws-right-rail-min: 288px; /* shared right column min width */
   --ws-right-rail-fr: 0.65fr; /* shared right column flex fraction */
   /* PDF viewport sizing (used by .pdf-a4-viewport) */
-  --pdf-viewport-offset: 180px; /* header/hero/toolbars reserved height */
+  --pdf-viewport-offset: 170px; /* header/hero/toolbars reserved height */
+/* GradeWorkspace: when left action rail is present, eliminate grid column gap */
+body:has(.ws-rail) { 
+  --ws-gutter-x: 0px; /* neutralize gap-x var used by the grid container */
+}
+
+/* Force column-gap:0 on the main GradeWorkspace grid container */
+body:has(.ws-rail) [data-printing][class*="grid"] {
+  column-gap: 0 !important;
+}
   --pdf-min-height: 720px;      /* minimum height to ensure a full page view */
 }
 
@@ -1061,6 +1070,7 @@ a {
   height: calc(100vh - var(--pdf-viewport-offset));
   min-height: var(--pdf-min-height);
   overflow: auto;
+  scrollbar-gutter: stable both-edges;
 }
 
 .comments-rail .card-title { font-size: 11px; }

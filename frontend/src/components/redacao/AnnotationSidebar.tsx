@@ -109,9 +109,9 @@ export function AnnotationSidebar({
 
   return (
     <aside
-      className={`card RightRailCard comments-rail gw-rail-raise md:sticky md:top-[var(--hero-sticky-top,72px)] flex h-full w-full min-w-0 max-w-none flex-col p-2.5 md:p-3 m-0 md:pl-0 ${className ?? ''}`}
+      className={`card RightRailCard comments-rail gw-rail-raise md:sticky md:top-[var(--hero-sticky-top,68px)] flex h-full w-full min-w-0 min-h-0 max-w-none flex-col p-2.5 md:p-3 m-0 md:pl-0 ${className ?? ''}`}
     >
-      <div className="card-header px-0 mb-2 md:mb-3">
+      <div className="card-header px-0 mb-2 md:mb-2">
         <h3 className="card-title">
           Comentários ({ordered.length})
         </h3>
@@ -122,8 +122,8 @@ export function AnnotationSidebar({
       <div
         id="comments-rail-scroll"
         ref={containerRef}
-        className="card-body comments-pane pt-0 flex-1 space-y-2.5 md:space-y-3 pr-1"
-        style={{ scrollbarGutter: 'stable' }}
+        className="card-body comments-pane pt-0 flex-1 min-h-0 space-y-2 md:space-y-2.5 pr-1"
+        style={{ scrollbarGutter: 'stable both-edges' }}
       >
         {ordered.length === 0 && (
           <p className="text-[11px] text-slate-500">

@@ -228,9 +228,9 @@ function RedacaoPage() {
     </option>
   ));
 
-  return (
-    <div className="pt-20 p-md space-y-md page-wide md:-ml-1">
-      <div className="grid md:grid-cols-2 gap-md">
+return (
+  <div className="pt-20 space-y-md w-full min-w-0 max-w-none px-2 sm:px-3 lg:px-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_minmax(320px,440px)] gap-md">
         <div className="ys-card space-y-md">
           <h2>Cadastrar tema</h2>
           <button className="ys-btn-primary" onClick={() => setShowThemeModal(true)}>
@@ -335,7 +335,7 @@ function RedacaoPage() {
 
       <div>
         <h2 className="mb-sm">Minhas redações</h2>
-        <div className="space-y-sm">
+        <div className="space-y-sm w-full min-w-0 max-w-none">
           {submissions.map((s) => {
             const student = students.find((st) => (st._id || st.id) === s.studentId);
             const theme =

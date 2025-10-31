@@ -1024,15 +1024,15 @@ const railMenu = (
         >
           {/* HERO: spans center and right columns on md+ */}
           <header
-            className="md:col-start-2 md:col-span-2 w-full md:py-2 py-1"
+            className="md:col-start-2 md:col-span-2 w-full md:py-1 py-0.5"
             aria-label="Cabeçalho de correção"
           >
             <div className="hero hero--compact gw-hero w-full">
-              <div className="hero-inner grid grid-cols-[auto,1fr,auto] items-center gap-2 md:gap-2">
+              <div className="hero-inner grid grid-cols-[auto,1fr,auto] items-center gap-1.5 md:gap-2">
                 {/* ESQUERDA: marca (duas linhas) */}
                 <div className="hero-brand">
                   <div className="hero-brand-mark">
-                    <Logo className="h-8 w-8 md:h-9 md:w-9" />
+                    <Logo className="h-7 w-7 md:h-8 md:w-8" />
                   </div>
                   <div className="brand-title hero-brand-name hidden lg:block text-[13px] leading-tight">
                     Professor Yago Sales
@@ -1045,19 +1045,19 @@ const railMenu = (
                     <img
                       src={studentPhoto}
                       alt={studentName}
-                      className="hero-avatar h-10 w-10 md:h-12 md:w-12 md:order-2"
+                      className="hero-avatar h-8 w-8 md:h-10 md:w-10 md:order-2"
                     />
                   ) : (
-                    <div className="hero-avatar hero-avatar--fallback h-10 w-10 md:h-12 md:w-12 md:order-2">
+                    <div className="hero-avatar hero-avatar--fallback h-8 w-8 md:h-10 md:w-10 md:order-2">
                       {studentInitials}
                     </div>
                   )}
 
                   <div className="min-w-0 text-left md:order-1">
-                    <h1 className="hero-name hero-brand-name truncate text-base md:text-lg leading-tight">
+                    <h1 className="hero-name hero-brand-name truncate text-[15px] md:text-[17px] leading-tight">
                       {essayTitle}
                     </h1>
-                    <p className="pdf-md truncate text-left text-xs md:text-sm leading-snug mt-0.5 text-slate-600">
+                    <p className="pdf-md truncate text-left text-[11px] md:text-[13px] leading-snug mt-0.5 text-slate-600">
                       {infoLine || '—'}
                       <br />
                       {detailLine || '—'}
@@ -1147,7 +1147,7 @@ const railMenu = (
               </p>
             )}
             <div className="pdf-canvas-wrap p-0">
-              <div className="pdf-canvas-container w-full min-w-0 md:aspect-[210/297] max-h-[calc(100vh-260px)]">
+              <div className="pdf-canvas-container w-full min-w-0 aspect-[210/297] max-h-[calc(100vh-220px)]">
                 <PdfCorrectionViewer
                   fileUrl={pdfUrl}
                   annotations={orderedAnnotations}
