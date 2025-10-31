@@ -109,7 +109,7 @@ export function AnnotationSidebar({
 
   return (
     <aside
-      className={`card RightRailCard comments-rail gw-rail-raise md:sticky md:top-24 flex h-full w-full min-w-0 max-w-none flex-col p-3 md:p-4 ${className ?? ''}`}
+      className={`card RightRailCard comments-rail gw-rail-raise md:sticky md:top-20 flex h-full w-full min-w-0 max-w-none flex-col p-3 md:p-4 m-0 md:pl-0 ${className ?? ''}`}
     >
       <div className="card-header px-0 mb-2 md:mb-3">
         <h3 className="card-title">

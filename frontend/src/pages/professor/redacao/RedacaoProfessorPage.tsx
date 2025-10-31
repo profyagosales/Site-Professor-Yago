@@ -132,11 +132,12 @@ export default function RedacaoProfessorPage() {
             position: 'relative',
             left: '50%',
             right: '50%',
-            marginLeft: 'calc(-50vw + 16px)',
-            marginRight: 'calc(-50vw + 16px)',
-            width: 'calc(100vw - 32px)',
+            marginLeft: 'calc(-50vw + var(--page-safe-x, 12px))',
+            marginRight: 'calc(-50vw + var(--page-safe-x, 12px))',
+            width: 'calc(100vw - calc(var(--page-safe-x, 12px) * 2))',
             maxWidth: 'none',
             minWidth: '0',
+            boxSizing: 'border-box',
           }}
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -214,11 +215,12 @@ export default function RedacaoProfessorPage() {
             position: 'relative',
             left: '50%',
             right: '50%',
-            marginLeft: 'calc(-50vw + 16px)',
-            marginRight: 'calc(-50vw + 16px)',
-            width: 'calc(100vw - 32px)',
+            marginLeft: 'calc(-50vw + var(--page-safe-x, 12px))',
+            marginRight: 'calc(-50vw + var(--page-safe-x, 12px))',
+            width: 'calc(100vw - calc(var(--page-safe-x, 12px) * 2))',
             maxWidth: 'none',
             minWidth: '0',
+            boxSizing: 'border-box',
           }}
         >
           <div className="table-wide-wrap w-full min-w-0" style={{ maxWidth: '100%', overflowX: 'auto' }}>

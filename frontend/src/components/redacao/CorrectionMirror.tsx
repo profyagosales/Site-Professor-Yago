@@ -212,7 +212,7 @@ export function CorrectionMirror({
   const formattedPasResult = formatNumber(pasComputed.nr);
 
 return (
-    <section className="mt-4 w-full min-w-0 max-w-none rounded-2xl border border-orange-100 bg-white/90 p-2 shadow-sm ring-1 ring-orange-50/60 backdrop-blur-sm lg:p-3">
+    <section className="mt-4 w-full min-w-0 max-w-none md:-ml-2 rounded-2xl border border-orange-100 bg-white/90 p-2 shadow-sm ring-1 ring-orange-50/60 backdrop-blur-sm lg:p-3">
       <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <h2 className="text-sm font-semibold text-slate-900">Espelho do aluno</h2>

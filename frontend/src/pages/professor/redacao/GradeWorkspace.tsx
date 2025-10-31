@@ -1012,10 +1012,11 @@ const railMenu = (
     <div
       data-printing={generating ? '1' : '0'}
       className="mx-auto flex h-full w-full max-w-none flex-col gap-3 px-2 py-4 sm:px-3 lg:px-4"
+      style={{ ['--pdf-viewport-offset' as any]: '200px' }}
     >
       {/* HERO COMPACTO ALINHADO AO PDF */}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm lg:p-4">
+      <section className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm lg:p-3">
         {/* Unified 3-column grid */}
         <div
           className="grid grid-cols-1 items-start gap-0 md:grid-cols-[clamp(88px,5.5%,108px)_minmax(0,1fr)_clamp(300px,17%,420px)] md:gap-x-0 md:gap-y-2"
@@ -1023,16 +1024,16 @@ const railMenu = (
         >
           {/* HERO: spans center and right columns on md+ */}
           <header
-            className="md:col-start-2 md:col-span-2 w-full md:-ml-1"
+            className="md:col-start-2 md:col-span-2 w-full"
             aria-label="Cabeçalho de correção"
             style={{ ['--gw-hero-h' as any]: '36px' }}
           >
             <div className="hero hero--compact gw-hero w-full">
-              <div className="hero-inner grid grid-cols-[auto,1fr,auto] gap-3 md:gap-5">
+              <div className="hero-inner grid grid-cols-[auto,1fr,auto] gap-2 md:gap-3">
                 {/* ESQUERDA: marca (duas linhas) */}
                 <div className="hero-brand">
                   <div className="hero-brand-mark">
-                    <Logo className="h-12 w-12" />
+                    <Logo className="h-10 w-10" />
                   </div>
                   <div className="brand-title hero-brand-name">
                     Professor Yago Sales
@@ -1045,16 +1046,16 @@ const railMenu = (
                     <img
                       src={studentPhoto}
                       alt={studentName}
-                      className="hero-avatar h-14 w-14 md:h-16 md:w-16 md:order-2"
+                      className="hero-avatar h-12 w-12 md:h-14 md:w-14 md:order-2"
                     />
                   ) : (
-                    <div className="hero-avatar hero-avatar--fallback h-14 w-14 md:h-16 md:w-16 md:order-2">
+                    <div className="hero-avatar hero-avatar--fallback h-12 w-12 md:h-14 md:w-14 md:order-2">
                       {studentInitials}
                     </div>
                   )}
 
                   <div className="min-w-0 text-left md:order-1">
-                    <h1 className="hero-name hero-brand-name truncate text-2xl md:text-[28px] leading-tight">
+                    <h1 className="hero-name hero-brand-name truncate text-xl md:text-2xl leading-tight">
                       {essayTitle}
                     </h1>
                     <p className="pdf-md truncate text-left text-sm md:text-base leading-snug text-slate-600">
@@ -1067,7 +1068,7 @@ const railMenu = (
 
                 {/* DIREITA: cartões colados na borda do hero */}
                 <div className="hero-score flex items-start gap-2 md:gap-3 justify-self-end self-start mt-1">
-                  <div className="hero-stat hero-stat--total px-3 py-2">
+                  <div className="hero-stat hero-stat--total px-2.5 py-1.5">
                     <span className="hero-stat__label">{totalLabel}</span>
                     <span className="hero-stat__value">
                       <span className="hero-stat__value-main">{finalScore}</span>
@@ -1075,7 +1076,7 @@ const railMenu = (
                     </span>
                   </div>
 
-                  <div className="hero-stat hero-stat--model px-3 py-2">
+                  <div className="hero-stat hero-stat--model px-2.5 py-1.5">
                     <span className="hero-stat__label">MODELO</span>
                     <span className="hero-stat__value">
                       <span className="hero-stat__value-main">{typeLabel}</span>
@@ -1087,7 +1088,7 @@ const railMenu = (
           </header>
           {/* LEFT RAIL */}
           <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail text-[13px] md:w-[clamp(88px,5.5%,108px)]">
-            <div className="ws-rail-sticky rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm grid grid-flow-row auto-rows-max gap-2">
+            <div className="ws-rail-sticky rounded-xl border border-slate-200 md:border-r-0 bg-white p-1.5 shadow-sm grid grid-flow-row auto-rows-max gap-2">
               <div className="ws-rail-head grid grid-cols-1 gap-2">
                 <Button
                   size="xs"
@@ -1140,14 +1141,14 @@ const railMenu = (
             </div>
           </aside>
           {/* MAIN PDF */}
-          <main className="min-w-0 md:col-start-2 md:row-start-2 md:-ml-1">
+          <main className="min-w-0 md:col-start-2 md:row-start-2">
             {pdfError && (
               <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
                 {pdfError}
               </p>
             )}
-            <div className="pdf-canvas-wrap p-1">
-              <div className="pdf-canvas-container h-[78vh] min-h-[560px] w-full overflow-auto">
+            <div className="pdf-canvas-wrap p-0">
+              <div className="pdf-canvas-container w-full min-w-0">
                 <PdfCorrectionViewer
                   fileUrl={pdfUrl}
                   annotations={orderedAnnotations}
@@ -1181,7 +1182,7 @@ const railMenu = (
             </div>
           </aside>
           {/* MIRROR (center, below PDF) */}
-          <div className="md:col-start-2 md:row-start-3 min-w-0 w-full max-w-none md:-ml-1">
+          <div className="md:col-start-2 md:row-start-3 min-w-0 w-full max-w-none">
             <div className="mb-3 w-full max-w-none">
               <MirrorSummaryInline
                 type={essayType}

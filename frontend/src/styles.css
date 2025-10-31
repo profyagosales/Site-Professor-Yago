@@ -53,7 +53,10 @@
   --cat-apr-bg: #FFEDD5;  --cat-apr-text: #9A3412;  --cat-apr-border: #FED7AA; /* Laranja */
   --cat-com-bg: #FEE2E2;  --cat-com-text: #991B1B;  --cat-com-border: #FCA5A5; /* Vermelho */
   /* Workspace gutter used to pull central cards to the rail (controls tiny left gap) */
-  --ws-gutter-x: 8px;
+  --ws-gutter-x: 14px;
+  /* PDF viewport sizing (used by .pdf-a4-viewport) */
+  --pdf-viewport-offset: 220px; /* header/hero/toolbars reserved height */
+  --pdf-min-height: 720px;      /* minimum height to ensure a full page view */
 }
 
 /* When the left action rail exists (correction workspace), pull the main content slightly left
@@ -64,7 +67,7 @@ body:has(.ws-rail) .page-wide {
 
 /* Optionally tighten a hair more on very wide screens */
 @media (min-width: 1280px) {
-  :root { --ws-gutter-x: 10px; }
+  :root { --ws-gutter-x: 16px; }
 }
 
 button:focus-visible,
@@ -1050,6 +1053,13 @@ a {
 @media (max-width: 1024px) { .pdf-inline-grid { grid-template-columns: 1fr; } }
 .pdf-canvas-wrap { background:#fff; border-radius:16px; border:1px solid rgba(15,23,42,0.06); box-shadow:0 8px 24px rgba(15,23,42,0.06); overflow:hidden; }
 .comments-rail { font-size: 9px; line-height: 1.2; }
+
+/* A4 viewport tuning: one full page height inside the PDF viewer */
+.pdf-a4-viewport{
+  height: calc(100vh - var(--pdf-viewport-offset));
+  min-height: var(--pdf-min-height);
+  overflow: auto;
+}
 
 .comments-rail .card-title { font-size: 11px; }
 

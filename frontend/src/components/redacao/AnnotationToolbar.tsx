@@ -48,7 +48,7 @@ type AnnotationToolbarProps = {
 export function AnnotationToolbar({ active, onChange, orientation = 'horizontal', className, centered = false, compact = false }: AnnotationToolbarProps) {
   const isVertical = orientation === 'vertical';
   const baseClasses = isVertical
-    ? `row-span-2 md:sticky md:self-start md:top-[var(--hero-sticky-top,88px)] h-fit flex flex-col ${centered ? 'items-center' : 'items-stretch'} gap-1.5 mt-3 mb-3`
+    ? `row-span-2 md:sticky md:self-start md:top-[var(--hero-sticky-top,72px)] h-fit flex w-full min-w-0 flex-col ${centered ? 'items-center' : 'items-stretch'} gap-1 mt-2 mb-2`
     : 'flex flex-wrap items-center gap-1.5 border-b border-slate-200 pb-2';
 
   const entries = useMemo(
@@ -133,7 +133,7 @@ export function AnnotationToolbar({ active, onChange, orientation = 'horizontal'
             onClick={() => onChange(key)}
             onKeyDown={(e) => onKeyDown(e, idx)}
             data-key={key}
-            className={`${variantFor(key, meta.label)} flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-medium transition shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500/60 ${
+            className={`${variantFor(key, meta.label)} flex items-center gap-2 rounded-md border px-2 py-1 text-[11px] font-medium transition shadow-sm overflow-hidden min-w-0 focus:outline-none focus-visible:ring-2 focus:ring-orange-500/60 ${
               isActive ? 'ring-2 ring-orange-500' : 'ring-1 ring-transparent'
             } ${isVertical ? `justify-start text-left w-full min-h-[34px] md:min-h-[36px]${centered ? ' max-w-[340px] mx-auto' : ''}` : 'min-h-[32px]'} hover:brightness-95 active:brightness-90`}
             style={(isVertical || compact) ? {
@@ -142,11 +142,11 @@ export function AnnotationToolbar({ active, onChange, orientation = 'horizontal'
             } : undefined}
           >
             <span
-              className="inline-block h-2 w-2 flex-none rounded-full"
+              className="inline-block h-1.5 w-1.5 flex-none rounded-full"
               style={{ backgroundColor: meta.color }}
               aria-hidden
             />
-            <span className="text-slate-800 truncate">{shortLabelFor(key, meta.label, compact)}</span>
+            <span className="text-slate-800 truncate whitespace-nowrap leading-tight pl-0.5">{shortLabelFor(key, meta.label, compact)}</span>
           </button>
         );
       })}

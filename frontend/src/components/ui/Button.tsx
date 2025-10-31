@@ -11,14 +11,18 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 
 const baseClass = [
   'btn',
-  'inline-flex items-center justify-center gap-2',
+  'inline-flex items-center justify-center gap-1.5 align-middle',
   'rounded-2xl',
   'text-sm font-semibold leading-tight',
   'transition duration-fast',
   // truncation seguro dentro de cards estreitos/rails
-  'truncate whitespace-nowrap min-w-0',
+  'truncate whitespace-nowrap min-w-0 overflow-hidden',
   // sem margem externa inesperada
-  'm-0',
+  'm-0 select-none',
+  // foco visível acessível
+  'focus:outline-none focus-visible:ring-2 focus:ring-orange-500/60',
+  // estados desabilitado
+  'disabled:opacity-60 disabled:cursor-not-allowed',
 ].join(' ');
 
 const sizeStyles: Record<ButtonSize, string> = {
