@@ -211,9 +211,9 @@ export function CorrectionMirror({
 
   const formattedPasResult = formatNumber(pasComputed.nr);
 
-  return (
-    <section className="mt-4 rounded-2xl border border-orange-100 bg-white/90 p-2 shadow-sm ring-1 ring-orange-50/60 backdrop-blur-sm lg:p-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+return (
+    <section className="mt-4 w-full min-w-0 max-w-none rounded-2xl border border-orange-100 bg-white/90 p-2 shadow-sm ring-1 ring-orange-50/60 backdrop-blur-sm lg:p-3">
+      <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <h2 className="text-sm font-semibold text-slate-900">Espelho do aluno</h2>
           <p className="text-xs text-slate-600">
@@ -222,9 +222,9 @@ export function CorrectionMirror({
         </div>
       </div>
 
-      <div className="mt-4">
-        <div className="space-y-3">
-          <div className="rounded-xl border border-dashed border-slate-300 bg-white p-2 shadow-sm">
+      <div className="mt-4 w-full min-w-0 max-w-none">
+        <div className="space-y-3 w-full">
+          <div className="w-full rounded-xl border border-dashed border-slate-300 bg-white p-2 shadow-sm">
             <h3 className="text-xs font-semibold text-slate-800 leading-tight truncate">Anulação</h3>
             <p className="mt-1 text-[11px] text-slate-500 leading-snug">
               Selecione os motivos aplicáveis. Quando marcado, a nota final é zerada automaticamente.
@@ -267,7 +267,7 @@ export function CorrectionMirror({
           )}
 
           {!annulled && type === 'PAS' && (
-            <div className="pas-macro-card space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-2 shadow-sm">
+            <div className="pas-macro-card w-full space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-2 shadow-sm">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <h3 className="text-[12px] font-semibold text-slate-800 leading-tight truncate">MACROESTRUTURAIS</h3>
                 <p className="text-[11px] leading-tight text-slate-500">NR = NC − 2 × (NE / TL)</p>
@@ -408,7 +408,7 @@ export function CorrectionMirror({
 
           {!annulled && type === 'ENEM' && (
             <>
-              <div className="rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-sm">
+              <div className="w-full rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-sm">
                 <h3 className="text-[12px] font-semibold text-slate-800 truncate">Resumo das competências</h3>
                 <div className="mt-2 space-y-2">
                   {ENEM_2024.map((competency) => {
@@ -440,7 +440,7 @@ export function CorrectionMirror({
                   })}
                 </div>
               </div>
-              <div className="text-[13px]"><EnemScoringForm selections={enemSelections} onChange={onEnemSelectionChange} /></div>
+              <div className="text-[13px] w-full"><EnemScoringForm selections={enemSelections} onChange={onEnemSelectionChange} /></div>
             </>
           )}
         </div>
