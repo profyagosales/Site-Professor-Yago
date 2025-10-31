@@ -57,7 +57,7 @@
   --ws-right-rail-min: 288px; /* shared right column min width */
   --ws-right-rail-fr: 0.65fr; /* shared right column flex fraction */
   /* PDF viewport sizing (used by .pdf-a4-viewport) */
-  --pdf-viewport-offset: 120px; /* header/hero/toolbars reserved height (reduced for compact hero) */
+  --pdf-viewport-offset: 100px; /* header/hero/toolbars reserved height (reduced for compact hero) */
   --pdf-min-height: 720px;      /* minimum height to ensure a full page view */
 }
 
@@ -73,7 +73,10 @@ body:has(.ws-rail) [class*="grid"] {
 
 /* Right rail width helper + pull the hero to span central + right columns */
 :root { --ws-right-rail-w: clamp(var(--ws-right-rail-min), 22vw, 360px); }
-body:has(.ws-rail) .gw-hero { margin-right: calc(var(--ws-right-rail-w) * -1); }
+body:has(.ws-rail) .gw-hero {
+  width: calc(100% + var(--ws-right-rail-w));
+  margin-right: calc(var(--ws-right-rail-w) * -1);
+}
 
 /* When the left action rail exists (correction workspace), pull the main content slightly left
    so the hero/PDF/mirror cards "touch" the rail and there is no visual gap. */
@@ -1065,7 +1068,7 @@ a {
 }
 
 /* Inline PDF workspace: 80/20 grid (doc/comments) */
-.pdf-inline-grid { display: grid; grid-template-columns: minmax(0, 4fr) minmax(var(--ws-right-rail-min), var(--ws-right-rail-fr)); gap: 6px; align-items: start; }
+\.pdf-inline-grid { display: grid; grid-template-columns: minmax(0, 1fr) var(--ws-right-rail-w); gap: 6px; align-items: start; }
 @media (max-width: 1024px) { .pdf-inline-grid { grid-template-columns: 1fr; } }
 .pdf-canvas-wrap { background:#fff; border-radius:16px; border:1px solid rgba(15,23,42,0.06); box-shadow:0 8px 24px rgba(15,23,42,0.06); overflow:hidden; }
 .comments-rail { font-size: 9px; line-height: 1.2; }
@@ -1656,7 +1659,7 @@ body:has(.ws-rail) .pdf-inline-grid {
   column-gap:28px;
   align-items:center;
   /* Match the comments rail width (third column) */
-  grid-template-columns: auto 1fr minmax(var(--ws-right-rail-min), var(--ws-right-rail-fr));
+  grid-template-columns: auto 1fr var(--ws-right-rail-w);
 }
 .gw-hero .hero-brand{
   display:flex;
