@@ -52,6 +52,19 @@
   --cat-coe-bg: #DBEAFE;  --cat-coe-text: #1E3A8A;  --cat-coe-border: #BFDBFE; /* Azul */
   --cat-apr-bg: #FFEDD5;  --cat-apr-text: #9A3412;  --cat-apr-border: #FED7AA; /* Laranja */
   --cat-com-bg: #FEE2E2;  --cat-com-text: #991B1B;  --cat-com-border: #FCA5A5; /* Vermelho */
+  /* Workspace gutter used to pull central cards to the rail (controls tiny left gap) */
+  --ws-gutter-x: 8px;
+}
+
+/* When the left action rail exists (correction workspace), pull the main content slightly left
+   so the hero/PDF/mirror cards "touch" the rail and there is no visual gap. */
+body:has(.ws-rail) .page-wide {
+  margin-left: calc(var(--ws-gutter-x) * -1);
+}
+
+/* Optionally tighten a hair more on very wide screens */
+@media (min-width: 1280px) {
+  :root { --ws-gutter-x: 10px; }
 }
 
 button:focus-visible,
@@ -1395,6 +1408,12 @@ a {
 .comment-textarea{
   resize: none;
   overflow: hidden;
+}
+
+/* Safeguards: if sections render outside .page-wide, still remove the gutter */
+body:has(.ws-rail) .gw-hero,
+body:has(.ws-rail) .pdf-inline-grid {
+  margin-left: calc(var(--ws-gutter-x) * -1);
 }
 
 .pdf-canvas-container{
