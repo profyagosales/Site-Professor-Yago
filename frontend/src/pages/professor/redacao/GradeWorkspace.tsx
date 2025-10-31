@@ -185,7 +185,7 @@ function CompactCategoryToolbar({
           onClick={() => onChange(it.key)}
           className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-[12px] font-medium truncate ${
             active === it.key ? 'ring-2 ring-orange-300 ring-offset-0' : ''
-          }`}
+          } md:w-full min-h-[34px] md:min-h-[36px] transition hover:brightness-95 active:brightness-90`}
           style={{
             backgroundColor: hexToRgba(it.color, 0.12),
             borderColor: hexToRgba(it.color, 0.35),
@@ -1015,21 +1015,21 @@ const railMenu = (
     >
       {/* HERO COMPACTO ALINHADO AO PDF */}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:p-5">
+      <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm lg:p-4">
         {/* Unified 3-column grid */}
         <div className="grid grid-cols-1 gap-3 items-start md:grid-cols-[clamp(120px,7%,140px)_minmax(0,1fr)_clamp(220px,12%,300px)]" aria-label="Workspace de correção">
           {/* HERO: spans center and right columns on md+ */}
           <header
             className="md:col-start-2 md:col-span-2 w-full"
             aria-label="Cabeçalho de correção"
-            style={{ ['--gw-hero-h' as any]: '72px' }}
+            style={{ ['--gw-hero-h' as any]: '36px' }}
           >
             <div className="hero hero--compact gw-hero w-full">
-              <div className="hero-inner grid grid-cols-[auto,1fr,auto] gap-4 md:gap-6">
+              <div className="hero-inner grid grid-cols-[auto,1fr,auto] gap-3 md:gap-5">
                 {/* ESQUERDA: marca (duas linhas) */}
                 <div className="hero-brand">
                   <div className="hero-brand-mark">
-                    <Logo className="h-14 w-14" />
+                    <Logo className="h-12 w-12" />
                   </div>
                   <div className="brand-title hero-brand-name">
                     Professor Yago Sales
@@ -1037,24 +1037,24 @@ const railMenu = (
                 </div>
 
                 {/* CENTRO: aluno */}
-                <div className="hero-center flex items-center justify-center gap-4">
+                <div className="hero-center flex items-center justify-start gap-3 md:gap-4">
                   {studentPhoto ? (
                     <img
                       src={studentPhoto}
                       alt={studentName}
-                      className="hero-avatar"
+                      className="hero-avatar h-14 w-14 md:h-16 md:w-16 md:order-2"
                     />
                   ) : (
-                    <div className="hero-avatar hero-avatar--fallback">
+                    <div className="hero-avatar hero-avatar--fallback h-14 w-14 md:h-16 md:w-16 md:order-2">
                       {studentInitials}
                     </div>
                   )}
 
-                  <div className="min-w-0 text-left">
-                    <h1 className="hero-name hero-brand-name truncate">
+                  <div className="min-w-0 text-left md:order-1">
+                    <h1 className="hero-name hero-brand-name truncate text-2xl md:text-[28px] leading-tight">
                       {essayTitle}
                     </h1>
-                    <p className="pdf-md truncate text-left">
+                    <p className="pdf-md truncate text-left text-sm md:text-base leading-snug text-slate-600">
                       {infoLine || '—'}
                       <br />
                       {detailLine || '—'}
@@ -1063,7 +1063,7 @@ const railMenu = (
                 </div>
 
                 {/* DIREITA: cartões colados na borda do hero */}
-                <div className="hero-score flex items-center gap-2 md:gap-3 justify-self-end">
+                <div className="hero-score flex items-start gap-2 md:gap-3 justify-self-end self-start mt-1">
                   <div className="hero-stat hero-stat--total px-3 py-2">
                     <span className="hero-stat__label">{totalLabel}</span>
                     <span className="hero-stat__value">

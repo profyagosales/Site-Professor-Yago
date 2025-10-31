@@ -133,9 +133,13 @@ export function AnnotationToolbar({ active, onChange, orientation = 'horizontal'
             onClick={() => onChange(key)}
             onKeyDown={(e) => onKeyDown(e, idx)}
             data-key={key}
-            className={`${variantFor(key, meta.label)} flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500/60 ${
+            className={`${variantFor(key, meta.label)} flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-medium transition shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500/60 ${
               isActive ? 'ring-2 ring-orange-500' : 'ring-1 ring-transparent'
-            } ${isVertical ? `justify-start text-left w-full${centered ? ' max-w-[340px] mx-auto' : ''}` : ''}`}
+            } ${isVertical ? `justify-start text-left w-full min-h-[34px] md:min-h-[36px]${centered ? ' max-w-[340px] mx-auto' : ''}` : 'min-h-[32px]'} hover:brightness-95 active:brightness-90`}
+            style={(isVertical || compact) ? {
+              backgroundColor: hexToRgba(meta.color, 0.12),
+              borderColor: hexToRgba(meta.color, 0.35),
+            } : undefined}
           >
             <span
               className="inline-block h-2 w-2 flex-none rounded-full"
