@@ -148,16 +148,16 @@ export const renderHeroHeader: HeroRenderer = async ({
   const w0 = contentBox.w;
   const top = contentBox.y;
 
-  const H = HERO.HEIGHT ?? 72; // altura alvo (~ metade do antigo)
-  const PAD = HERO.PAD ?? 8;
+  const H = HERO.HEIGHT ?? 60; // altura alvo (~ metade do antigo)
+  const PAD = HERO.PAD ?? 6;
 
   // Fundo laranja do hero
   drawCard(page, x0, top, w0, H, BRAND_COLORS.orange500 ?? '#f97316', BRAND_COLORS.orange300 ?? '#fdba74');
 
   // Layout interno: [brand 64] [info flex] [score 150..180 + actions inline? (apenas score no PDF)]
-  const brandW = 64;
-  const gap = 10;
-  const scoreW = 160;
+  const brandW = 56;
+  const gap = 8;
+  const scoreW = 148;
 
   // BRAND mark: prioriza rasterizar o SVG público `/logo.svg`; se falhar, usa fallback PNG
   let markImg = null;
@@ -173,14 +173,14 @@ export const renderHeroHeader: HeroRenderer = async ({
     markImg = await loadPublicPng(pdfDoc, BRAND.FALLBACK_URL || '/pdf/brand-mark.png');
   }
   if (markImg) {
-    const imgSize = 40;
+    const imgSize = 36;
     const imgX = x0 + PAD + (brandW - imgSize) / 2;
     const imgY = top - PAD - imgSize;
     page.drawRectangle({
-      x: x0 + PAD + (brandW - 46) / 2,
-      y: top - PAD - 46,
-      width: 46,
-      height: 46,
+      x: x0 + PAD + (brandW - 40) / 2,
+      y: top - PAD - 40,
+      width: 40,
+      height: 40,
       color: colorFromHex('#ffffff'),
     });
     page.drawImage(markImg, {
@@ -196,7 +196,7 @@ export const renderHeroHeader: HeroRenderer = async ({
     const line = fitLine(brandText, regular, tSize, tWidth);
     page.drawText(line, {
       x: x0 + PAD + (brandW - regular.widthOfTextAtSize(line, tSize)) / 2,
-      y: top - PAD - 52,
+      y: top - PAD - 48,
       size: tSize,
       font: regular,
       color: colorFromHex('#ffffffcc'),
@@ -256,7 +256,7 @@ export const renderHeroHeader: HeroRenderer = async ({
   const sX = x0 + w0 - PAD - scoreW;
   const sY = top - PAD;
   const sW = scoreW;
-  const sH = 56;
+  const sH = 50;
 
   drawCard(page, sX, sY, sW, sH, '#FFF7ED', '#FDBA74');
 
@@ -277,14 +277,14 @@ export const renderHeroHeader: HeroRenderer = async ({
     color: colorFromHex('#fb923c'),
   });
 
-  const valueSize = PDF_FONT.LG + 4;
+  const valueSize = PDF_FONT.LG + 2;
   const suffixSize = PDF_FONT.MD;
   const suffixGap = 4;
   const scoreValue = String(scoreText);
   const valueWidth = bold.widthOfTextAtSize(scoreValue, valueSize);
   const suffixWidth = bold.widthOfTextAtSize(totalDen, suffixSize);
   const valueX = sX + sW - 10 - (valueWidth + suffixGap + suffixWidth);
-  const valueY = sY - 34;
+  const valueY = sY - 32;
   page.drawText(scoreValue, {
     x: valueX,
     y: valueY,

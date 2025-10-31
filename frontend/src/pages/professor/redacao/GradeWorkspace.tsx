@@ -1019,23 +1019,22 @@ const railMenu = (
       <section className="rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm lg:p-2">
         {/* Unified 3-column grid */}
         <div
-          className="grid grid-cols-1 items-start gap-0 md:grid-cols-[clamp(88px,5.5%,108px)_minmax(0,1fr)_clamp(300px,17%,420px)] md:gap-x-0 md:gap-y-2"
+          className="grid grid-cols-1 items-start gap-0 md:grid-cols-[clamp(88px,5.5%,108px)_minmax(0,1fr)_clamp(300px,17%,420px)] md:gap-x-0 md:gap-y-0"
           aria-label="Workspace de correção"
         >
           {/* HERO: spans center and right columns on md+ */}
           <header
-            className="md:col-start-2 md:col-span-2 w-full"
+            className="md:col-start-2 md:col-span-2 w-full md:py-2 py-1"
             aria-label="Cabeçalho de correção"
-            style={{ ['--gw-hero-h' as any]: '36px' }}
           >
             <div className="hero hero--compact gw-hero w-full">
-              <div className="hero-inner grid grid-cols-[auto,1fr,auto] gap-2 md:gap-3">
+              <div className="hero-inner grid grid-cols-[auto,1fr,auto] items-center gap-2 md:gap-2">
                 {/* ESQUERDA: marca (duas linhas) */}
                 <div className="hero-brand">
                   <div className="hero-brand-mark">
                     <Logo className="h-8 w-8 md:h-9 md:w-9" />
                   </div>
-                  <div className="brand-title hero-brand-name">
+                  <div className="brand-title hero-brand-name hidden lg:block text-[13px] leading-tight">
                     Professor Yago Sales
                   </div>
                 </div>
@@ -1055,10 +1054,10 @@ const railMenu = (
                   )}
 
                   <div className="min-w-0 text-left md:order-1">
-                    <h1 className="hero-name hero-brand-name truncate text-lg md:text-xl leading-tight">
+                    <h1 className="hero-name hero-brand-name truncate text-base md:text-lg leading-tight">
                       {essayTitle}
                     </h1>
-                    <p className="pdf-md truncate text-left text-xs md:text-sm leading-snug text-slate-600">
+                    <p className="pdf-md truncate text-left text-xs md:text-sm leading-snug mt-0.5 text-slate-600">
                       {infoLine || '—'}
                       <br />
                       {detailLine || '—'}
@@ -1067,8 +1066,8 @@ const railMenu = (
                 </div>
 
                 {/* DIREITA: cartões colados na borda do hero */}
-                <div className="hero-score flex items-start gap-2 md:gap-3 justify-self-end self-start mt-1">
-                  <div className="hero-stat hero-stat--total px-2.5 py-1.5">
+                <div className="hero-score flex items-start gap-2 md:gap-2 justify-self-end self-start mt-0">
+                  <div className="hero-stat hero-stat--total px-2 py-1">
                     <span className="hero-stat__label">{totalLabel}</span>
                     <span className="hero-stat__value">
                       <span className="hero-stat__value-main">{finalScore}</span>
@@ -1076,7 +1075,7 @@ const railMenu = (
                     </span>
                   </div>
 
-                  <div className="hero-stat hero-stat--model px-2.5 py-1.5">
+                  <div className="hero-stat hero-stat--model px-2 py-1">
                     <span className="hero-stat__label">MODELO</span>
                     <span className="hero-stat__value">
                       <span className="hero-stat__value-main">{typeLabel}</span>
@@ -1087,7 +1086,7 @@ const railMenu = (
             </div>
           </header>
           {/* LEFT RAIL */}
-          <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail text-[13px] md:w-[clamp(88px,5.5%,108px)] pr-0">
+          <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail text-[13px] md:w-[clamp(88px,5.5%,108px)] pr-0 pt-0">
             <div className="ws-rail-sticky w-full rounded-xl border border-slate-200 md:border-r-0 bg-white p-1.5 shadow-sm grid grid-flow-row auto-rows-max gap-2">
               <div className="ws-rail-head grid grid-cols-1 gap-2">
                 <Button

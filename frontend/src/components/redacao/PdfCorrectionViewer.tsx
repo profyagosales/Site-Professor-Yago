@@ -392,8 +392,11 @@ export function PdfCorrectionViewer({
   const previewColor = hexToRgba(HIGHLIGHT_CATEGORIES[activeCategory].color, HIGHLIGHT_ALPHA);
 
   return (
-    <div className="w-full min-w-0 max-w-none">
-      <div className="pdf-a4-viewport h-[calc(100vh-240px)] min-h-[680px] overflow-auto space-y-3">
+    <div className="w-full min-w-0 max-w-none min-h-0">
+      <div
+        className="pdf-a4-viewport space-y-3"
+        style={{ ['--pdf-viewport-offset' as any]: '170px', ['--pdf-min-height' as any]: '700px' }}
+      >
         {Array.from({ length: numPages }, (_, index) => {
         const pageNumber = index + 1;
         const pageAnnotations = byPage.get(pageNumber) ?? [];
