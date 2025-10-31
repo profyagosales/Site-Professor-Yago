@@ -126,8 +126,12 @@ export default function RedacaoProfessorPage() {
 
   return (
     <Page title="Redação" subtitle="Gerencie as redações dos alunos">
-      <div className="space-y-4 w-full min-w-0" style={{ width: '100%', marginInline: 0, paddingInline: '16px' }}>
+      <div
+        className="space-y-4 w-full min-w-0"
+        style={{ width: '100%', marginInline: 0, paddingInline: '16px', ['--page-safe-x' as any]: '12px' }}
+      >
         <div
+          className="w-full min-w-0"
           style={{
             position: 'relative',
             left: '50%',
@@ -210,7 +214,7 @@ export default function RedacaoProfessorPage() {
         </div>
 
         <div
-          className="table-card--wide overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-ys-md"
+          className="table-card--wide w-full min-w-0 overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-ys-md"
           style={{
             position: 'relative',
             left: '50%',

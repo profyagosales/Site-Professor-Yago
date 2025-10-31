@@ -1016,7 +1016,7 @@ const railMenu = (
     >
       {/* HERO COMPACTO ALINHADO AO PDF */}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm lg:p-3">
+      <section className="rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm lg:p-2">
         {/* Unified 3-column grid */}
         <div
           className="grid grid-cols-1 items-start gap-0 md:grid-cols-[clamp(88px,5.5%,108px)_minmax(0,1fr)_clamp(300px,17%,420px)] md:gap-x-0 md:gap-y-2"
@@ -1033,7 +1033,7 @@ const railMenu = (
                 {/* ESQUERDA: marca (duas linhas) */}
                 <div className="hero-brand">
                   <div className="hero-brand-mark">
-                    <Logo className="h-10 w-10" />
+                    <Logo className="h-8 w-8 md:h-9 md:w-9" />
                   </div>
                   <div className="brand-title hero-brand-name">
                     Professor Yago Sales
@@ -1046,19 +1046,19 @@ const railMenu = (
                     <img
                       src={studentPhoto}
                       alt={studentName}
-                      className="hero-avatar h-12 w-12 md:h-14 md:w-14 md:order-2"
+                      className="hero-avatar h-10 w-10 md:h-12 md:w-12 md:order-2"
                     />
                   ) : (
-                    <div className="hero-avatar hero-avatar--fallback h-12 w-12 md:h-14 md:w-14 md:order-2">
+                    <div className="hero-avatar hero-avatar--fallback h-10 w-10 md:h-12 md:w-12 md:order-2">
                       {studentInitials}
                     </div>
                   )}
 
                   <div className="min-w-0 text-left md:order-1">
-                    <h1 className="hero-name hero-brand-name truncate text-xl md:text-2xl leading-tight">
+                    <h1 className="hero-name hero-brand-name truncate text-lg md:text-xl leading-tight">
                       {essayTitle}
                     </h1>
-                    <p className="pdf-md truncate text-left text-sm md:text-base leading-snug text-slate-600">
+                    <p className="pdf-md truncate text-left text-xs md:text-sm leading-snug text-slate-600">
                       {infoLine || '—'}
                       <br />
                       {detailLine || '—'}
@@ -1087,8 +1087,8 @@ const railMenu = (
             </div>
           </header>
           {/* LEFT RAIL */}
-          <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail text-[13px] md:w-[clamp(88px,5.5%,108px)]">
-            <div className="ws-rail-sticky rounded-xl border border-slate-200 md:border-r-0 bg-white p-1.5 shadow-sm grid grid-flow-row auto-rows-max gap-2">
+          <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail text-[13px] md:w-[clamp(88px,5.5%,108px)] pr-0">
+            <div className="ws-rail-sticky w-full rounded-xl border border-slate-200 md:border-r-0 bg-white p-1.5 shadow-sm grid grid-flow-row auto-rows-max gap-2">
               <div className="ws-rail-head grid grid-cols-1 gap-2">
                 <Button
                   size="xs"
@@ -1141,14 +1141,14 @@ const railMenu = (
             </div>
           </aside>
           {/* MAIN PDF */}
-          <main className="min-w-0 md:col-start-2 md:row-start-2">
+          <main className="min-w-0 md:col-start-2 md:row-start-2 pl-0">
             {pdfError && (
               <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
                 {pdfError}
               </p>
             )}
             <div className="pdf-canvas-wrap p-0">
-              <div className="pdf-canvas-container w-full min-w-0">
+              <div className="pdf-canvas-container w-full min-w-0 md:aspect-[210/297] max-h-[calc(100vh-260px)]">
                 <PdfCorrectionViewer
                   fileUrl={pdfUrl}
                   annotations={orderedAnnotations}
