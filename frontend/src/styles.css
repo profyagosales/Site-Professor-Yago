@@ -57,18 +57,23 @@
   --ws-right-rail-min: 288px; /* shared right column min width */
   --ws-right-rail-fr: 0.65fr; /* shared right column flex fraction */
   /* PDF viewport sizing (used by .pdf-a4-viewport) */
-  --pdf-viewport-offset: 170px; /* header/hero/toolbars reserved height */
+  --pdf-viewport-offset: 120px; /* header/hero/toolbars reserved height (reduced for compact hero) */
+  --pdf-min-height: 720px;      /* minimum height to ensure a full page view */
+}
+
 /* GradeWorkspace: when left action rail is present, eliminate grid column gap */
 body:has(.ws-rail) { 
   --ws-gutter-x: 0px; /* neutralize gap-x var used by the grid container */
 }
 
-/* Force column-gap:0 on the main GradeWorkspace grid container */
-body:has(.ws-rail) [data-printing][class*="grid"] {
+/* Force column-gap:0 on the main GradeWorkspace grid container (applies always, not only when printing) */
+body:has(.ws-rail) [class*="grid"] {
   column-gap: 0 !important;
 }
-  --pdf-min-height: 720px;      /* minimum height to ensure a full page view */
-}
+
+/* Right rail width helper + pull the hero to span central + right columns */
+:root { --ws-right-rail-w: clamp(var(--ws-right-rail-min), 22vw, 360px); }
+body:has(.ws-rail) .gw-hero { margin-right: calc(var(--ws-right-rail-w) * -1); }
 
 /* When the left action rail exists (correction workspace), pull the main content slightly left
    so the hero/PDF/mirror cards "touch" the rail and there is no visual gap. */
@@ -1060,7 +1065,7 @@ a {
 }
 
 /* Inline PDF workspace: 80/20 grid (doc/comments) */
-.pdf-inline-grid { display: grid; grid-template-columns: minmax(0, 4fr) minmax(var(--ws-right-rail-min), var(--ws-right-rail-fr)); gap: 10px; align-items: start; }
+.pdf-inline-grid { display: grid; grid-template-columns: minmax(0, 4fr) minmax(var(--ws-right-rail-min), var(--ws-right-rail-fr)); gap: 6px; align-items: start; }
 @media (max-width: 1024px) { .pdf-inline-grid { grid-template-columns: 1fr; } }
 .pdf-canvas-wrap { background:#fff; border-radius:16px; border:1px solid rgba(15,23,42,0.06); box-shadow:0 8px 24px rgba(15,23,42,0.06); overflow:hidden; }
 .comments-rail { font-size: 9px; line-height: 1.2; }
