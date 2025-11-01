@@ -4,15 +4,25 @@
   --h-stack:360px;          /* altura padrão dos cards empilhados à esquerda */
   --ws-row-h:108px;         /* altura das linhas do horário */
   --ws-gap-y:10px;          /* espaçamento vertical entre linhas */
-  --hero-min-h:150px;       /* altura mínima do hero card */
-  --hero-py:14px;           /* padding vertical do hero */
-  --hero-stat-h:72px;       /* altura dos mini cards de estatística */
+  --hero-min-h:96px;        /* altura mínima do hero card */
+  --hero-py:10px;           /* padding vertical do hero */
+  --hero-stat-h:56px;       /* altura dos mini cards de estatística */
   --hero-stat-gap:10px;     /* espaçamento entre os mini cards */
   --dash-card-radius:26px;  /* raio padrão dos cards */
   --dash-card-px:24px;      /* padding horizontal dos cards */
   --dash-card-py:22px;      /* padding vertical dos cards */
   --dash-card-header-gap:18px;
   --dash-card-title-fz:20px;
+
+  /* LAYOUT: HERO / ASIDE */
+  --aside-w:360px;          /* largura da coluna de comentários/aside */
+  --hero-right-col:var(--aside-w); /* largura da coluna direita do hero */
+  --hero-logo-col:112px;    /* largura fixa da coluna da logo no hero */
+  --hero-gap:24px;          /* gap horizontal entre colunas do hero */
+
+  /* APP / VIEWPORT OFFSETS */
+  --app-header-h:72px;                                 /* altura do header/topbar */
+  --pdf-viewport-offset:calc(var(--app-header-h,72px) + var(--hero-min-h,96px) + 16px); /* offset total para o PDF inline */
 
   /* WEEKLY SCHEDULE CARD */
   --sched-card-px:var(--dash-card-px);
@@ -119,9 +129,9 @@
 
 @media (min-width: 1024px){
   :root{
-    --hero-min-h:160px;
-    --hero-py:16px;
-    --hero-stat-h:76px;
+    --hero-min-h:108px;
+    --hero-py:12px;
+    --hero-stat-h:60px;
     --hero-stat-gap:12px;
     --dash-card-px:26px;
     --dash-card-py:24px;
@@ -137,7 +147,12 @@
     --sched-grade-fz:19px;
     --sched-subj-fz:13px;
     --sched-title-fz:20px;
+    --aside-w:300px;
   }
+}
+
+@media (max-width: 1536px){
+  :root{ --aside-w:320px; }
 }
 
 @media (min-width: 1536px){

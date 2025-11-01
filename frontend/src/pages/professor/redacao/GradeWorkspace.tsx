@@ -1012,14 +1012,14 @@ const railMenu = (
     <div
       data-printing={generating ? '1' : '0'}
       className="mx-auto flex h-full w-full max-w-none flex-col gap-3 px-2 py-4 sm:px-3 lg:px-4"
-      style={{ ['--pdf-viewport-offset' as any]: '140px' }}
+      style={{ ['--pdf-viewport-offset' as any]: 'calc(var(--hero-min-h,96px) + 16px)' }}
     >
       {/* HERO COMPACTO ALINHADO AO PDF */}
 
       <section className="rounded-xl border border-slate-200 bg-white p-0.5 shadow-sm md:p-1">
         {/* Unified 3-column grid */}
         <div
-          className="grid grid-cols-1 items-start gap-0 md:grid-cols-[clamp(88px,5.5%,108px)_minmax(0,1fr)_clamp(300px,17%,420px)] md:gap-x-0 md:gap-y-0"
+          className="grid grid-cols-1 items-start gap-0 md:grid-cols-[var(--aside-w,_108px)_minmax(0,1fr)_var(--hero-right-col,_360px)] md:gap-x-[var(--hero-gap,24px)] md:gap-y-0"
           aria-label="Workspace de correção"
         >
           {/* HERO: spans center and right columns on md+ */}
@@ -1028,7 +1028,7 @@ const railMenu = (
             aria-label="Cabeçalho de correção"
           >
             <div className="hero hero--compact gw-hero w-full max-w-none">
-              <div className="hero-inner grid grid-cols-[auto,1fr,clamp(300px,17%,420px)] items-center gap-1 md:gap-1.5 min-h-[48px] md:min-h-[56px] py-0.5 md:py-1 max-w-none">
+              <div className="hero-inner grid grid-cols-[var(--hero-logo-col,_112px)_1fr_var(--hero-right-col,_360px)] items-center gap-x-[var(--hero-gap,24px)] gap-y-1 min-h-[var(--hero-min-h,56px)] py-[var(--hero-py,10px)] max-w-none">
                 {/* ESQUERDA: marca (duas linhas) */}
                 <div className="hero-brand">
                   <div className="hero-brand-mark">
@@ -1086,7 +1086,7 @@ const railMenu = (
             </div>
           </header>
           {/* LEFT RAIL */}
-          <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail text-[13px] md:w-[clamp(88px,5.5%,108px)] pr-0 pt-0">
+          <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail text-[13px] md:w-[var(--aside-w)] pr-0 pt-0">
             <div className="ws-rail-sticky w-full rounded-xl border border-slate-200 md:border-r-0 bg-white p-1.5 shadow-sm grid grid-flow-row auto-rows-max gap-2">
               <div className="ws-rail-head grid grid-cols-1 gap-2">
                 <Button

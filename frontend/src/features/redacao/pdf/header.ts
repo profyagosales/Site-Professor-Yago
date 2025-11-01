@@ -7,14 +7,14 @@ export function GradeWorkspace({ generating }) {
   return (
     <div
       data-printing={generating ? '1' : '0'}
-      className="mx-auto grid h-full w-full max-w-none grid-cols-[minmax(240px,260px)_1fr_minmax(340px,380px)] gap-x-[var(--ws-gutter-x,24px)] gap-y-3 px-2 py-4 sm:px-3 lg:px-4"
+      className="mx-auto grid h-full w-full max-w-none grid-cols-[var(--aside-w)_1fr_var(--hero-right-col)] gap-x-[var(--hero-gap,24px)] gap-y-3 px-2 py-4 sm:px-3 lg:px-4"
       style={{ ['--pdf-viewport-offset' as any]: '170px', ['--hero-sticky-top' as any]: '68px' }}
     >
       <div className="col-start-1 col-span-1">
         <AnnotationToolbar />
       </div>
 
-      <div className="col-start-2 col-span-2 card ...">
+      <div className="col-start-2 col-span-2 card grid grid-cols-[var(--hero-logo-col)_1fr_var(--hero-right-col)] items-center gap-x-[var(--hero-gap,24px)] gap-y-2 min-h-[var(--hero-min-h)] py-[var(--hero-py)]">
         {/* Hero/header content: student title, meta, and cards “TOTAL”/“MODELO” */}
       </div>
 
