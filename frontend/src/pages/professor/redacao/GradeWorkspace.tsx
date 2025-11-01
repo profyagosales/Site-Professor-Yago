@@ -1034,13 +1034,13 @@ const railMenu = (
             >
               <div className="hero-inner grid grid-cols-[var(--hero-logo-col,_112px)_minmax(0,1fr)_minmax(0,var(--hero-right-col,_360px))] items-center gap-x-[var(--dash-gap,24px)] gap-y-1 min-h-[var(--hero-min-h,56px)] py-[var(--hero-py,10px)] max-w-none px-0 whitespace-nowrap">
                 {/* ESQUERDA: marca (uma linha) */}
-                <div className="hero-brand flex items-center gap-2 whitespace-nowrap">
+                <div className="hero-brand flex items-center gap-2 whitespace-nowrap shrink-0">
                   <Logo className="h-6 w-6 md:h-7 md:w-7" />
                   <div className="text-[12px] leading-tight font-medium whitespace-nowrap">Professor Yago</div>
                 </div>
 
                 {/* CENTRO: aluno (avatar à esquerda do info) */}
-                <div className="hero-center flex items-center gap-3 md:gap-4 min-w-0 flex-nowrap">
+                <div className="hero-center flex items-center gap-3 md:gap-4 min-w-0 flex-1 flex-nowrap">
                   {studentPhoto ? (
                     <img
                       src={studentPhoto}
@@ -1066,7 +1066,7 @@ const railMenu = (
                 </div>
 
                 {/* DIREITA: cartões colados na borda do hero */}
-                <div className="hero-score flex items-start gap-1.5 md:gap-2 justify-self-end justify-end self-start mt-0 whitespace-nowrap">
+                <div className="hero-score flex items-start gap-1.5 md:gap-2 justify-self-end justify-end self-start mt-0 whitespace-nowrap ml-auto">
                   <div className="hero-stat hero-stat--total px-1.5 py-1">
                     <span className="hero-stat__label">{totalLabel}</span>
                     <span className="hero-stat__value">
