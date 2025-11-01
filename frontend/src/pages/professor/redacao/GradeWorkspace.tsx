@@ -1030,21 +1030,31 @@ const railMenu = (
           >
             <div
               className="hero hero--compact w-full max-w-full m-0 md:rounded-l-xl md:rounded-r-xl px-0 relative z-[2] overflow-hidden gw-hero"
-              style={{ margin: 0 }}
+              style={{ margin: 0, ['--hero-min-h' as any]: '34px', ['--hero-py' as any]: '6px' }}
             >
               <div className="hero-inner grid grid-cols-[var(--hero-logo-col,_112px)_minmax(0,1fr)_minmax(0,var(--hero-right-col,_360px))] items-center gap-x-[var(--dash-gap,24px)] gap-y-1 min-h-[var(--hero-min-h,56px)] py-[var(--hero-py,10px)] max-w-none px-0">
-                {/* ESQUERDA: marca (duas linhas) */}
+                {/* ESQUERDA: marca (uma linha) */}
                 <div className="hero-brand flex items-center gap-2">
                   <Logo className="h-6 w-6 md:h-7 md:w-7" />
-                  <div className="brand-title hero-brand-name hidden lg:block text-[12px] leading-tight">
-                    Professor Yago Sales
-                  </div>
+                  <div className="text-[12px] leading-tight font-medium whitespace-nowrap">Professor Yago</div>
                 </div>
 
-                {/* CENTRO: aluno */}
-                <div className="hero-center flex items-center gap-3 md:gap-4 justify-between">
-                  <div className="min-w-0 text-left flex-1">
-                    <h1 className="hero-name hero-brand-name truncate text-[14px] md:text-[16px] leading-tight">
+                {/* CENTRO: aluno (avatar à esquerda do info) */}
+                <div className="hero-center flex items-center gap-3 md:gap-4 min-w-0">
+                  {studentPhoto ? (
+                    <img
+                      src={studentPhoto}
+                      alt={studentName}
+                      className="hero-avatar h-7 w-7 md:h-9 md:w-9 rounded-full shrink-0"
+                    />
+                  ) : (
+                    <div className="hero-avatar hero-avatar--fallback h-7 w-7 md:h-9 md:w-9 rounded-full shrink-0">
+                      {studentInitials}
+                    </div>
+                  )}
+
+                  <div className="min-w-0 text-left">
+                    <h1 className="hero-name truncate text-[14px] md:text-[16px] leading-tight">
                       {essayTitle}
                     </h1>
                     <p className="pdf-md truncate text-left text-[10px] md:text-[12px] leading-snug mt-0.5 text-slate-600">
@@ -1053,18 +1063,6 @@ const railMenu = (
                       {detailLine || '—'}
                     </p>
                   </div>
-
-                  {studentPhoto ? (
-                    <img
-                      src={studentPhoto}
-                      alt={studentName}
-                      className="hero-avatar h-7 w-7 md:h-9 md:w-9 shrink-0"
-                    />
-                  ) : (
-                    <div className="hero-avatar hero-avatar--fallback h-7 w-7 md:h-9 md:w-9 shrink-0">
-                      {studentInitials}
-                    </div>
-                  )}
                 </div>
 
                 {/* DIREITA: cartões colados na borda do hero */}
