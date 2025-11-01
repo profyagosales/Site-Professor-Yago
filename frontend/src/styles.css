@@ -71,8 +71,9 @@ body:has(.ws-rail) {
   --ws-gutter-x: 0px; /* neutralize gap-x var used by the grid container */
 }
 
-/* Force a tiny, tokenized horizontal gap on the main GradeWorkspace grid container when the left rail exists */
-body:has(.ws-rail) [class*="grid"] {
+/* Only tighten gaps for workspace grids, not every grid in the app */
+body:has(.ws-rail) .pdf-inline-grid,
+body:has(.ws-rail) .gw-hero .hero-inner {
   column-gap: var(--ws-cards-gap, 6px) !important;
 }
 
@@ -1073,7 +1074,7 @@ a {
 }
 
 /* Inline PDF workspace: 80/20 grid (doc/comments) */
-\.pdf-inline-grid { display: grid; grid-template-columns: minmax(0, 1fr) var(--ws-right-rail-w); gap: 6px; align-items: start; }
+.pdf-inline-grid { display: grid; grid-template-columns: minmax(0, 1fr) var(--ws-right-rail-w); gap: var(--ws-cards-gap, 6px); align-items: start; }
 @media (max-width: 1024px) { .pdf-inline-grid { grid-template-columns: 1fr; } }
 .pdf-canvas-wrap { background:#fff; border-radius:16px; border:1px solid rgba(15,23,42,0.06); box-shadow:0 8px 24px rgba(15,23,42,0.06); overflow:hidden; }
 .comments-rail { font-size: 9px; line-height: 1.2; }
@@ -1341,6 +1342,11 @@ a {
   width: var(--ws-left-rail-w-compact, var(--ws-left-rail-w, 196px));
   flex: 0 0 var(--ws-left-rail-w-compact, var(--ws-left-rail-w, 196px));
   max-width: none;
+  position: sticky;
+  top: var(--ws-rail-top);
+  height: calc(100vh - var(--ws-rail-top));
+  display: flex;
+  flex-direction: column;
 }
 
 .ws-rail-sticky{
@@ -1357,6 +1363,8 @@ a {
   display: flex;
   flex-direction: column;
 }
+/* Ensure the main card inside the left rail always fills the sticky height */
+.ws-rail > .card { height: 100%; display: flex; flex-direction: column; }
 
 .ws-rail-head,
 .ws-rail-footer{
@@ -1369,6 +1377,8 @@ a {
   flex: 1;
   overflow: auto;
   padding-right: 4px;
+  min-height: 0;
+  overscroll-behavior: contain;
 }
 
 .ws-rail-head .rail-btn,
@@ -1597,7 +1607,11 @@ body:has(.ws-rail) .pdf-inline-grid {
 .col-actions { min-width: 240px; width: 1%; white-space: normal; }
 
 @media (max-width: 1024px){
-  .ws-rail{ width: auto; }
+  .ws-rail{
+    width: auto;
+    position: static;
+    height: auto;
+  }
   .ws-rail-sticky{
     position: static;
     height: auto;

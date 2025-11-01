@@ -26,6 +26,8 @@
 
   /* APP / VIEWPORT OFFSETS */
   --app-header-h:72px;                                 /* altura do header/topbar */
+  --hero-sticky-top: 68px;                             /* offset para sticky (alinhado ao topo visual) */
+  --ws-rail-top: var(--hero-sticky-top);               /* usado pelo .ws-rail (left rail) */
   --pdf-viewport-offset:calc(var(--app-header-h,72px) + var(--hero-min-h,96px) + 16px); /* offset total para o PDF inline */
 
   /* WEEKLY SCHEDULE CARD */

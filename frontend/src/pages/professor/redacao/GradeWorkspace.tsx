@@ -1012,7 +1012,7 @@ const railMenu = (
     <div
       data-printing={generating ? '1' : '0'}
       className="mx-auto flex h-full w-full max-w-none flex-col gap-3 px-2 py-4 sm:px-3 lg:px-4"
-      style={{ ['--pdf-viewport-offset' as any]: 'calc(var(--hero-min-h,96px) + 16px)' }}
+      style={{ ['--pdf-viewport-offset' as any]: 'calc(var(--hero-min-h,56px) + 16px)' }}
     >
       {/* HERO COMPACTO ALINHADO AO PDF */}
 
@@ -1029,7 +1029,7 @@ const railMenu = (
             style={{ paddingLeft: 0 }}
           >
             <div
-              className="hero hero--compact w-full max-w-none m-0 md:rounded-l-xl px-0 relative z-[2] overflow-visible"
+              className="hero hero--compact w-full max-w-none m-0 md:rounded-l-xl px-0 relative z-[2] overflow-visible gw-hero"
               style={{ margin: 0 }}
             >
               <div className="hero-inner grid grid-cols-[var(--hero-logo-col,_112px)_minmax(0,1fr)_var(--hero-right-col,_360px)] items-center gap-x-[var(--dash-gap,24px)] gap-y-1 min-h-[var(--hero-min-h,56px)] py-[var(--hero-py,10px)] max-w-none px-0">
@@ -1089,10 +1089,10 @@ const railMenu = (
           </header>
           {/* LEFT RAIL */}
           <aside
-            className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail text-[13px] md:w-auto pr-0 pt-0 relative z-[1]"
+            className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail text-[13px] md:w-auto pr-0 pt-0 z-[1]"
             style={{ ['--ws-left-rail-w-compact' as any]: 'calc(var(--ws-left-rail-w,168px) * .5)', width: 'var(--ws-left-rail-w-compact)', flex: '0 0 var(--ws-left-rail-w-compact)' }}
           >
-            <div className="ws-rail-sticky w-full rounded-xl md:rounded-r-none border border-slate-200 md:border-r-0 bg-white p-1.5 shadow-sm md:sticky md:top-[var(--hero-sticky-top,68px)] md:h-[calc(100dvh-var(--hero-sticky-top,68px))] flex flex-col gap-2">
+            <div className="ws-rail-sticky w-full h-full rounded-xl md:rounded-r-none border border-slate-200 md:border-r-0 bg-white p-1.5 shadow-sm flex flex-col gap-2">
               <div className="ws-rail-head grid grid-cols-1 gap-2">
                 <Button
                   size="xs"
@@ -1176,7 +1176,7 @@ const railMenu = (
           <aside
             className={`block w-full md:w-[var(--hero-right-col,_360px)] RightRailCard comments-rail ws-right-rail md:self-start md:col-start-3 md:row-start-2 md:row-span-2 md:mt-0 text-[13px] relative z-[2] ${generating ? 'hidden' : ''}`}
           >
-            <div className="flex h-full w-full flex-col rounded-xl border border-slate-200 bg-white p-1.5 min-h-[560px]">
+            <div className="flex h-full w-full flex-col rounded-xl border border-slate-200 bg-white p-1.5" style={{ height: 'calc(100vh - var(--pdf-viewport-offset, 72px))' }}>
               <div id="comments-rail-scroll" className="mt-0 flex-1 overflow-y-auto overscroll-contain max-h-full">
                 <AnnotationSidebar
                   annotations={orderedAnnotations}
