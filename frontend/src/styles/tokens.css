@@ -217,13 +217,40 @@
 
 /* Normaliza a malha interna do hero usando tokens existentes */
 .gw-hero .hero-inner{
-  display: grid;
-  grid-template-columns: var(--hero-logo-col) minmax(0,1fr) minmax(0, var(--hero-right-col, var(--aside-w)));
-  gap: var(--hero-gap);
+  display: flex;
   align-items: center;
+  gap: var(--hero-gap);
+  width: 100%;
   min-height: var(--hero-min-h);
   padding-top: var(--hero-py);
   padding-bottom: var(--hero-py);
+}
+
+/* bloco da direita (TOTAL/MODELO) colado à borda direita */
+.gw-hero .hero-inner .heroStats{
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--hero-stat-gap);
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  height: var(--hero-stat-h);
+}
+
+/* garante alinhamento da marca à esquerda */
+.gw-hero .hero-inner .heroBrand{
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+/* bloco central: avatar + infos do aluno/turma */
+.gw-hero .hero-inner .heroInfo{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;         /* permite truncar/encaixar texto */
+  flex: 1 1 auto;
 }
 
 /* Garante que mini-cards (TOTAL/MODELO) tenham altura consistente */

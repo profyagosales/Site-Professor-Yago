@@ -1032,7 +1032,7 @@ const railMenu = (
               className="hero hero--compact w-full max-w-full m-0 md:rounded-l-xl md:rounded-r-xl px-0 relative z-[2] overflow-hidden gw-hero"
               style={{ margin: 0, ['--hero-min-h' as any]: '26px', ['--hero-py' as any]: '4px' }}
             >
-              <div className="hero-inner grid grid-cols-[var(--hero-logo-col,_112px)_minmax(0,1fr)_minmax(0,var(--hero-right-col,_360px))] items-center gap-x-[var(--dash-gap,24px)] gap-y-1 min-h-[var(--hero-min-h,56px)] py-[var(--hero-py,10px)] max-w-none px-0 whitespace-nowrap">
+              <div className="hero-inner flex items-center gap-x-[var(--dash-gap,24px)] min-h-[var(--hero-min-h,56px)] py-[var(--hero-py,10px)] max-w-none px-0 whitespace-nowrap w-full">
                 {/* ESQUERDA: marca (uma linha) */}
                 <div className="hero-brand flex items-center gap-2 whitespace-nowrap shrink-0">
                   <Logo className="h-6 w-6 md:h-7 md:w-7" />
