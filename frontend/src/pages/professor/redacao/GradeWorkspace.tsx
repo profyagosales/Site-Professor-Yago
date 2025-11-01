@@ -1024,7 +1024,7 @@ const railMenu = (
         >
           {/* HERO: spans all columns on md+ */}
           <header
-            className="md:col-start-1 md:col-span-3 w-full md:py-0 py-0"
+            className="md:col-start-1 md:col-span-3 md:row-start-1 w-full md:py-0 py-0"
             aria-label="Cabeçalho de correção"
           >
             <div
