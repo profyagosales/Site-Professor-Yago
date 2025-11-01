@@ -8,6 +8,8 @@
 :root {
   color-scheme: light;
   --card-title-size: var(--dash-card-title-fz);
+  /* Shared horizontal padding used by .page-wide and for rail alignment */
+  --page-pad-x: clamp(16px, 3vw, 24px);
 
   /* === PDF token sync (colors/weights/sizes) === */
   --pdf-text: #0f172a;             /* slate-900 */
@@ -1440,10 +1442,10 @@ a {
   overflow: hidden;
 }
 
-/* Safeguards: if sections render outside .page-wide, still remove the gutter */
+/* Safeguards: pull hero/pdf inline exactly the page horizontal padding when the left rail exists */
 body:has(.ws-rail) .gw-hero,
 body:has(.ws-rail) .pdf-inline-grid {
-  margin-left: calc(var(--ws-gutter-x) * -1);
+  margin-left: calc(var(--page-pad-x) * -1);
 }
 
 .pdf-canvas-container{
@@ -1453,7 +1455,7 @@ body:has(.ws-rail) .pdf-inline-grid {
 .page-wide {
   width: min(1400px, calc(100vw - 48px));
   margin-inline: auto;
-  padding-inline: clamp(16px, 3vw, 24px);
+  padding-inline: var(--page-pad-x);
 }
 
 .tabs-compact {
