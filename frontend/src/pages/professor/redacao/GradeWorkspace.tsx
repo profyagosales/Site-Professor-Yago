@@ -1024,7 +1024,7 @@ const railMenu = (
         >
           {/* HERO: spans all columns on md+ */}
           <header
-            className="md:col-start-2 md:col-span-2 md:row-start-1 w-full md:py-0 py-0 md:-ml-px"
+            className="md:col-start-2 md:col-span-2 md:row-start-1 w-full md:py-0 py-0 md:-ml-4"
             aria-label="Cabeçalho de correção"
             style={{ marginLeft: 0, paddingLeft: 0 }}
           >
@@ -1145,7 +1145,7 @@ const railMenu = (
           </aside>
           {/* MAIN PDF */}
           <main
-            className="min-w-0 md:col-start-2 md:row-start-2 p-0 md:-ml-px"
+            className="min-w-0 md:col-start-2 md:row-start-2 p-0 md:-ml-4"
             style={{ marginLeft: 0 }}
           >
             {pdfError && (
@@ -1192,7 +1192,7 @@ const railMenu = (
           </aside>
           {/* MIRROR (center, below PDF) */}
           <div
-            className="md:col-start-2 md:row-start-3 min-w-0 w-full max-w-none md:-ml-px"
+            className="md:col-start-2 md:row-start-3 min-w-0 w-full max-w-none md:-ml-4"
             style={{ marginLeft: 0 }}
           >
             <div className="mb-3 w-full max-w-none">
