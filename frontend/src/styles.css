@@ -1954,3 +1954,33 @@ body:has(.ws-rail) .pdf-inline-grid {
 /* Global tiny spacing between cards (applies across correction workspace) */
 .card { margin-bottom: var(--ws-cards-gap, 6px); }
 .gw-hero { margin-bottom: var(--ws-cards-gap, 6px); }
+. /* === GradeWorkspace hero – avatar first + hide duplicate brand line (overrides) === */
+.gw-hero .hero-inner{
+  /* keep in a single row and give the middle column priority to compress */
+  white-space: nowrap;
+}
+.gw-hero .hero-center{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  white-space: normal;      /* allow the text itself to wrap if needed */
+}
+/* Avatar must appear before the text, regardless of DOM order */
+.gw-hero .hero-center .hero-avatar,
+.gw-hero .hero-center .hero-avatar--fallback{
+  order: -1;
+  margin-right: 12px;
+  margin-left: 0;
+}
+/* Ensure the text block can shrink with ellipsis while avatar keeps a fixed size */
+.gw-hero .hero-center > :first-child{
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* Hide any secondary/duplicated brand line below the logo inside the GradeWorkspace hero */
+.gw-hero .hero-left-text,
+.gw-hero .brand-subtitle,
+.gw-hero .hero-brand-extra{
+  display: none !important;
+}

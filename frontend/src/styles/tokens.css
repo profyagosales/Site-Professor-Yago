@@ -210,14 +210,15 @@
 /* Expande o hero horizontalmente: começa na coluna central e alcança a largura do aside, 
    compensando o gap entre as colunas. Não afeta o rail à esquerda. */
 .gw-hero{
-  width: calc(100% + var(--dash-gap) + var(--aside-w));
-  margin-right: calc(-1 * (var(--dash-gap) + var(--aside-w)));
+  /* Use workspace gap to match real card spacing on this page */
+  width: calc(100% + var(--ws-cards-gap, 6px) + var(--aside-w));
+  margin-right: calc(-1 * (var(--ws-cards-gap, 6px) + var(--aside-w)));
 }
 
 /* Normaliza a malha interna do hero usando tokens existentes */
 .gw-hero .hero-inner{
   display: grid;
-  grid-template-columns: var(--hero-logo-col) 1fr var(--hero-right-col, var(--aside-w));
+  grid-template-columns: var(--hero-logo-col) minmax(0,1fr) minmax(0, var(--hero-right-col, var(--aside-w)));
   gap: var(--hero-gap);
   align-items: center;
   min-height: var(--hero-min-h);
