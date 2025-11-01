@@ -1330,7 +1330,7 @@ a {
 }
 
 /* Right rail pode usar o mesmo topo para sincronizar com o hero */
-.ws-right-rail{ position: sticky; top: var(--ws-rail-top); }
+.ws-right-rail{ position: sticky; top: var(--ws-rail-top); z-index: 2; }
 
 /* === Workspace action rail (left) === */
 .ws-rail{
@@ -1878,4 +1878,50 @@ body:has(.ws-rail) .pdf-inline-grid {
 }
 .gw-hero .hero-stat__value{
   font-size: 1.4rem;
+}
+/* === Hero tweaks: remove logo ring and align avatar right (Grade Workspace) === */
+/* Remove any orange ring/background around the brand mark in all heros */
+.hero-brand-mark,
+.gw-hero .hero-brand-mark {
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+/* In Grade Workspace hero, keep info on the left and push avatar to the right */
+.gw-hero .hero-center {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+}
+
+/* Ensure the text block can shrink/ellipsis while avatar stays fixed */
+.gw-hero .hero-center > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Avatar anchored to the right side */
+.gw-hero .hero-center .hero-avatar,
+.gw-hero .hero-center .hero-avatar--fallback {
+  flex: 0 0 auto;
+  margin-left: 12px;
+}
+/* === Hero & Right Rail corner/layer fixes (appended) === */
+.gw-hero{
+  position: relative;
+  z-index: 2;
+  overflow: visible;            /* don't clip rounded corners */
+}
+.ws-rail{
+  position: relative;
+  z-index: 1;                   /* keep left rail below hero */
+}
+.RightRailCard,
+.ws-right-rail .card{
+  border-radius: var(--r-2xl);
+  overflow: visible;            /* ensure right card corners show */
+  background-clip: padding-box; /* prevent border bleed */
 }

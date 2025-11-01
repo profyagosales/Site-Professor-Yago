@@ -1024,40 +1024,26 @@ const railMenu = (
         >
           {/* HERO: spans all columns on md+ */}
           <header
-            className="md:col-start-2 md:col-span-2 md:row-start-1 w-full py-0 ml-0 md:-ml-px"
+            className="md:col-start-2 md:col-span-2 md:row-start-1 w-full py-0 ml-0 md:-ml-px relative z-[2]"
             aria-label="Cabeçalho de correção"
             style={{ paddingLeft: 0 }}
           >
             <div
-              className="hero hero--compact w-full max-w-none m-0 rounded-l-none px-0"
+              className="hero hero--compact w-full max-w-none m-0 md:rounded-l-xl px-0 relative z-[2] overflow-visible"
               style={{ margin: 0 }}
             >
               <div className="hero-inner grid grid-cols-[var(--hero-logo-col,_112px)_minmax(0,1fr)_var(--hero-right-col,_360px)] items-center gap-x-[var(--dash-gap,24px)] gap-y-1 min-h-[var(--hero-min-h,56px)] py-[var(--hero-py,10px)] max-w-none px-0">
                 {/* ESQUERDA: marca (duas linhas) */}
-                <div className="hero-brand">
-                  <div className="hero-brand-mark">
-                    <Logo className="h-6 w-6 md:h-7 md:w-7" />
-                  </div>
+                <div className="hero-brand flex items-center gap-2">
+                  <Logo className="h-6 w-6 md:h-7 md:w-7" />
                   <div className="brand-title hero-brand-name hidden lg:block text-[12px] leading-tight">
                     Professor Yago Sales
                   </div>
                 </div>
 
                 {/* CENTRO: aluno */}
-                <div className="hero-center flex items-center justify-start gap-3 md:gap-4">
-                  {studentPhoto ? (
-                    <img
-                      src={studentPhoto}
-                      alt={studentName}
-                      className="hero-avatar h-7 w-7 md:h-9 md:w-9 md:order-2"
-                    />
-                  ) : (
-                    <div className="hero-avatar hero-avatar--fallback h-7 w-7 md:h-9 md:w-9 md:order-2">
-                      {studentInitials}
-                    </div>
-                  )}
-
-                  <div className="min-w-0 text-left md:order-1">
+                <div className="hero-center flex items-center gap-3 md:gap-4 justify-between">
+                  <div className="min-w-0 text-left flex-1">
                     <h1 className="hero-name hero-brand-name truncate text-[14px] md:text-[16px] leading-tight">
                       {essayTitle}
                     </h1>
@@ -1067,6 +1053,18 @@ const railMenu = (
                       {detailLine || '—'}
                     </p>
                   </div>
+
+                  {studentPhoto ? (
+                    <img
+                      src={studentPhoto}
+                      alt={studentName}
+                      className="hero-avatar h-7 w-7 md:h-9 md:w-9 shrink-0"
+                    />
+                  ) : (
+                    <div className="hero-avatar hero-avatar--fallback h-7 w-7 md:h-9 md:w-9 shrink-0">
+                      {studentInitials}
+                    </div>
+                  )}
                 </div>
 
                 {/* DIREITA: cartões colados na borda do hero */}
@@ -1090,7 +1088,7 @@ const railMenu = (
             </div>
           </header>
           {/* LEFT RAIL */}
-          <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail text-[13px] md:w-auto pr-0 pt-0">
+          <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail text-[13px] md:w-auto pr-0 pt-0 relative z-[1]">
             <div className="ws-rail-sticky w-full rounded-xl md:rounded-r-none border border-slate-200 md:border-r-0 bg-white p-1.5 shadow-sm grid grid-flow-row auto-rows-max gap-2">
               <div className="ws-rail-head grid grid-cols-1 gap-2">
                 <Button
@@ -1173,7 +1171,7 @@ const railMenu = (
           </main>
           {/* COMMENTS RAIL */}
           <aside
-            className={`block w-full md:w-[var(--hero-right-col,_360px)] RightRailCard comments-rail ws-right-rail md:self-start md:col-start-3 md:row-start-2 md:row-span-2 md:mt-0 text-[13px] ${generating ? 'hidden' : ''}`}
+            className={`block w-full md:w-[var(--hero-right-col,_360px)] RightRailCard comments-rail ws-right-rail md:self-start md:col-start-3 md:row-start-2 md:row-span-2 md:mt-0 text-[13px] relative z-[2] ${generating ? 'hidden' : ''}`}
           >
             <div className="flex h-full w-full flex-col rounded-xl border border-slate-200 bg-white p-1.5 min-h-[560px]">
               <div id="comments-rail-scroll" className="mt-0 flex-1 overflow-y-auto overscroll-contain max-h-full">
