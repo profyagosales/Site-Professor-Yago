@@ -1024,7 +1024,7 @@ const railMenu = (
         >
           {/* HERO: spans all columns on md+ */}
           <header
-            className="md:col-start-2 md:col-span-2 md:row-start-1 w-full md:py-0 py-0 md:-ml-4"
+            className="md:col-start-2 md:col-span-2 md:row-start-1 w-full md:py-0 py-0 md:ml-[-1px]"
             aria-label="Cabeçalho de correção"
             style={{ marginLeft: 0, paddingLeft: 0 }}
           >
@@ -1090,8 +1090,8 @@ const railMenu = (
             </div>
           </header>
           {/* LEFT RAIL */}
-          <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail text-[13px] md:w-[var(--rail-w)] pr-0 pt-0 md:-mr-px">
-            <div className="ws-rail-sticky w-full rounded-xl border border-slate-200 md:border-r-0 bg-white p-1.5 shadow-sm grid grid-flow-row auto-rows-max gap-2">
+          <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail text-[13px] md:w-[var(--rail-w)] pr-0 pt-0">
+            <div className="ws-rail-sticky w-full rounded-xl md:rounded-r-none border border-slate-200 md:border-r-0 bg-white p-1.5 shadow-sm grid grid-flow-row auto-rows-max gap-2">
               <div className="ws-rail-head grid grid-cols-1 gap-2">
                 <Button
                   size="xs"
@@ -1145,7 +1145,7 @@ const railMenu = (
           </aside>
           {/* MAIN PDF */}
           <main
-            className="min-w-0 md:col-start-2 md:row-start-2 p-0 md:-ml-4"
+            className="min-w-0 md:col-start-2 md:row-start-2 p-0 md:ml-[-1px]"
             style={{ marginLeft: 0 }}
           >
             {pdfError && (
@@ -1192,7 +1192,7 @@ const railMenu = (
           </aside>
           {/* MIRROR (center, below PDF) */}
           <div
-            className="md:col-start-2 md:row-start-3 min-w-0 w-full max-w-none md:-ml-4"
+            className="md:col-start-2 md:row-start-3 min-w-0 w-full max-w-none md:ml-[-1px]"
             style={{ marginLeft: 0 }}
           >
             <div className="mb-3 w-full max-w-none">
