@@ -11,6 +11,8 @@
   /* Shared horizontal padding used by .page-wide and for rail alignment */
   --page-pad-x: clamp(16px, 3vw, 24px);
 
+  --ws-cards-gap: 6px; /* tiny breathing room between cards (fallback if tokens.css is absent) */
+
   /* === PDF token sync (colors/weights/sizes) === */
   --pdf-text: #0f172a;             /* slate-900 */
   --pdf-text-subtle: #64748b;      /* slate-500 */
@@ -1327,7 +1329,7 @@ a {
   --rail-w: 180px;
   --workspace-min-width: 1200px;
   --ws-rail-top: var(--rail-top);
-  --ws-left-rail-w: 196px; /* default width for left action rail (can be tuned) */
+  --ws-left-rail-w: 168px; /* default width for left action rail (can be tuned) */
 }
 
 /* Right rail pode usar o mesmo topo para sincronizar com o hero */
@@ -1933,3 +1935,7 @@ body:has(.ws-rail) .pdf-inline-grid {
   overflow: visible;            /* ensure right card corners show */
   background-clip: padding-box; /* prevent border bleed */
 }
+
+/* Global tiny spacing between cards (applies across correction workspace) */
+.card { margin-bottom: var(--ws-cards-gap, 6px); }
+.gw-hero { margin-bottom: var(--ws-cards-gap, 6px); }

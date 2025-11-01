@@ -1019,7 +1019,7 @@ const railMenu = (
       <section className="rounded-xl border border-slate-200 bg-white p-0 shadow-sm md:p-0">
         {/* Unified 3-column grid */}
         <div
-          className="grid grid-cols-1 items-start gap-0 md:grid-cols-[var(--ws-left-rail-w,196px)_minmax(0,1fr)_var(--hero-right-col,_360px)] md:gap-x-0 md:gap-y-0"
+          className="grid grid-cols-1 items-start md:grid-cols-[var(--ws-left-rail-w,168px)_minmax(0,1fr)_var(--hero-right-col,_360px)] md:gap-x-[var(--ws-cards-gap,6px)] md:gap-y-[var(--ws-cards-gap,6px)]"
           aria-label="Workspace de correção"
         >
           {/* HERO: spans all columns on md+ */}
