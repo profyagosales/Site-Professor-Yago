@@ -1022,16 +1022,17 @@ const railMenu = (
           className="grid grid-cols-1 items-start gap-0 md:grid-cols-[var(--rail-w,_112px)_minmax(0,1fr)_var(--hero-right-col,_360px)] md:gap-x-[var(--dash-gap,24px)] md:gap-y-0"
           aria-label="Workspace de correção"
         >
-          {/* HERO: spans center and right columns on md+ */}
+          {/* HERO: spans all columns on md+ */}
           <header
-            className="md:col-start-2 md:col-span-2 w-full md:py-0 py-0"
+            className="md:col-start-1 md:col-span-3 w-full md:py-0 py-0"
             aria-label="Cabeçalho de correção"
           >
             <div
               className="hero hero--compact w-full max-w-none"
-              style={{ marginLeft: 'calc(var(--dash-gap, 24px) * -1)', width: 'calc(100% + var(--dash-gap, 24px))' }}
             >
-              <div className="hero-inner grid grid-cols-[var(--hero-logo-col,_112px)_1fr_var(--hero-right-col,_360px)] items-center gap-x-[var(--dash-gap,24px)] gap-y-1 min-h-[var(--hero-min-h,56px)] py-[var(--hero-py,10px)] max-w-none">
+              <div className="hero-inner grid grid-cols-[var(--rail-w,_112px)_var(--hero-logo-col,_112px)_minmax(0,1fr)_var(--hero-right-col,_360px)] items-center gap-x-[var(--dash-gap,24px)] gap-y-1 min-h-[var(--hero-min-h,56px)] py-[var(--hero-py,10px)] max-w-none">
+                {/* Spacer for rail width */}
+                <div className="hidden md:block" aria-hidden="true" />
                 {/* ESQUERDA: marca (duas linhas) */}
                 <div className="hero-brand">
                   <div className="hero-brand-mark">
