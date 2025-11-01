@@ -1027,7 +1027,10 @@ const railMenu = (
             className="md:col-start-2 md:col-span-2 w-full md:py-0 py-0"
             aria-label="Cabeçalho de correção"
           >
-            <div className="hero hero--compact w-full max-w-none">
+            <div
+              className="hero hero--compact w-full max-w-none"
+              style={{ marginLeft: 'calc(var(--dash-gap, 24px) * -1)', width: 'calc(100% + var(--dash-gap, 24px))' }}
+            >
               <div className="hero-inner grid grid-cols-[var(--hero-logo-col,_112px)_1fr_var(--hero-right-col,_360px)] items-center gap-x-[var(--dash-gap,24px)] gap-y-1 min-h-[var(--hero-min-h,56px)] py-[var(--hero-py,10px)] max-w-none">
                 {/* ESQUERDA: marca (duas linhas) */}
                 <div className="hero-brand">
