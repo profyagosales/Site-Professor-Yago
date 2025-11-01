@@ -1024,15 +1024,13 @@ const railMenu = (
         >
           {/* HERO: spans all columns on md+ */}
           <header
-            className="md:col-start-1 md:col-span-3 md:row-start-1 w-full md:py-0 py-0"
+            className="md:col-start-2 md:col-span-2 md:row-start-1 w-full md:py-0 py-0"
             aria-label="Cabeçalho de correção"
           >
             <div
               className="hero hero--compact w-full max-w-none"
             >
-              <div className="hero-inner grid grid-cols-[var(--rail-w,_112px)_var(--hero-logo-col,_112px)_minmax(0,1fr)_var(--hero-right-col,_360px)] items-center gap-x-[var(--dash-gap,24px)] gap-y-1 min-h-[var(--hero-min-h,56px)] py-[var(--hero-py,10px)] max-w-none">
-                {/* Spacer for rail width */}
-                <div className="hidden md:block" aria-hidden="true" />
+              <div className="hero-inner grid grid-cols-[var(--hero-logo-col,_112px)_minmax(0,1fr)_var(--hero-right-col,_360px)] items-center gap-x-[var(--dash-gap,24px)] gap-y-1 min-h-[var(--hero-min-h,56px)] py-[var(--hero-py,10px)] max-w-none">
                 {/* ESQUERDA: marca (duas linhas) */}
                 <div className="hero-brand">
                   <div className="hero-brand-mark">
