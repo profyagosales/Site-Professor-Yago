@@ -12,6 +12,7 @@
   --page-pad-x: clamp(16px, 3vw, 24px);
 
   --ws-cards-gap: 6px; /* tiny breathing room between cards (fallback if tokens.css is absent) */
+  --ws-left-rail-w-compact: calc(var(--ws-left-rail-w, 168px) * .5);
 
   /* === PDF token sync (colors/weights/sizes) === */
   --pdf-text: #0f172a;             /* slate-900 */
@@ -70,9 +71,9 @@ body:has(.ws-rail) {
   --ws-gutter-x: 0px; /* neutralize gap-x var used by the grid container */
 }
 
-/* Force column-gap:0 on the main GradeWorkspace grid container (applies always, not only when printing) */
+/* Force a tiny, tokenized horizontal gap on the main GradeWorkspace grid container when the left rail exists */
 body:has(.ws-rail) [class*="grid"] {
-  column-gap: 0 !important;
+  column-gap: var(--ws-cards-gap, 6px) !important;
 }
 
 /* Right rail width helper + pull the hero to span central + right columns */
@@ -1337,8 +1338,8 @@ a {
 
 /* === Workspace action rail (left) === */
 .ws-rail{
-  width: var(--ws-left-rail-w, 196px);
-  flex: 0 0 var(--ws-left-rail-w, 196px);
+  width: var(--ws-left-rail-w-compact, var(--ws-left-rail-w, 196px));
+  flex: 0 0 var(--ws-left-rail-w-compact, var(--ws-left-rail-w, 196px));
   max-width: none;
 }
 

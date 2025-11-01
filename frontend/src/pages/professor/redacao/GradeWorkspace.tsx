@@ -1019,7 +1019,7 @@ const railMenu = (
       <section className="rounded-xl border border-slate-200 bg-white p-0 shadow-sm md:p-0">
         {/* Unified 3-column grid */}
         <div
-          className="grid grid-cols-1 items-start md:grid-cols-[var(--ws-left-rail-w,168px)_minmax(0,1fr)_var(--hero-right-col,_360px)] md:gap-x-[var(--ws-cards-gap,6px)] md:gap-y-[var(--ws-cards-gap,6px)]"
+          className="grid grid-cols-1 items-start md:grid-cols-[var(--ws-left-rail-w-compact,calc(var(--ws-left-rail-w,168px)*.5))_minmax(0,1fr)_var(--hero-right-col,_360px)] md:gap-x-[var(--ws-cards-gap,6px)] md:gap-y-[var(--ws-cards-gap,6px)]"
           aria-label="Workspace de correção"
         >
           {/* HERO: spans all columns on md+ */}
@@ -1088,7 +1088,10 @@ const railMenu = (
             </div>
           </header>
           {/* LEFT RAIL */}
-          <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail text-[13px] md:w-auto pr-0 pt-0 relative z-[1]">
+          <aside
+            className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail text-[13px] md:w-auto pr-0 pt-0 relative z-[1]"
+            style={{ ['--ws-left-rail-w-compact' as any]: 'calc(var(--ws-left-rail-w,168px) * .5)', width: 'var(--ws-left-rail-w-compact)', flex: '0 0 var(--ws-left-rail-w-compact)' }}
+          >
             <div className="ws-rail-sticky w-full rounded-xl md:rounded-r-none border border-slate-200 md:border-r-0 bg-white p-1.5 shadow-sm md:sticky md:top-[var(--hero-sticky-top,68px)] md:h-[calc(100dvh-var(--hero-sticky-top,68px))] flex flex-col gap-2">
               <div className="ws-rail-head grid grid-cols-1 gap-2">
                 <Button

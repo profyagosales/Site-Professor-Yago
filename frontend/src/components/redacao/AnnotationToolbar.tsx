@@ -58,8 +58,11 @@ export function AnnotationToolbar({ active, onChange, orientation = 'horizontal'
   const isVertical = orientation === 'vertical';
   const effectiveCompact = compact ?? isVertical;
   const baseClasses = isVertical
-    ? `row-span-2 md:sticky md:self-start md:top-[var(--hero-sticky-top,72px)] h-fit flex w-full min-w-0 flex-col ${centered ? 'items-center' : 'items-stretch'} gap-1 mt-2 mb-2`
+    ? `row-span-2 md:sticky md:self-start md:top-[var(--hero-sticky-top,68px)] h-fit flex w-full min-w-0 flex-col ${centered ? 'items-center' : 'items-stretch'} gap-1 mt-2 mb-2`
     : 'flex flex-wrap items-center gap-1.5 border-b border-slate-200 pb-2';
+
+  const spacingClasses = (isVertical || effectiveCompact) ? 'gap-1 px-1.5 py-1' : 'gap-2 px-2 py-1';
+  const showDot = !(effectiveCompact && isVertical);
 
   const entries = useMemo(
     () => Object.entries(HIGHLIGHT_CATEGORIES) as Array<[
@@ -145,7 +148,7 @@ export function AnnotationToolbar({ active, onChange, orientation = 'horizontal'
             data-key={key}
             data-active={isActive || undefined}
             aria-current={isActive ? 'true' : undefined}
-            className={`${variantFor(key, meta.label)} flex items-center gap-2 rounded-md border px-2 py-1 text-[11px] font-medium transition shadow-sm overflow-hidden min-w-0 focus:outline-none focus-visible:ring-2 focus:ring-orange-500/60 ${
+            className={`${variantFor(key, meta.label)} flex items-center rounded-md border ${spacingClasses} text-[11px] font-medium transition shadow-sm overflow-hidden min-w-0 focus:outline-none focus-visible:ring-2 focus:ring-orange-500/60 ${
               isActive ? 'ring-2 ring-orange-500' : 'ring-1 ring-transparent'
             } ${isVertical ? `justify-start text-left w-full min-h-[34px] md:min-h-[36px]${centered ? ' max-w-[340px] mx-auto' : ''}` : 'min-h-[32px]'} hover:brightness-95 active:brightness-90`}
             style={(isVertical || effectiveCompact) ? {
@@ -153,12 +156,14 @@ export function AnnotationToolbar({ active, onChange, orientation = 'horizontal'
               borderColor: hexToRgba(meta.color, 0.35),
             } : undefined}
           >
-            <span
-              className="inline-block h-1.5 w-1.5 flex-none rounded-full"
-              style={{ backgroundColor: meta.color }}
-              aria-hidden
-            />
-            <span className="text-slate-800 truncate whitespace-nowrap leading-tight pl-0.5">{shortLabelFor(key, meta.label, effectiveCompact)}</span>
+            {showDot && (
+              <span
+                className="inline-block h-1.5 w-1.5 flex-none rounded-full"
+                style={{ backgroundColor: meta.color }}
+                aria-hidden
+              />
+            )}
+            <span className="text-slate-800 truncate whitespace-nowrap leading-tight pl-0.5 max-w-full">{shortLabelFor(key, meta.label, effectiveCompact)}</span>
           </button>
         );
       })}

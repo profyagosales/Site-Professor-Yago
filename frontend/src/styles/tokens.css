@@ -20,8 +20,9 @@
   --hero-logo-col:112px;    /* largura fixa da coluna da logo no hero */
   --hero-gap:24px;          /* gap horizontal entre colunas do hero */
   --ws-left-rail-w:168px;   /* largura padrão do rail esquerdo (ajustado) */
+  --ws-left-rail-w-compact: calc(var(--ws-left-rail-w,168px)*.5);   /* largura compacta (50%) do rail esquerdo */
   --ws-cards-gap:6px;       /* espaçamento mínimo entre cards/colunas/linhas */
-  --rail-w:var(--ws-left-rail-w,168px);           /* largura do rail esquerdo (trilho de botões) */
+  --rail-w:var(--ws-left-rail-w-compact, var(--ws-left-rail-w,168px));           /* largura do rail esquerdo (trilho de botões) */
 
   /* APP / VIEWPORT OFFSETS */
   --app-header-h:72px;                                 /* altura do header/topbar */
