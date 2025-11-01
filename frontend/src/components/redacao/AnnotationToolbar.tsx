@@ -18,8 +18,17 @@ const COMPACT_LABELS: Partial<Record<HighlightCategoryKey, string>> = {
 
 function shortLabelFor(key: HighlightCategoryKey, label: string, compact?: boolean): string {
   if (!compact) return label;
-  const mapped = COMPACT_LABELS[key];
-  if (mapped) return mapped;
+  const mappedByKey = COMPACT_LABELS[key];
+  if (mappedByKey) return mappedByKey;
+
+  const labelLower = label.toLowerCase();
+
+  if (labelLower.includes('argumentação') || labelLower.includes('argumentacao')) return 'Arg';
+  if (labelLower.includes('ortografia') || labelLower.includes('gramática') || labelLower.includes('gramatica')) return 'Ort';
+  if (labelLower.includes('coesão') || labelLower.includes('coesao') || labelLower.includes('coerência') || labelLower.includes('coerencia')) return 'Coe';
+  if (labelLower.includes('apresentação') || labelLower.includes('apresentacao')) return 'Apt';
+  if (labelLower.includes('comentários') || labelLower.includes('comentarios')) return 'Com';
+
   // Fallback: encurta sem perder contexto
   return label.length > 10 ? label.slice(0, 10) : label;
 }
@@ -45,8 +54,9 @@ type AnnotationToolbarProps = {
   compact?: boolean;
 };
 
-export function AnnotationToolbar({ active, onChange, orientation = 'horizontal', className, centered = false, compact = false }: AnnotationToolbarProps) {
+export function AnnotationToolbar({ active, onChange, orientation = 'horizontal', className, centered = false, compact }: AnnotationToolbarProps) {
   const isVertical = orientation === 'vertical';
+  const effectiveCompact = compact ?? isVertical;
   const baseClasses = isVertical
     ? `row-span-2 md:sticky md:self-start md:top-[var(--hero-sticky-top,72px)] h-fit flex w-full min-w-0 flex-col ${centered ? 'items-center' : 'items-stretch'} gap-1 mt-2 mb-2`
     : 'flex flex-wrap items-center gap-1.5 border-b border-slate-200 pb-2';
@@ -133,10 +143,12 @@ export function AnnotationToolbar({ active, onChange, orientation = 'horizontal'
             onClick={() => onChange(key)}
             onKeyDown={(e) => onKeyDown(e, idx)}
             data-key={key}
+            data-active={isActive || undefined}
+            aria-current={isActive ? 'true' : undefined}
             className={`${variantFor(key, meta.label)} flex items-center gap-2 rounded-md border px-2 py-1 text-[11px] font-medium transition shadow-sm overflow-hidden min-w-0 focus:outline-none focus-visible:ring-2 focus:ring-orange-500/60 ${
               isActive ? 'ring-2 ring-orange-500' : 'ring-1 ring-transparent'
             } ${isVertical ? `justify-start text-left w-full min-h-[34px] md:min-h-[36px]${centered ? ' max-w-[340px] mx-auto' : ''}` : 'min-h-[32px]'} hover:brightness-95 active:brightness-90`}
-            style={(isVertical || compact) ? {
+            style={(isVertical || effectiveCompact) ? {
               backgroundColor: hexToRgba(meta.color, 0.12),
               borderColor: hexToRgba(meta.color, 0.35),
             } : undefined}
@@ -146,7 +158,7 @@ export function AnnotationToolbar({ active, onChange, orientation = 'horizontal'
               style={{ backgroundColor: meta.color }}
               aria-hidden
             />
-            <span className="text-slate-800 truncate whitespace-nowrap leading-tight pl-0.5">{shortLabelFor(key, meta.label, compact)}</span>
+            <span className="text-slate-800 truncate whitespace-nowrap leading-tight pl-0.5">{shortLabelFor(key, meta.label, effectiveCompact)}</span>
           </button>
         );
       })}

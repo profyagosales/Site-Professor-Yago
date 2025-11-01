@@ -1019,7 +1019,7 @@ const railMenu = (
       <section className="rounded-xl border border-slate-200 bg-white p-0 shadow-sm md:p-0">
         {/* Unified 3-column grid */}
         <div
-          className="grid grid-cols-1 items-start gap-0 md:grid-cols-[auto_minmax(0,1fr)_var(--hero-right-col,_360px)] md:gap-x-0 md:gap-y-0"
+          className="grid grid-cols-1 items-start gap-0 md:grid-cols-[var(--ws-left-rail-w,196px)_minmax(0,1fr)_var(--hero-right-col,_360px)] md:gap-x-0 md:gap-y-0"
           aria-label="Workspace de correção"
         >
           {/* HERO: spans all columns on md+ */}
@@ -1089,7 +1089,7 @@ const railMenu = (
           </header>
           {/* LEFT RAIL */}
           <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail text-[13px] md:w-auto pr-0 pt-0 relative z-[1]">
-            <div className="ws-rail-sticky w-full rounded-xl md:rounded-r-none border border-slate-200 md:border-r-0 bg-white p-1.5 shadow-sm grid grid-flow-row auto-rows-max gap-2">
+            <div className="ws-rail-sticky w-full rounded-xl md:rounded-r-none border border-slate-200 md:border-r-0 bg-white p-1.5 shadow-sm md:sticky md:top-[var(--hero-sticky-top,68px)] md:h-[calc(100dvh-var(--hero-sticky-top,68px))] flex flex-col gap-2">
               <div className="ws-rail-head grid grid-cols-1 gap-2">
                 <Button
                   size="xs"
@@ -1111,33 +1111,33 @@ const railMenu = (
                 </Button>
               </div>
               <div className="h-px bg-slate-200/70 my-1.5" />
-
-              <div className="ws-rail-body mt-3 space-y-2">
-                {railMenu}
-              </div>
-              <div className="h-px bg-slate-200/70 my-1.5" />
-
-              <div className="ws-rail-footer grid grid-cols-1 gap-2 mt-3">
-                <Button
-                  size="xs"
-                  block
-                  className="btn btn--neutral rail-btn rail-btn--secondary w-full"
-                  onClick={handleSave}
-                  disabled={saving || !dirty}
-                  title="Salvar"
-                >
-                  {saving ? 'Salvando…' : 'Salvar'}
-                </Button>
-                <Button
-                  size="xs"
-                  block
-                  className="btn btn--brand rail-btn rail-btn--primary w-full"
-                  onClick={handleGeneratePdf}
-                  disabled={generating}
-                  title="Gerar PDF corrigido"
-                >
-                  {generating ? 'Gerando…' : 'Gerar'}
-                </Button>
+              <div className="ws-rail-scroll flex-1 min-h-0 overflow-y-auto overscroll-contain">
+                <div className="ws-rail-body mt-3 space-y-2">
+                  {railMenu}
+                </div>
+                <div className="h-px bg-slate-200/70 my-1.5" />
+                <div className="ws-rail-footer grid grid-cols-1 gap-2 mt-3">
+                  <Button
+                    size="xs"
+                    block
+                    className="btn btn--neutral rail-btn rail-btn--secondary w-full"
+                    onClick={handleSave}
+                    disabled={saving || !dirty}
+                    title="Salvar"
+                  >
+                    {saving ? 'Salvando…' : 'Salvar'}
+                  </Button>
+                  <Button
+                    size="xs"
+                    block
+                    className="btn btn--brand rail-btn rail-btn--primary w-full"
+                    onClick={handleGeneratePdf}
+                    disabled={generating}
+                    title="Gerar PDF corrigido"
+                  >
+                    {generating ? 'Gerando…' : 'Gerar'}
+                  </Button>
+                </div>
               </div>
             </div>
           </aside>

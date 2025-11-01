@@ -19,7 +19,8 @@
   --hero-right-col:var(--aside-w); /* largura da coluna direita do hero */
   --hero-logo-col:112px;    /* largura fixa da coluna da logo no hero */
   --hero-gap:24px;          /* gap horizontal entre colunas do hero */
-  --rail-w:112px;           /* largura do rail esquerdo (trilho de botões) */
+  --ws-left-rail-w:196px;   /* largura padrão do rail esquerdo (sincronizado com styles.css) */
+  --rail-w:var(--ws-left-rail-w,196px);           /* largura do rail esquerdo (trilho de botões) */
 
   /* APP / VIEWPORT OFFSETS */
   --app-header-h:72px;                                 /* altura do header/topbar */
