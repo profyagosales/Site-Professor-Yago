@@ -1033,16 +1033,16 @@ const railMenu = (
               style={{ margin: 0, ['--hero-min-h' as any]: '26px', ['--hero-py' as any]: '4px' }}
             >
               <div
-                className="hero-inner grid grid-cols-[var(--hero-logo-col,_112px)_minmax(0,1fr)_var(--hero-right-col,_360px)] items-center gap-x-[var(--dash-gap,24px)] min-h-[var(--hero-min-h,56px)] py-[var(--hero-py,10px)] max-w-none px-0 whitespace-nowrap w-full"
+                className="hero-inner grid grid-cols-[var(--hero-logo-col,_112px)_minmax(0,1fr)_var(--hero-right-col,_360px)] items-center gap-x-[var(--dash-gap,24px)] min-h-[var(--hero-min-h,56px)] py-[var(--hero-py,10px)] max-w-none px-0 whitespace-nowrap w-full justify-items-stretch"
               >
                 {/* ESQUERDA: marca (uma linha) */}
-                <div className="hero-brand flex items-center gap-2 whitespace-nowrap shrink-0">
+                <div className="hero-brand flex items-center gap-2 whitespace-nowrap shrink-0 col-[1]">
                   <Logo className="h-6 w-6 md:h-7 md:w-7" />
                   <div className="text-[12px] leading-tight font-medium whitespace-nowrap">Professor Yago</div>
                 </div>
 
                 {/* CENTRO: aluno (avatar à esquerda do info) */}
-                <div className="hero-center flex items-center gap-3 md:gap-4 min-w-0 flex-1 flex-nowrap">
+                <div className="hero-center flex items-center gap-3 md:gap-4 min-w-0 flex-1 flex-nowrap col-[2]">
                   {studentPhoto ? (
                     <img
                       src={studentPhoto}
@@ -1068,7 +1068,7 @@ const railMenu = (
                 </div>
 
                 {/* DIREITA: cartões colados na borda do hero */}
-                <div className="hero-score flex items-start gap-1.5 md:gap-2 justify-self-end self-start mt-0 whitespace-nowrap">
+                <div className="hero-score col-[3] w-full flex items-start justify-end gap-1.5 md:gap-2 self-start mt-0 pr-[var(--ws-cards-gap,6px)] whitespace-nowrap">
                   <div className="hero-stat hero-stat--total px-1.5 py-1">
                     <span className="hero-stat__label">{totalLabel}</span>
                     <span className="hero-stat__value">
