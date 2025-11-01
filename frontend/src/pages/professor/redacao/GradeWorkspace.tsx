@@ -1019,20 +1019,20 @@ const railMenu = (
       <section className="rounded-xl border border-slate-200 bg-white p-0 shadow-sm md:p-0">
         {/* Unified 3-column grid */}
         <div
-          className="grid grid-cols-1 items-start md:grid-cols-[var(--ws-left-rail-w-compact,calc(var(--ws-left-rail-w,168px)*.5))_minmax(0,1fr)_var(--hero-right-col,_360px)] md:gap-x-[var(--ws-cards-gap,6px)] md:gap-y-[var(--ws-cards-gap,6px)]"
+          className="grid grid-cols-1 items-start md:grid-cols-[var(--ws-left-rail-w-compact,calc(var(--ws-left-rail-w,168px)*.5))_minmax(0,1fr)_minmax(0,var(--hero-right-col,_360px))] md:gap-x-[var(--ws-cards-gap,6px)] md:gap-y-[var(--ws-cards-gap,6px)]"
           aria-label="Workspace de correção"
         >
           {/* HERO: spans all columns on md+ */}
           <header
-            className="md:col-start-2 md:col-span-2 md:row-start-1 w-full py-0 ml-0 md:-ml-px relative z-[2]"
+            className="md:col-start-2 md:col-span-2 md:row-start-1 w-full py-0 ml-0 relative z-[2] overflow-hidden md:rounded-r-xl"
             aria-label="Cabeçalho de correção"
             style={{ paddingLeft: 0 }}
           >
             <div
-              className="hero hero--compact w-full max-w-none m-0 md:rounded-l-xl px-0 relative z-[2] overflow-visible gw-hero"
+              className="hero hero--compact w-full max-w-full m-0 md:rounded-l-xl md:rounded-r-xl px-0 relative z-[2] overflow-hidden gw-hero"
               style={{ margin: 0 }}
             >
-              <div className="hero-inner grid grid-cols-[var(--hero-logo-col,_112px)_minmax(0,1fr)_var(--hero-right-col,_360px)] items-center gap-x-[var(--dash-gap,24px)] gap-y-1 min-h-[var(--hero-min-h,56px)] py-[var(--hero-py,10px)] max-w-none px-0">
+              <div className="hero-inner grid grid-cols-[var(--hero-logo-col,_112px)_minmax(0,1fr)_minmax(0,var(--hero-right-col,_360px))] items-center gap-x-[var(--dash-gap,24px)] gap-y-1 min-h-[var(--hero-min-h,56px)] py-[var(--hero-py,10px)] max-w-none px-0">
                 {/* ESQUERDA: marca (duas linhas) */}
                 <div className="hero-brand flex items-center gap-2">
                   <Logo className="h-6 w-6 md:h-7 md:w-7" />
@@ -1068,7 +1068,7 @@ const railMenu = (
                 </div>
 
                 {/* DIREITA: cartões colados na borda do hero */}
-                <div className="hero-score flex items-start gap-1.5 md:gap-2 ml-auto justify-self-stretch justify-end self-start mt-0">
+                <div className="hero-score flex items-start gap-1.5 md:gap-2 justify-self-end justify-end self-start mt-0">
                   <div className="hero-stat hero-stat--total px-1.5 py-1">
                     <span className="hero-stat__label">{totalLabel}</span>
                     <span className="hero-stat__value">
