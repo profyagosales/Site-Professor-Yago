@@ -1024,9 +1024,9 @@ const railMenu = (
         >
           {/* HERO: spans all columns on md+ */}
           <header
-            className="md:col-start-2 md:col-span-2 md:row-start-1 w-full py-0 md:ml-0"
+            className="md:col-start-2 md:col-span-2 md:row-start-1 w-full py-0 ml-0 md:-ml-px"
             aria-label="Cabeçalho de correção"
-            style={{ marginLeft: 0, paddingLeft: 0 }}
+            style={{ paddingLeft: 0 }}
           >
             <div
               className="hero hero--compact w-full max-w-none m-0 rounded-l-none px-0"
@@ -1173,7 +1173,7 @@ const railMenu = (
           </main>
           {/* COMMENTS RAIL */}
           <aside
-            className={`block w-full md:w-[var(--hero-right-col,_360px)] RightRailCard comments-rail gw-rail-raise ws-right-rail md:self-start md:col-start-3 md:row-start-2 md:row-span-2 text-[13px] ${generating ? 'hidden' : ''}`}
+            className={`block w-full md:w-[var(--hero-right-col,_360px)] RightRailCard comments-rail gw-rail-raise ws-right-rail md:self-start md:col-start-3 md:row-start-1 md:row-span-3 text-[13px] ${generating ? 'hidden' : ''}`}
           >
             <div className="flex h-full w-full flex-col rounded-xl border border-slate-200 bg-white p-1.5 min-h-[560px]">
               <div id="comments-rail-scroll" className="mt-0 flex-1 overflow-y-auto overscroll-contain max-h-full">
