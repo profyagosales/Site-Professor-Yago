@@ -1026,9 +1026,11 @@ const railMenu = (
           <header
             className="md:col-start-2 md:col-span-2 md:row-start-1 w-full md:py-0 py-0 md:-ml-px"
             aria-label="Cabeçalho de correção"
+            style={{ marginLeft: 0, paddingLeft: 0 }}
           >
             <div
-              className="hero hero--compact w-full max-w-none"
+              className="hero hero--compact w-full max-w-none m-0 rounded-l-none"
+              style={{ margin: 0 }}
             >
               <div className="hero-inner grid grid-cols-[var(--hero-logo-col,_112px)_minmax(0,1fr)_var(--hero-right-col,_360px)] items-center gap-x-[var(--dash-gap,24px)] gap-y-1 min-h-[var(--hero-min-h,56px)] py-[var(--hero-py,10px)] max-w-none">
                 {/* ESQUERDA: marca (duas linhas) */}
@@ -1142,7 +1144,10 @@ const railMenu = (
             </div>
           </aside>
           {/* MAIN PDF */}
-          <main className="min-w-0 md:col-start-2 md:row-start-2 p-0 md:-ml-px">
+          <main
+            className="min-w-0 md:col-start-2 md:row-start-2 p-0 md:-ml-px"
+            style={{ marginLeft: 0 }}
+          >
             {pdfError && (
               <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
                 {pdfError}
@@ -1186,7 +1191,10 @@ const railMenu = (
             </div>
           </aside>
           {/* MIRROR (center, below PDF) */}
-          <div className="md:col-start-2 md:row-start-3 min-w-0 w-full max-w-none md:-ml-px">
+          <div
+            className="md:col-start-2 md:row-start-3 min-w-0 w-full max-w-none md:-ml-px"
+            style={{ marginLeft: 0 }}
+          >
             <div className="mb-3 w-full max-w-none">
               <MirrorSummaryInline
                 type={essayType}
