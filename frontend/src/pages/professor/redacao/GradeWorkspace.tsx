@@ -1016,10 +1016,10 @@ const railMenu = (
     >
       {/* HERO COMPACTO ALINHADO AO PDF */}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-0.5 shadow-sm md:p-1">
+      <section className="rounded-xl border border-slate-200 bg-white p-0 shadow-sm md:p-0">
         {/* Unified 3-column grid */}
         <div
-          className="grid grid-cols-1 items-start gap-0 md:grid-cols-[var(--rail-w,_112px)_minmax(0,1fr)_var(--hero-right-col,_360px)] md:gap-x-[var(--dash-gap,24px)] md:gap-y-0"
+          className="grid grid-cols-1 items-start gap-0 md:grid-cols-[var(--rail-w,_112px)_minmax(0,1fr)_var(--hero-right-col,_360px)] md:gap-x-0 md:gap-y-0"
           aria-label="Workspace de correção"
         >
           {/* HERO: spans all columns on md+ */}
