@@ -1024,15 +1024,15 @@ const railMenu = (
         >
           {/* HERO: spans all columns on md+ */}
           <header
-            className="md:col-start-2 md:col-span-2 md:row-start-1 w-full md:py-0 py-0 md:ml-[-1px]"
+            className="md:col-start-2 md:col-span-2 md:row-start-1 w-full py-0 md:ml-0"
             aria-label="Cabeçalho de correção"
             style={{ marginLeft: 0, paddingLeft: 0 }}
           >
             <div
-              className="hero hero--compact w-full max-w-none m-0 rounded-l-none"
+              className="hero hero--compact w-full max-w-none m-0 rounded-l-none px-0"
               style={{ margin: 0 }}
             >
-              <div className="hero-inner grid grid-cols-[var(--hero-logo-col,_112px)_minmax(0,1fr)_var(--hero-right-col,_360px)] items-center gap-x-[var(--dash-gap,24px)] gap-y-1 min-h-[var(--hero-min-h,56px)] py-[var(--hero-py,10px)] max-w-none">
+              <div className="hero-inner grid grid-cols-[var(--hero-logo-col,_112px)_minmax(0,1fr)_var(--hero-right-col,_360px)] items-center gap-x-[var(--dash-gap,24px)] gap-y-1 min-h-[var(--hero-min-h,56px)] py-[var(--hero-py,10px)] max-w-none px-0">
                 {/* ESQUERDA: marca (duas linhas) */}
                 <div className="hero-brand">
                   <div className="hero-brand-mark">
@@ -1145,7 +1145,7 @@ const railMenu = (
           </aside>
           {/* MAIN PDF */}
           <main
-            className="min-w-0 md:col-start-2 md:row-start-2 p-0 md:ml-[-1px]"
+            className="min-w-0 md:col-start-2 md:row-start-2 p-0"
             style={{ marginLeft: 0 }}
           >
             {pdfError && (
@@ -1173,7 +1173,7 @@ const railMenu = (
           </main>
           {/* COMMENTS RAIL */}
           <aside
-            className={`RightRailCard comments-rail gw-rail-raise ws-right-rail md:self-start md:col-start-3 md:row-start-2 md:row-span-2 text-[13px] ${generating ? 'hidden' : ''}`}
+            className={`block w-full md:w-[var(--hero-right-col,_360px)] RightRailCard comments-rail gw-rail-raise ws-right-rail md:self-start md:col-start-3 md:row-start-2 md:row-span-2 text-[13px] ${generating ? 'hidden' : ''}`}
           >
             <div className="flex h-full w-full flex-col rounded-xl border border-slate-200 bg-white p-1.5 min-h-[560px]">
               <div id="comments-rail-scroll" className="mt-0 flex-1 overflow-y-auto overscroll-contain max-h-full">
@@ -1192,7 +1192,7 @@ const railMenu = (
           </aside>
           {/* MIRROR (center, below PDF) */}
           <div
-            className="md:col-start-2 md:row-start-3 min-w-0 w-full max-w-none md:ml-[-1px]"
+            className="md:col-start-2 md:row-start-3 min-w-0 w-full max-w-none"
             style={{ marginLeft: 0 }}
           >
             <div className="mb-3 w-full max-w-none">
