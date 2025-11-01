@@ -4,7 +4,7 @@
   --h-stack:360px;          /* altura padrão dos cards empilhados à esquerda */
   --ws-row-h:108px;         /* altura das linhas do horário */
   --ws-gap-y:10px;          /* espaçamento vertical entre linhas */
-  --hero-min-h:96px;        /* altura mínima do hero card */
+  --hero-min-h:80px;        /* altura mínima do hero card (reduzido para ~50% do que estava em telas grandes) */
   --hero-py:10px;           /* padding vertical do hero */
   --hero-stat-h:56px;       /* altura dos mini cards de estatística */
   --hero-stat-gap:10px;     /* espaçamento entre os mini cards */
@@ -19,6 +19,7 @@
   --hero-right-col:var(--aside-w); /* largura da coluna direita do hero */
   --hero-logo-col:112px;    /* largura fixa da coluna da logo no hero */
   --hero-gap:24px;          /* gap horizontal entre colunas do hero */
+  --rail-w:112px;           /* largura do rail esquerdo (trilho de botões) */
 
   /* APP / VIEWPORT OFFSETS */
   --app-header-h:72px;                                 /* altura do header/topbar */
@@ -129,7 +130,7 @@
 
 @media (min-width: 1024px){
   :root{
-    --hero-min-h:108px;
+    --hero-min-h:88px;
     --hero-py:12px;
     --hero-stat-h:60px;
     --hero-stat-gap:12px;
@@ -168,7 +169,56 @@
   scrollbar-gutter:stable;
 }
 
+/* === HERO GRID LAYOUT (uses CSS tokens) =============================== */
+.heroGrid{
+  display: grid;
+  grid-template-columns: var(--rail-w) var(--hero-logo-col) 1fr var(--hero-right-col);
+  gap: var(--hero-gap);
+  align-items: center;
+  min-height: var(--hero-min-h);
+  padding-top: var(--hero-py);
+  padding-bottom: var(--hero-py);
+}
+
+/* reserve visually the rail column so the hero alinha com o trilho */
+.heroGrid > .heroEmpty{ grid-column: 1 / 2; }
+/* logo (coluna 2) */
+.heroGrid > .heroLogo{ grid-column: 2 / 3; display:flex; align-items:center; justify-content:center; }
+/* infos do aluno/turma (coluna central) */
+.heroGrid > .heroInfo{ grid-column: 3 / 4; display:flex; flex-direction:column; justify-content:center; }
+/* mini-cards à direita (mesma largura do aside) */
+.heroGrid > .heroStats{ grid-column: 4 / 5; display:flex; gap: var(--hero-stat-gap); align-items:stretch; height: var(--hero-stat-h); }
+/* garante que os mini-cards preencham a altura padrão */
+.heroGrid > .heroStats > .statCard{ height: 100%; display:flex; align-items:center; }
+
+/* responsivo leve: reduzir o gap em telas menores que 1280px */
+@media (max-width: 1280px){
+  .heroGrid{ gap: 16px; }
+}
+
 /* global */
 *::-webkit-scrollbar{height:10px;width:10px}
 *::-webkit-scrollbar-thumb{background:rgba(15,23,42,.12);border-radius:999px}
 *::-webkit-scrollbar-thumb:hover{background:rgba(15,23,42,.22)}
+
+/* === HERO WIDTH HACK (no JSX change) =================================== */
+/* Expande o hero horizontalmente: começa na coluna central e alcança a largura do aside, 
+   compensando o gap entre as colunas. Não afeta o rail à esquerda. */
+.gw-hero{
+  width: calc(100% + var(--dash-gap) + var(--aside-w));
+  margin-right: calc(-1 * (var(--dash-gap) + var(--aside-w)));
+}
+
+/* Normaliza a malha interna do hero usando tokens existentes */
+.gw-hero .hero-inner{
+  display: grid;
+  grid-template-columns: var(--hero-logo-col) 1fr var(--hero-right-col, var(--aside-w));
+  gap: var(--hero-gap);
+  align-items: center;
+  min-height: var(--hero-min-h);
+  padding-top: var(--hero-py);
+  padding-bottom: var(--hero-py);
+}
+
+/* Garante que mini-cards (TOTAL/MODELO) tenham altura consistente */
+.gw-hero .hero-inner .statCard{ height: var(--hero-stat-h); display:flex; align-items:center; }
