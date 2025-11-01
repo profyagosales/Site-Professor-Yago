@@ -1019,7 +1019,7 @@ const railMenu = (
       <section className="rounded-xl border border-slate-200 bg-white p-0 shadow-sm md:p-0">
         {/* Unified 3-column grid */}
         <div
-          className="grid grid-cols-1 items-start gap-0 md:grid-cols-[var(--rail-w,_112px)_minmax(0,1fr)_var(--hero-right-col,_360px)] md:gap-x-0 md:gap-y-0"
+          className="grid grid-cols-1 items-start gap-0 md:grid-cols-[auto_minmax(0,1fr)_var(--hero-right-col,_360px)] md:gap-x-0 md:gap-y-0"
           aria-label="Workspace de correção"
         >
           {/* HERO: spans all columns on md+ */}
@@ -1090,7 +1090,7 @@ const railMenu = (
             </div>
           </header>
           {/* LEFT RAIL */}
-          <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail text-[13px] md:w-[var(--rail-w)] pr-0 pt-0">
+          <aside className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail text-[13px] md:w-auto pr-0 pt-0">
             <div className="ws-rail-sticky w-full rounded-xl md:rounded-r-none border border-slate-200 md:border-r-0 bg-white p-1.5 shadow-sm grid grid-flow-row auto-rows-max gap-2">
               <div className="ws-rail-head grid grid-cols-1 gap-2">
                 <Button
