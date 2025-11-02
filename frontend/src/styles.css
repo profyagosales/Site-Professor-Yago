@@ -85,15 +85,15 @@
   display: flex !important;
   flex-direction: row !important;
   align-items: center !important;
-  gap: 6px !important;
+  gap: 8px !important;
 }
 
 /* avatar menor e à esquerda do texto (mesmo que o DOM esteja em outra ordem) */
 .gw-root .gw-hero .hero-center .hero-avatar,
 .gw-root .gw-hero .hero-center .hero-avatar--fallback {
   order: -1 !important;
-  width: 34px !important;
-  height: 34px !important;
+  width: 38px !important;
+  height: 38px !important;
   border-radius: 10px !important;
   flex: 0 0 auto !important;
   box-shadow: 0 0 0 2px #fff, 0 0 0 3px #f97316;
@@ -192,6 +192,8 @@
 
 /* 1) fator de escala da altura */
 .gw-root {
+  --ws-left-rail-w: 157px;
+  --ws-left-rail-w-compact: 94px;
   --pdf-inline-scale: 1.3;
   --pdf-inline-h: calc((100vh - var(--pdf-viewport-offset, 0px)) * var(--pdf-inline-scale));
 }
@@ -1437,6 +1439,11 @@ body:has(.ws-rail) .pdf-inline-grid {
   margin-left: calc(var(--page-pad-x) * -1);
 }
 
+body:has(.gw-root .ws-rail) .pdf-inline-grid {
+  margin-left: 0 !important;
+  padding-inline: 0 !important;
+}
+
 .pdf-canvas-container{
   scroll-behavior: auto;
 }
@@ -1847,6 +1854,8 @@ body:has(.ws-rail) .pdf-inline-grid {
   grid-template-columns: minmax(0, 1fr) var(--ws-right-rail-w, 320px);
   gap: var(--ws-cards-gap, 6px);
   align-items: start;
+  margin-left: 0;
+  padding-inline: 0;
 }
 
 /* PDF viewer: apenas ALTURA em A4, não mexe na largura */
