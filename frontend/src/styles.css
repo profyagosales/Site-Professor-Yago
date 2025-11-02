@@ -2102,3 +2102,93 @@ body:has(.ws-rail) .pdf-inline-grid {
     padding-block: 6px;
   }
 }
+
+/* ===== FIX HEROCARD (forçar avatar à esquerda, logo maior, altura mínima) ===== */
+
+.gw-root .gw-hero{
+  padding-block: 8px !important;       /* hero mais baixo */
+  padding-inline: 24px !important;
+  min-height: unset !important;         /* deixa a altura pelo conteúdo */
+}
+
+.gw-root .gw-hero .hero-inner{
+  display: flex !important;
+  align-items: center !important;
+  gap: 16px !important;
+  width: 100%;
+}
+
+/* --- BRAND (logo + nome) --------------------------------------------------- */
+.gw-root .gw-hero .hero-brand{
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.gw-root .gw-hero .hero-brand-mark{
+  /* logo maior */
+  width: 100px !important;
+  height: 100px !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  border-radius: 20px;
+}
+
+.gw-root .gw-hero .hero-brand-name{
+  margin-top: 2px !important;           /* título “grudadinho” ao ícone */
+  font-size: 18px !important;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+
+/* --- CENTRO (avatar + informações do aluno) ------------------------------- */
+.gw-root .gw-hero .hero-center{
+  display: flex !important;             /* garante MESMA LINHA */
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 12px !important;
+  min-width: 0;
+}
+
+/* avatar menor e à esquerda do texto (mesmo que o DOM esteja em outra ordem) */
+.gw-root .gw-hero .hero-center .hero-avatar,
+.gw-root .gw-hero .hero-center .hero-avatar--fallback{
+  order: -1 !important;                 /* força ir para a esquerda */
+  width: 64px !important;
+  height: 64px !important;
+  border-radius: 16px !important;
+  flex: 0 0 auto !important;
+  box-shadow: 0 0 0 3px #fff, 0 0 0 4px #f97316;
+  margin: 0 !important;
+}
+
+/* se existir um contêiner de texto, padronize; se não, aplica direto no h1/p */
+.gw-root .gw-hero .hero-center .hero-info{ 
+  display: flex !important; 
+  flex-direction: column !important; 
+  gap: 2px !important; 
+  min-width: 0; 
+}
+
+.gw-root .gw-hero .hero-name{
+  margin: 0 !important;
+  font-size: 1.20rem !important;
+  line-height: 1.15 !important;
+  font-weight: 800 !important;
+  color: #0f172a;
+}
+
+.gw-root .gw-hero .hero-center p{
+  margin: 0 !important;
+  font-size: .95rem !important;
+  line-height: 1.25 !important;
+  color: #475569;
+}
+
+/* mini-cards um pouco mais compactos, ajudando a reduzir a altura total */
+.gw-root .gw-hero .hero-score{ gap: 12px !important; }
+.gw-root .gw-hero .hero-stat{ padding: 10px 14px !important; border-radius: 16px !important; }
