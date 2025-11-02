@@ -27,10 +27,10 @@
   --pdf-fz-lg: 18px; /* LG */
 .gw-root .gw-hero {
   border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 28px;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.07);
-  padding-block: 8px !important;
-  padding-inline: 24px !important;
+  border-radius: 24px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  padding-block: 4px !important;
+  padding-inline: 18px !important;
   min-height: unset !important;
   background: #fff;
 }
@@ -39,7 +39,7 @@
 .gw-root .gw-hero .hero-inner {
   display: flex !important;
   align-items: center !important;
-  gap: 16px !important;
+  gap: 8px !important;
   width: 100%;
 }
 
@@ -53,9 +53,9 @@
 }
 
 .gw-root .gw-hero .hero-brand-mark {
-  width: 100px !important;
-  height: 100px !important;
-  border-radius: 20px;
+  width: 60px !important;
+  height: 60px !important;
+  border-radius: 16px;
   border: 0 !important;
   box-shadow: none !important;
   background: transparent !important;
@@ -72,7 +72,7 @@
 
 .gw-root .gw-hero .hero-brand-name {
   margin-top: 2px !important;
-  font-size: 18px !important;
+  font-size: 16px !important;
   font-weight: 800;
   line-height: 1.05;
   letter-spacing: -0.01em;
@@ -85,18 +85,18 @@
   display: flex !important;
   flex-direction: row !important;
   align-items: center !important;
-  gap: 12px !important;
+  gap: 8px !important;
 }
 
 /* avatar menor e à esquerda do texto (mesmo que o DOM esteja em outra ordem) */
 .gw-root .gw-hero .hero-center .hero-avatar,
 .gw-root .gw-hero .hero-center .hero-avatar--fallback {
   order: -1 !important;
-  width: 64px !important;
-  height: 64px !important;
-  border-radius: 16px !important;
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 12px !important;
   flex: 0 0 auto !important;
-  box-shadow: 0 0 0 3px #fff, 0 0 0 4px #f97316;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3px #f97316;
   margin: 0 !important;
   object-fit: cover;
   display: flex;
@@ -110,12 +110,14 @@
   gap: 2px !important;
   min-width: 0;
   overflow: hidden;
+  align-items: flex-start;
+  text-align: left;
 }
 
 .gw-root .gw-hero .hero-name {
   margin: 0 !important;
-  font-size: 1.2rem !important;
-  line-height: 1.15 !important;
+  font-size: 1.05rem !important;
+  line-height: 1.12 !important;
   font-weight: 800 !important;
   color: #0f172a;
   white-space: nowrap;
@@ -125,8 +127,8 @@
 
 .gw-root .gw-hero .hero-center p {
   margin: 0 !important;
-  font-size: 0.95rem !important;
-  line-height: 1.25 !important;
+  font-size: 0.82rem !important;
+  line-height: 1.2 !important;
   color: #475569;
   white-space: nowrap;
   overflow: hidden;
@@ -141,13 +143,13 @@
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: 12px !important;
+  gap: 8px !important;
 }
 
 .gw-root .gw-hero .hero-stat {
-  min-width: 160px;
-  padding: 10px 14px !important;
-  border-radius: 16px !important;
+  min-width: 150px;
+  padding: 6px 10px !important;
+  border-radius: 12px !important;
   border: 1px solid #e2e8f0;
   background: #fff;
 }
@@ -158,8 +160,8 @@
 }
 
 .gw-root .gw-hero .hero-stat__label {
-  font-size: 10px;
-  letter-spacing: 0.12em;
+  font-size: 9px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   font-weight: 700;
   color: #fb923c;
@@ -170,7 +172,7 @@
   align-items: baseline;
   gap: 4px;
   font-weight: 800;
-  font-size: 1.6rem;
+  font-size: 1.45rem;
   color: #0f172a;
 }
 
@@ -181,7 +183,7 @@
 
 @media (min-width: 1024px) {
   .gw-root .gw-hero {
-    padding-block: 6px !important;
+    padding-block: 5px !important;
   }
 }
   box-shadow: var(--sh-card);
@@ -1881,10 +1883,10 @@ body:has(.ws-rail) .pdf-inline-grid {
 .gw-root .gw-hero {
   background: #fff;
   border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 28px;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.07);
-  padding-block: 8px;
-  padding-inline: 24px;
+  border-radius: 24px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  padding-block: 4px;
+  padding-inline: 18px;
   min-height: unset;
 }
 
@@ -1892,7 +1894,7 @@ body:has(.ws-rail) .pdf-inline-grid {
 .gw-root .gw-hero .hero-inner {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
   width: 100%;
 }
 
@@ -1905,9 +1907,9 @@ body:has(.ws-rail) .pdf-inline-grid {
 }
 
 .gw-root .gw-hero .hero-brand-mark {
-  width: 104px;
-  height: 104px;
-  border-radius: 20px;
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
   display: grid;
   place-items: center;
   border: 0 !important;
@@ -1917,7 +1919,7 @@ body:has(.ws-rail) .pdf-inline-grid {
 
 .gw-root .gw-hero .hero-brand-name {
   margin-top: 2px;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
   line-height: 1.05;
   letter-spacing: -0.01em;
@@ -1930,18 +1932,18 @@ body:has(.ws-rail) .pdf-inline-grid {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .gw-root .gw-hero .hero-center .hero-avatar,
 .gw-root .gw-hero .hero-center .hero-avatar--fallback {
   order: -1;
-  width: 64px;
-  height: 64px;
-  border-radius: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   flex: 0 0 auto;
   object-fit: cover;
-  box-shadow: 0 0 0 3px #fff, 0 0 0 4px #f97316;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3px #f97316;
   margin: 0;
 }
 
@@ -1951,12 +1953,14 @@ body:has(.ws-rail) .pdf-inline-grid {
   gap: 2px;
   min-width: 0;
   overflow: hidden;
+  align-items: flex-start;
+  text-align: left;
 }
 
 .gw-root .gw-hero .hero-name {
   margin: 0;
-  font-size: 1.2rem;
-  line-height: 1.15;
+  font-size: 1.05rem;
+  line-height: 1.12;
   font-weight: 800;
   color: #0f172a;
   white-space: nowrap;
@@ -1966,8 +1970,8 @@ body:has(.ws-rail) .pdf-inline-grid {
 
 .gw-root .gw-hero .hero-center p {
   margin: 0;
-  font-size: 0.95rem;
-  line-height: 1.25;
+  font-size: 0.82rem;
+  line-height: 1.2;
   color: #475569;
   white-space: nowrap;
   overflow: hidden;
@@ -1982,13 +1986,13 @@ body:has(.ws-rail) .pdf-inline-grid {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .gw-root .gw-hero .hero-stat {
-  min-width: 160px;
-  padding: 10px 14px;
-  border-radius: 16px;
+  min-width: 150px;
+  padding: 6px 10px;
+  border-radius: 12px;
   border: 1px solid #e2e8f0;
   background: #fff;
 }
@@ -1999,8 +2003,8 @@ body:has(.ws-rail) .pdf-inline-grid {
 }
 
 .gw-root .gw-hero .hero-stat__label {
-  font-size: 10px;
-  letter-spacing: 0.12em;
+  font-size: 9px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   font-weight: 700;
   color: #fb923c;
@@ -2011,7 +2015,7 @@ body:has(.ws-rail) .pdf-inline-grid {
   align-items: baseline;
   gap: 4px;
   font-weight: 800;
-  font-size: 1.6rem;
+  font-size: 1.45rem;
   color: #0f172a;
 }
 
@@ -2022,6 +2026,6 @@ body:has(.ws-rail) .pdf-inline-grid {
 
 @media (min-width: 1024px) {
   .gw-root .gw-hero {
-    padding-block: 6px;
+    padding-block: 5px;
   }
 }
