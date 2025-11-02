@@ -1835,17 +1835,36 @@ body:has(.gw-root .ws-rail) .pdf-inline-grid {
 .gw-root .pdf-inline-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--ws-right-rail-w, 320px);
+  grid-auto-rows: auto;
   gap: var(--ws-cards-gap, 6px);
-  align-items: start;
+  align-items: stretch;
   margin-left: 0;
   padding-inline: 0;
 }
 
-@media (min-width: 768px) {
-  .gw-root .gw-main-stack {
-    width: min(100%, calc(100% - var(--ws-right-rail-w, 320px) - var(--ws-cards-gap, 6px)));
-    align-self: flex-start;
-  }
+.gw-root .gw-main-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ws-cards-gap, 6px);
+  min-width: 0;
+}
+
+.gw-root .gw-main-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ws-cards-gap, 6px);
+  min-width: 0;
+}
+
+.gw-root .pdf-inline-grid > .gw-main-column {
+  grid-column: 1 / 2;
+  grid-row: 2;
+  min-width: 0;
+}
+
+.gw-root .pdf-inline-grid > .ws-right-rail {
+  grid-column: 2 / 3;
+  grid-row: 2;
 }
 
 /* PDF viewer: apenas ALTURA em A4, não mexe na largura */
@@ -1905,13 +1924,16 @@ body:has(.gw-root .ws-rail) .pdf-inline-grid {
   top: var(--ws-rail-top, 112px);
   width: var(--ws-right-rail-w, 320px);
   flex: 0 0 var(--ws-right-rail-w, 320px);
-  height: calc(100vh - var(--ws-rail-top, 112px));
+  align-self: stretch;
+  height: auto;
+  min-height: calc(100vh - var(--ws-rail-top, 112px));
   display: flex;
   flex-direction: column;
 }
 
 .gw-root .ws-right-rail .RightRailCard {
-  height: 100%;
+  flex: 1 1 auto;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
 }

@@ -1112,36 +1112,64 @@ const railMenu = (
                 </div>
               </section>
 
-              <main className="min-w-0">
-                {pdfError && (
-                  <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                    {pdfError}
-                  </p>
-                )}
-                <div className="pdf-canvas-wrap p-0">
-                  <div
-                    className="pdf-canvas-container w-full min-w-0 aspect-[210/297]"
-                    style={{
-                      maxHeight: 'var(--pdf-inline-h, calc(100vh - var(--pdf-viewport-offset, 160px)))',
-                      minHeight: 'var(--pdf-inline-h, calc(100vh - var(--pdf-viewport-offset, 160px)))'
-                    }}
-                  >
-                    <PdfCorrectionViewer
-                      fileUrl={pdfUrl}
-                      annotations={orderedAnnotations}
-                      selectedId={selectedAnnotationId}
-                      activeCategory={activeCategory}
-                      onCreateAnnotation={handleCreateAnnotation}
-                      onMoveAnnotation={handleMoveAnnotation}
-                      onSelectAnnotation={setSelectedAnnotationId}
-                      scrollLock={scrollLock}
+              <div className="gw-main-column">
+                <main className="min-w-0">
+                  {pdfError && (
+                    <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                      {pdfError}
+                    </p>
+                  )}
+                  <div className="pdf-canvas-wrap p-0">
+                    <div
+                      className="pdf-canvas-container w-full min-w-0 aspect-[210/297]"
+                      style={{
+                        maxHeight: 'var(--pdf-inline-h, calc(100vh - var(--pdf-viewport-offset, 160px)))',
+                        minHeight: 'var(--pdf-inline-h, calc(100vh - var(--pdf-viewport-offset, 160px)))'
+                      }}
+                    >
+                      <PdfCorrectionViewer
+                        fileUrl={pdfUrl}
+                        annotations={orderedAnnotations}
+                        selectedId={selectedAnnotationId}
+                        activeCategory={activeCategory}
+                        onCreateAnnotation={handleCreateAnnotation}
+                        onMoveAnnotation={handleMoveAnnotation}
+                        onSelectAnnotation={setSelectedAnnotationId}
+                        scrollLock={scrollLock}
+                      />
+                    </div>
+                  </div>
+                </main>
+
+                <div className="gw-main-stack min-w-0">
+                  <div className="mb-3 w-full max-w-none">
+                    <MirrorSummaryInline
+                      type={essayType}
+                      pas={essayType === 'PAS' ? { nc: pasDerived.nc, tl: pasDerived.tl, ne: pasDerived.ne, discount: pasDerived.discount, nr: pasDerived.nr } : null}
+                      enemTotal={enemTotal}
                     />
                   </div>
+                  <CorrectionMirror
+                    type={essayType}
+                    annulState={annulState}
+                    annulOther={annulOther}
+                    onToggleAnnul={handleToggleAnnul}
+                    onAnnulOtherChange={(value) => {
+                      setAnnulOther(value);
+                      setDirty(true);
+                    }}
+                    annulled={annulled}
+                    pasState={pasState}
+                    onPasChange={handlePasChange}
+                    enemSelections={enemSelections}
+                    onEnemSelectionChange={handleEnemSelectionChange}
+                    enemTotal={enemTotal}
+                  />
                 </div>
-              </main>
+              </div>
 
               <aside
-                className={`ws-right-rail w-full md:self-start md:mt-0 text-[13px] relative z-[2] ${generating ? 'hidden' : ''}`}
+                className={`ws-right-rail w-full md:self-stretch md:mt-0 text-[13px] relative z-[2] ${generating ? 'hidden' : ''}`}
               >
                 <AnnotationSidebar
                   annotations={orderedAnnotations}
@@ -1154,32 +1182,6 @@ const railMenu = (
                   scrollLock={scrollLock}
                 />
               </aside>
-            </div>
-
-            <div className="min-w-0 gw-main-stack">
-              <div className="mb-3 w-full max-w-none">
-                <MirrorSummaryInline
-                  type={essayType}
-                  pas={essayType === 'PAS' ? { nc: pasDerived.nc, tl: pasDerived.tl, ne: pasDerived.ne, discount: pasDerived.discount, nr: pasDerived.nr } : null}
-                  enemTotal={enemTotal}
-                />
-              </div>
-              <CorrectionMirror
-                type={essayType}
-                annulState={annulState}
-                annulOther={annulOther}
-                onToggleAnnul={handleToggleAnnul}
-                onAnnulOtherChange={(value) => {
-                  setAnnulOther(value);
-                  setDirty(true);
-                }}
-                annulled={annulled}
-                pasState={pasState}
-                onPasChange={handlePasChange}
-                enemSelections={enemSelections}
-                onEnemSelectionChange={handleEnemSelectionChange}
-                enemTotal={enemTotal}
-              />
             </div>
           </div>
         </div>
