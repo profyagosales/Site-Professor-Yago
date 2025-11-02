@@ -1864,3 +1864,214 @@ body:has(.ws-rail) .pdf-inline-grid {
 /* Hide horizontal/vertical scrollbars where applied */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* =========================================
+   GRADE WORKSPACE — ESCOPADO
+   Nada aqui vaza para outras páginas
+   ========================================= */
+
+.gw-root { --gw-a4-h: 1123px; }
+
+/* Grid PDF + comentários (apenas no workspace) */
+.gw-root .pdf-inline-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--ws-right-rail-w, 320px);
+  gap: var(--ws-cards-gap, 6px);
+  align-items: start;
+}
+
+/* PDF viewer: apenas ALTURA em A4, não mexe na largura */
+.gw-root .pdf-a4-viewport {
+  height: var(--gw-a4-h);
+  min-height: var(--gw-a4-h);
+  max-height: var(--gw-a4-h);
+  overflow: auto;
+  scrollbar-gutter: stable both-edges;
+}
+
+/* Rails escopados */
+.gw-root .ws-rail {
+  position: sticky;
+  top: var(--ws-rail-top, 112px);
+  height: calc(100vh - var(--ws-rail-top, 112px));
+  width: var(--ws-left-rail-w-compact, 118px);
+  flex: 0 0 var(--ws-left-rail-w-compact, 118px);
+  display: flex;
+  flex-direction: column;
+}
+
+.gw-root .ws-rail > .card {
+  background: #fff8f1;
+  border: 1px solid #fde7c7;
+  border-radius: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Conteúdo do rail com rolagem interna */
+.gw-root .ws-rail-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+  overscroll-behavior: contain;
+}
+
+/* Botões/Chips das categorias — caber "Arg", "Ort", "Coe", "Apt", "Com" */
+.gw-root .ws-rail .rail-chip,
+.gw-root .ws-rail .chip,
+.gw-root .ws-rail .btn[data-rail-chip] {
+  padding: 8px 12px;
+  font-size: 14px;
+  min-width: 64px;
+  border-radius: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+/* Right rail escopado + altura total da página */
+.gw-root .ws-right-rail {
+  position: sticky;
+  top: var(--ws-rail-top, 112px);
+  height: calc(100vh - var(--ws-rail-top, 112px));
+  display: flex;
+  flex-direction: column;
+}
+
+.gw-root .ws-right-rail .RightRailCard {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Área central com rolagem no card de comentários */
+.gw-root #comments-rail-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-gutter: stable both-edges;
+}
+
+/* HERO (escopado) */
+.gw-root .gw-hero {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 28px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.07);
+  padding: 14px 24px;
+}
+
+/* linha única: brand | centro | notas */
+.gw-root .gw-hero .hero-inner {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+}
+
+/* Brand: ícone maior numa linha; nome embaixo e centralizado */
+.gw-root .gw-hero .hero-brand {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.gw-root .gw-hero .hero-brand-mark {
+  width: 88px;
+  height: 88px;
+  border-radius: 20px;
+  display: grid;
+  place-items: center;
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+.gw-root .gw-hero .hero-brand-name {
+  margin-top: 6px;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-align: center;
+}
+
+/* Centro: avatar à esquerda das informações */
+.gw-root .gw-hero .hero-center {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gw-root .gw-hero .hero-center .hero-avatar {
+  order: -1;
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  object-fit: cover;
+  box-shadow: 0 0 0 3px #fff, 0 0 0 4px #f97316;
+}
+
+.gw-root .gw-hero .hero-name {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin: 0 0 2px 0;
+  color: #0f172a;
+}
+
+.gw-root .gw-hero .hero-center p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+
+/* Minicards (Total/Modelo) encostados à borda direita e com largura do rail direito */
+.gw-root .gw-hero .hero-score {
+  margin-left: auto;
+  width: var(--ws-right-rail-w, 320px);
+  flex: 0 0 var(--ws-right-rail-w, 320px);
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+}
+
+.gw-root .gw-hero .hero-stat {
+  min-width: 160px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.gw-root .gw-hero .hero-stat--total {
+  background: #fff7ed;
+  border-color: #fdba74;
+}
+
+.gw-root .gw-hero .hero-stat__label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #fb923c;
+}
+
+.gw-root .gw-hero .hero-stat__value {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-weight: 800;
+  font-size: 1.6rem;
+  color: #0f172a;
+}
+
+/* Mini-espacinho entre cards do workspace apenas aqui */
+.gw-root .card {
+  margin-bottom: var(--ws-cards-gap, 6px);
+}

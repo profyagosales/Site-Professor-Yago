@@ -182,6 +182,7 @@ function CompactCategoryToolbar({
           type="button"
           title={it.full}
           onClick={() => onChange(it.key)}
+          data-rail-chip
           className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-[12px] font-medium truncate ${
             active === it.key ? 'ring-2 ring-orange-300 ring-offset-0' : ''
           } md:w-full min-h-[34px] md:min-h-[36px] transition hover:brightness-95 active:brightness-90`}
@@ -1002,16 +1003,17 @@ const railMenu = (
 );
 
   return (
-    <div
-      data-printing={generating ? '1' : '0'}
-      className="mx-auto flex h-full w-full max-w-none flex-col gap-3 px-2 py-4 sm:px-3 lg:px-4"
-      style={{ ['--pdf-viewport-offset' as any]: 'calc(var(--hero-min-h,56px) + 16px)' }}
-    >
-      <section className="rounded-xl border border-slate-200 bg-white p-0 shadow-sm md:p-0">
-        <div
-          className="md:grid md:grid-cols-[var(--ws-left-rail-w-compact)_minmax(0,1fr)] items-start md:gap-[var(--ws-cards-gap,6px)]"
-          aria-label="Workspace de correção"
-        >
+    <main className="gw-root" data-page="grade-ws">
+      <div
+        data-printing={generating ? '1' : '0'}
+        className="mx-auto flex h-full w-full max-w-none flex-col gap-3 px-2 py-4 sm:px-3 lg:px-4"
+        style={{ ['--pdf-viewport-offset' as any]: 'calc(var(--hero-min-h,56px) + 16px)' }}
+      >
+        <section className="rounded-xl border border-slate-200 bg-white p-0 shadow-sm md:p-0">
+          <div
+            className="md:grid md:grid-cols-[var(--ws-left-rail-w-compact)_minmax(0,1fr)] items-start md:gap-[var(--ws-cards-gap,6px)]"
+            aria-label="Workspace de correção"
+          >
           <aside
             className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-2 md:shrink-0 ws-rail text-[13px] md:w-auto pr-0 pt-0 z-[1]"
           >
@@ -1074,7 +1076,7 @@ const railMenu = (
                     <div className="hero-brand-mark">
                       <img src={brandLogo} alt="Professor Yago" />
                     </div>
-                    <div className="brand-title">Professor Yago Sales</div>
+                    <div className="hero-brand-name">Professor Yago Sales</div>
                   </div>
 
                   <div className="hero-center">
@@ -1178,7 +1180,8 @@ const railMenu = (
             </div>
           </div>
         </div>
-      </section>
-    </div>
+        </section>
+      </div>
+    </main>
   );
 }
