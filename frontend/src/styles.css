@@ -1883,10 +1883,10 @@ body:has(.gw-root .ws-rail) .pdf-inline-grid {
 .gw-root .ws-rail .rail-chip,
 .gw-root .ws-rail .chip,
 .gw-root .ws-rail .btn[data-rail-chip] {
-  padding: 8px 12px;
-  font-size: 14px;
+  padding: 8px 10px;
+  font-size: 12px;
   min-width: 64px;
-  border-radius: 12px;
+  border-radius: 10px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: clip;
