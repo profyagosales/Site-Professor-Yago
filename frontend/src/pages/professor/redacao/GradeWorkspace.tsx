@@ -28,7 +28,6 @@ import { generateCorrectedPdf } from '@/features/redacao/pdf/generateCorrectedPd
 import type { AnnotationKind, EssayPdfData, EssayModel } from '@/features/redacao/pdf/types';
 import { renderFirstPageToPng } from '@/features/redacao/pdf/pdfPreview';
 import { buildJustificationFromReasonIds } from '@/features/enem/composerBridge';
-import Logo from '@/components/Logo';
 import { useScrollLock } from '@/hooks/useScrollLock';
 
 
@@ -933,13 +932,6 @@ export default function GradeWorkspace() {
   const handleBack = () => navigate(-1);
 
   const studentName = essay?.student?.name || essay?.studentName || '-';
-  const essayTitle =
-    (essay as any)?.title ||
-    (essay as any)?.name ||
-    (essay as any)?.fileName ||
-    (essay as any)?.originalName ||
-    essay?.theme ||
-    'Redação';
   const rawPhoto =
     (essay?.student as any)?.avatarUrl ||
     (essay as any)?.studentAvatarUrl ||
@@ -978,10 +970,8 @@ export default function GradeWorkspace() {
   const turmaLabel = essay?.classroom || essay?.className || (essay?.student as any)?.class || '';
   const subjectLabel = (essay?.subject as string) || (essay as any)?.subjectName || 'Português';
   const classLine = joinPieces(turmaLabel, subjectLabel).join(' • ');
-  const infoLine = joinPieces(classLine, bimestreLabel).join(', ');
   const typeLabel = essayType === 'PAS' ? 'PAS/UnB' : 'ENEM';
   const themeLabel = essay?.theme || essay?.topic || '';
-  const detailLine = joinPieces(typeLabel, themeLabel).join(', ');
   const finalScore = ((): string => {
     if (essayType === 'PAS') {
       const v = pasDerived?.nr;
@@ -991,8 +981,17 @@ export default function GradeWorkspace() {
     return String(enem);
   })();
   const isPas = essayType === 'PAS';
-  const totalLabel = isPas ? 'TOTAL PAS' : 'TOTAL ENEM';
-  const totalDen = isPas ? '/10' : '/1000';
+  const maxScoreLabel = isPas ? '10' : '1000';
+  const modelLabel = typeLabel;
+  const studentAvatarUrl = studentPhoto ?? null;
+  const heroMetaPieces = [classLine || turmaLabel || '', themeLabel || '', bimestreLabel || ''];
+  const heroMeta = (() => {
+    const pieces = heroMetaPieces
+      .map((piece) => (typeof piece === 'string' && piece.trim().length > 0 ? piece.trim() : '—'));
+    return pieces.every((piece) => piece === '—') ? '—' : pieces.join(' • ');
+  })();
+  const brandSrc = '/logo.svg';
+
 const railMenu = (
   <>
     <CompactCategoryToolbar
@@ -1014,83 +1013,14 @@ const railMenu = (
       className="mx-auto flex h-full w-full max-w-none flex-col gap-3 px-2 py-4 sm:px-3 lg:px-4"
       style={{ ['--pdf-viewport-offset' as any]: 'calc(var(--hero-min-h,56px) + 16px)' }}
     >
-      {/* HERO COMPACTO ALINHADO AO PDF */}
-
       <section className="rounded-xl border border-slate-200 bg-white p-0 shadow-sm md:p-0">
-        {/* Unified 3-column grid */}
         <div
-          className="grid grid-cols-1 items-start md:grid-cols-[var(--ws-left-rail-w-compact,calc(var(--ws-left-rail-w,168px)*.5))_minmax(0,1fr)_minmax(0,var(--hero-right-col,_360px))] md:gap-x-[var(--ws-cards-gap,6px)] md:gap-y-[var(--ws-cards-gap,6px)]"
+          className="md:grid md:grid-cols-[var(--ws-left-rail-w-compact)_minmax(0,1fr)] items-start md:gap-[var(--ws-cards-gap,6px)]"
           aria-label="Workspace de correção"
         >
-          {/* HERO: spans all columns on md+ */}
-          <header
-            className="md:col-start-2 md:col-span-2 md:row-start-1 w-full py-0 ml-0 relative z-[2] overflow-hidden md:rounded-r-xl"
-            aria-label="Cabeçalho de correção"
-            style={{ paddingLeft: 0 }}
-          >
-            <div
-              className="hero hero--compact w-full max-w-full m-0 md:rounded-l-xl md:rounded-r-xl px-0 relative z-[2] overflow-hidden gw-hero"
-              style={{ margin: 0, ['--hero-min-h' as any]: '26px', ['--hero-py' as any]: '4px' }}
-            >
-              <div
-                className="hero-inner grid grid-cols-[var(--hero-logo-col,_112px)_minmax(0,1fr)_var(--hero-right-col,_360px)] items-center gap-x-[var(--dash-gap,24px)] min-h-[var(--hero-min-h,56px)] py-[var(--hero-py,10px)] max-w-none px-0 whitespace-nowrap w-full justify-items-stretch"
-              >
-                {/* ESQUERDA: marca (uma linha) */}
-                <div className="hero-brand flex items-center gap-2 whitespace-nowrap shrink-0 col-[1]">
-                  <Logo className="h-6 w-6 md:h-7 md:w-7" />
-                  <div className="text-[12px] leading-tight font-medium whitespace-nowrap">Professor Yago</div>
-                </div>
-
-                {/* CENTRO: aluno (avatar à esquerda do info) */}
-                <div className="hero-center flex items-center gap-3 md:gap-4 min-w-0 flex-1 flex-nowrap col-[2]">
-                  {studentPhoto ? (
-                    <img
-                      src={studentPhoto}
-                      alt={studentName}
-                      className="hero-avatar h-7 w-7 md:h-9 md:w-9 rounded-full shrink-0"
-                    />
-                  ) : (
-                    <div className="hero-avatar hero-avatar--fallback h-7 w-7 md:h-9 md:w-9 rounded-full shrink-0">
-                      {studentInitials}
-                    </div>
-                  )}
-
-                  <div className="min-w-0 text-left">
-                    <h1 className="hero-name truncate text-[14px] md:text-[16px] leading-tight">
-                      {essayTitle}
-                    </h1>
-                    <p className="pdf-md truncate text-left text-[10px] md:text-[12px] leading-snug mt-0.5 text-slate-600">
-                      {infoLine || '—'}
-                      <br />
-                      {detailLine || '—'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* DIREITA: cartões colados na borda do hero */}
-                <div className="hero-score col-[3] flex items-start justify-end justify-self-end gap-1.5 md:gap-2 self-start mt-0 whitespace-nowrap w-full">
-                  <div className="hero-stat hero-stat--total px-1.5 py-1">
-                    <span className="hero-stat__label">{totalLabel}</span>
-                    <span className="hero-stat__value">
-                      <span className="hero-stat__value-main">{finalScore}</span>
-                      <span className="hero-stat__value-suffix">{totalDen}</span>
-                    </span>
-                  </div>
-
-                  <div className="hero-stat hero-stat--model px-1.5 py-1">
-                    <span className="hero-stat__label">MODELO</span>
-                    <span className="hero-stat__value">
-                      <span className="hero-stat__value-main">{typeLabel}</span>
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </header>
-          {/* LEFT RAIL */}
           <aside
-            className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-3 md:shrink-0 ws-rail text-[13px] md:w-auto pr-0 pt-0 z-[1]"
-            style={{ ['--ws-left-rail-w-compact' as any]: 'calc(var(--ws-left-rail-w,168px) * .5)', width: 'var(--ws-left-rail-w-compact)', flex: '0 0 var(--ws-left-rail-w-compact)' }}
+            className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-2 md:shrink-0 ws-rail text-[13px] md:w-auto pr-0 pt-0 z-[1]"
+            style={{ width: 'var(--ws-left-rail-w-compact)', flex: '0 0 var(--ws-left-rail-w-compact)' }}
           >
             <div className="ws-rail-sticky w-full h-full rounded-xl md:rounded-r-none border border-slate-200 md:border-r-0 bg-white p-1.5 shadow-sm flex flex-col gap-2">
               <div className="ws-rail-head grid grid-cols-1 gap-2">
@@ -1144,81 +1074,120 @@ const railMenu = (
               </div>
             </div>
           </aside>
-          {/* MAIN PDF */}
-          <main
-            className="min-w-0 md:col-start-2 md:row-start-2 p-0"
-            style={{ marginLeft: 0 }}
-          >
-            {pdfError && (
-              <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                {pdfError}
-              </p>
-            )}
-            <div className="pdf-canvas-wrap p-0">
-              <div
-                className="pdf-canvas-container w-full min-w-0 aspect-[210/297]"
-                style={{ maxHeight: 'calc(100vh - var(--pdf-viewport-offset, 160px))' }}
+
+          <div className="min-w-0 md:col-start-2 md:row-start-1 md:row-span-2 flex flex-col gap-[var(--ws-cards-gap,6px)]">
+            <div className="pdf-inline-grid" aria-label="Workspace de correção">
+              <section className="gw-hero" aria-label="Cabeçalho de correção">
+                <div className="hero-inner">
+                  <div className="hero-brand">
+                    <div className="hero-brand-mark">
+                      <img src={brandSrc} alt="Professor Yago" />
+                    </div>
+                  </div>
+
+                  <div className="hero-center">
+                    {studentAvatarUrl ? (
+                      <img className="hero-avatar" src={studentAvatarUrl} alt={studentName} />
+                    ) : (
+                      <div className="hero-avatar hero-avatar--fallback">{studentInitials}</div>
+                    )}
+                    <div className="hero-text">
+                      <h3 className="hero-name">{studentName}</h3>
+                      <p>{heroMeta}</p>
+                    </div>
+                  </div>
+
+                  <div className="hero-score">
+                    <div className="hero-stat hero-stat--total">
+                      <span className="hero-stat__label">Total</span>
+                      <div className="hero-stat__value">
+                        <span className="hero-stat__value-main">{finalScore}</span>
+                        <span className="hero-stat__value-suffix">/ {maxScoreLabel}</span>
+                      </div>
+                    </div>
+                    <div className="hero-stat">
+                      <span className="hero-stat__label">Modelo</span>
+                      <div className="hero-stat__value">
+                        <span className="hero-stat__value-main">{modelLabel}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <main className="min-w-0">
+                {pdfError && (
+                  <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                    {pdfError}
+                  </p>
+                )}
+                <div className="pdf-canvas-wrap p-0">
+                  <div
+                    className="pdf-canvas-container w-full min-w-0 aspect-[210/297]"
+                    style={{ maxHeight: 'calc(100vh - var(--pdf-viewport-offset, 160px))' }}
+                  >
+                    <PdfCorrectionViewer
+                      fileUrl={pdfUrl}
+                      annotations={orderedAnnotations}
+                      selectedId={selectedAnnotationId}
+                      activeCategory={activeCategory}
+                      onCreateAnnotation={handleCreateAnnotation}
+                      onMoveAnnotation={handleMoveAnnotation}
+                      onSelectAnnotation={setSelectedAnnotationId}
+                      scrollLock={scrollLock}
+                    />
+                  </div>
+                </div>
+              </main>
+
+              <aside
+                className={`w-full md:w-[var(--ws-right-rail-w)] RightRailCard comments-rail ws-right-rail md:self-start md:mt-0 text-[13px] relative z-[2] ${generating ? 'hidden' : ''}`}
               >
-                <PdfCorrectionViewer
-                  fileUrl={pdfUrl}
-                  annotations={orderedAnnotations}
-                  selectedId={selectedAnnotationId}
-                  activeCategory={activeCategory}
-                  onCreateAnnotation={handleCreateAnnotation}
-                  onMoveAnnotation={handleMoveAnnotation}
-                  onSelectAnnotation={setSelectedAnnotationId}
-                  scrollLock={scrollLock}
+                <div
+                  className="flex h-full w-full flex-col rounded-xl border border-slate-200 bg-white p-1.5"
+                  style={{ height: 'calc(100vh - var(--pdf-viewport-offset, 72px))' }}
+                >
+                  <div id="comments-rail-scroll" className="mt-0 flex-1 overflow-y-auto overscroll-contain max-h-full">
+                    <AnnotationSidebar
+                      annotations={orderedAnnotations}
+                      selectedId={selectedAnnotationId}
+                      onSelect={setSelectedAnnotationId}
+                      onDelete={handleDeleteAnnotation}
+                      onCommentChange={handleCommentChange}
+                      focusId={focusAnnotationId}
+                      liveMessage={liveMessage}
+                      scrollLock={scrollLock}
+                    />
+                  </div>
+                </div>
+              </aside>
+            </div>
+
+            <div className="min-w-0">
+              <div className="mb-3 w-full max-w-none">
+                <MirrorSummaryInline
+                  type={essayType}
+                  pas={essayType === 'PAS' ? { nc: pasDerived.nc, tl: pasDerived.tl, ne: pasDerived.ne, discount: pasDerived.discount, nr: pasDerived.nr } : null}
+                  enemTotal={enemTotal}
                 />
               </div>
-            </div>
-          </main>
-          {/* COMMENTS RAIL */}
-          <aside
-            className={`block w-full md:w-[var(--hero-right-col,_360px)] RightRailCard comments-rail ws-right-rail md:self-start md:col-start-3 md:row-start-2 md:row-span-2 md:mt-0 text-[13px] relative z-[2] ${generating ? 'hidden' : ''}`}
-          >
-            <div className="flex h-full w-full flex-col rounded-xl border border-slate-200 bg-white p-1.5" style={{ height: 'calc(100vh - var(--pdf-viewport-offset, 72px))' }}>
-              <div id="comments-rail-scroll" className="mt-0 flex-1 overflow-y-auto overscroll-contain max-h-full">
-                <AnnotationSidebar
-                  annotations={orderedAnnotations}
-                  selectedId={selectedAnnotationId}
-                  onSelect={setSelectedAnnotationId}
-                  onDelete={handleDeleteAnnotation}
-                  onCommentChange={handleCommentChange}
-                  focusId={focusAnnotationId}
-                  liveMessage={liveMessage}
-                  scrollLock={scrollLock}
-                />
-              </div>
-            </div>
-          </aside>
-          {/* MIRROR (center, below PDF) */}
-          <div
-            className="md:col-start-2 md:row-start-3 min-w-0 w-full max-w-none"
-            style={{ marginLeft: 0 }}
-          >
-            <div className="mb-3 w-full max-w-none">
-              <MirrorSummaryInline
+              <CorrectionMirror
                 type={essayType}
-                pas={essayType === 'PAS' ? { nc: pasDerived.nc, tl: pasDerived.tl, ne: pasDerived.ne, discount: pasDerived.discount, nr: pasDerived.nr } : null}
+                annulState={annulState}
+                annulOther={annulOther}
+                onToggleAnnul={handleToggleAnnul}
+                onAnnulOtherChange={(value) => {
+                  setAnnulOther(value);
+                  setDirty(true);
+                }}
+                annulled={annulled}
+                pasState={pasState}
+                onPasChange={handlePasChange}
+                enemSelections={enemSelections}
+                onEnemSelectionChange={handleEnemSelectionChange}
                 enemTotal={enemTotal}
               />
             </div>
-            <CorrectionMirror
-              type={essayType}
-              annulState={annulState}
-              annulOther={annulOther}
-              onToggleAnnul={handleToggleAnnul}
-              onAnnulOtherChange={(value) => {
-                setAnnulOther(value);
-                setDirty(true);
-              }}
-              annulled={annulled}
-              pasState={pasState}
-              onPasChange={handlePasChange}
-              enemSelections={enemSelections}
-              onEnemSelectionChange={handleEnemSelectionChange}
-              enemTotal={enemTotal}
-            />
           </div>
         </div>
       </section>

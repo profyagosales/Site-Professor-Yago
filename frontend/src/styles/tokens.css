@@ -1,10 +1,11 @@
 :root{
+  --page-pad-x:24px;      /* padding horizontal padrão das páginas */
   /* DASHBOARD LAYOUT */
   --dash-gap:24px;          /* espaço entre cards do grid superior */
   --h-stack:360px;          /* altura padrão dos cards empilhados à esquerda */
   --ws-row-h:108px;         /* altura das linhas do horário */
   --ws-gap-y:10px;          /* espaçamento vertical entre linhas */
-  --hero-min-h:80px;        /* altura mínima do hero card (reduzido para ~50% do que estava em telas grandes) */
+  --hero-min-h:56px;        /* altura mínima do hero card (compactado para workspace) */
   --hero-py:10px;           /* padding vertical do hero */
   --hero-stat-h:56px;       /* altura dos mini cards de estatística */
   --hero-stat-gap:10px;     /* espaçamento entre os mini cards */
@@ -15,14 +16,15 @@
   --dash-card-title-fz:20px;
 
   /* LAYOUT: HERO / ASIDE */
-  --aside-w:360px;          /* largura da coluna de comentários/aside */
-  --hero-right-col:var(--aside-w); /* largura da coluna direita do hero */
+  --ws-right-rail-w:360px;  /* largura padrão do rail direito (comentários) */
+  --aside-w:var(--ws-right-rail-w); /* mantém compatibilidade com tokens antigos */
+  --hero-right-col:var(--ws-right-rail-w); /* largura da coluna direita do hero */
   --hero-logo-col:112px;    /* largura fixa da coluna da logo no hero */
   --hero-gap:24px;          /* gap horizontal entre colunas do hero */
-  --ws-left-rail-w:168px;   /* largura padrão do rail esquerdo (ajustado) */
-  --ws-left-rail-w-compact: calc(var(--ws-left-rail-w,168px)*.5);   /* largura compacta (50%) do rail esquerdo */
+  --ws-left-rail-w:196px;   /* largura padrão do rail esquerdo */
+  --ws-left-rail-w-compact:180px;   /* largura compacta do rail esquerdo */
   --ws-cards-gap:6px;       /* espaçamento mínimo entre cards/colunas/linhas */
-  --rail-w:var(--ws-left-rail-w-compact, var(--ws-left-rail-w,168px));           /* largura do rail esquerdo (trilho de botões) */
+  --rail-w:var(--ws-left-rail-w-compact, var(--ws-left-rail-w,196px));           /* largura do rail esquerdo (trilho de botões) */
 
   /* APP / VIEWPORT OFFSETS */
   --app-header-h:72px;                                 /* altura do header/topbar */
@@ -135,10 +137,6 @@
 
 @media (min-width: 1024px){
   :root{
-    --hero-min-h:88px;
-    --hero-py:12px;
-    --hero-stat-h:60px;
-    --hero-stat-gap:12px;
     --dash-card-px:26px;
     --dash-card-py:24px;
   }
@@ -153,12 +151,16 @@
     --sched-grade-fz:19px;
     --sched-subj-fz:13px;
     --sched-title-fz:20px;
-    --aside-w:300px;
+    --ws-right-rail-w:300px;
+    --aside-w:var(--ws-right-rail-w);
   }
 }
 
 @media (max-width: 1536px){
-  :root{ --aside-w:320px; }
+  :root{ 
+    --ws-right-rail-w:320px; 
+    --aside-w:var(--ws-right-rail-w);
+  }
 }
 
 @media (min-width: 1536px){
@@ -174,84 +176,7 @@
   scrollbar-gutter:stable;
 }
 
-/* === HERO GRID LAYOUT (uses CSS tokens) =============================== */
-.heroGrid{
-  display: grid;
-  grid-template-columns: var(--rail-w) var(--hero-logo-col) 1fr var(--hero-right-col);
-  gap: var(--hero-gap);
-  align-items: center;
-  min-height: var(--hero-min-h);
-  padding-top: var(--hero-py);
-  padding-bottom: var(--hero-py);
-}
-
-/* reserve visually the rail column so the hero alinha com o trilho */
-.heroGrid > .heroEmpty{ grid-column: 1 / 2; }
-/* logo (coluna 2) */
-.heroGrid > .heroLogo{ grid-column: 2 / 3; display:flex; align-items:center; justify-content:center; }
-/* infos do aluno/turma (coluna central) */
-.heroGrid > .heroInfo{ grid-column: 3 / 4; display:flex; flex-direction:column; justify-content:center; }
-/* mini-cards à direita (mesma largura do aside) */
-.heroGrid > .heroStats{ grid-column: 4 / 5; display:flex; gap: var(--hero-stat-gap); align-items:stretch; height: var(--hero-stat-h); }
-/* garante que os mini-cards preencham a altura padrão */
-.heroGrid > .heroStats > .statCard{ height: 100%; display:flex; align-items:center; }
-
-/* responsivo leve: reduzir o gap em telas menores que 1280px */
-@media (max-width: 1280px){
-  .heroGrid{ gap: 16px; }
-}
-
 /* global */
 *::-webkit-scrollbar{height:10px;width:10px}
 *::-webkit-scrollbar-thumb{background:rgba(15,23,42,.12);border-radius:999px}
 *::-webkit-scrollbar-thumb:hover{background:rgba(15,23,42,.22)}
-
-/* === HERO WIDTH HACK (no JSX change) =================================== */
-/* Expande o hero horizontalmente: começa na coluna central e alcança a largura do aside, 
-   compensando o gap entre as colunas. Não afeta o rail à esquerda. */
-.gw-hero{
-  /* Use workspace gap to match real card spacing on this page */
-  width: calc(100% + var(--ws-cards-gap, 6px) + var(--aside-w));
-  margin-right: calc(-1 * (var(--ws-cards-gap, 6px) + var(--aside-w)));
-}
-
-/* Normaliza a malha interna do hero usando tokens existentes */
-.gw-hero .hero-inner{
-  display: flex;
-  align-items: center;
-  gap: var(--hero-gap);
-  width: 100%;
-  min-height: var(--hero-min-h);
-  padding-top: var(--hero-py);
-  padding-bottom: var(--hero-py);
-}
-
-/* bloco da direita (TOTAL/MODELO) colado à borda direita */
-.gw-hero .hero-inner .heroStats{
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: var(--hero-stat-gap);
-  flex-wrap: nowrap;
-  flex-shrink: 0;
-  height: var(--hero-stat-h);
-}
-
-/* garante alinhamento da marca à esquerda */
-.gw-hero .hero-inner .heroBrand{
-  display: flex;
-  align-items: center;
-  flex: 0 0 auto;
-}
-
-/* bloco central: avatar + infos do aluno/turma */
-.gw-hero .hero-inner .heroInfo{
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;         /* permite truncar/encaixar texto */
-  flex: 1 1 auto;
-}
-
-/* Garante que mini-cards (TOTAL/MODELO) tenham altura consistente */
-.gw-hero .hero-inner .statCard{ height: var(--hero-stat-h); display:flex; align-items:center; }

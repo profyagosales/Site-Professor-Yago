@@ -9,10 +9,6 @@
   color-scheme: light;
   --card-title-size: var(--dash-card-title-fz);
   /* Shared horizontal padding used by .page-wide and for rail alignment */
-  --page-pad-x: clamp(16px, 3vw, 24px);
-
-  --ws-cards-gap: 6px; /* tiny breathing room between cards (fallback if tokens.css is absent) */
-  --ws-left-rail-w-compact: calc(var(--ws-left-rail-w, 168px) * .5);
 
   /* === PDF token sync (colors/weights/sizes) === */
   --pdf-text: #0f172a;             /* slate-900 */
@@ -72,18 +68,6 @@ body:has(.ws-rail) {
 }
 
 /* Only tighten gaps for workspace grids, not every grid in the app */
-body:has(.ws-rail) .pdf-inline-grid,
-body:has(.ws-rail) .gw-hero .hero-inner {
-  column-gap: var(--ws-cards-gap, 6px) !important;
-}
-
-/* Right rail width helper + pull the hero to span central + right columns */
-:root { --ws-right-rail-w: clamp(var(--ws-right-rail-min), 22vw, 360px); }
-body:has(.ws-rail) .gw-hero {
-  width: calc(100% + var(--ws-right-rail-w));
-  margin-right: calc(var(--ws-right-rail-w) * -1);
-}
-
 /* When the left action rail exists (correction workspace), pull the main content slightly left
    so the hero/PDF/mirror cards "touch" the rail and there is no visual gap. */
 body:has(.ws-rail) .page-wide {
@@ -1073,9 +1057,21 @@ a {
   .hero-brand-label { font-size: 13px; }
 }
 
-/* Inline PDF workspace: 80/20 grid (doc/comments) */
-.pdf-inline-grid { display: grid; grid-template-columns: minmax(0, 1fr) var(--ws-right-rail-w); gap: var(--ws-cards-gap, 6px); align-items: start; }
-@media (max-width: 1024px) { .pdf-inline-grid { grid-template-columns: 1fr; } }
+/* Inline PDF workspace: conteúdo + rail direito */
+.pdf-inline-grid{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--ws-right-rail-w);
+  gap: var(--ws-cards-gap);
+  align-items: start;
+}
+@media (max-width: 1024px){
+  .pdf-inline-grid{ grid-template-columns: 1fr; }
+}
+
+/* Hero ocupa as duas colunas do grid */
+.pdf-inline-grid > .gw-hero{
+  grid-column: 1 / -1;
+}
 .pdf-canvas-wrap { background:#fff; border-radius:16px; border:1px solid rgba(15,23,42,0.06); box-shadow:0 8px 24px rgba(15,23,42,0.06); overflow:hidden; }
 .comments-rail { font-size: 9px; line-height: 1.2; }
 
@@ -1328,10 +1324,10 @@ a {
   --app-header-h: 72px;
   --hero-gap: 24px;
   --rail-top: calc(var(--app-header-h) + var(--hero-gap));
-  --rail-w: 180px;
+  --rail-w: var(--ws-left-rail-w-compact, 180px);
   --workspace-min-width: 1200px;
   --ws-rail-top: var(--rail-top);
-  --ws-left-rail-w: 168px; /* default width for left action rail (can be tuned) */
+  --ws-left-rail-w: 196px; /* default width for left action rail */
 }
 
 /* Right rail pode usar o mesmo topo para sincronizar com o hero */
@@ -1464,7 +1460,6 @@ a {
 }
 
 /* Safeguards: pull hero/pdf inline exactly the page horizontal padding when the left rail exists */
-body:has(.ws-rail) .gw-hero,
 body:has(.ws-rail) .pdf-inline-grid {
   margin-left: calc(var(--page-pad-x) * -1);
 }
@@ -1626,176 +1621,189 @@ body:has(.ws-rail) .pdf-inline-grid {
   }
 }
 
-/* === Hero internal grid (left=logo, center=aluno, right=nota) === */
-.hero-inner{ 
-  display:grid; 
-  /* centro expande sem sobrar espaço à direita */
-  grid-template-columns: auto 1fr auto; 
-  align-items:center; 
-  gap:.75rem; 
-  column-gap: .75rem;
-  width:100%;
-}
-
-/* Brand: ícone em cima, texto embaixo, centralizados */
-.hero-brand{ 
-  display:flex; 
-  flex-direction:column; 
-  align-items:center; 
-}
-.hero-brand .brand-mark{ width:36px; height:36px; }
-.hero-brand .brand-title{
-  font-size:13px;
-  font-weight:800;
-  line-height:1.05;
-  margin-top: 2px;
-  text-align: center;
-}
-
-/* Centro realmente no meio do hero */
-.hero-center{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:16px;
-  justify-self:center;
-  text-align:left;
-  min-width:0; /* enable truncate */
-}
-
-/* Nota final colada ao canto direito do hero */
-.hero-score{ 
-  justify-self:end; 
-  display:flex;
-  flex-wrap:nowrap;
-  margin-left: auto;
-}
-
-/* Lateral esquerda: card ocupa altura da viewport e fica sticky */
-/* === Grade Workspace hero (3-col layout) === */
 .gw-hero{
   background:#fff;
-  border-radius:28px;
+  border-radius:24px;
   border:1px solid rgba(15,23,42,0.08);
   box-shadow:0 12px 32px rgba(15,23,42,0.07);
-  padding-inline:32px;
-  padding-block:18px;
+  padding-inline:24px;
   color:#0f172a;
+  width:100%;
+  position:relative;
+  z-index:2;
 }
+
 .gw-hero .hero-inner{
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  width: 100%;
+  display:flex !important;
+  align-items:center;
+  gap:20px;
+  width:100%;
+  min-height:var(--hero-min-h,56px);
+  padding-block:var(--hero-py,10px);
+  white-space:nowrap;
 }
+
 .gw-hero .hero-brand{
+  flex:0 0 auto;
   display:flex;
-  flex-direction:column;
   align-items:center;
   gap:12px;
-  text-align:center;
 }
+
 .gw-hero .hero-brand-mark{
-  width:92px;
-  height:92px;
-  border-radius:24px;
+  width:42px;
+  height:42px;
+  border-radius:14px;
   display:flex;
   align-items:center;
   justify-content:center;
   background:#fff;
-  border:2px solid rgba(249,115,22,0.35);
+  border:1px solid rgba(249,115,22,0.35);
   box-shadow:0 6px 18px rgba(249,115,22,0.12);
+  overflow:hidden;
 }
+
 .gw-hero .hero-brand-mark img{
-  width:64px;
-  height:64px;
+  width:28px;
+  height:28px;
   object-fit:contain;
+  display:block;
 }
-.gw-hero .hero-brand-name{
-  font-size:16px;
-  font-weight:800;
-  letter-spacing:-0.01em;
-  color:#0f172a;
-}
+
 .gw-hero .hero-center{
-  justify-self:stretch;
+  flex:1 1 auto;
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  white-space:normal;
 }
+
 .gw-hero .hero-avatar{
-  width:96px;
-  height:96px;
+  width:42px;
+  height:42px;
   border-radius:9999px;
   object-fit:cover;
-  box-shadow:0 0 0 4px #fff, 0 0 0 5px #f97316;
+  box-shadow:0 0 0 3px #fff, 0 0 0 4px rgba(249,115,22,0.35);
+  flex-shrink:0;
 }
+
 .gw-hero .hero-avatar--fallback{
   background:#f97316;
   color:#fff;
   font-weight:700;
-  font-size:34px;
+  font-size:18px;
   display:flex;
   align-items:center;
   justify-content:center;
 }
+
+.gw-hero .hero-text{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  min-width:0;
+}
+
 .gw-hero .hero-name{
-  font-size:1.55rem;
-  font-weight:800;
-  color:#0f172a;
-  margin-bottom:4px;
-}
-.gw-hero .hero-center p{
-  color:#475569;
+  margin:0;
   font-size:1rem;
+  font-weight:700;
+  line-height:1.1;
+  color:#0f172a;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.gw-hero .hero-text p{
+  margin:0;
+  font-size:0.78rem;
   line-height:1.35;
+  color:#475569;
 }
-/* Score cards aligned to the very top-right, tighter spacing */
+
 .gw-hero .hero-score{
-  margin-left: auto;
-  gap: 10px;
-  display: flex;
-  align-items: center;
-  flex-wrap: nowrap;
+  margin-left:auto;
+  width:var(--hero-right-col, var(--ws-right-rail-w));
+  flex:0 0 var(--hero-right-col, var(--ws-right-rail-w));
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  gap:12px;
+  flex-wrap:nowrap;
 }
+
 .gw-hero .hero-stat{
-  min-width:188px;
-  padding:16px 20px;
-  border-radius:18px;
+  min-width:150px;
+  padding:12px 16px;
+  border-radius:16px;
   border:1px solid #e2e8f0;
   background:#fff;
-  align-items:flex-start;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
   gap:6px;
-  text-align:left;
+  text-align:right;
+  align-items:flex-end;
+  flex-shrink:0;
+  font-variant-numeric:tabular-nums;
 }
+
 .gw-hero .hero-stat--total{
   background:#fff7ed;
   border-color:#fdba74;
 }
+
 .gw-hero .hero-stat__label{
-  font-size:12px;
+  font-size:10px;
   letter-spacing:0.14em;
   font-weight:700;
   text-transform:uppercase;
   color:#94a3b8;
 }
+
 .gw-hero .hero-stat--total .hero-stat__label{
   color:#fb923c;
 }
+
 .gw-hero .hero-stat__value{
   display:flex;
   align-items:baseline;
   gap:4px;
   font-weight:800;
   color:#0f172a;
-  font-size:1.85rem;
+  font-size:1.65rem;
   line-height:1.1;
+  justify-content:flex-end;
 }
+
 .gw-hero .hero-stat__value-main{
   line-height:1;
 }
+
 .gw-hero .hero-stat__value-suffix{
   font-size:0.95rem;
   color:#94a3b8;
   font-weight:600;
 }
+
+@media (max-width: 1024px){
+  .gw-hero{
+    border-radius:20px;
+    padding-inline:18px;
+  }
+  .gw-hero .hero-score{
+    width:auto;
+    flex:0 0 auto;
+    gap:10px;
+  }
+  .gw-hero .hero-stat{
+    padding:10px 12px;
+    min-width:0;
+  }
+}
+
 .enem-justif { font-size: var(--pdf-fz-md); line-height: 1.35; color: var(--pdf-text); }
 .enem-justif small { font-size: var(--pdf-fz-sm); color: var(--pdf-text-subtle); }
 .enem-token { font-weight: 800; letter-spacing: .02em; color: var(--pdf-brand-title); }
@@ -1833,140 +1841,3 @@ body:has(.ws-rail) .pdf-inline-grid {
 /* Hide horizontal/vertical scrollbars where applied */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-/* === Grade Workspace Hero: compact tuning per design (no STATUS card in JSX) === */
-.gw-hero {
-  padding-inline: 24px;   /* was 32px */
-  padding-block: 10px;    /* was 14px */
-}
-.gw-hero .hero-score {
-  gap: 12px;              /* was 16px */
-}
-.gw-hero .hero-stat {
-  min-width: 160px;       /* was 188px */
-  padding: 12px 16px;     /* was 16px 20px */
-  border-radius: 16px;    /* was 18px */
-}
-.gw-hero .hero-stat__label {
-  font-size: 10px;        /* was 12px */
-  letter-spacing: 0.12em; /* keep tight uppercase look */
-}
-.gw-hero .hero-stat__value {
-  font-size: 1.6rem;      /* was ~1.85rem */
-}
-.gw-hero .hero-center p {
-  font-size: .95rem;      /* slightly tighter copy */
-}
-.gw-hero .hero-name {
-  margin-bottom: 2px;     /* reduce spacing under name */
-}
-
-/* Ultra-compact GradeWorkspace hero
-   - Cuts height ~50%
-   - Keeps left=brand, center=info, right=score aligned to comments rail
-*/
-.gw-hero{
-  min-height: 56px;            /* force a much shorter hero */
-}
-.gw-hero .hero-inner{
-  column-gap: 20px;             /* small but breathable spacing */
-}
-/* Brand mark and avatar smaller to fit the new height */
-.gw-hero .hero-brand-mark{
-  width: 64px;
-  height: 64px;
-  border-radius: 18px;
-}
-.gw-hero .hero-avatar{
-  width: 72px;
-  height: 72px;
-  border-radius: 20px;
-  box-shadow: 0 0 0 3px #fff, 0 0 0 4px #f97316;
-}
-/* Center text tighter */
-.gw-hero .hero-name{
-  font-size: 1.25rem;
-  margin-bottom: 1px;
-}
-.gw-hero .hero-center p{
-  font-size: .9rem;
-}
-/* === Hero tweaks: remove logo ring and align avatar right (Grade Workspace) === */
-/* Remove any orange ring/background around the brand mark in all heros */
-.hero-brand-mark,
-.gw-hero .hero-brand-mark {
-  border: 0 !important;
-  box-shadow: none !important;
-  background: transparent !important;
-}
-
-/* In Grade Workspace hero, keep info on the left and push avatar to the right */
-.gw-hero .hero-center {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  text-align: left;
-}
-
-/* Ensure the text block can shrink/ellipsis while avatar stays fixed */
-.gw-hero .hero-center > :first-child {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-/* Avatar anchored to the right side */
-.gw-hero .hero-center .hero-avatar,
-.gw-hero .hero-center .hero-avatar--fallback {
-  flex: 0 0 auto;
-  margin-left: 12px;
-}
-/* === Hero & Right Rail corner/layer fixes (appended) === */
-.gw-hero{
-  position: relative;
-  z-index: 2;
-  overflow: visible;            /* don't clip rounded corners */
-}
-.ws-rail{
-  position: relative;
-  z-index: 1;                   /* keep left rail below hero */
-}
-.RightRailCard,
-.ws-right-rail .card{
-  border-radius: var(--r-2xl);
-  overflow: visible;            /* ensure right card corners show */
-  background-clip: padding-box; /* prevent border bleed */
-}
-
-/* Global tiny spacing between cards (applies across correction workspace) */
-.card { margin-bottom: var(--ws-cards-gap, 6px); }
-.gw-hero { margin-bottom: var(--ws-cards-gap, 6px); }
-/* === GradeWorkspace hero – avatar first + hide duplicate brand line (overrides) === */
-.gw-hero .hero-inner{
-  /* keep in a single row and give the middle column priority to compress */
-  white-space: nowrap;
-}
-.gw-hero .hero-center{
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  text-align: left;
-  white-space: normal;      /* allow the text itself to wrap if needed */
-}
-/* Avatar must appear before the text, regardless of DOM order */
-.gw-hero .hero-center .hero-avatar,
-.gw-hero .hero-center .hero-avatar--fallback{
-  order: -1;
-  margin-right: 12px;
-  margin-left: 0;
-}
-/* Ensure the text block can shrink with ellipsis while avatar keeps a fixed size */
-.gw-hero .hero-center > :first-child{
-  flex: 1 1 auto;
-  min-width: 0;
-}
-/* Hide any secondary/duplicated brand line below the logo inside the GradeWorkspace hero */
-.gw-hero .hero-left-text,
-.gw-hero .brand-subtitle,
-.gw-hero .hero-brand-extra{
-  display: none !important;
-}
