@@ -1121,7 +1121,10 @@ const railMenu = (
                 <div className="pdf-canvas-wrap p-0">
                   <div
                     className="pdf-canvas-container w-full min-w-0 aspect-[210/297]"
-                    style={{ maxHeight: 'calc(100vh - var(--pdf-viewport-offset, 160px))' }}
+                    style={{
+                      maxHeight: 'var(--pdf-inline-h, calc(100vh - var(--pdf-viewport-offset, 160px)))',
+                      minHeight: 'var(--pdf-inline-h, calc(100vh - var(--pdf-viewport-offset, 160px)))'
+                    }}
                   >
                     <PdfCorrectionViewer
                       fileUrl={pdfUrl}

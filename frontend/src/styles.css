@@ -191,13 +191,9 @@
       fazer o card de comentários acompanhar a mesma altura === */
 
 /* 1) fator de escala da altura */
-.gw-root { --pdf-inline-scale: 1.3; }
-
-/* 2) altura base = altura útil da viewport abaixo do header/hero.
-      Se seu projeto usa --ws-rail-top, usamos ele; cai no fallback se não existir. */
 .gw-root {
-  --_base-h: calc(100vh - var(--ws-rail-top, 0px));
-  --pdf-inline-h: calc(var(--_base-h) * var(--pdf-inline-scale));
+  --pdf-inline-scale: 1.3;
+  --pdf-inline-h: calc((100vh - var(--pdf-viewport-offset, 0px)) * var(--pdf-inline-scale));
 }
 
 /* 3) aplicar a nova altura ao contêiner do PDF (sem alterar largura) */
@@ -211,9 +207,20 @@
   min-height: var(--pdf-inline-h) !important;
 }
 
+.gw-root .pdf-canvas-container{
+  max-height: var(--pdf-inline-h) !important;
+  min-height: var(--pdf-inline-h) !important;
+}
+
 /* 4) fazer o card de comentários (direita) acompanhar a mesma altura */
+.gw-root .ws-right-rail{
+  max-height: var(--pdf-inline-h) !important;
+  height: var(--pdf-inline-h) !important;
+}
+
 .gw-root .ws-right-rail .RightRailCard{
   min-height: var(--pdf-inline-h) !important;
+  height: var(--pdf-inline-h) !important;
   display: flex;
   flex-direction: column;
 }
