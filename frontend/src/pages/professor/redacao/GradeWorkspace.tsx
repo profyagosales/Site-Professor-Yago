@@ -1087,7 +1087,7 @@ const railMenu = (
                         {studentInitials}
                       </div>
                     )}
-                    <div className="hero-text">
+                    <div className="hero-info">
                       <div className="hero-name">{studentName}</div>
                       <p>{heroInfoLine}</p>
                     </div>
