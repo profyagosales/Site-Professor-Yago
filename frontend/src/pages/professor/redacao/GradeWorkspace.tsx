@@ -982,8 +982,22 @@ export default function GradeWorkspace() {
   const isPas = essayType === 'PAS';
   const modelLabel = typeLabel;
   const studentAvatarUrl = studentPhoto ?? null;
-  const heroInfoPieces = joinPieces(turmaLabel, subjectLabel, bimestreLabel ?? undefined);
-  const heroInfoLine = heroInfoPieces.length > 0 ? heroInfoPieces.join(' • ') : '—';
+  const themeLabel =
+    essay?.themeTitle ??
+    essay?.metadata?.theme ??
+    essay?.assignment?.theme ??
+    essay?.topic ??
+    essay?.tema ??
+    null;
+  const gradeMeta = {
+    classLabel: turmaLabel || null,
+    subjectLabel: subjectLabel || null,
+    modelLabel: modelLabel || null,
+    bimesterLabel: bimestreLabel || null,
+  } as const;
+  const heroMetaLine =
+    joinPieces(gradeMeta.classLabel, gradeMeta.subjectLabel, gradeMeta.modelLabel, gradeMeta.bimesterLabel).join(' • ') ||
+    '—';
   const totalScoreSuffix = isPas ? '/10' : '/1000';
   const brandLogo = '/logo.svg';
 
@@ -1088,8 +1102,13 @@ const railMenu = (
                       </div>
                     )}
                     <div className="hero-info">
-                      <h2 className="hero-name">{studentName}</h2>
-                      <p>{heroInfoLine}</p>
+                      <h1 className="hero-name">{studentName}</h1>
+                      <p className="hero-meta">{heroMetaLine}</p>
+                      {themeLabel && (
+                        <p className="hero-theme" title={themeLabel}>
+                          Tema: {themeLabel}
+                        </p>
+                      )}
                     </div>
                   </div>
 

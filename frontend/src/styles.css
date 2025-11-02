@@ -83,9 +83,8 @@
   flex: 1 1 auto;
   min-width: 0;
   display: flex !important;
-  flex-direction: row !important;
   align-items: center !important;
-  gap: 8px !important;
+  gap: 12px !important;
 }
 
 /* avatar menor e à esquerda do texto (mesmo que o DOM esteja em outra ordem) */
@@ -104,18 +103,18 @@
   justify-content: center;
 }
 
-.gw-root .gw-hero .hero-center .hero-info {
+.gw-root .gw-hero .hero-info {
   display: flex !important;
   flex-direction: column !important;
-  gap: 1px !important;
-  min-width: 0;
+  gap: 2px !important;
+  min-width: 0 !important;
   overflow: hidden;
   align-items: flex-start;
   text-align: left;
 }
 
 .gw-root .gw-hero .hero-name {
-  margin: 0 !important;
+  margin: 0 0 1px 0 !important;
   font-size: 0.95rem !important;
   line-height: 1.08 !important;
   font-weight: 800 !important;
@@ -125,14 +124,19 @@
   text-overflow: ellipsis;
 }
 
-.gw-root .gw-hero .hero-center p {
+.gw-root .gw-hero .hero-meta,
+.gw-root .gw-hero .hero-theme {
   margin: 0 !important;
-  font-size: 0.76rem !important;
-  line-height: 1.18 !important;
-  color: #475569;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: #475569 !important;
+  font-size: 0.9rem !important;
+  line-height: 1.25 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.gw-root .gw-hero .hero-theme {
+  margin-top: 2px !important;
 }
 
 /* mini-cards um pouco mais compactos, ajudando a reduzir a altura total */
@@ -1999,7 +2003,7 @@ body:has(.gw-root .ws-rail) .pdf-inline-grid {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
 }
 
 .gw-root .gw-hero .hero-center .hero-avatar,
@@ -2017,7 +2021,7 @@ body:has(.gw-root .ws-rail) .pdf-inline-grid {
 .gw-root .gw-hero .hero-info {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   min-width: 0;
   overflow: hidden;
   align-items: flex-start;
@@ -2025,7 +2029,7 @@ body:has(.gw-root .ws-rail) .pdf-inline-grid {
 }
 
 .gw-root .gw-hero .hero-name {
-  margin: 0;
+  margin: 0 0 1px 0;
   font-size: 0.95rem;
   line-height: 1.08;
   font-weight: 800;
@@ -2035,14 +2039,19 @@ body:has(.gw-root .ws-rail) .pdf-inline-grid {
   text-overflow: ellipsis;
 }
 
-.gw-root .gw-hero .hero-center p {
+.gw-root .gw-hero .hero-meta,
+.gw-root .gw-hero .hero-theme {
   margin: 0;
-  font-size: 0.76rem;
-  line-height: 1.18;
   color: #475569;
+  font-size: 0.9rem;
+  line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.gw-root .gw-hero .hero-theme {
+  margin-top: 2px;
 }
 
 /* Minicards (Total/Modelo) encostados à borda direita e com largura do rail direito */
