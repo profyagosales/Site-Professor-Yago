@@ -92,8 +92,8 @@
 .gw-root .gw-hero .hero-center .hero-avatar,
 .gw-root .gw-hero .hero-center .hero-avatar--fallback {
   order: -1 !important;
-  width: 38px !important;
-  height: 38px !important;
+  width: 42px !important;
+  height: 42px !important;
   border-radius: 10px !important;
   flex: 0 0 auto !important;
   box-shadow: 0 0 0 2px #fff, 0 0 0 3px #f97316;
@@ -107,7 +107,7 @@
 .gw-root .gw-hero .hero-center .hero-info {
   display: flex !important;
   flex-direction: column !important;
-  gap: 1px !important;
+  gap: 2px !important;
   min-width: 0;
   overflow: hidden;
   align-items: flex-start;
