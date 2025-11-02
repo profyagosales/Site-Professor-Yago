@@ -1841,6 +1841,13 @@ body:has(.gw-root .ws-rail) .pdf-inline-grid {
   padding-inline: 0;
 }
 
+@media (min-width: 768px) {
+  .gw-root .gw-main-stack {
+    width: min(100%, calc(100% - var(--ws-right-rail-w, 320px) - var(--ws-cards-gap, 6px)));
+    align-self: flex-start;
+  }
+}
+
 /* PDF viewer: apenas ALTURA em A4, não mexe na largura */
 .gw-root .pdf-a4-viewport {
   height: var(--gw-a4-h);

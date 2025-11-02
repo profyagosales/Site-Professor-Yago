@@ -1156,7 +1156,7 @@ const railMenu = (
               </aside>
             </div>
 
-            <div className="min-w-0">
+            <div className="min-w-0 gw-main-stack">
               <div className="mb-3 w-full max-w-none">
                 <MirrorSummaryInline
                   type={essayType}
