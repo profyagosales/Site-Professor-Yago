@@ -1874,9 +1874,9 @@ body:has(.gw-root .ws-rail) .pdf-inline-grid {
 
 /* PDF viewer: apenas ALTURA em A4, não mexe na largura */
 .gw-root .pdf-a4-viewport {
-  height: var(--gw-a4-h);
-  min-height: var(--gw-a4-h);
-  max-height: var(--gw-a4-h);
+  height: var(--pdf-inline-h, var(--gw-a4-h));
+  min-height: var(--pdf-inline-h, var(--gw-a4-h));
+  max-height: var(--pdf-inline-h, var(--gw-a4-h));
   overflow: auto;
   scrollbar-gutter: stable both-edges;
 }
