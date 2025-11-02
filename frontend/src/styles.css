@@ -1142,14 +1142,28 @@ a {
   display: none !important;
 }
 
-/* Right rail visual compaction */
-.RightRailCard { font-size: 9px; line-height: 1.25; }
+/* Right rail visual compaction + sticky/full-height */
+.RightRailCard {
+  font-size: 9px;
+  line-height: 1.25;
+  height: 100%;                 /* ocupa toda a altura da coluna sticky */
+  display: flex;
+  flex-direction: column;
+}
 .RightRailCard .card-title { font-size: 10px; }
 .RightRailCard [data-annotation-id] { padding: 4px 6px; }
 .RightRailCard [data-annotation-id] h4 { font-size: 10px; line-height: 1.15; margin: 0 0 2px 0; }
 .RightRailCard [data-annotation-id] p { font-size: 9px; line-height: 1.25; margin: 0; }
-/* Fallback sticky for rails when ws-* helpers are not attached */
-.RightRailCard { position: sticky; top: var(--ws-rail-top); }
+
+#comments-rail-scroll{
+  flex: 1 1 auto;         /* o corpo cresce para preencher a coluna */
+  min-height: 0;
+  max-height: 100%;
+  overflow-y: auto;       /* rolagem interna */
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable both-edges;
+  padding-right: 4px;
+}
 /* Right rail/card: compact controls */
 .RightRailCard .btn,
 .RightRailCard .rail-btn,
@@ -1296,16 +1310,6 @@ a {
   margin: 0;
 }
 
-#comments-rail-scroll {
-  flex: 1 1 auto;
-  max-height: 100%;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable both-edges;
-  padding-right: 4px;     /* scrollbar gutter */
-}
-
 /* Reserve scrollbar gutter in other internal scrollers to avoid width jumps */
 .card .overflow-y-auto,
 .dash-card .overflow-y-auto,
@@ -1331,16 +1335,31 @@ a {
 }
 
 /* Right rail pode usar o mesmo topo para sincronizar com o hero */
-.ws-right-rail{ position: sticky; top: var(--ws-rail-top); z-index: 2; }
+.ws-right-rail{
+  position: sticky;
+  top: var(--ws-rail-top);
+  height: calc(100vh - var(--ws-rail-top)); /* 100% da viewport */
+  display: flex;
+  flex-direction: column;
+  z-index: 2;
+}
 
 /* === Workspace action rail (left) === */
 .ws-rail{
-  width: var(--ws-left-rail-w-compact, var(--ws-left-rail-w, 196px));
-  flex: 0 0 var(--ws-left-rail-w-compact, var(--ws-left-rail-w, 196px));
+  /* 40% menor que a largura padrão */
+  width: var(--ws-left-rail-w-compact, calc(var(--ws-left-rail-w) * 0.6));
+  flex: 0 0 var(--ws-left-rail-w-compact, calc(var(--ws-left-rail-w) * 0.6));
   max-width: none;
   position: sticky;
   top: var(--ws-rail-top);
-  height: calc(100vh - var(--ws-rail-top));
+  height: calc(100vh - var(--ws-rail-top)); /* ocupa a viewport inteira menos o topo */
+  display: flex;
+  flex-direction: column;
+}
+
+.ws-rail > .card{
+  /* o card principal do rail ocupa toda a altura sticky */
+  height: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -1359,8 +1378,6 @@ a {
   display: flex;
   flex-direction: column;
 }
-/* Ensure the main card inside the left rail always fills the sticky height */
-.ws-rail > .card { height: 100%; display: flex; flex-direction: column; }
 
 .ws-rail-head,
 .ws-rail-footer{
@@ -1371,7 +1388,7 @@ a {
 
 .ws-rail-body{
   flex: 1;
-  overflow: auto;
+  overflow: auto;          /* rolagem interna */
   padding-right: 4px;
   min-height: 0;
   overscroll-behavior: contain;
@@ -1650,6 +1667,19 @@ body:has(.ws-rail) .pdf-inline-grid {
   gap:12px;
 }
 
+/* Exibe a linha de texto sob a marca (Professor Yago Sales) */
+.gw-hero .brand-title,
+.gw-hero .hero-left-text,
+.gw-hero .brand-subtitle{
+  display:block !important;
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:-0.01em;
+  margin-top:4px;
+  color:#0f172a;
+  text-align:center;
+}
+
 .gw-hero .hero-brand-mark{
   width:42px;
   height:42px;
@@ -1675,7 +1705,7 @@ body:has(.ws-rail) .pdf-inline-grid {
   min-width:0;
   display:flex;
   align-items:center;
-  gap:14px;
+  gap:12px;
   white-space:normal;
 }
 
@@ -1725,8 +1755,8 @@ body:has(.ws-rail) .pdf-inline-grid {
 
 .gw-hero .hero-score{
   margin-left:auto;
-  width:var(--hero-right-col, var(--ws-right-rail-w));
-  flex:0 0 var(--hero-right-col, var(--ws-right-rail-w));
+  width:var(--ws-right-rail-w);
+  flex:0 0 var(--ws-right-rail-w);
   display:flex;
   justify-content:flex-end;
   align-items:center;

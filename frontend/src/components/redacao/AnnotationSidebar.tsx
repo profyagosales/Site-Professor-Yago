@@ -108,8 +108,8 @@ export function AnnotationSidebar({
   }, [forceUnlock]);
 
   return (
-    <aside
-      className={`card RightRailCard comments-rail ws-rail ws-right-rail md:sticky md:top-[var(--hero-sticky-top,68px)] flex h-full w-full min-w-0 min-h-0 max-w-none flex-col rounded-l-none md:rounded-r-xl relative z-[2] overflow-visible p-2.5 md:p-3 m-0 md:pl-0 ${className ?? ''}`}
+    <div
+      className={`RightRailCard card comments-rail flex h-full w-full min-w-0 min-h-0 max-w-none flex-col rounded-l-none md:rounded-r-xl relative z-[2] overflow-visible p-2.5 md:p-3 m-0 md:pl-0 ${className ?? ''}`}
     >
       <div className="card-header px-0 mb-2 md:mb-2">
         <h3 className="card-title">
@@ -211,7 +211,7 @@ export function AnnotationSidebar({
           );
         })}
       </div>
-    </aside>
+    </div>
   );
 }
 

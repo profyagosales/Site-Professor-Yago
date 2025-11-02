@@ -15,21 +15,28 @@
   --dash-card-header-gap:18px;
   --dash-card-title-fz:20px;
 
+  /* Cabeçalho + gap do hero (topo para sticky) */
+  --app-header-h:72px;
+  --hero-gap:24px;
+  --ws-rail-top:calc(var(--app-header-h) + var(--hero-gap));
+
+  /* Larguras dos rails */
+  --ws-left-rail-w:196px;            /* largura “cheia” */
+  --ws-left-rail-w-compact:118px;     /* ~40% menor (196 * 0.6 ≈ 118) */
+  --ws-right-rail-w:320px;            /* largura do rail de comentários */
+
+  /* Dimensões do hero para sticky calc */
+  --gw-hero-h:72px;
+  --hero-sticky-top: var(--ws-rail-top);               /* offset para sticky */
+
   /* LAYOUT: HERO / ASIDE */
-  --ws-right-rail-w:360px;  /* largura padrão do rail direito (comentários) */
   --aside-w:var(--ws-right-rail-w); /* mantém compatibilidade com tokens antigos */
   --hero-right-col:var(--ws-right-rail-w); /* largura da coluna direita do hero */
   --hero-logo-col:112px;    /* largura fixa da coluna da logo no hero */
-  --hero-gap:24px;          /* gap horizontal entre colunas do hero */
-  --ws-left-rail-w:196px;   /* largura padrão do rail esquerdo */
-  --ws-left-rail-w-compact:180px;   /* largura compacta do rail esquerdo */
   --ws-cards-gap:6px;       /* espaçamento mínimo entre cards/colunas/linhas */
   --rail-w:var(--ws-left-rail-w-compact, var(--ws-left-rail-w,196px));           /* largura do rail esquerdo (trilho de botões) */
 
   /* APP / VIEWPORT OFFSETS */
-  --app-header-h:72px;                                 /* altura do header/topbar */
-  --hero-sticky-top: 68px;                             /* offset para sticky (alinhado ao topo visual) */
-  --ws-rail-top: var(--hero-sticky-top);               /* usado pelo .ws-rail (left rail) */
   --pdf-viewport-offset:calc(var(--app-header-h,72px) + var(--hero-min-h,96px) + 16px); /* offset total para o PDF inline */
 
   /* WEEKLY SCHEDULE CARD */

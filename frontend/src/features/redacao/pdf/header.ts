@@ -22,9 +22,9 @@ export function GradeWorkspace({ generating }) {
         <PdfCorrectionViewer />
       </div>
 
-      <div className="col-start-3 col-span-1 min-w-0">
+      <aside className="col-start-3 col-span-1 min-w-0 ws-right-rail">
         <AnnotationSidebar />
-      </div>
+      </aside>
     </div>
   );
 }

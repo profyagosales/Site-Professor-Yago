@@ -969,9 +969,7 @@ export default function GradeWorkspace() {
     pieces.filter((piece): piece is string => typeof piece === 'string' && piece.trim().length > 0);
   const turmaLabel = essay?.classroom || essay?.className || (essay?.student as any)?.class || '';
   const subjectLabel = (essay?.subject as string) || (essay as any)?.subjectName || 'Português';
-  const classLine = joinPieces(turmaLabel, subjectLabel).join(' • ');
   const typeLabel = essayType === 'PAS' ? 'PAS/UnB' : 'ENEM';
-  const themeLabel = essay?.theme || essay?.topic || '';
   const finalScore = ((): string => {
     if (essayType === 'PAS') {
       const v = pasDerived?.nr;
@@ -981,16 +979,12 @@ export default function GradeWorkspace() {
     return String(enem);
   })();
   const isPas = essayType === 'PAS';
-  const maxScoreLabel = isPas ? '10' : '1000';
   const modelLabel = typeLabel;
   const studentAvatarUrl = studentPhoto ?? null;
-  const heroMetaPieces = [classLine || turmaLabel || '', themeLabel || '', bimestreLabel || ''];
-  const heroMeta = (() => {
-    const pieces = heroMetaPieces
-      .map((piece) => (typeof piece === 'string' && piece.trim().length > 0 ? piece.trim() : '—'));
-    return pieces.every((piece) => piece === '—') ? '—' : pieces.join(' • ');
-  })();
-  const brandSrc = '/logo.svg';
+  const heroInfoPieces = joinPieces(turmaLabel, subjectLabel, bimestreLabel ?? undefined);
+  const heroInfoLine = heroInfoPieces.length > 0 ? heroInfoPieces.join(' • ') : '—';
+  const totalScoreSuffix = isPas ? '/10' : '/1000';
+  const brandLogo = '/logo.svg';
 
 const railMenu = (
   <>
@@ -1020,7 +1014,6 @@ const railMenu = (
         >
           <aside
             className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-2 md:shrink-0 ws-rail text-[13px] md:w-auto pr-0 pt-0 z-[1]"
-            style={{ width: 'var(--ws-left-rail-w-compact)', flex: '0 0 var(--ws-left-rail-w-compact)' }}
           >
             <div className="ws-rail-sticky w-full h-full rounded-xl md:rounded-r-none border border-slate-200 md:border-r-0 bg-white p-1.5 shadow-sm flex flex-col gap-2">
               <div className="ws-rail-head grid grid-cols-1 gap-2">
@@ -1044,69 +1037,71 @@ const railMenu = (
                 </Button>
               </div>
               <div className="h-px bg-slate-200/70 my-1.5" />
-              <div className="ws-rail-scroll flex-1 min-h-0 overflow-y-auto overscroll-contain">
-                <div className="ws-rail-body mt-3 space-y-2">
-                  {railMenu}
-                </div>
-                <div className="h-px bg-slate-200/70 my-1.5" />
-                <div className="ws-rail-footer grid grid-cols-1 gap-2 mt-3">
-                  <Button
-                    size="xs"
-                    block
-                    className="btn btn--neutral rail-btn rail-btn--secondary w-full"
-                    onClick={handleSave}
-                    disabled={saving || !dirty}
-                    title="Salvar"
-                  >
-                    {saving ? 'Salvando…' : 'Salvar'}
-                  </Button>
-                  <Button
-                    size="xs"
-                    block
-                    className="btn btn--brand rail-btn rail-btn--primary w-full"
-                    onClick={handleGeneratePdf}
-                    disabled={generating}
-                    title="Gerar PDF corrigido"
-                  >
-                    {generating ? 'Gerando…' : 'Gerar'}
-                  </Button>
-                </div>
+              <div className="ws-rail-body flex-1 min-h-0 overflow-y-auto overscroll-contain mt-3 space-y-2">
+                {railMenu}
+              </div>
+              <div className="h-px bg-slate-200/70 my-1.5" />
+              <div className="ws-rail-footer grid grid-cols-1 gap-2 mt-3">
+                <Button
+                  size="xs"
+                  block
+                  className="btn btn--neutral rail-btn rail-btn--secondary w-full"
+                  onClick={handleSave}
+                  disabled={saving || !dirty}
+                  title="Salvar"
+                >
+                  {saving ? 'Salvando…' : 'Salvar'}
+                </Button>
+                <Button
+                  size="xs"
+                  block
+                  className="btn btn--brand rail-btn rail-btn--primary w-full"
+                  onClick={handleGeneratePdf}
+                  disabled={generating}
+                  title="Gerar PDF corrigido"
+                >
+                  {generating ? 'Gerando…' : 'Gerar'}
+                </Button>
               </div>
             </div>
           </aside>
 
           <div className="min-w-0 md:col-start-2 md:row-start-1 md:row-span-2 flex flex-col gap-[var(--ws-cards-gap,6px)]">
             <div className="pdf-inline-grid" aria-label="Workspace de correção">
-              <section className="gw-hero" aria-label="Cabeçalho de correção">
+              <section className="gw-hero card" aria-label="Cabeçalho de correção">
                 <div className="hero-inner">
                   <div className="hero-brand">
                     <div className="hero-brand-mark">
-                      <img src={brandSrc} alt="Professor Yago" />
+                      <img src={brandLogo} alt="Professor Yago" />
                     </div>
+                    <div className="brand-title">Professor Yago Sales</div>
                   </div>
 
                   <div className="hero-center">
                     {studentAvatarUrl ? (
                       <img className="hero-avatar" src={studentAvatarUrl} alt={studentName} />
                     ) : (
-                      <div className="hero-avatar hero-avatar--fallback">{studentInitials}</div>
+                      <div className="hero-avatar hero-avatar--fallback" aria-hidden="true">
+                        {studentInitials}
+                      </div>
                     )}
                     <div className="hero-text">
-                      <h3 className="hero-name">{studentName}</h3>
-                      <p>{heroMeta}</p>
+                      <div className="hero-name">{studentName}</div>
+                      <p>{heroInfoLine}</p>
                     </div>
                   </div>
 
                   <div className="hero-score">
                     <div className="hero-stat hero-stat--total">
-                      <span className="hero-stat__label">Total</span>
+                      <div className="hero-stat__label">TOTAL</div>
                       <div className="hero-stat__value">
                         <span className="hero-stat__value-main">{finalScore}</span>
-                        <span className="hero-stat__value-suffix">/ {maxScoreLabel}</span>
+                        <span className="hero-stat__value-suffix">{totalScoreSuffix}</span>
                       </div>
                     </div>
+
                     <div className="hero-stat">
-                      <span className="hero-stat__label">Modelo</span>
+                      <div className="hero-stat__label">MODELO</div>
                       <div className="hero-stat__value">
                         <span className="hero-stat__value-main">{modelLabel}</span>
                       </div>
@@ -1141,25 +1136,18 @@ const railMenu = (
               </main>
 
               <aside
-                className={`w-full md:w-[var(--ws-right-rail-w)] RightRailCard comments-rail ws-right-rail md:self-start md:mt-0 text-[13px] relative z-[2] ${generating ? 'hidden' : ''}`}
+                className={`ws-right-rail w-full md:self-start md:mt-0 text-[13px] relative z-[2] ${generating ? 'hidden' : ''}`}
               >
-                <div
-                  className="flex h-full w-full flex-col rounded-xl border border-slate-200 bg-white p-1.5"
-                  style={{ height: 'calc(100vh - var(--pdf-viewport-offset, 72px))' }}
-                >
-                  <div id="comments-rail-scroll" className="mt-0 flex-1 overflow-y-auto overscroll-contain max-h-full">
-                    <AnnotationSidebar
-                      annotations={orderedAnnotations}
-                      selectedId={selectedAnnotationId}
-                      onSelect={setSelectedAnnotationId}
-                      onDelete={handleDeleteAnnotation}
-                      onCommentChange={handleCommentChange}
-                      focusId={focusAnnotationId}
-                      liveMessage={liveMessage}
-                      scrollLock={scrollLock}
-                    />
-                  </div>
-                </div>
+                <AnnotationSidebar
+                  annotations={orderedAnnotations}
+                  selectedId={selectedAnnotationId}
+                  onSelect={setSelectedAnnotationId}
+                  onDelete={handleDeleteAnnotation}
+                  onCommentChange={handleCommentChange}
+                  focusId={focusAnnotationId}
+                  liveMessage={liveMessage}
+                  scrollLock={scrollLock}
+                />
               </aside>
             </div>
 
