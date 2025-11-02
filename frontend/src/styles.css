@@ -201,7 +201,7 @@
   --ws-left-rail-w-compact: 94px;
   --ws-right-rail-w: 224px;
   --pdf-inline-extra: 1.3;
-  --pdf-inline-h: calc((100vh - var(--pdf-viewport-offset, 0px)) * var(--pdf-inline-extra));
+  --pdf-inline-h: calc(var(--gw-a4-h, 1123px) * var(--pdf-inline-extra));
 }
 
 /* 3) aplicar a nova altura ao contêiner do PDF (sem alterar largura) */
