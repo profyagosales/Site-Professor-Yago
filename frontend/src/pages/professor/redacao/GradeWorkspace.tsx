@@ -729,7 +729,6 @@ export default function GradeWorkspace() {
       await saveEssayScore(id, scorePayload);
       setDirty(false);
       toast.success('Correção salva.');
-      navigate('/professor/redacao?tab=corrigidas&refresh=1', { replace: true });
     } catch (err: any) {
       console.error(err);
       toast.error(err?.response?.data?.message || 'Erro ao salvar correção.');
@@ -911,7 +910,6 @@ export default function GradeWorkspace() {
         console.error('[GradeWorkspace] Failed to upload corrected PDF', uploadErr);
         toast.warn('PDF gerado, mas falhou ao salvar no servidor.');
       }
-      navigate('/professor/redacao?tab=corrigidas&refresh=1', { replace: true });
     } catch (err: any) {
       console.error(err);
       toast.error(err?.response?.data?.message || 'Erro ao gerar PDF corrigido.');
