@@ -92,8 +92,8 @@
 .gw-root .gw-hero .hero-center .hero-avatar,
 .gw-root .gw-hero .hero-center .hero-avatar--fallback {
   order: -1 !important;
-  width: 42px !important;
-  height: 42px !important;
+  width: 38px !important;
+  height: 38px !important;
   border-radius: 10px !important;
   flex: 0 0 auto !important;
   box-shadow: 0 0 0 2px #fff, 0 0 0 3px #f97316;
@@ -107,7 +107,7 @@
 .gw-root .gw-hero .hero-center .hero-info {
   display: flex !important;
   flex-direction: column !important;
-  gap: 2px !important;
+  gap: 1px !important;
   min-width: 0;
   overflow: hidden;
   align-items: flex-start;
@@ -194,6 +194,7 @@
 .gw-root {
   --ws-left-rail-w: 157px;
   --ws-left-rail-w-compact: 94px;
+  --ws-right-rail-w: 224px;
   --pdf-inline-scale: 1.3;
   --pdf-inline-h: calc((100vh - var(--pdf-viewport-offset, 0px)) * var(--pdf-inline-scale));
 }
@@ -214,24 +215,6 @@
   min-height: var(--pdf-inline-h) !important;
 }
 
-/* 4) fazer o card de comentários (direita) acompanhar a mesma altura */
-.gw-root .ws-right-rail{
-  max-height: var(--pdf-inline-h) !important;
-  height: var(--pdf-inline-h) !important;
-}
-
-.gw-root .ws-right-rail .RightRailCard{
-  min-height: var(--pdf-inline-h) !important;
-  height: var(--pdf-inline-h) !important;
-  display: flex;
-  flex-direction: column;
-}
-
-.gw-root #comments-rail-scroll{
-  max-height: var(--pdf-inline-h) !important; /* scroll só dentro do corpo */
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
   box-shadow: var(--sh-card);
 }
 
@@ -1913,6 +1896,8 @@ body:has(.gw-root .ws-rail) .pdf-inline-grid {
 .gw-root .ws-right-rail {
   position: sticky;
   top: var(--ws-rail-top, 112px);
+  width: var(--ws-right-rail-w, 320px);
+  flex: 0 0 var(--ws-right-rail-w, 320px);
   height: calc(100vh - var(--ws-rail-top, 112px));
   display: flex;
   flex-direction: column;
