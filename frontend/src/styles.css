@@ -83,8 +83,9 @@
   flex: 1 1 auto;
   min-width: 0;
   display: flex !important;
+  flex-direction: row !important;
   align-items: center !important;
-  gap: 12px !important;
+  gap: 8px !important;
 }
 
 /* avatar menor e à esquerda do texto (mesmo que o DOM esteja em outra ordem) */
@@ -103,11 +104,11 @@
   justify-content: center;
 }
 
-.gw-root .gw-hero .hero-info {
+.gw-root .gw-hero .hero-center .hero-info {
   display: flex !important;
   flex-direction: column !important;
-  gap: 2px !important;
-  min-width: 0 !important;
+  gap: 1px !important;
+  min-width: 0;
   overflow: hidden;
   align-items: flex-start;
   text-align: left;
@@ -1916,10 +1917,12 @@ body:has(.gw-root .ws-rail) .pdf-inline-grid {
   padding: 8px 10px;
   font-size: 12px;
   min-width: 64px;
+  width: 100%;
   border-radius: 10px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: clip;
+  box-sizing: border-box;
 }
 
 /* Right rail escopado + altura total da página */
@@ -2003,7 +2006,7 @@ body:has(.gw-root .ws-rail) .pdf-inline-grid {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 2px;
 }
 
 .gw-root .gw-hero .hero-center .hero-avatar,
