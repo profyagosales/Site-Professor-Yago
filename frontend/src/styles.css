@@ -1122,6 +1122,7 @@ a {
   overscroll-behavior: contain;
   scrollbar-gutter: stable both-edges;
   padding-right: 4px;
+  overflow-anchor: none;
 }
 /* Right rail/card: compact controls */
 .RightRailCard .btn,
@@ -1934,6 +1935,7 @@ body:has(.gw-root .ws-rail) .pdf-inline-grid {
   align-self: stretch;
   height: auto;
   min-height: calc(100vh - var(--ws-rail-top, 112px));
+  max-height: var(--pdf-inline-h, var(--gw-a4-h));
   display: flex;
   flex-direction: column;
 }
@@ -1941,6 +1943,7 @@ body:has(.gw-root .ws-rail) .pdf-inline-grid {
 .gw-root .ws-right-rail .RightRailCard {
   flex: 1 1 auto;
   min-height: 100%;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -1949,8 +1952,11 @@ body:has(.gw-root .ws-rail) .pdf-inline-grid {
 .gw-root #comments-rail-scroll {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  max-height: 100%;
+  overflow-y: auto;
   scrollbar-gutter: stable both-edges;
+  overscroll-behavior: contain;
+  overflow-anchor: none;
 }
 
 /* ===== GRADE WORKSPACE — HERO FINE TUNING ===== */
