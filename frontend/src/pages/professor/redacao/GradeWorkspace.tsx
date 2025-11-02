@@ -1015,7 +1015,7 @@ const railMenu = (
           <aside
             className="order-1 md:order-none md:col-start-1 md:row-start-1 md:row-span-2 md:shrink-0 ws-rail text-[13px] md:w-auto pr-0 pt-0 z-[1]"
           >
-            <div className="ws-rail-sticky w-full h-full rounded-xl md:rounded-r-none border border-slate-200 md:border-r-0 bg-white p-1.5 shadow-sm flex flex-col gap-2">
+            <div className="card w-full h-full rounded-xl md:rounded-r-none border border-slate-200 md:border-r-0 bg-white p-1.5 shadow-sm flex flex-col gap-2">
               <div className="ws-rail-head grid grid-cols-1 gap-2">
                 <Button
                   size="xs"
@@ -1037,11 +1037,11 @@ const railMenu = (
                 </Button>
               </div>
               <div className="h-px bg-slate-200/70 my-1.5" />
-              <div className="ws-rail-body flex-1 min-h-0 overflow-y-auto overscroll-contain mt-3 space-y-2">
+              <div className="ws-rail-body flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-2 pt-2">
                 {railMenu}
               </div>
               <div className="h-px bg-slate-200/70 my-1.5" />
-              <div className="ws-rail-footer grid grid-cols-1 gap-2 mt-3">
+              <div className="ws-rail-footer grid grid-cols-1 gap-2">
                 <Button
                   size="xs"
                   block

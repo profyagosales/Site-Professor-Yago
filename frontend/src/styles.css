@@ -1339,6 +1339,8 @@ a {
   position: sticky;
   top: var(--ws-rail-top);
   height: calc(100vh - var(--ws-rail-top)); /* 100% da viewport */
+  width: var(--ws-right-rail-w, 320px);
+  flex: 0 0 var(--ws-right-rail-w, 320px);
   display: flex;
   flex-direction: column;
   z-index: 2;
@@ -1346,9 +1348,9 @@ a {
 
 /* === Workspace action rail (left) === */
 .ws-rail{
-  /* 40% menor que a largura padrão */
-  width: var(--ws-left-rail-w-compact, calc(var(--ws-left-rail-w) * 0.6));
-  flex: 0 0 var(--ws-left-rail-w-compact, calc(var(--ws-left-rail-w) * 0.6));
+  /* largura compacta compartilhada via tokens */
+  width: var(--ws-left-rail-w-compact, 118px);
+  flex: 0 0 var(--ws-left-rail-w-compact, 118px);
   max-width: none;
   position: sticky;
   top: var(--ws-rail-top);
@@ -1359,21 +1361,6 @@ a {
 
 .ws-rail > .card{
   /* o card principal do rail ocupa toda a altura sticky */
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.ws-rail-sticky{
-  position: sticky;
-  top: var(--rail-top);
-  display: grid;
-  grid-auto-rows: max-content;
-  height: calc(100vh - var(--rail-top));
-  gap: 8px;
-}
-/* Ensure the first card inside the rail fills the sticky height */
-.ws-rail-sticky > .card{
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -1624,13 +1611,19 @@ body:has(.ws-rail) .pdf-inline-grid {
     position: static;
     height: auto;
   }
-  .ws-rail-sticky{
-    position: static;
-    height: auto;
-  }
   .ws-rail-body{
     overflow: visible;
     padding-right: 0;
+  }
+  .ws-right-rail{
+    position: static;
+    top: auto;
+    height: auto;
+    width: 100%;
+    flex: 1 1 auto;
+  }
+  .RightRailCard{
+    height: auto;
   }
 
   .filters-grid{
