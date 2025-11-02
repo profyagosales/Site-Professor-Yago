@@ -200,7 +200,7 @@
   --ws-left-rail-w: 157px;
   --ws-left-rail-w-compact: 94px;
   --ws-right-rail-w: 224px;
-  --pdf-inline-extra: 1.3;
+  --pdf-inline-extra: 1.5;
   --pdf-inline-h: calc(var(--gw-a4-h, 1123px) * var(--pdf-inline-extra));
 }
 
