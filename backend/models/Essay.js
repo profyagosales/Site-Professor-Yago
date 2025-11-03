@@ -23,7 +23,7 @@ const annotationSchema = new mongoose.Schema({
   number: { type: Number, default: null }
 }, { _id: false });
 
-const STATUS = ['pending', 'processing', 'ready', 'failed'];
+const STATUS = ['pending', 'processing', 'ready', 'graded', 'failed'];
 
 const essaySchema = new mongoose.Schema({
   studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
