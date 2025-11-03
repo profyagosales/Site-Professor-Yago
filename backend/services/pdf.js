@@ -58,12 +58,15 @@ const COLOR_SLATE_DARK = hexToRgb('#0f172a');
 const COLOR_NOTE_BG = hexToRgb('#fef3c7');
 const COLOR_RED = hexToRgb('#dc2626');
 const COLOR_WHITE = { r: 1, g: 1, b: 1 };
-const COLOR_BG = hexToRgb('#f7f8fa');
+const COLOR_BG = hexToRgb('#f4f6f9');
 const COLOR_BORDER = hexToRgb('#e2e8f0');
 const COLOR_BORDER_SOFT = hexToRgb('#f1f5f9');
 const COLOR_BLUE = hexToRgb('#2563eb');
 const COLOR_PINK = hexToRgb('#db2777');
 const COLOR_LILAC = hexToRgb('#9333ea');
+const COLOR_SLATE_SUBTLE = hexToRgb('#475569');
+const COLOR_BRAND_PASTEL = hexToRgb('#fff7ed');
+const COLOR_CARD_SHADOW = hexToRgb('#0f172a');
 
 const ANNUL_REASON_LABELS = {
   MENOS_7_LINHAS: 'Menos de 7 linhas',
@@ -108,6 +111,38 @@ function normalizeHexColor(color, fallback = '#ff8a00') {
 
 function asPdfColor(color) {
   return rgb(color.r, color.g, color.b);
+}
+
+function drawRoundedRect(page, {
+  x,
+  y,
+  width,
+  height,
+  radius = 0,
+  color = null,
+  borderColor = null,
+  borderWidth = 0,
+  opacity = 1,
+}) {
+  const r = Math.max(0, Math.min(radius, width / 2, height / 2));
+  const path = [
+    `M ${x + r} ${y}`,
+    `L ${x + width - r} ${y}`,
+    `Q ${x + width} ${y} ${x + width} ${y + r}`,
+    `L ${x + width} ${y + height - r}`,
+    `Q ${x + width} ${y + height} ${x + width - r} ${y + height}`,
+    `L ${x + r} ${y + height}`,
+    `Q ${x} ${y + height} ${x} ${y + height - r}`,
+    `L ${x} ${y + r}`,
+    `Q ${x} ${y} ${x + r} ${y}`,
+    'Z',
+  ].join(' ');
+  page.drawSvgPath(path, {
+    color: color ? asPdfColor(color) : undefined,
+    borderColor: borderColor ? asPdfColor(borderColor) : undefined,
+    borderWidth,
+    opacity,
+  });
 }
 
 function splitUppercaseTokens(text) {
@@ -407,94 +442,111 @@ async function generateCorrectedEssayPdf({
   const overflowComments = [];
 
   const layout = {
-    marginLeft: 32,
-    marginRight: 32,
-    marginTop: 30,
-    marginBottom: 36,
-    columnGap: 18,
-    pdfPadding: 14,
-    commentsPadding: 16,
-    commentCardWidth: 236,
-    heroHeight: 118,
-    heroGap: 18,
+    marginLeft: 38,
+    marginRight: 38,
+    marginTop: 42,
+    marginBottom: 48,
+    columnGap: 24,
+    pdfPadding: 18,
+    commentsPadding: 18,
+    commentCardWidth: 258,
+    heroHeight: 136,
+    heroGap: 28,
+    pdfScale: 1.22,
   };
 
   let lastPageWidth = 612;
 
   const drawHero = (page, rect) => {
     const { x, y, width, height } = rect;
-    const paddingX = 24;
-    const paddingY = 16;
-    const sectionGap = 18;
-    const brandWidth = 84;
-    const statCardWidth = 132;
-    const statGap = 10;
+    const paddingX = 22;
+    const paddingY = 14;
+    const topY = y + height;
+    const brandWidth = 96;
+    const statCardWidth = 138;
+    const statCardHeight = 66;
+    const statGap = 12;
     const statsWidth = statCardWidth * 2 + statGap;
-    const avatarSize = 46;
+    const centerWidth = Math.max(160, width - paddingX * 2 - brandWidth - statsWidth - 28);
+    const avatarSize = 44;
 
-    page.drawRectangle({
+    drawRoundedRect(page, {
+      x: x - 4,
+      y: y - 6,
+      width: width + 8,
+      height: height + 10,
+      radius: 28,
+      color: lightenColor(COLOR_CARD_SHADOW, 0.94),
+      opacity: 0.12,
+    });
+    drawRoundedRect(page, {
       x,
       y,
       width,
       height,
-      color: asPdfColor(COLOR_WHITE),
-      borderColor: asPdfColor(COLOR_BORDER),
-      borderWidth: 1.15,
-      borderRadius: 22,
-    });
-    page.drawRectangle({
-      x: x + 4,
-      y: y - 4,
-      width: width,
-      height: height,
-      color: asPdfColor(lightenColor(COLOR_SLATE_DARK, 0.92)),
-      opacity: 0.12,
-      borderRadius: 24,
+      radius: 24,
+      color: COLOR_WHITE,
+      borderColor: blendColor(COLOR_BORDER, COLOR_WHITE, 0.45),
+      borderWidth: 1.05,
     });
 
     const brandX = x + paddingX;
-    const brandY = y + height - paddingY;
-    page.drawRectangle({
-      x: brandX,
-      y: brandY - 52,
-      width: 52,
-      height: 52,
-      color: asPdfColor(lightenColor(COLOR_ORANGE_ACCENT, 0.75)),
-      borderColor: asPdfColor(COLOR_ORANGE_DEEP),
-      borderWidth: 1.4,
-      borderRadius: 16,
+    const brandMarkSize = 48;
+    const brandMarkX = brandX + (brandWidth - brandMarkSize) / 2;
+    const brandMarkY = topY - paddingY - brandMarkSize;
+    drawRoundedRect(page, {
+      x: brandMarkX,
+      y: brandMarkY,
+      width: brandMarkSize,
+      height: brandMarkSize,
+      radius: 14,
+      color: lightenColor(COLOR_ORANGE_ACCENT, 0.82),
+      borderColor: COLOR_ORANGE_DEEP,
+      borderWidth: 1.3,
+    });
+    drawRoundedRect(page, {
+      x: brandMarkX + 8,
+      y: brandMarkY + 8,
+      width: brandMarkSize - 16,
+      height: brandMarkSize - 16,
+      radius: 10,
+      color: lightenColor(COLOR_ORANGE_ACCENT, 0.92),
     });
     page.drawText('YS', {
-      x: brandX + 16,
-      y: brandY - 26,
+      x: brandMarkX + 15,
+      y: brandMarkY + 20,
       font: fontBold,
-      size: 18,
+      size: 16,
       color: asPdfColor(COLOR_ORANGE_DEEP),
     });
     page.drawText(professorName, {
       x: brandX,
-      y: brandY - 60,
+      y: brandMarkY - 12,
       font: fontBold,
       size: 11,
       color: asPdfColor(COLOR_SLATE_DARK),
     });
+    page.drawText('Correção de redação', {
+      x: brandX,
+      y: brandMarkY - 26,
+      font: fontRegular,
+      size: 9,
+      color: asPdfColor(COLOR_MUTED),
+    });
 
-    const statsX = x + width - paddingX - statsWidth;
-    const centerX = brandX + brandWidth + sectionGap;
-    const centerWidth = Math.max(140, statsX - sectionGap - centerX);
-
+    const centerX = brandX + brandWidth + 18;
     const avatarX = centerX;
-    const avatarY = y + height - paddingY - avatarSize;
+    const avatarY = topY - paddingY - avatarSize;
     if (studentPhotoImage) {
       const scale = avatarSize / Math.max(studentPhotoImage.width, studentPhotoImage.height);
       const dims = studentPhotoImage.scale(scale);
-      page.drawRectangle({
+      drawRoundedRect(page, {
         x: avatarX - 2,
         y: avatarY - 2,
         width: avatarSize + 4,
         height: avatarSize + 4,
-        color: asPdfColor(COLOR_WHITE),
-        borderRadius: 14,
+        radius: 14,
+        color: COLOR_WHITE,
       });
       page.drawImage(studentPhotoImage, {
         x: avatarX,
@@ -502,28 +554,28 @@ async function generateCorrectedEssayPdf({
         width: dims.width,
         height: dims.height,
       });
-      page.drawRectangle({
+      drawRoundedRect(page, {
         x: avatarX,
         y: avatarY,
         width: avatarSize,
         height: avatarSize,
-        borderColor: asPdfColor(COLOR_ORANGE_ACCENT),
+        radius: 12,
+        borderColor: COLOR_ORANGE_ACCENT,
         borderWidth: 1.2,
-        borderRadius: 12,
       });
     } else {
-      page.drawRectangle({
+      drawRoundedRect(page, {
         x: avatarX,
         y: avatarY,
         width: avatarSize,
         height: avatarSize,
-        color: asPdfColor(lightenColor(COLOR_ORANGE_ACCENT, 0.78)),
-        borderColor: asPdfColor(COLOR_ORANGE_ACCENT),
-        borderWidth: 1.2,
-        borderRadius: 12,
+        radius: 12,
+        color: lightenColor(COLOR_ORANGE_ACCENT, 0.82),
+        borderColor: COLOR_ORANGE_ACCENT,
+        borderWidth: 1.1,
       });
       page.drawText(studentInitials, {
-        x: avatarX + 12,
+        x: avatarX + 13,
         y: avatarY + 16,
         font: fontBold,
         size: 16,
@@ -531,8 +583,9 @@ async function generateCorrectedEssayPdf({
       });
     }
 
-    const infoX = avatarX + avatarSize + 14;
-    let infoY = y + height - paddingY - 6;
+    const infoX = avatarX + avatarSize + 12;
+    let infoY = topY - paddingY - 2;
+    const infoWidth = centerWidth - avatarSize - 16;
     page.drawText(studentName, {
       x: infoX,
       y: infoY,
@@ -541,75 +594,76 @@ async function generateCorrectedEssayPdf({
       color: asPdfColor(COLOR_SLATE_DARK),
     });
     infoY -= 15;
-    const metaLine = wrapText(heroMetaLine, centerWidth - avatarSize - 16, fontRegular, 10);
-    metaLine.forEach((line) => {
+    const metaLines = wrapText(heroMetaLine, infoWidth, fontRegular, 10);
+    metaLines.forEach((line) => {
       page.drawText(line, {
         x: infoX,
         y: infoY,
         font: fontRegular,
         size: 10,
-        color: asPdfColor(COLOR_MUTED),
+        color: asPdfColor(COLOR_SLATE_SUBTLE),
       });
       infoY -= 12;
     });
-    const themeLines = wrapText(`Tema: ${themeName}`, centerWidth - avatarSize - 16, fontRegular, 10);
+    const themeLines = wrapText(`Tema: ${themeName}`, infoWidth, fontRegular, 10);
     themeLines.forEach((line) => {
       page.drawText(line, {
         x: infoX,
         y: infoY,
         font: fontRegular,
         size: 10,
-        color: asPdfColor(COLOR_MUTED),
+        color: asPdfColor(COLOR_SLATE_SUBTLE),
       });
       infoY -= 12;
     });
 
+    const statsX = x + width - paddingX - statsWidth;
     const statTitles = [
-      { label: 'TOTAL', value: finalScoreInfo.value, suffix: finalScoreSuffix },
-      { label: 'MODELO', value: modelLabel || '—', suffix: '' },
+      { label: 'TOTAL', value: finalScoreInfo.value, suffix: finalScoreSuffix, accent: true },
+      { label: 'MODELO', value: modelLabel || '—', suffix: '', accent: false },
     ];
     statTitles.forEach((stat, idx) => {
       const sx = statsX + idx * (statCardWidth + statGap);
-      page.drawRectangle({
+      drawRoundedRect(page, {
         x: sx,
-        y: y + height - paddingY - 66,
+        y: topY - paddingY - statCardHeight,
         width: statCardWidth,
-        height: 64,
-        color: asPdfColor(idx === 0 ? lightenColor(COLOR_ORANGE_ACCENT, 0.86) : COLOR_WHITE),
-        borderColor: asPdfColor(idx === 0 ? COLOR_ORANGE_ACCENT : COLOR_BORDER),
+        height: statCardHeight,
+        radius: 16,
+        color: stat.accent ? COLOR_BRAND_PASTEL : COLOR_WHITE,
+        borderColor: stat.accent ? blendColor(COLOR_ORANGE_ACCENT, COLOR_WHITE, 0.2) : COLOR_BORDER,
         borderWidth: 1.2,
-        borderRadius: 14,
       });
       page.drawText(stat.label, {
-        x: sx + 12,
-        y: y + height - paddingY - 24,
+        x: sx + 14,
+        y: topY - paddingY - 18,
         font: fontBold,
         size: 8.5,
         color: asPdfColor(COLOR_ORANGE_DEEP),
       });
-      const valueColor = finalScoreInfo.annulled && idx === 0 ? COLOR_RED : COLOR_SLATE_DARK;
+      const valueColor = finalScoreInfo.annulled && stat.accent ? COLOR_RED : COLOR_SLATE_DARK;
       const statValueText = stat.value || '—';
       page.drawText(statValueText, {
-        x: sx + 12,
-        y: y + height - paddingY - 42,
+        x: sx + 14,
+        y: topY - paddingY - 36,
         font: fontBold,
         size: 18,
         color: asPdfColor(valueColor),
       });
       if (stat.suffix) {
         page.drawText(stat.suffix, {
-          x: sx + 12 + fontBold.widthOfTextAtSize(statValueText, 18) + 4,
-          y: y + height - paddingY - 38,
+          x: sx + 14 + fontBold.widthOfTextAtSize(statValueText, 18) + 4,
+          y: topY - paddingY - 32,
           font: fontRegular,
           size: 10,
-          color: asPdfColor(COLOR_MUTED),
+          color: asPdfColor(COLOR_SLATE_SUBTLE),
         });
       }
     });
 
     page.drawText(`Entregue em ${submissionLabel}`, {
       x: x + paddingX,
-      y: y + 10,
+      y: y + 12,
       font: fontRegular,
       size: 9,
       color: asPdfColor(COLOR_MUTED),
@@ -624,45 +678,79 @@ async function generateCorrectedEssayPdf({
     cardHeight,
     comments,
   }) => {
-    page.drawRectangle({
+    drawRoundedRect(page, {
+      x: cardX - 3,
+      y: cardY - 5,
+      width: cardWidth + 6,
+      height: cardHeight + 10,
+      radius: 26,
+      color: lightenColor(COLOR_CARD_SHADOW, 0.95),
+      opacity: 0.12,
+    });
+    drawRoundedRect(page, {
       x: cardX,
       y: cardY,
       width: cardWidth,
       height: cardHeight,
-      color: asPdfColor(COLOR_WHITE),
-      borderColor: asPdfColor(COLOR_BORDER),
+      radius: 22,
+      color: COLOR_WHITE,
+      borderColor: COLOR_BORDER,
       borderWidth: 1.1,
-      borderRadius: 22,
     });
 
-    let cursorY = cardY + cardHeight - layout.commentsPadding;
-    const baseX = cardX + layout.commentsPadding;
-    page.drawText(`Comentários (${comments.length})`, {
-      x: baseX,
-      y: cursorY - 12,
+    const headerHeight = 58;
+    drawRoundedRect(page, {
+      x: cardX,
+      y: cardY + cardHeight - headerHeight,
+      width: cardWidth,
+      height: headerHeight,
+      radius: 22,
+      color: lightenColor(COLOR_ORANGE_ACCENT, 0.93),
+      borderColor: blendColor(COLOR_ORANGE_ACCENT, COLOR_WHITE, 0.25),
+      borderWidth: 1,
+    });
+
+    const headerTextX = cardX + layout.commentsPadding;
+    const headerTextY = cardY + cardHeight - 24;
+    page.drawText('Comentários', {
+      x: headerTextX,
+      y: headerTextY,
       font: fontBold,
       size: 11,
+      color: asPdfColor(COLOR_ORANGE_DEEP),
+    });
+    page.drawText(`${comments.length}`.padStart(2, '0'), {
+      x: headerTextX,
+      y: headerTextY - 16,
+      font: fontBold,
+      size: 14,
       color: asPdfColor(COLOR_SLATE_DARK),
     });
-    cursorY -= 24;
+    page.drawText('anotações nesta página', {
+      x: headerTextX + 28,
+      y: headerTextY - 16,
+      font: fontRegular,
+      size: 9,
+      color: asPdfColor(COLOR_SLATE_SUBTLE),
+    });
 
-    const availableBottom = cardY + layout.commentsPadding;
+    let cursorY = cardY + cardHeight - headerHeight - 18;
+    const baseX = cardX + layout.commentsPadding;
     const columnWidth = cardWidth - layout.commentsPadding * 2;
-
+    const availableBottom = cardY + layout.commentsPadding;
     const getCategoryLabel = (key) => CATEGORY_LABELS[key] || 'Comentário';
 
     comments.forEach((ann) => {
       const baseColor = normalizeHexColor(ann.color, '#f97316');
-      const bgColor = lightenColor(baseColor, 0.85);
-      const heading = `#${ann.number} ${getCategoryLabel(ann.category)}`;
+      const bgColor = lightenColor(baseColor, 0.9);
+      const headingLabel = getCategoryLabel(ann.category);
       const commentText = ann.comment && ann.comment.trim().length ? ann.comment.trim() : 'Sem comentário.';
-      const textLines = wrapText(commentText, columnWidth - 20, fontRegular, 10);
-      const cardHeightInner = 34 + textLines.length * 12;
-      const totalHeight = cardHeightInner + 12;
-
-      if (cursorY - totalHeight < availableBottom) {
+      const textLines = wrapText(commentText, columnWidth - 32, fontRegular, 10);
+      const cardHeightInner = 48 + textLines.length * 12;
+      const reduction = 14;
+      if (cursorY - (cardHeightInner + reduction) < availableBottom) {
         overflowComments.push({
-          heading,
+          heading: `#${ann.number} ${headingLabel}`,
           comment: commentText,
           color: baseColor,
           number: ann.number,
@@ -670,28 +758,53 @@ async function generateCorrectedEssayPdf({
         return;
       }
 
-      const cardBottom = cursorY - cardHeightInner;
-      page.drawRectangle({
+      const cardTop = cursorY;
+      const cardBottom = cardTop - cardHeightInner;
+      drawRoundedRect(page, {
         x: baseX,
         y: cardBottom,
         width: columnWidth,
         height: cardHeightInner,
-        color: asPdfColor(bgColor),
-        borderColor: asPdfColor(baseColor),
+        radius: 18,
+        color: bgColor,
+        borderColor: blendColor(baseColor, COLOR_WHITE, 0.3),
         borderWidth: 1,
-        borderRadius: 14,
       });
-      page.drawText(heading, {
-        x: baseX + 10,
-        y: cursorY - 18,
+
+      const bubbleSize = 22;
+      const bubbleX = baseX + 12;
+      const bubbleY = cardTop - bubbleSize - 20;
+      drawRoundedRect(page, {
+        x: bubbleX,
+        y: bubbleY,
+        width: bubbleSize,
+        height: bubbleSize,
+        radius: bubbleSize / 2,
+        color: baseColor,
+        opacity: 0.92,
+      });
+      const bubbleNumber = String(ann.number);
+      const bubbleNumberWidth = fontBold.widthOfTextAtSize(bubbleNumber, 10);
+      page.drawText(bubbleNumber, {
+        x: bubbleX + bubbleSize / 2 - bubbleNumberWidth / 2,
+        y: bubbleY + bubbleSize / 2 - 5,
+        font: fontBold,
+        size: 10,
+        color: rgb(1, 1, 1),
+      });
+
+      page.drawText(headingLabel, {
+        x: bubbleX + bubbleSize + 10,
+        y: cardTop - 24,
         font: fontBold,
         size: 9,
-        color: asPdfColor(COLOR_MUTED),
+        color: asPdfColor(COLOR_SLATE_SUBTLE),
       });
-      let textY = cursorY - 32;
+
+      let textY = cardTop - 38;
       textLines.forEach((line) => {
         page.drawText(line, {
-          x: baseX + 10,
+          x: baseX + 12,
           y: textY,
           font: fontRegular,
           size: 10,
@@ -699,17 +812,20 @@ async function generateCorrectedEssayPdf({
         });
         textY -= 12;
       });
-      cursorY = cardBottom - 10;
+
+      cursorY = cardBottom - reduction;
     });
   };
 
   for (let index = 0; index < pagesCount; index += 1) {
-    const embeddedPage = treatAsImage ? null : embeddedPages[index];
-    const drawWidth = treatAsImage ? embeddedImage.width : embeddedPage.width;
-    const drawHeight = treatAsImage ? embeddedImage.height : embeddedPage.height;
+  const embeddedPage = treatAsImage ? null : embeddedPages[index];
+  const baseWidth = treatAsImage ? embeddedImage.width : embeddedPage.width;
+  const baseHeight = treatAsImage ? embeddedImage.height : embeddedPage.height;
+  const scaledWidth = baseWidth * layout.pdfScale;
+  const scaledHeight = baseHeight * layout.pdfScale;
 
-    const pdfCardWidth = drawWidth + layout.pdfPadding * 2;
-    const pdfCardHeight = drawHeight + layout.pdfPadding * 2;
+  const pdfCardWidth = scaledWidth + layout.pdfPadding * 2;
+  const pdfCardHeight = scaledHeight + layout.pdfPadding * 2;
     const heroBlockHeight = index === 0 ? layout.heroHeight + layout.heroGap : 0;
     const pageWidth = layout.marginLeft + pdfCardWidth + layout.columnGap + layout.commentCardWidth + layout.marginRight;
     const pageHeight = layout.marginBottom + pdfCardHeight + heroBlockHeight + layout.marginTop;
@@ -763,15 +879,15 @@ async function generateCorrectedEssayPdf({
       page.drawImage(embeddedImage, {
         x: pdfX,
         y: pdfY,
-        width: drawWidth,
-        height: drawHeight,
+        width: scaledWidth,
+        height: scaledHeight,
       });
     } else {
       page.drawPage(embeddedPage, {
         x: pdfX,
         y: pdfY,
-        width: drawWidth,
-        height: drawHeight,
+        width: scaledWidth,
+        height: scaledHeight,
       });
     }
 
@@ -782,29 +898,30 @@ async function generateCorrectedEssayPdf({
       const baseColor = normalizeHexColor(ann.color, '#f97316');
       const cardColor = lightenColor(baseColor, 0.82);
       (ann.rects || []).forEach((rect) => {
-        const rectWidth = rect.w * drawWidth;
-        const rectHeight = rect.h * drawHeight;
-        const rectX = pdfX + rect.x * drawWidth;
-        const rectY = pdfY + (drawHeight - (rect.y + rect.h) * drawHeight);
-        page.drawRectangle({
+        const rectWidth = rect.w * scaledWidth;
+        const rectHeight = rect.h * scaledHeight;
+        const rectX = pdfX + rect.x * scaledWidth;
+        const rectY = pdfY + (scaledHeight - (rect.y + rect.h) * scaledHeight);
+        drawRoundedRect(page, {
           x: rectX,
           y: rectY,
           width: rectWidth,
           height: rectHeight,
-          color: asPdfColor(baseColor),
-          opacity: 0.35,
-          borderColor: asPdfColor(cardColor),
+          radius: 6,
+          color: baseColor,
+          opacity: 0.28,
+          borderColor: cardColor,
           borderWidth: 1,
         });
-        page.drawRectangle({
+        drawRoundedRect(page, {
           x: rectX + 6,
           y: rectY + rectHeight - 22,
-          width: 22,
+          width: 24,
           height: 18,
-          color: asPdfColor(COLOR_WHITE),
-          borderColor: asPdfColor(COLOR_BORDER),
+          radius: 7,
+          color: COLOR_WHITE,
+          borderColor: COLOR_BORDER,
           borderWidth: 1,
-          borderRadius: 6,
         });
         page.drawText(`#${ann.number}`, {
           x: rectX + 10,
@@ -847,20 +964,29 @@ async function generateCorrectedEssayPdf({
 
   const drawCard = (height, renderer, options = {}) => {
     const availableHeight = cursorY - summaryMarginBottom;
-    const safetyPadding = 12;
-    if (availableHeight <= safetyPadding + 40) return null;
+    const safetyPadding = 16;
+    if (availableHeight <= safetyPadding + 60) return null;
     const effectiveHeight = Math.min(height, availableHeight - safetyPadding);
-    if (effectiveHeight <= 44) return null;
+    if (effectiveHeight <= 56) return null;
     const cardBottom = cursorY - effectiveHeight;
-    summaryPage.drawRectangle({
+    drawRoundedRect(summaryPage, {
+      x: summaryMarginX - 4,
+      y: cardBottom - 6,
+      width: summaryWidth + 8,
+      height: effectiveHeight + 10,
+      radius: 28,
+      color: lightenColor(COLOR_CARD_SHADOW, 0.95),
+      opacity: 0.12,
+    });
+    drawRoundedRect(summaryPage, {
       x: summaryMarginX,
       y: cardBottom,
       width: summaryWidth,
       height: effectiveHeight,
-      color: asPdfColor(options.background || COLOR_WHITE),
-      borderColor: asPdfColor(options.borderColor || COLOR_BORDER),
-      borderWidth: options.borderWidth || 1.1,
-      borderRadius: 22,
+      radius: 24,
+      color: options.background || COLOR_WHITE,
+      borderColor: options.borderColor || blendColor(COLOR_BORDER, COLOR_WHITE, 0.4),
+      borderWidth: options.borderWidth || 1.05,
     });
     renderer({
       x: summaryMarginX,
@@ -872,61 +998,86 @@ async function generateCorrectedEssayPdf({
     return effectiveHeight;
   };
 
-  const baseTitle = (text, yOffset = 0, color = COLOR_SLATE_DARK, size = 14) => {
+  const drawCardHeading = (ctx, text, options = {}) => {
+    const { x, y } = ctx;
+    const offsetY = options.offsetY || 0;
     summaryPage.drawText(text, {
-      x: summaryMarginX + 20,
-      y: cursorY - 28 - yOffset,
+      x: x + 24,
+      y: y - 32 - offsetY,
       font: fontBold,
-      size,
-      color: asPdfColor(color),
+      size: options.size || 14,
+      color: asPdfColor(options.color || COLOR_SLATE_DARK),
     });
   };
 
-  drawCard(140, ({ x, y, bottom, width }) => {
-    baseTitle('Resumo da nota');
-    summaryPage.drawRectangle({
-      x: x + 20,
-      y: y - 72,
-      width: 156,
-      height: 60,
-      color: asPdfColor(lightenColor(COLOR_ORANGE_ACCENT, 0.82)),
-      borderColor: asPdfColor(COLOR_ORANGE_ACCENT),
+  drawCard(148, (ctx) => {
+    drawCardHeading(ctx, 'Resumo da nota');
+    const tileX = ctx.x + 24;
+    const tileY = ctx.y - 92;
+    const tileWidth = 168;
+    const tileHeight = 64;
+    drawRoundedRect(summaryPage, {
+      x: tileX,
+      y: tileY,
+      width: tileWidth,
+      height: tileHeight,
+      radius: 18,
+      color: lightenColor(COLOR_ORANGE_ACCENT, 0.86),
+      borderColor: blendColor(COLOR_ORANGE_ACCENT, COLOR_WHITE, 0.2),
       borderWidth: 1.2,
-      borderRadius: 16,
     });
     summaryPage.drawText('Nota final', {
-      x: x + 32,
-      y: y - 88,
+      x: tileX + 14,
+      y: tileY + tileHeight - 18,
       font: fontBold,
       size: 10,
       color: asPdfColor(COLOR_ORANGE_DEEP),
     });
     const scoreColor = finalScoreInfo.annulled ? COLOR_RED : COLOR_SLATE_DARK;
-    summaryPage.drawText(finalScoreInfo.value, {
-      x: x + 32,
-      y: y - 106,
+    const scoreText = finalScoreInfo.value;
+    summaryPage.drawText(scoreText, {
+      x: tileX + 14,
+      y: tileY + tileHeight - 38,
       font: fontBold,
-      size: 20,
+      size: 21,
       color: asPdfColor(scoreColor),
     });
     summaryPage.drawText(finalScoreSuffix, {
-      x: x + 32 + fontBold.widthOfTextAtSize(finalScoreInfo.value, 20) + 6,
-      y: y - 100,
+      x: tileX + 14 + fontBold.widthOfTextAtSize(scoreText, 21) + 6,
+      y: tileY + tileHeight - 32,
       font: fontRegular,
       size: 11,
-      color: asPdfColor(COLOR_MUTED),
+      color: asPdfColor(COLOR_SLATE_SUBTLE),
     });
 
     const caption = finalScoreInfo.annulled
       ? 'Redação anulada'
       : finalScoreInfo.caption || (essay?.type === 'PAS' ? 'PAS/UnB' : 'ENEM');
     summaryPage.drawText(caption, {
-      x: x + 32,
-      y: y - 120,
+      x: tileX + 14,
+      y: tileY + 12,
       font: fontRegular,
       size: 9,
       color: asPdfColor(finalScoreInfo.annulled ? COLOR_RED : COLOR_MUTED),
     });
+
+    summaryPage.drawText(`Gerado em ${submissionLabel}`, {
+      x: ctx.x + 24 + tileWidth + 24,
+      y: tileY + tileHeight - 18,
+      font: fontRegular,
+      size: 10,
+      color: asPdfColor(COLOR_SLATE_SUBTLE),
+    });
+    summaryPage.drawText(heroMetaLine || '-', {
+      x: ctx.x + 24 + tileWidth + 24,
+      y: tileY + tileHeight - 34,
+      font: fontRegular,
+      size: 10,
+      color: asPdfColor(COLOR_SLATE_SUBTLE),
+    });
+  }, {
+    background: COLOR_WHITE,
+    borderColor: blendColor(COLOR_BORDER, COLOR_WHITE, 0.4),
   });
 
   const annulReasons = Array.isArray(score?.reasons)
@@ -996,9 +1147,10 @@ async function generateCorrectedEssayPdf({
     return base + 60;
   })();
 
-  drawCard(correctionCardHeight, ({ x, y, bottom, width }) => {
-    baseTitle('Espelho do aluno');
-    let sectionY = y - 54;
+  drawCard(correctionCardHeight, (ctx) => {
+    const { x, y, width } = ctx;
+    drawCardHeading(ctx, 'Espelho do aluno');
+    let sectionY = y - 58;
 
     summaryPage.drawText('Anulação', {
       x: x + 24,
@@ -1033,15 +1185,15 @@ async function generateCorrectedEssayPdf({
     }
 
     if (annulled) {
-      summaryPage.drawRectangle({
+      drawRoundedRect(summaryPage, {
         x: x + 20,
-        y: sectionY - 50,
+        y: sectionY - 52,
         width: width - 40,
-        height: 50,
-        color: asPdfColor(lightenColor(COLOR_RED, 0.78)),
-        borderColor: asPdfColor(COLOR_RED),
+        height: 52,
+        radius: 16,
+        color: lightenColor(COLOR_RED, 0.78),
+        borderColor: COLOR_RED,
         borderWidth: 1.2,
-        borderRadius: 14,
       });
       summaryPage.drawText('Redação anulada. A nota final será 0 e o espelho completo ficará oculto para o aluno.', {
         x: x + 30,
@@ -1055,15 +1207,15 @@ async function generateCorrectedEssayPdf({
 
     if (pasData) {
       sectionY -= 6;
-      summaryPage.drawRectangle({
+      drawRoundedRect(summaryPage, {
         x: x + 20,
         y: sectionY - 150,
         width: width - 40,
         height: 150,
-        color: asPdfColor(lightenColor(COLOR_BLUE, 0.82)),
-        borderColor: asPdfColor(COLOR_BLUE),
+        radius: 20,
+        color: lightenColor(COLOR_BLUE, 0.82),
+        borderColor: COLOR_BLUE,
         borderWidth: 1.2,
-        borderRadius: 18,
       });
       summaryPage.drawText('MACROestruturais', {
         x: x + 32,
@@ -1100,15 +1252,15 @@ async function generateCorrectedEssayPdf({
       });
 
       sectionY -= 170;
-      summaryPage.drawRectangle({
+      drawRoundedRect(summaryPage, {
         x: x + 20,
         y: sectionY - 120,
         width: width - 40,
         height: 120,
-        color: asPdfColor(lightenColor(COLOR_PINK, 0.82)),
-        borderColor: asPdfColor(COLOR_PINK),
+        radius: 20,
+        color: lightenColor(COLOR_PINK, 0.82),
+        borderColor: COLOR_PINK,
         borderWidth: 1.2,
-        borderRadius: 18,
       });
       summaryPage.drawText('MICROestruturais', {
         x: x + 32,
@@ -1181,15 +1333,15 @@ async function generateCorrectedEssayPdf({
       });
       sectionY -= 20;
       enemCompetencies.forEach((comp) => {
-        summaryPage.drawRectangle({
+        drawRoundedRect(summaryPage, {
           x: x + 20,
           y: sectionY - 68,
           width: width - 40,
           height: 64,
-          color: asPdfColor(lightenColor(COLOR_LILAC, 0.86)),
-          borderColor: asPdfColor(COLOR_LILAC),
+          radius: 18,
+          color: lightenColor(COLOR_LILAC, 0.86),
+          borderColor: COLOR_LILAC,
           borderWidth: 1,
-          borderRadius: 16,
         });
         summaryPage.drawText(`${comp.key} — ${comp.title}`, {
           x: x + 32,
@@ -1254,40 +1406,41 @@ async function generateCorrectedEssayPdf({
 
   if (overflowComments.length) {
     const overflowHeight = 80 + overflowComments.length * 52;
-    drawCard(overflowHeight, ({ x, y, width }) => {
-      baseTitle('Comentários (continuação)');
-      let commentY = y - 48;
+    drawCard(overflowHeight, (ctx) => {
+      const { x, y, width } = ctx;
+      drawCardHeading(ctx, 'Comentários (continuação)');
+      let commentY = y - 52;
       overflowComments.forEach((item) => {
-        if (commentY < summaryMarginBottom + 70) return;
-        const bgColor = lightenColor(item.color, 0.82);
-        summaryPage.drawRectangle({
-          x: x + 20,
-          y: commentY - 46,
-          width: width - 40,
-          height: 42,
-          color: asPdfColor(bgColor),
-          borderColor: asPdfColor(item.color),
+        if (commentY < summaryMarginBottom + 80) return;
+        const bgColor = lightenColor(item.color, 0.84);
+        drawRoundedRect(summaryPage, {
+          x: x + 22,
+          y: commentY - 48,
+          width: width - 44,
+          height: 44,
+          radius: 16,
+          color: bgColor,
+          borderColor: blendColor(item.color, COLOR_WHITE, 0.3),
           borderWidth: 1,
-          borderRadius: 14,
         });
         summaryPage.drawText(item.heading, {
-          x: x + 32,
+          x: x + 34,
           y: commentY - 16,
           font: fontBold,
           size: 9,
-          color: asPdfColor(COLOR_MUTED),
+          color: asPdfColor(COLOR_SLATE_SUBTLE),
         });
         const lines = wrapText(item.comment, width - 120, fontRegular, 9);
         summaryPage.drawText(lines[0] || 'Sem comentário.', {
-          x: x + 32,
+          x: x + 34,
           y: commentY - 30,
           font: fontRegular,
           size: 9,
           color: asPdfColor(COLOR_SLATE),
         });
-        commentY -= 52;
+        commentY -= 54;
       });
-    }, { borderColor: lightenColor(COLOR_ORANGE_ACCENT, 0.4), borderWidth: 1.05 });
+    }, { borderColor: blendColor(COLOR_ORANGE_ACCENT, COLOR_WHITE, 0.3), borderWidth: 1.05 });
   }
 
   const observationReasons = [];
@@ -1302,9 +1455,10 @@ async function generateCorrectedEssayPdf({
   }
 
   const observationsHeight = Math.max(110, 60 + observationReasons.length * 16);
-  drawCard(observationsHeight, ({ x, y, width }) => {
-    baseTitle(annulled ? 'Motivos da anulação' : 'Observações');
-    let lineY = y - 48;
+  drawCard(observationsHeight, (ctx) => {
+    const { x, y, width } = ctx;
+    drawCardHeading(ctx, annulled ? 'Motivos da anulação' : 'Observações');
+    let lineY = y - 50;
     if (!observationReasons.length) {
       summaryPage.drawText(annulled ? 'Nenhum motivo informado.' : 'Sem observações adicionais.', {
         x: x + 28,
@@ -1329,7 +1483,7 @@ async function generateCorrectedEssayPdf({
       });
       lineY -= 4;
     });
-  }, { borderColor: lightenColor(COLOR_ORANGE_ACCENT, 0.4), borderWidth: 1.05 });
+  }, { borderColor: blendColor(COLOR_ORANGE_ACCENT, COLOR_WHITE, 0.3), borderWidth: 1.05 });
 
   const pdfBytes = await pdfDoc.save();
   return Buffer.from(pdfBytes);
