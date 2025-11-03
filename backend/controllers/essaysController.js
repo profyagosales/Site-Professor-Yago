@@ -1571,10 +1571,7 @@ async function saveEssayScoreController(req, res) {
       }
     }
 
-    essay.updatedAt = new Date();
-    essay.status = 'graded';
-    essay.isCorrected = true;
-    essay.correctedAt = new Date();
+  essay.updatedAt = new Date();
     await essay.save();
     const normalized = normalizeEssayScoreResponse(essay);
     return res.json({
