@@ -77,6 +77,15 @@ const ANNUL_REASON_LABELS = {
   OUTROS: 'Outros',
 };
 
+const ANNUL_REASON_OPTIONS = [
+  { key: 'MENOS_7_LINHAS', label: 'Menos de 7 linhas' },
+  { key: 'FUGA_TEMA', label: 'Fuga ao tema' },
+  { key: 'COPIA', label: 'Cópia' },
+  { key: 'ILEGIVEL', label: 'Ilegível' },
+  { key: 'FUGA_GENERO', label: 'Fuga ao gênero' },
+  { key: 'OUTROS', label: 'Outros (especificar)' },
+];
+
 function isImageMimeType(mime) {
   return typeof mime === 'string' && mime.trim().toLowerCase().startsWith('image/');
 }
@@ -143,6 +152,97 @@ function drawRoundedRect(page, {
     borderWidth,
     opacity,
   });
+}
+
+function drawDivider(page, { x, y, width, color = COLOR_BORDER, thickness = 0.8, dashArray }) {
+  page.drawLine({
+    start: { x, y },
+    end: { x: x + width, y },
+    color: asPdfColor(color),
+    thickness,
+    dashArray,
+  });
+}
+
+function drawChip(page, {
+  x,
+  baseline,
+  text,
+  font,
+  fontSize = 9,
+  paddingX = 9,
+  paddingY = 4,
+  fillColor = COLOR_WHITE,
+  textColor = COLOR_SLATE_DARK,
+  borderColor = COLOR_BORDER,
+  borderWidth = 1,
+  radius = 11,
+}) {
+  if (!font) throw new Error('drawChip requires a font instance');
+  const textWidth = font.widthOfTextAtSize(text, fontSize);
+  const chipHeight = fontSize + paddingY * 2;
+  const chipWidth = textWidth + paddingX * 2;
+  const rectY = baseline - fontSize - paddingY;
+  drawRoundedRect(page, {
+    x,
+    y: rectY,
+    width: chipWidth,
+    height: chipHeight,
+    radius,
+    color: fillColor,
+    borderColor,
+    borderWidth,
+  });
+  page.drawText(text, {
+    x: x + paddingX,
+    y: rectY + paddingY,
+    font,
+    size: fontSize,
+    color: asPdfColor(textColor),
+  });
+  return { width: chipWidth, height: chipHeight };
+}
+
+function measureChipRows(labels, font, maxWidth, {
+  fontSize = 9,
+  paddingX = 9,
+  paddingY = 4,
+  gapX = 12,
+  gapY = 8,
+} = {}) {
+  if (!font || !Array.isArray(labels) || !labels.length) {
+    return { lines: 0, chipHeight: fontSize + paddingY * 2, totalHeight: 0 };
+  }
+  const chipHeight = fontSize + paddingY * 2;
+  const usableWidth = Math.max(60, maxWidth);
+  let currentLineWidth = 0;
+  let lines = 1;
+  labels.forEach((label) => {
+    const textWidth = font.widthOfTextAtSize(label, fontSize);
+    const chipWidth = textWidth + paddingX * 2;
+    if (currentLineWidth === 0) {
+      currentLineWidth = chipWidth + gapX;
+      return;
+    }
+    if (currentLineWidth + chipWidth > usableWidth) {
+      lines += 1;
+      currentLineWidth = chipWidth + gapX;
+    } else {
+      currentLineWidth += chipWidth + gapX;
+    }
+  });
+  const totalHeight = lines * chipHeight + (lines - 1) * gapY;
+  return { lines, chipHeight, totalHeight };
+}
+
+function formatScoreValue(value, precision = 2) {
+  if (value == null) return '—';
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '—';
+  if (typeof precision === 'number') {
+    return numeric.toFixed(precision);
+  }
+  return String(value);
 }
 
 function splitUppercaseTokens(text) {
@@ -422,6 +522,10 @@ async function generateCorrectedEssayPdf({
   const themeName = resolveThemeName(essay);
   const finalScoreInfo = resolveFinalScore(score);
   const finalScoreSuffix = essay?.type === 'PAS' ? '/10' : '/1000';
+  const finalScoreNumeric = (() => {
+    const raw = Number.parseFloat(String(finalScoreInfo.value).replace(',', '.'));
+    return Number.isFinite(raw) ? raw : null;
+  })();
   const submissionDate =
     essay?.submittedAt ||
     essay?.sentAt ||
@@ -959,6 +1063,7 @@ async function generateCorrectedEssayPdf({
   const summaryMarginBottom = layout.marginBottom;
   const summaryWidth = summaryPageWidth - summaryMarginX - layout.marginRight;
   const sectionGap = 20;
+  const cardInnerWidth = summaryWidth - 48;
 
   let cursorY = summaryPageHeight - summaryMarginTop;
 
@@ -1080,36 +1185,203 @@ async function generateCorrectedEssayPdf({
     borderColor: blendColor(COLOR_BORDER, COLOR_WHITE, 0.4),
   });
 
-  const annulReasons = Array.isArray(score?.reasons)
-    ? score.reasons.filter((reason) => typeof reason === 'string' && reason.trim().length)
-    : [];
-  if (score?.otherReason) {
-    annulReasons.push(score.otherReason);
+  const selectedAnnulKeys = new Set();
+  const annulExtraLabels = [];
+  if (Array.isArray(score?.reasons)) {
+    score.reasons.forEach((reason) => {
+      if (typeof reason !== 'string') return;
+      const normalized = reason.trim();
+      if (!normalized) return;
+      selectedAnnulKeys.add(normalized);
+      if (!ANNUL_REASON_LABELS[normalized]) {
+        annulExtraLabels.push(normalized);
+      }
+    });
   }
-  const annulled = Boolean(score?.annulled || annulReasons.length);
+  const knownAnnulLabels = ANNUL_REASON_OPTIONS
+    .filter((option) => selectedAnnulKeys.has(option.key))
+    .map((option) => option.label);
+  const unknownAnnulLabels = Array.from(selectedAnnulKeys)
+    .filter((key) => !ANNUL_REASON_OPTIONS.some((opt) => opt.key === key) && ANNUL_REASON_LABELS[key])
+    .map((key) => ANNUL_REASON_LABELS[key]);
+  const annulOtherText = typeof score?.otherReason === 'string' && score.otherReason.trim().length
+    ? score.otherReason.trim()
+    : null;
+  const annulReasonLabels = [...knownAnnulLabels, ...unknownAnnulLabels, ...annulExtraLabels];
+  if (annulOtherText) {
+    annulReasonLabels.push(annulOtherText);
+  }
+  const annulled = Boolean(score?.annulled || annulReasonLabels.length);
+
+  const extraAnnulChipLabels = annulReasonLabels.filter(
+    (label) => !ANNUL_REASON_OPTIONS.some((option) => option.label === label) && label !== annulOtherText,
+  );
+  const annulChipMetrics = measureChipRows(
+    [
+      ...ANNUL_REASON_OPTIONS.map((option) => option.label),
+      ...extraAnnulChipLabels,
+    ],
+    fontRegular,
+    Math.max(60, summaryWidth - 64),
+  );
+  const annulOtherLines = annulOtherText
+    ? wrapText(annulOtherText, Math.max(48, summaryWidth - 96), fontRegular, 9)
+    : [];
 
   const pasData = score?.type === 'PAS' ? score?.pas || null : null;
   const enemData = score?.type === 'ENEM' ? score?.enem || null : null;
 
-  const pasMacros = pasData
+  const pasMacroRows = pasData
     ? [
-        { label: 'Apresentação', range: '0,00 a 0,50', value: pasData.apresentacao },
-        { label: 'Conteúdo', range: '0,00 a 4,50', value: pasData.argumentacao },
-        { label: 'Gênero textual', range: '0,00 a 2,00', value: pasData.adequacao },
-        { label: 'Coesão e coerência', range: '0,00 a 3,00', value: pasData.coesao },
+        { type: 'item', id: '1', label: 'Apresentação', range: '0,00 a 0,50', value: pasData.apresentacao, precision: 2 },
+        { type: 'group', id: '2', label: 'Desenvolvimento do tema' },
+        { type: 'item', id: '2.1', label: 'Conteúdo', range: '0,00 a 4,50', value: pasData.argumentacao, precision: 2 },
+        { type: 'item', id: '2.2', label: 'Gênero textual', range: '0,00 a 2,00', value: pasData.adequacao, precision: 2 },
+        { type: 'item', id: '2.3', label: 'Coesão e coerência', range: '0,00 a 3,00', value: pasData.coesao, precision: 2 },
+        { type: 'total', id: 'NC', label: 'Nota de conteúdo (NC)', range: '0,00 a 10,00', value: pasData.NC, precision: 2 },
       ]
     : [];
 
-  const pasMicro = pasData
+  const pasSummaryStats = pasData
     ? [
-        { label: 'TL (linhas)', value: pasData.TL ?? pasData.NL },
-        { label: 'NE (erros)', value: pasData.NE },
-        { label: 'Desconto', value: pasData.descontoPorErro != null ? pasData.descontoPorErro.toFixed(3) : '—' },
-        { label: 'Nota final (NR)', value: pasData.NR },
+        { key: 'NC', short: 'NC', label: 'Nota de conteúdo', value: pasData.NC, precision: 2 },
+        { key: 'TL', short: 'TL', label: 'Total de linhas', value: pasData.TL ?? pasData.NL, precision: 0 },
+        { key: 'NE', short: 'NE', label: 'Número de erros', value: pasData.NE ?? 0, precision: 0 },
+        {
+          key: 'DESCONTO',
+          short: '2 / TL',
+          label: 'Desconto por erro',
+          value: pasData.descontoPorErro != null ? pasData.descontoPorErro : null,
+          precision: 3,
+        },
+        {
+          key: 'NR',
+          short: 'NR',
+          label: 'Nota final',
+          value: finalScoreNumeric != null ? finalScoreNumeric : pasData.NR,
+          precision: 2,
+          highlight: true,
+        },
       ]
     : [];
 
   const pasErrors = pasData?.erros || {};
+  const pasErrorRows = pasData
+    ? [
+        { key: 'grafia', label: 'Grafia / Acentuação', value: pasErrors.grafia ?? 0 },
+        { key: 'pontuacao', label: 'Pontuação / Morfossintaxe', value: pasErrors.pontuacao ?? 0 },
+        { key: 'propriedade', label: 'Propriedade vocabular', value: pasErrors.propriedade ?? 0 },
+      ]
+    : [];
+  const pasErrorTotal = pasErrorRows.reduce((sum, row) => {
+    const numeric = Number(row.value);
+    return sum + (Number.isFinite(numeric) ? numeric : 0);
+  }, 0);
+
+  const pasMicroStats = pasData
+    ? [
+        { key: 'TL', short: 'TL', label: 'TL (total de linhas)', value: pasData.TL ?? pasData.NL, precision: 0 },
+        { key: 'NE', short: 'NE', label: 'NE (erros totais)', value: pasData.NE ?? pasErrorTotal, precision: 0 },
+        {
+          key: 'DESCONTO',
+          short: 'disc.',
+          label: 'Desconto por erro',
+          value: pasData.descontoPorErro != null ? pasData.descontoPorErro : null,
+          precision: 3,
+        },
+        {
+          key: 'NR',
+          short: 'NR',
+          label: 'Nota final (NR)',
+          value: finalScoreInfo.annulled ? 0 : finalScoreNumeric ?? pasData.NR,
+          precision: 2,
+          highlight: true,
+        },
+      ]
+    : [];
+
+  const pasMacroMetrics = (() => {
+    if (!pasData) return null;
+    const macroGroupCount = pasMacroRows.filter((row) => row.type === 'group').length;
+    const macroItemCount = pasMacroRows.filter((row) => row.type === 'item').length;
+    const macroTotalCount = pasMacroRows.filter((row) => row.type === 'total').length;
+    const summaryPaddingY = 10;
+    const statsPerRow = 2;
+    const statRowHeight = 22;
+    const statRows = Math.max(1, Math.ceil(pasSummaryStats.length / statsPerRow));
+    const summaryBlockHeight = summaryPaddingY * 2 + 24 + statRows * statRowHeight;
+    const tablePaddingY = 12;
+    const tableHeaderHeight = 24;
+    const macroGroupHeight = 22;
+    const macroItemHeight = 22;
+    const macroTotalHeight = 26;
+    const tableHeight =
+      tablePaddingY * 2 +
+      tableHeaderHeight +
+      macroGroupCount * macroGroupHeight +
+      macroItemCount * macroItemHeight +
+      macroTotalCount * macroTotalHeight;
+    const paddingY = 18;
+    const headerBlockHeight = 32;
+    const macroHeight = paddingY * 2 + headerBlockHeight + summaryBlockHeight + 14 + tableHeight;
+    return {
+      height: macroHeight,
+      paddingY,
+      summaryPaddingY,
+      statsPerRow,
+      statRows,
+      statRowHeight,
+      summaryBlockHeight,
+      tablePaddingY,
+      tableHeaderHeight,
+      macroGroupHeight,
+      macroItemHeight,
+      macroTotalHeight,
+      tableHeight,
+      headerBlockHeight,
+    };
+  })();
+
+  const pasMicroMetrics = (() => {
+    if (!pasData) return null;
+    const tablePaddingY = 12;
+    const tableHeaderHeight = 22;
+    const errorRowHeight = 20;
+    const errorTotalHeight = 24;
+    const tableHeight =
+      tablePaddingY * 2 +
+      tableHeaderHeight +
+      pasErrorRows.length * errorRowHeight +
+      errorTotalHeight;
+    const microChipLabels = pasMicroStats.map((stat) => {
+      const precision = typeof stat.precision === 'number' ? stat.precision : stat.key === 'DESCONTO' ? 3 : 2;
+      const valueText = formatScoreValue(stat.value, precision);
+      const prefix = stat.short || stat.key;
+      return `${prefix}: ${valueText}`;
+    });
+    const microChipMetrics = measureChipRows(
+      microChipLabels,
+      fontRegular,
+      Math.max(60, summaryWidth - 80),
+    );
+    const paddingY = 18;
+    const headerBlockHeight = 32;
+    const tlBlockHeight = 36;
+    const chipBlockHeight = microChipMetrics.totalHeight ? microChipMetrics.totalHeight + 16 : 0;
+    const microHeight = paddingY * 2 + headerBlockHeight + tlBlockHeight + 14 + tableHeight + 18 + chipBlockHeight;
+    return {
+      height: microHeight,
+      paddingY,
+      tablePaddingY,
+      tableHeaderHeight,
+      tableHeight,
+      errorRowHeight,
+      errorTotalHeight,
+      headerBlockHeight,
+      tlBlockHeight,
+      chipMetrics: microChipMetrics,
+    };
+  })();
 
   const enemCompetencies = enemData
     ? ENEM_RUBRIC.map((competency, idx) => {
@@ -1133,18 +1405,23 @@ async function generateCorrectedEssayPdf({
     : [];
 
   const correctionCardHeight = (() => {
-    let base = 160;
-    base += Math.max(annulReasons.length, 1) * 18 + 32;
+    const headingAllowance = 78;
+    const annulTitleBlock = 40;
+    const annulChipBlock = annulChipMetrics.totalHeight ? annulChipMetrics.totalHeight + 18 : 28;
+    const annulOtherHeight = annulOtherLines.length ? annulOtherLines.length * 12 + 18 : 0;
+    const emptyAnnulStateHeight = !selectedAnnulKeys.size && !annulOtherText ? 18 : 0;
+    const annulBaseHeight = headingAllowance + annulTitleBlock + annulChipBlock + annulOtherHeight + emptyAnnulStateHeight;
     if (annulled) {
-      return base + 70;
+      return annulBaseHeight + 120;
     }
-    if (pasData) {
-      return base + 240;
+    if (pasData && pasMacroMetrics && pasMicroMetrics) {
+      return annulBaseHeight + pasMacroMetrics.height + 24 + pasMicroMetrics.height + 18;
     }
     if (enemData) {
-      return base + enemCompetencies.length * 80 + 60;
+      const enemHeight = 120 + Math.max(1, enemCompetencies.length) * 88;
+      return annulBaseHeight + enemHeight;
     }
-    return base + 60;
+    return annulBaseHeight + 120;
   })();
 
   drawCard(correctionCardHeight, (ctx) => {
@@ -1161,165 +1438,594 @@ async function generateCorrectedEssayPdf({
     });
     sectionY -= 16;
 
-    if (annulReasons.length) {
-      annulReasons.forEach((reason, idx) => {
-        const label = ANNUL_REASON_LABELS[reason] || reason;
-        summaryPage.drawText(`• ${label}`, {
-          x: x + 30,
-          y: sectionY,
+    summaryPage.drawText('Selecione os motivos aplicáveis. Quando marcado, a nota final é zerada automaticamente.', {
+      x: x + 24,
+      y: sectionY,
+      font: fontRegular,
+      size: 9,
+      color: asPdfColor(COLOR_MUTED),
+    });
+    sectionY -= 18;
+
+    const chipFontSize = 9;
+    const chipPaddingX = 9;
+    const chipPaddingY = 4;
+    const chipHeight = chipFontSize + chipPaddingY * 2;
+    const chipAreaX = x + 32;
+    const chipAreaWidth = width - 64;
+    let chipBaseline = sectionY - 10;
+    let chipX = chipAreaX;
+    const annulChipEntries = [
+      ...ANNUL_REASON_OPTIONS.map((option) => ({
+        key: option.key,
+        label: option.label,
+        selected: selectedAnnulKeys.has(option.key),
+      })),
+      ...extraAnnulChipLabels.map((label, index) => ({
+        key: `extra-${index}`,
+        label,
+        selected: true,
+      })),
+    ];
+
+    if (annulChipEntries.length) {
+      annulChipEntries.forEach((chip) => {
+        const textWidth = fontRegular.widthOfTextAtSize(chip.label, chipFontSize);
+        const chipWidth = textWidth + chipPaddingX * 2;
+        if (chipX !== chipAreaX && chipX + chipWidth > chipAreaX + chipAreaWidth) {
+          chipX = chipAreaX;
+          chipBaseline -= chipHeight + 8;
+        }
+        const fillColor = chip.selected ? lightenColor(COLOR_ORANGE_ACCENT, 0.82) : COLOR_WHITE;
+        const textColor = chip.selected ? COLOR_ORANGE_DEEP : COLOR_SLATE_DARK;
+        const borderColor = chip.selected ? blendColor(COLOR_ORANGE_ACCENT, COLOR_WHITE, 0.35) : COLOR_BORDER;
+        const chipResult = drawChip(summaryPage, {
+          x: chipX,
+          baseline: chipBaseline,
+          text: chip.label,
           font: fontRegular,
-          size: 10,
-          color: asPdfColor(COLOR_ORANGE_DEEP),
+          fontSize: chipFontSize,
+          paddingX: chipPaddingX,
+          paddingY: chipPaddingY,
+          fillColor,
+          textColor,
+          borderColor,
+          borderWidth: chip.selected ? 1.2 : 1,
+          radius: 11,
         });
-        sectionY -= 14;
+        chipX += chipResult.width + 12;
       });
+      sectionY = chipBaseline - chipHeight - 20;
     } else {
+      sectionY -= 16;
+    }
+
+    if (!selectedAnnulKeys.size && !annulOtherText) {
       summaryPage.drawText('Nenhum motivo selecionado.', {
-        x: x + 30,
+        x: x + 32,
         y: sectionY,
         font: fontRegular,
-        size: 10,
+        size: 9.5,
         color: asPdfColor(COLOR_MUTED),
       });
       sectionY -= 18;
     }
 
-    if (annulled) {
+    if (annulOtherText) {
+      const noteWidth = width - 72;
+      const noteX = x + 28;
+      const notePaddingY = 10;
+      const noteContentHeight = Math.max(annulOtherLines.length, 1) * 11;
+      const noteHeight = noteContentHeight + notePaddingY * 2;
+      const noteBottom = sectionY - noteHeight;
       drawRoundedRect(summaryPage, {
-        x: x + 20,
-        y: sectionY - 52,
-        width: width - 40,
-        height: 52,
-        radius: 16,
-        color: lightenColor(COLOR_RED, 0.78),
+        x: noteX,
+        y: noteBottom,
+        width: noteWidth,
+        height: noteHeight,
+        radius: 14,
+        color: lightenColor(COLOR_ORANGE_ACCENT, 0.9),
+        borderColor: blendColor(COLOR_ORANGE_ACCENT, COLOR_WHITE, 0.4),
+        borderWidth: 1,
+      });
+      let noteLineY = sectionY - 16;
+      summaryPage.drawText('Outro motivo indicado', {
+        x: noteX + 12,
+        y: noteLineY,
+        font: fontBold,
+        size: 9,
+        color: asPdfColor(COLOR_ORANGE_DEEP),
+      });
+      noteLineY -= 12;
+      (annulOtherLines.length ? annulOtherLines : ['—']).forEach((line) => {
+        summaryPage.drawText(line, {
+          x: noteX + 12,
+          y: noteLineY,
+          font: fontRegular,
+          size: 9,
+          color: asPdfColor(COLOR_SLATE_DARK),
+        });
+        noteLineY -= 11;
+      });
+      sectionY = noteBottom - 18;
+    } else {
+      sectionY -= 10;
+    }
+
+    if (annulled) {
+      const alertHeight = 76;
+      const alertBottom = sectionY - alertHeight;
+      drawRoundedRect(summaryPage, {
+        x: x + 24,
+        y: alertBottom,
+        width: width - 48,
+        height: alertHeight,
+        radius: 18,
+        color: lightenColor(COLOR_RED, 0.82),
         borderColor: COLOR_RED,
         borderWidth: 1.2,
       });
-      summaryPage.drawText('Redação anulada. A nota final será 0 e o espelho completo ficará oculto para o aluno.', {
-        x: x + 30,
-        y: sectionY - 30,
+      summaryPage.drawText('Redação anulada', {
+        x: x + 36,
+        y: sectionY - 20,
+        font: fontBold,
+        size: 11,
+        color: asPdfColor(COLOR_RED),
+      });
+      summaryPage.drawText('A nota final será 0 e o espelho completo ficará oculto para o aluno.', {
+        x: x + 36,
+        y: sectionY - 36,
         font: fontRegular,
-        size: 10,
+        size: 9.5,
         color: asPdfColor(COLOR_RED),
       });
       return;
     }
 
-    if (pasData) {
-      sectionY -= 6;
+    if (pasData && pasMacroMetrics && pasMicroMetrics) {
+      const cardX = x + 24;
+      const cardWidth = width - 48;
+
+      const macroMetrics = pasMacroMetrics;
+      sectionY -= 4;
+      const macroCardTop = sectionY;
+      const macroCardBottom = macroCardTop - macroMetrics.height;
+
       drawRoundedRect(summaryPage, {
-        x: x + 20,
-        y: sectionY - 150,
-        width: width - 40,
-        height: 150,
-        radius: 20,
+        x: cardX,
+        y: macroCardBottom,
+        width: cardWidth,
+        height: macroMetrics.height,
+        radius: 22,
         color: lightenColor(COLOR_BLUE, 0.82),
-        borderColor: COLOR_BLUE,
-        borderWidth: 1.2,
-      });
-      summaryPage.drawText('MACROestruturais', {
-        x: x + 32,
-        y: sectionY - 20,
-        font: fontBold,
-        size: 11,
-        color: asPdfColor(COLOR_SLATE_DARK),
-      });
-      let macroY = sectionY - 36;
-      pasMacros.forEach((macro) => {
-        summaryPage.drawText(macro.label, {
-          x: x + 32,
-          y: macroY,
-          font: fontRegular,
-          size: 10,
-          color: asPdfColor(COLOR_SLATE_DARK),
-        });
-        summaryPage.drawText(macro.range, {
-          x: x + width - 170,
-          y: macroY,
-          font: fontRegular,
-          size: 9,
-          color: asPdfColor(COLOR_MUTED),
-        });
-        const valueText = macro.value != null && Number.isFinite(macro.value) ? macro.value.toFixed(2) : '—';
-        summaryPage.drawText(valueText, {
-          x: x + width - 90,
-          y: macroY,
-          font: fontBold,
-          size: 11,
-          color: asPdfColor(COLOR_SLATE_DARK),
-        });
-        macroY -= 20;
+        borderColor: blendColor(COLOR_BLUE, COLOR_WHITE, 0.35),
+        borderWidth: 1.25,
       });
 
-      sectionY -= 170;
-      drawRoundedRect(summaryPage, {
-        x: x + 20,
-        y: sectionY - 120,
-        width: width - 40,
-        height: 120,
-        radius: 20,
-        color: lightenColor(COLOR_PINK, 0.82),
-        borderColor: COLOR_PINK,
-        borderWidth: 1.2,
-      });
-      summaryPage.drawText('MICROestruturais', {
-        x: x + 32,
-        y: sectionY - 20,
+      let macroCursor = macroCardTop - macroMetrics.paddingY;
+      const macroHeaderBaseline = macroCursor - 12;
+      summaryPage.drawText('ASPECTOS MACROESTRUTURAIS', {
+        x: cardX + 16,
+        y: macroHeaderBaseline,
         font: fontBold,
         size: 11,
         color: asPdfColor(COLOR_SLATE_DARK),
       });
-      let microY = sectionY - 40;
-      pasMicro.forEach((entry) => {
-        const valueText = entry.value != null && Number.isFinite(Number(entry.value))
-          ? Number(entry.value).toFixed(entry.label.includes('Desconto') ? 3 : 2)
-          : String(entry.value ?? '—');
-        summaryPage.drawText(entry.label, {
-          x: x + 32,
-          y: microY,
-          font: fontRegular,
-          size: 10,
-          color: asPdfColor(COLOR_SLATE_DARK),
-        });
-        summaryPage.drawText(valueText, {
-          x: x + width - 90,
-          y: microY,
-          font: fontBold,
-          size: 11,
-          color: asPdfColor(COLOR_SLATE_DARK),
-        });
-        microY -= 18;
+  const formulaText = 'NR = NC - 2 x (NE / TL)';
+      const formulaWidth = fontRegular.widthOfTextAtSize(formulaText, 10);
+      summaryPage.drawText(formulaText, {
+        x: cardX + cardWidth - 16 - formulaWidth,
+        y: macroHeaderBaseline,
+        font: fontRegular,
+        size: 10,
+        color: asPdfColor(COLOR_SLATE_SUBTLE),
       });
-      microY -= 6;
-      summaryPage.drawText('Categorias de erro', {
-        x: x + 32,
-        y: microY,
+      macroCursor = macroHeaderBaseline - 20;
+
+      const summaryBlockX = cardX + 16;
+      const summaryBlockWidth = cardWidth - 32;
+      const summaryBlockTop = macroCursor;
+      const summaryBlockBottom = summaryBlockTop - macroMetrics.summaryBlockHeight;
+      drawRoundedRect(summaryPage, {
+        x: summaryBlockX,
+        y: summaryBlockBottom,
+        width: summaryBlockWidth,
+        height: macroMetrics.summaryBlockHeight,
+        radius: 14,
+        color: COLOR_WHITE,
+        borderColor: blendColor(COLOR_BLUE, COLOR_WHITE, 0.45),
+        borderWidth: 1,
+      });
+      const summaryPaddingX = 12;
+      const summaryPaddingTop = macroMetrics.summaryPaddingY;
+      const summaryStatsPerRow = Math.max(1, macroMetrics.statsPerRow);
+      const summaryColumnWidth = (summaryBlockWidth - summaryPaddingX * 2) / summaryStatsPerRow;
+      const summaryTitleBaseline = summaryBlockTop - summaryPaddingTop - 12;
+      summaryPage.drawText('Resumo do espelho', {
+        x: summaryBlockX + summaryPaddingX,
+        y: summaryTitleBaseline,
         font: fontBold,
         size: 10,
         color: asPdfColor(COLOR_SLATE_DARK),
       });
-      microY -= 16;
-      [
-        { label: 'Grafia/Acentuação', value: pasErrors.grafia ?? 0 },
-        { label: 'Pontuação/Morfossintaxe', value: pasErrors.pontuacao ?? 0 },
-        { label: 'Propriedade vocabular', value: pasErrors.propriedade ?? 0 },
-      ].forEach((entry) => {
-        summaryPage.drawText(entry.label, {
-          x: x + 42,
-          y: microY,
+      const summaryFormulaBaseline = summaryTitleBaseline - 12;
+  summaryPage.drawText('NR = NC - 2 x (NE / TL)', {
+        x: summaryBlockX + summaryPaddingX,
+        y: summaryFormulaBaseline,
+        font: fontRegular,
+        size: 9,
+        color: asPdfColor(COLOR_MUTED),
+      });
+      let statsRow = -1;
+      pasSummaryStats.forEach((stat, index) => {
+        const col = index % summaryStatsPerRow;
+        if (col === 0) statsRow += 1;
+        const labelBaseline = summaryFormulaBaseline - 14 - statsRow * macroMetrics.statRowHeight;
+        const valueBaseline = labelBaseline - 12;
+        const cellX = summaryBlockX + summaryPaddingX + col * summaryColumnWidth;
+        summaryPage.drawText(stat.label, {
+          x: cellX,
+          y: labelBaseline,
           font: fontRegular,
-          size: 9,
+          size: 8.5,
+          color: asPdfColor(COLOR_MUTED),
+        });
+        const statValue = formatScoreValue(stat.value, stat.precision ?? 2);
+        const valueColor = stat.highlight ? COLOR_ORANGE_DEEP : COLOR_SLATE_DARK;
+        summaryPage.drawText(statValue, {
+          x: cellX,
+          y: valueBaseline,
+          font: fontBold,
+          size: 11,
+          color: asPdfColor(valueColor),
+        });
+      });
+
+      macroCursor = summaryBlockBottom - 14;
+
+      const tableX = cardX + 16;
+      const tableWidth = cardWidth - 32;
+      const tableTop = macroCursor;
+      const tableHeight = macroMetrics.tableHeight;
+      const tableBottom = tableTop - tableHeight;
+      drawRoundedRect(summaryPage, {
+        x: tableX,
+        y: tableBottom,
+        width: tableWidth,
+        height: tableHeight,
+        radius: 14,
+        color: COLOR_WHITE,
+        borderColor: blendColor(COLOR_BLUE, COLOR_WHITE, 0.45),
+        borderWidth: 1,
+      });
+      const tablePaddingX = 14;
+      const tablePaddingY = macroMetrics.tablePaddingY;
+      const tableInnerWidth = tableWidth - tablePaddingX * 2;
+      const labelWidth = tableInnerWidth * 0.54;
+      const rangeWidth = tableInnerWidth * 0.26;
+      const valueWidth = tableInnerWidth - labelWidth - rangeWidth;
+      const colXLabel = tableX + tablePaddingX;
+      const colXRange = colXLabel + labelWidth;
+      const colXValue = colXRange + rangeWidth;
+
+      let tableCursor = tableTop - tablePaddingY;
+      const tableHeaderBaseline = tableCursor - 12;
+      summaryPage.drawText('Quesitos avaliados', {
+        x: colXLabel,
+        y: tableHeaderBaseline,
+        font: fontBold,
+        size: 9,
+        color: asPdfColor(COLOR_SLATE_SUBTLE),
+      });
+      summaryPage.drawText('Faixa de valor', {
+        x: colXRange,
+        y: tableHeaderBaseline,
+        font: fontBold,
+        size: 9,
+        color: asPdfColor(COLOR_SLATE_SUBTLE),
+      });
+      summaryPage.drawText('Nota', {
+        x: colXValue,
+        y: tableHeaderBaseline,
+        font: fontBold,
+        size: 9,
+        color: asPdfColor(COLOR_SLATE_SUBTLE),
+      });
+      tableCursor -= macroMetrics.tableHeaderHeight;
+      drawDivider(summaryPage, {
+        x: colXLabel,
+        y: tableCursor + 6,
+        width: tableInnerWidth,
+        color: COLOR_BORDER,
+        thickness: 0.7,
+      });
+
+      pasMacroRows.forEach((row, index) => {
+        const rowHeight = row.type === 'group'
+          ? macroMetrics.macroGroupHeight
+          : row.type === 'item'
+            ? macroMetrics.macroItemHeight
+            : macroMetrics.macroTotalHeight;
+        const rowBaseline = tableCursor - 12;
+        if (row.type === 'group') {
+          summaryPage.drawText(`${row.id}. ${row.label}`, {
+            x: colXLabel,
+            y: rowBaseline,
+            font: fontBold,
+            size: 9.5,
+            color: asPdfColor(COLOR_SLATE_DARK),
+          });
+        } else {
+          summaryPage.drawText(row.id, {
+            x: colXLabel,
+            y: rowBaseline,
+            font: fontBold,
+            size: 10,
+            color: asPdfColor(COLOR_SLATE_DARK),
+          });
+          summaryPage.drawText(row.label, {
+            x: colXLabel + 18,
+            y: rowBaseline,
+            font: fontRegular,
+            size: 9.5,
+            color: asPdfColor(row.type === 'total' ? COLOR_ORANGE_DEEP : COLOR_SLATE_DARK),
+          });
+          if (row.range) {
+            summaryPage.drawText(row.range, {
+              x: colXRange,
+              y: rowBaseline,
+              font: fontRegular,
+              size: 9,
+              color: asPdfColor(COLOR_MUTED),
+            });
+          }
+          const valueText = formatScoreValue(row.value, typeof row.precision === 'number' ? row.precision : 2);
+          const valueSize = row.type === 'total' ? 11.5 : 11;
+          const valueColor = row.type === 'total' ? COLOR_ORANGE_DEEP : COLOR_SLATE_DARK;
+          const valueTextWidth = fontBold.widthOfTextAtSize(valueText, valueSize);
+          summaryPage.drawText(valueText, {
+            x: colXValue + valueWidth - valueTextWidth,
+            y: rowBaseline,
+            font: fontBold,
+            size: valueSize,
+            color: asPdfColor(valueColor),
+          });
+        }
+        tableCursor -= rowHeight;
+        if (index < pasMacroRows.length - 1) {
+          drawDivider(summaryPage, {
+            x: colXLabel,
+            y: tableCursor + 6,
+            width: tableInnerWidth,
+            color: blendColor(COLOR_BORDER, COLOR_WHITE, 0.2),
+            thickness: 0.6,
+          });
+        }
+      });
+
+      sectionY = macroCardBottom - 22;
+
+      const microMetrics = pasMicroMetrics;
+      const microCardTop = sectionY;
+      const microCardBottom = microCardTop - microMetrics.height;
+      drawRoundedRect(summaryPage, {
+        x: cardX,
+        y: microCardBottom,
+        width: cardWidth,
+        height: microMetrics.height,
+        radius: 22,
+        color: lightenColor(COLOR_PINK, 0.82),
+        borderColor: blendColor(COLOR_PINK, COLOR_WHITE, 0.4),
+        borderWidth: 1.2,
+      });
+
+      let microCursor = microCardTop - microMetrics.paddingY;
+      const microHeaderBaseline = microCursor - 12;
+      summaryPage.drawText('ASPECTOS MICROESTRUTURAIS', {
+        x: cardX + 16,
+        y: microHeaderBaseline,
+        font: fontBold,
+        size: 11,
+        color: asPdfColor(COLOR_SLATE_DARK),
+      });
+      const microSubBaseline = microHeaderBaseline - 12;
+      summaryPage.drawText('Avalie TL e contagem de erros', {
+        x: cardX + 16,
+        y: microSubBaseline,
+        font: fontRegular,
+        size: 9,
+        color: asPdfColor(COLOR_MUTED),
+      });
+      microCursor = microSubBaseline - 16;
+
+      const tlBlockX = cardX + 16;
+      const tlBlockWidth = cardWidth - 32;
+      const tlBlockHeight = microMetrics.tlBlockHeight;
+      const tlBlockBottom = microCursor - tlBlockHeight;
+      drawRoundedRect(summaryPage, {
+        x: tlBlockX,
+        y: tlBlockBottom,
+        width: tlBlockWidth,
+        height: tlBlockHeight,
+        radius: 14,
+        color: COLOR_WHITE,
+        borderColor: blendColor(COLOR_PINK, COLOR_WHITE, 0.45),
+        borderWidth: 1,
+      });
+      const tlLabelBaseline = microCursor - 16;
+      summaryPage.drawText('Número total de linhas (TL)', {
+        x: tlBlockX + 12,
+        y: tlLabelBaseline,
+        font: fontBold,
+        size: 9.5,
+        color: asPdfColor(COLOR_SLATE_DARK),
+      });
+      const tlValue = pasData.TL ?? pasData.NL;
+      summaryPage.drawText(formatScoreValue(tlValue, 0), {
+        x: tlBlockX + 12,
+        y: tlLabelBaseline - 16,
+        font: fontBold,
+        size: 14,
+        color: asPdfColor(COLOR_SLATE_DARK),
+      });
+      summaryPage.drawText('mínimo 8 / máximo 30', {
+        x: tlBlockX + 12,
+        y: tlLabelBaseline - 30,
+        font: fontRegular,
+        size: 8.5,
+        color: asPdfColor(COLOR_MUTED),
+      });
+      microCursor = tlBlockBottom - 14;
+
+      summaryPage.drawText('Categorias de erro', {
+        x: cardX + 16,
+        y: microCursor,
+        font: fontBold,
+        size: 10,
+        color: asPdfColor(COLOR_SLATE_DARK),
+      });
+      microCursor -= 12;
+
+      const microTableX = cardX + 16;
+      const microTableWidth = cardWidth - 32;
+      const microTableTop = microCursor;
+      const microTableHeight = microMetrics.tableHeight;
+      const microTableBottom = microTableTop - microTableHeight;
+      drawRoundedRect(summaryPage, {
+        x: microTableX,
+        y: microTableBottom,
+        width: microTableWidth,
+        height: microTableHeight,
+        radius: 14,
+        color: COLOR_WHITE,
+        borderColor: blendColor(COLOR_PINK, COLOR_WHITE, 0.45),
+        borderWidth: 1,
+      });
+      const microTablePaddingX = 14;
+      const microTablePaddingY = microMetrics.tablePaddingY;
+      const microTableInnerWidth = microTableWidth - microTablePaddingX * 2;
+      const microLabelWidth = microTableInnerWidth * 0.7;
+      const microValueWidth = microTableInnerWidth - microLabelWidth;
+      const microColXLabel = microTableX + microTablePaddingX;
+      const microColXValue = microColXLabel + microLabelWidth;
+
+      let microTableCursor = microTableTop - microTablePaddingY;
+      const microTableHeaderBaseline = microTableCursor - 12;
+      summaryPage.drawText('Tipo de erro', {
+        x: microColXLabel,
+        y: microTableHeaderBaseline,
+        font: fontBold,
+        size: 9,
+        color: asPdfColor(COLOR_SLATE_SUBTLE),
+      });
+      summaryPage.drawText('Quantidade', {
+        x: microColXValue,
+        y: microTableHeaderBaseline,
+        font: fontBold,
+        size: 9,
+        color: asPdfColor(COLOR_SLATE_SUBTLE),
+      });
+      microTableCursor -= microMetrics.tableHeaderHeight;
+      drawDivider(summaryPage, {
+        x: microColXLabel,
+        y: microTableCursor + 6,
+        width: microTableInnerWidth,
+        color: COLOR_BORDER,
+        thickness: 0.7,
+      });
+
+      pasErrorRows.forEach((row) => {
+        const rowBaseline = microTableCursor - 12;
+        summaryPage.drawText(row.label, {
+          x: microColXLabel,
+          y: rowBaseline,
+          font: fontRegular,
+          size: 9.5,
           color: asPdfColor(COLOR_SLATE_DARK),
         });
-        summaryPage.drawText(String(entry.value ?? 0), {
-          x: x + width - 90,
-          y: microY,
+        const valueText = formatScoreValue(row.value, 0);
+        const valueWidth = fontBold.widthOfTextAtSize(valueText, 10);
+        summaryPage.drawText(valueText, {
+          x: microColXValue + microValueWidth - valueWidth,
+          y: rowBaseline,
           font: fontBold,
           size: 10,
           color: asPdfColor(COLOR_SLATE_DARK),
         });
-        microY -= 14;
+        microTableCursor -= microMetrics.errorRowHeight;
+        drawDivider(summaryPage, {
+          x: microColXLabel,
+          y: microTableCursor + 6,
+          width: microTableInnerWidth,
+          color: blendColor(COLOR_BORDER, COLOR_WHITE, 0.3),
+          thickness: 0.6,
+        });
       });
+
+      const totalBaseline = microTableCursor - 12;
+      summaryPage.drawText('NE — Número total de erros', {
+        x: microColXLabel,
+        y: totalBaseline,
+        font: fontBold,
+        size: 9.5,
+        color: asPdfColor(COLOR_ORANGE_DEEP),
+      });
+      const totalText = formatScoreValue(pasErrorTotal, 0);
+      const totalTextWidth = fontBold.widthOfTextAtSize(totalText, 11);
+      summaryPage.drawText(totalText, {
+        x: microColXValue + microValueWidth - totalTextWidth,
+        y: totalBaseline,
+        font: fontBold,
+        size: 11,
+        color: asPdfColor(COLOR_ORANGE_DEEP),
+      });
+      microTableCursor -= microMetrics.errorTotalHeight;
+      microCursor = microTableBottom - 16;
+
+      const microChipEntries = pasMicroStats.map((stat) => {
+        const precision = typeof stat.precision === 'number' ? stat.precision : stat.key === 'DESCONTO' ? 3 : 2;
+        return {
+          key: stat.key,
+          label: `${stat.short || stat.key}: ${formatScoreValue(stat.value, precision)}`,
+          highlight: Boolean(stat.highlight),
+        };
+      });
+      if (microChipEntries.length) {
+        let microChipBaseline = microCursor - 18;
+        let microChipX = cardX + 16;
+        const microChipAreaWidth = cardWidth - 32;
+        microChipEntries.forEach((chip) => {
+          const textWidth = fontRegular.widthOfTextAtSize(chip.label, chipFontSize);
+          const chipWidth = textWidth + chipPaddingX * 2;
+          if (microChipX !== cardX + 16 && microChipX + chipWidth > cardX + 16 + microChipAreaWidth) {
+            microChipX = cardX + 16;
+            microChipBaseline -= chipHeight + 8;
+          }
+          const fillColor = chip.highlight ? lightenColor(COLOR_ORANGE_ACCENT, 0.82) : COLOR_WHITE;
+          const textColor = chip.highlight ? COLOR_ORANGE_DEEP : COLOR_SLATE_DARK;
+          const borderColor = chip.highlight ? blendColor(COLOR_ORANGE_ACCENT, COLOR_WHITE, 0.35) : COLOR_BORDER;
+          const chipResult = drawChip(summaryPage, {
+            x: microChipX,
+            baseline: microChipBaseline,
+            text: chip.label,
+            font: fontRegular,
+            fontSize: chipFontSize,
+            paddingX: chipPaddingX,
+            paddingY: chipPaddingY,
+            fillColor,
+            textColor,
+            borderColor,
+            borderWidth: chip.highlight ? 1.2 : 1,
+            radius: 11,
+          });
+          microChipX += chipResult.width + 12;
+        });
+        microCursor = microChipBaseline - chipHeight - 18;
+      } else {
+        microCursor -= 12;
+      }
+
+      sectionY = microCardBottom - 12;
       return;
     }
 
