@@ -19,16 +19,14 @@ const SCORE_CARD = { width: 150, height: 56, radius: 14, pad: 10 };
 
 const COMMENT = {
 	titleSize: BODY_SIZE,
-	numberSize: 8,
-	categorySize: 6,
-	textSize: 7,
-	lineGap: 1,
-	cardGap: 6,
-	padding: 4,
-	bandHeight: 12,
-	bandTextGap: 3,
-	titleTextGap: 3,
+	numberSize: 9,
+	categorySize: 9,
+	textSize: 8,
+	lineGap: 2,
+	cardGap: 8,
+	padding: 10,
 	maxLines: 6,
+	circleSize: 14,
 };
 
 const HIGHLIGHT_FILL_OPACITY = 0.22;
@@ -68,6 +66,15 @@ const COMMENT_CATEGORIES = {
 	apresentacao: { label: 'Apresentação', hex: '#FFC999' },
 	comentarios: { label: 'Comentários gerais', hex: '#FFC0C0' },
 };
+
+const ANNUL_OPTIONS = [
+	{ key: 'MENOS_7_LINHAS', label: 'Menos de 7 linhas' },
+	{ key: 'FUGA_TEMA', label: 'Fuga ao tema' },
+	{ key: 'COPIA', label: 'Cópia' },
+	{ key: 'ILEGIVEL', label: 'Ilegível' },
+	{ key: 'FUGA_GENERO', label: 'Fuga ao gênero' },
+	{ key: 'OUTROS', label: 'Outros (especificar)', hasInput: true },
+];
 
 const ENEM_COLORS_HEX = {
 	C1: { strong: '#065F46', title: '#0F766E', pastel: '#D1FAE5' },
@@ -713,33 +720,31 @@ function drawDocumentPreview({
 				borderOpacity: HIGHLIGHT_BORDER_OPACITY,
 			});
 
-			const labelWidth = Math.min(HIGHLIGHT_LABEL_SIZE, clippedWidth);
-			const labelHeight = Math.min(HIGHLIGHT_LABEL_SIZE, clippedHeight);
-			if (labelWidth <= 0 || labelHeight <= 0) return;
-			const labelText = `#${displayNumber}`;
-			const labelX = clippedX;
-			const labelY = clippedY + clippedHeight - labelHeight;
-
-			page.drawRectangle({
-				x: labelX,
-				y: labelY,
-				width: labelWidth,
-				height: labelHeight,
-				color: baseColor,
-				opacity: Math.min(1, HIGHLIGHT_BORDER_OPACITY + 0.1),
-				borderWidth: 0,
+			const badgeDiameter = Math.min(HIGHLIGHT_LABEL_SIZE, Math.max(10, Math.min(clippedWidth, clippedHeight)));
+			if (badgeDiameter <= 0) return;
+			const badgeX = clippedX + 4;
+			const badgeY = clippedY + clippedHeight - badgeDiameter - 4;
+			const badgeRadius = badgeDiameter / 2;
+			page.drawCircle({
+				x: badgeX + badgeRadius,
+				y: badgeY + badgeRadius,
+				size: badgeRadius,
+				color: colorFromHex('#FFFFFF'),
+				borderColor: baseColor,
+				borderWidth: 1,
 			});
 
+			const labelText = String(displayNumber);
 			const textWidth = fonts.bold.widthOfTextAtSize(labelText, HIGHLIGHT_LABEL_FONT_SIZE);
 			const textHeight = fonts.bold.heightAtSize(HIGHLIGHT_LABEL_FONT_SIZE);
-			const textX = labelX + Math.max((labelWidth - textWidth) / 2, 2);
-			const textY = labelY + Math.max((labelHeight - textHeight) / 2, 1);
+			const textX = badgeX + badgeRadius - textWidth / 2;
+			const textY = badgeY + badgeRadius - textHeight / 2;
 			page.drawText(labelText, {
 				x: textX,
 				y: textY,
 				size: HIGHLIGHT_LABEL_FONT_SIZE,
 				font: fonts.bold,
-				color: colorFromHex(HEX.text),
+				color: colorFromHex(style.hex),
 			});
 		});
 	});
@@ -773,7 +778,7 @@ function drawCommentsColumn({
 			font: fonts.bold,
 			color: colorFromHex(HEX.text),
 		});
-		cursor -= COMMENT.titleSize + PREVIEW_GAP;
+		cursor -= COMMENT.titleSize + 10;
 	}
 
 	const totalAnnotations = annotations.length;
@@ -798,7 +803,6 @@ function drawCommentsColumn({
 	while (index < totalAnnotations) {
 		const ann = annotations[index];
 		const style = getCategoryStyle(ann.category);
-		const bandColor = blendHex(style.hex, '#FFFFFF', 0.35);
 		const cardPadding = COMMENT.padding;
 		const bodyText = resolveAnnotationMessage(ann) || 'Sem comentário.';
 		let textLines = wrapText(bodyText, fonts.regular, COMMENT.textSize, innerWidth);
@@ -812,7 +816,8 @@ function drawCommentsColumn({
 		}
 
 		const textBlockHeight = textLines.length * COMMENT.textSize + Math.max(0, textLines.length - 1) * COMMENT.lineGap;
-		const cardHeight = COMMENT.bandHeight + COMMENT.bandTextGap + COMMENT.categorySize + COMMENT.titleTextGap + textBlockHeight + cardPadding;
+		const headerHeight = Math.max(COMMENT.circleSize, COMMENT.categorySize) + 4;
+		const cardHeight = cardPadding * 2 + headerHeight + textBlockHeight;
 		if (cursor - cardHeight < bottom) {
 			if (drewAny) break;
 			if (cursor <= bottom) break;
@@ -820,62 +825,78 @@ function drawCommentsColumn({
 
 		const cardTop = cursor;
 		const cardBottom = Math.max(bottom, cardTop - cardHeight);
+		const fillColor = blendHex(style.hex, '#FFFFFF', 0.85);
+		const borderColor = blendHex(style.hex, '#FFFFFF', 0.55);
 		drawRoundedRect(page, {
 			x,
 			y: cardBottom,
 			width,
 			height: cardTop - cardBottom,
 			radius: 14,
-			fill: colorFromHex(HEX.background),
-			stroke: colorFromHex(HEX.border),
+			fill: fillColor,
+			stroke: borderColor,
 			strokeWidth: 1,
 		});
 
-		page.drawRectangle({
-			x,
-			y: cardTop - COMMENT.bandHeight,
-			width,
-			height: COMMENT.bandHeight,
-			color: bandColor,
+		const circleRadius = COMMENT.circleSize / 2;
+		const circleCenterX = x + cardPadding + circleRadius;
+		const circleCenterY = cardTop - cardPadding - circleRadius;
+		page.drawCircle({
+			x: circleCenterX,
+			y: circleCenterY,
+			size: circleRadius,
+			color: colorFromHex('#FFFFFF'),
+			borderColor: colorFromHex(style.hex),
+			borderWidth: 1,
 		});
-
-		const numberLabel = `#${resolveAnnotationNumber(ann, index + 1)}`;
-		const numberBaseline = cardTop - COMMENT.bandHeight + (COMMENT.bandHeight - COMMENT.numberSize) / 2;
+		const numberLabel = String(resolveAnnotationNumber(ann, index + 1));
+		const numberWidth = fonts.bold.widthOfTextAtSize(numberLabel, COMMENT.numberSize);
+		const numberHeight = fonts.bold.heightAtSize(COMMENT.numberSize);
 		page.drawText(numberLabel, {
-			x: x + cardPadding,
-			y: numberBaseline,
+			x: circleCenterX - numberWidth / 2,
+			y: circleCenterY - numberHeight / 2,
 			size: COMMENT.numberSize,
 			font: fonts.bold,
-			color: colorFromHex(HEX.text),
+			color: colorFromHex(style.hex),
 		});
 
-		let textY = cardTop - COMMENT.bandHeight - COMMENT.bandTextGap;
-		const categoryLabel = `${style.label}${ann.page > 1 ? ` • Página ${ann.page}` : ''}`.toUpperCase();
-		textY -= COMMENT.categorySize;
+		const titleX = x + cardPadding + COMMENT.circleSize + 6;
+		const titleY = cardTop - cardPadding - COMMENT.categorySize;
+		const categoryLabel = style.label;
 		page.drawText(categoryLabel, {
-			x: x + cardPadding,
-			y: textY,
+			x: titleX,
+			y: titleY,
 			size: COMMENT.categorySize,
 			font: fonts.bold,
-			color: colorFromHex(HEX.textMuted),
+			color: colorFromHex('#0F172A'),
 		});
+		if (ann.page > 1) {
+			const pageLabel = `Página ${ann.page}`;
+			const pageWidth = fonts.regular.widthOfTextAtSize(pageLabel, COMMENT.textSize);
+			page.drawText(pageLabel, {
+				x: x + width - cardPadding - pageWidth,
+				y: titleY,
+				size: COMMENT.textSize,
+				font: fonts.regular,
+				color: colorFromHex(HEX.textMuted),
+			});
+		}
 
-		textY -= COMMENT.titleTextGap;
+		let textY = titleY - COMMENT.categorySize - 4;
 		for (let i = 0; i < textLines.length; i += 1) {
 			const line = textLines[i];
 			const nextY = textY - COMMENT.textSize;
-			if (nextY < cardBottom) break;
+			if (nextY < cardBottom + cardPadding) break;
 			page.drawText(line, {
 				x: x + cardPadding,
 				y: nextY,
 				size: COMMENT.textSize,
 				font: fonts.regular,
-				color: colorFromHex(HEX.text),
+				color: colorFromHex('#0F172A'),
 			});
 			textY = nextY - COMMENT.lineGap;
 		}
 
-		// Adjust cursor for next card
 		cursor = cardBottom - COMMENT.cardGap;
 		index += 1;
 		drewAny = true;
@@ -1412,6 +1433,186 @@ function drawEnemSummarySection(page, fonts, x, yTop, width, totalPoints) {
 function calculateEnemSummaryHeight() {
 	const cardHeight = 56;
 	return BODY_SIZE + 6 + cardHeight + 12;
+}
+
+function drawAnnulmentSection(page, fonts, x, yTop, width, score) {
+	const selected = new Set(Array.isArray(score?.reasons) ? score.reasons.map(String) : []);
+	const otherReason = typeof score?.otherReason === 'string' ? score.otherReason.trim() : '';
+	const annulled = Boolean(score?.annulled || selected.size > 0);
+	const cardPadding = 12;
+	const titleSize = 12;
+	const subtitleSize = 9;
+	const optionSize = 9;
+	const optionGap = 6;
+	const checkboxSize = 9;
+	const checkboxGap = 8;
+	const innerWidth = width - cardPadding * 2;
+
+	const description = annulled
+		? 'Redação anulada. Verifique os motivos abaixo.'
+		: 'Selecione os motivos aplicáveis antes de finalizar a correção.';
+	const descriptionLines = wrapText(description, fonts.regular, subtitleSize, innerWidth);
+
+	const lineSpacing = 2;
+	const headingSpacing = 4;
+	const sectionSpacing = 4;
+
+	const optionsLayout = ANNUL_OPTIONS.map((opt) => {
+		const lines = wrapText(opt.label, fonts.regular, optionSize, innerWidth - checkboxSize - checkboxGap);
+		const textHeight = lines.length * optionSize + Math.max(0, lines.length - 1) * lineSpacing;
+		const height = Math.max(checkboxSize, textHeight);
+		return { ...opt, lines, height };
+	});
+
+	let otherLines = [];
+	if (selected.has('OUTROS') && otherReason) {
+		otherLines = wrapText(otherReason, fonts.regular, subtitleSize, innerWidth - 2);
+	}
+
+	const badgeHeight = annulled ? 16 : 0;
+
+	const descriptionHeight = descriptionLines.length
+		? descriptionLines.length * subtitleSize + (descriptionLines.length - 1) * 2
+		: 0;
+	const optionsHeight = optionsLayout.reduce(
+		(acc, opt) => acc + opt.height,
+		0
+	);
+	const optionsGaps = optionGap * Math.max(optionsLayout.length - 1, 0);
+	const otherHeight = otherLines.length
+		? subtitleSize + headingSpacing + otherLines.length * (subtitleSize + lineSpacing) - lineSpacing + sectionSpacing
+		: 0;
+	const totalHeight =
+		cardPadding * 2 +
+		titleSize +
+		(descriptionHeight ? descriptionHeight + 8 : 6) +
+		optionsHeight +
+		optionsGaps +
+		otherHeight +
+		badgeHeight;
+
+	const cardBottom = yTop - totalHeight;
+	drawRoundedRect(page, {
+		x,
+		y: cardBottom,
+		width,
+		height: totalHeight,
+		radius: 16,
+		fill: colorFromHex('#FFFFFF'),
+		stroke: colorFromHex('#F5D0A3'),
+		strokeWidth: 1,
+	});
+
+	let cursor = yTop - cardPadding;
+	page.drawText('Espelho do aluno', {
+		x: x + cardPadding,
+		y: cursor - titleSize,
+		size: titleSize,
+		font: fonts.bold,
+		color: colorFromHex('#AA4A0A'),
+	});
+	cursor -= titleSize + 4;
+
+	descriptionLines.forEach((line) => {
+		cursor -= subtitleSize;
+		page.drawText(line, {
+			x: x + cardPadding,
+			y: cursor,
+			size: subtitleSize,
+			font: fonts.regular,
+			color: colorFromHex(HEX.textMuted),
+		});
+		cursor -= 2;
+	});
+	cursor -= 6;
+
+	optionsLayout.forEach((opt) => {
+		const checked = selected.has(opt.key);
+		const rowTop = cursor;
+		const checkboxX = x + cardPadding;
+		const checkboxY = rowTop - checkboxSize;
+		page.drawRectangle({
+			x: checkboxX,
+			y: checkboxY,
+			width: checkboxSize,
+			height: checkboxSize,
+			radius: 2,
+			color: colorFromHex(checked ? '#FDBA74' : '#FFFFFF'),
+			borderColor: colorFromHex('#F97316'),
+			borderWidth: 1,
+		});
+		if (checked) {
+			page.drawText('✓', {
+				x: checkboxX + 1.5,
+				y: checkboxY + 1,
+				size: optionSize,
+				font: fonts.bold,
+				color: colorFromHex('#B45309'),
+			});
+		}
+		let lineCursor = rowTop;
+		opt.lines.forEach((line) => {
+			lineCursor -= optionSize;
+			page.drawText(line, {
+				x: checkboxX + checkboxSize + checkboxGap,
+				y: lineCursor,
+				size: optionSize,
+				font: fonts.regular,
+				color: colorFromHex('#0F172A'),
+			});
+			lineCursor -= lineSpacing;
+		});
+		cursor -= opt.height + optionGap;
+	});
+	if (optionsLayout.length) cursor += optionGap;
+
+	if (otherLines.length) {
+		page.drawText('Observação', {
+			x: x + cardPadding,
+			y: cursor - subtitleSize,
+			size: subtitleSize,
+			font: fonts.bold,
+			color: colorFromHex('#B45309'),
+		});
+		cursor -= subtitleSize + headingSpacing;
+		otherLines.forEach((line) => {
+			cursor -= subtitleSize;
+			page.drawText(line, {
+				x: x + cardPadding,
+				y: cursor,
+				size: subtitleSize,
+				font: fonts.regular,
+				color: colorFromHex('#0F172A'),
+			});
+			cursor -= lineSpacing;
+		});
+		cursor += lineSpacing;
+		cursor -= sectionSpacing;
+	}
+
+	if (annulled) {
+		const badgeHeightInner = badgeHeight;
+		cursor -= badgeHeightInner;
+		drawRoundedRect(page, {
+			x: x + cardPadding,
+			y: cursor,
+			width: 148,
+			height: badgeHeightInner,
+			radius: badgeHeightInner / 2,
+			fill: colorFromHex('#FDE68A'),
+			stroke: colorFromHex('#F59E0B'),
+			strokeWidth: 1,
+		});
+		page.drawText('Correção anulada', {
+			x: x + cardPadding + 12,
+			y: cursor + 4,
+			size: subtitleSize,
+			font: fonts.bold,
+			color: colorFromHex('#92400E'),
+		});
+	}
+
+	return cardBottom;
 }
 
 function buildHeroMeta({ classLabel, subjectLabel, modelLabel, bimesterLabel }) {
