@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const http = require('http');
 const https = require('https');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
@@ -86,6 +88,37 @@ const ENEM_COLORS_HEX = {
 	C5: { strong: '#9A3412', title: '#EA580C', pastel: '#FFEDD5' },
 };
 
+let brandMarkBytesCache = null;
+let brandMarkLoadAttempted = false;
+
+function resolveBrandMarkPath() {
+	return path.resolve(__dirname, '../assets/brand-mark.png');
+}
+
+function getBrandMarkBytes() {
+	if (brandMarkLoadAttempted) return brandMarkBytesCache;
+	brandMarkLoadAttempted = true;
+	const filePath = resolveBrandMarkPath();
+	try {
+		brandMarkBytesCache = fs.readFileSync(filePath);
+	} catch (err) {
+		brandMarkBytesCache = null;
+		console.warn('[pdf] Marca do professor indisponível em', filePath, err?.message || err);
+	}
+	return brandMarkBytesCache;
+}
+
+async function embedBrandMark(pdfDoc) {
+	const bytes = getBrandMarkBytes();
+	if (!bytes || !bytes.length) return null;
+	try {
+		return await pdfDoc.embedPng(bytes);
+	} catch (err) {
+		console.warn('[pdf] Falha ao incorporar marca do professor', err?.message || err);
+		return null;
+	}
+}
+
 function hexToRgbComponents(hex) {
 	if (typeof hex !== 'string') return { r: 0, g: 0, b: 0 };
 	const normalized = hex.replace('#', '').trim();
@@ -134,21 +167,32 @@ function columnsActionsCenterComments(contentWidth) {
 }
 
 function wrapText(text, font, fontSize, maxWidth) {
-	if (!text) return [];
+	if (!text || !String(text).trim()) return [];
 	const lines = [];
-	const words = text.replace(/\s+/g, ' ').trim().split(' ');
-	let current = '';
-	words.forEach((word) => {
-		const candidate = current ? `${current} ${word}` : word;
-		const width = font.widthOfTextAtSize(candidate, fontSize);
-		if (width <= maxWidth) {
-			current = candidate;
-		} else {
-			if (current) lines.push(current);
-			current = word;
+	const paragraphs = String(text).replace(/\r\n/g, '\n').split('\n');
+	paragraphs.forEach((paragraph, index) => {
+		const sanitized = paragraph.trim();
+		if (!sanitized) {
+			if (index < paragraphs.length - 1) lines.push('');
+			return;
 		}
+		const words = sanitized.split(/\s+/);
+		let current = '';
+		words.forEach((word) => {
+			const candidate = current ? `${current} ${word}` : word;
+			if (font.widthOfTextAtSize(candidate, fontSize) <= maxWidth || !current) {
+				current = candidate;
+			} else {
+				lines.push(current);
+				current = word;
+			}
+		});
+		if (current) lines.push(current);
+		if (index < paragraphs.length - 1) lines.push('');
 	});
-	if (current) lines.push(current);
+	while (lines.length && lines[lines.length - 1] === '') {
+		lines.pop();
+	}
 	return lines;
 }
 
@@ -375,6 +419,7 @@ function drawHeroHeader({
 	avatarImage,
 	studentInitials,
 	professorName,
+	brandMark,
 }) {
 	const pageHeight = page.getHeight();
 	const cardWidth = A4.width - MARGIN * 2;
@@ -405,16 +450,25 @@ function drawHeroHeader({
 		fill: colorFromHex(HEX.background),
 	});
 
-	const brandLabel = 'PY';
-	const brandFontSize = 14;
-	const brandLabelWidth = fonts.bold.widthOfTextAtSize(brandLabel, brandFontSize);
-	page.drawText(brandLabel, {
-		x: brandX + (BRAND.ICON - brandLabelWidth) / 2,
-		y: brandY + (BRAND.ICON - brandFontSize) / 2,
-		size: brandFontSize,
-		font: fonts.bold,
-		color: colorFromHex(HEX.brandDark),
-	});
+	if (brandMark) {
+		page.drawImage(brandMark, {
+			x: brandX + 4,
+			y: brandY + 4,
+			width: BRAND.ICON - 8,
+			height: BRAND.ICON - 8,
+		});
+	} else {
+		const brandLabel = 'PY';
+		const brandFontSize = 14;
+		const brandLabelWidth = fonts.bold.widthOfTextAtSize(brandLabel, brandFontSize);
+		page.drawText(brandLabel, {
+			x: brandX + (BRAND.ICON - brandLabelWidth) / 2,
+			y: brandY + (BRAND.ICON - brandFontSize) / 2,
+			size: brandFontSize,
+			font: fonts.bold,
+			color: colorFromHex(HEX.brandDark),
+		});
+	}
 
 	page.drawText(professorName || 'Professor Yago Sales', {
 		x: brandX,
@@ -531,7 +585,7 @@ function drawHeroHeader({
 		y: scoreY + SCORE_CARD.height - SCORE_CARD.pad - PDF_FONT.sm,
 		size: PDF_FONT.sm,
 		font: fonts.bold,
-		color: colorFromHex(HEX.brandDark),
+		color: colorFromHex(HEX.brand),
 	});
 
 	const valueSize = PDF_FONT.lg + 6;
@@ -792,14 +846,15 @@ function drawCommentsColumn({
 
 		const cardTop = cursor;
 		const cardBottom = Math.max(bottom, cardTop - cardHeight);
-		page.drawRectangle({
+		drawRoundedRect(page, {
 			x,
 			y: cardBottom,
 			width,
 			height: cardTop - cardBottom,
-			color: colorFromHex(HEX.background),
-			borderColor: colorFromHex(HEX.border),
-			borderWidth: 1,
+			radius: 14,
+			fill: colorFromHex(HEX.background),
+			stroke: colorFromHex(HEX.border),
+			strokeWidth: 1,
 		});
 
 		page.drawRectangle({
@@ -1178,15 +1233,15 @@ function drawPasSummarySection(page, fonts, x, yTop, width, summary) {
 		const cardTop = cursor - row * (cardHeight + gapY);
 		const fillHex = card.highlight ? '#FFF7ED' : '#FFFFFF';
 		const strokeHex = card.highlight ? '#FDBA74' : '#E6E8EB';
-		page.drawRectangle({
+		drawRoundedRect(page, {
 			x: cardX,
 			y: cardTop - cardHeight,
 			width: cardWidth,
 			height: cardHeight,
-			color: colorFromHex(fillHex),
-			borderColor: colorFromHex(strokeHex),
-			borderWidth: 1,
-			borderRadius: 8,
+			radius: 12,
+			fill: colorFromHex(fillHex),
+			stroke: colorFromHex(strokeHex),
+			strokeWidth: 1,
 		});
 
 		const labelY = cardTop - padY - labelSize;
@@ -1216,14 +1271,15 @@ function drawPasSummarySection(page, fonts, x, yTop, width, summary) {
 }
 
 function drawPasSectionHeader(page, x, y, width, label, fonts, options = {}) {
-	page.drawRectangle({
+	drawRoundedRect(page, {
 		x,
 		y: y - BODY_SIZE - 4,
 		width,
 		height: BODY_SIZE + 6,
-		color: options.fill ? colorFromHex(options.fill) : colorFromHex('#F8FAFC'),
-		borderColor: options.border ? colorFromHex(options.border) : colorFromHex('#E2E8F0'),
-		borderWidth: 1,
+		radius: 10,
+		fill: options.fill ? colorFromHex(options.fill) : colorFromHex('#F8FAFC'),
+		stroke: options.border ? colorFromHex(options.border) : colorFromHex('#E2E8F0'),
+		strokeWidth: 1,
 	});
 	page.drawText(label, {
 		x: x + 12,
@@ -1251,6 +1307,7 @@ function drawPasMacroSection(page, fonts, x, yTop, width, summary) {
 			{ text: `0,00 – ${row.max.toFixed(2)}`, ratio: 0.2, font: fonts.regular, color: '#1D4ED8', align: 'center' },
 			{ text: `${row.value.toFixed(2)} / ${row.max.toFixed(2)}`, ratio: 0.2, font: fonts.bold, color: TEXT, align: 'right' },
 		]);
+		cursor -= 6;
 	});
 	return cursor;
 }
@@ -1270,6 +1327,7 @@ function drawPasMicroSection(page, fonts, x, yTop, width, summary) {
 			{ text: row.label, ratio: 0.7, font: fonts.regular, color: TEXT },
 			{ text: String(row.value), ratio: 0.3, font: fonts.bold, color: '#BE185D', align: 'right' },
 		]);
+		cursor -= 6;
 	});
 
 	cursor -= BODY_SIZE + 6;
@@ -1285,14 +1343,15 @@ function drawPasMicroSection(page, fonts, x, yTop, width, summary) {
 function drawPasRow(page, fonts, x, yTop, height, width, cells) {
 	const rowHeight = height;
 	const bottom = yTop - rowHeight;
-	page.drawRectangle({
+	drawRoundedRect(page, {
 		x,
 		y: bottom,
 		width,
 		height: rowHeight,
-		color: colorFromHex('#FFFFFF'),
-		borderColor: colorFromHex('#E2E8F0'),
-		borderWidth: 1,
+		radius: 10,
+		fill: colorFromHex('#FFFFFF'),
+		stroke: colorFromHex('#E2E8F0'),
+		strokeWidth: 1,
 	});
 	let offset = x;
 	cells.forEach((cell) => {
@@ -1357,16 +1416,34 @@ function collectEnemData(score) {
 		const key = comp.key;
 		const level = levels[index] ?? 0;
 		const pts = points[index] ?? 0;
-		const reasonIds = score.enem.competencies?.[key]?.reasonIds || [];
+		const competencyNode = score.enem.competencies?.[key] || {};
+		const reasonIds = competencyNode.reasonIds || [];
 		const reasons = reasonIds
 			.map((id) => ENEM_REASON_LABELS[id])
 			.filter(Boolean);
+		const globalJustifications = score.enem?.justifications;
+		let manualJustification = null;
+		if (Array.isArray(globalJustifications)) {
+			manualJustification = globalJustifications[index];
+		} else if (globalJustifications && typeof globalJustifications === 'object') {
+			manualJustification = globalJustifications[key];
+		}
+		const candidateJustifications = [
+			competencyNode.justification,
+			competencyNode.text,
+			competencyNode.description,
+			manualJustification,
+		];
+		const justification = candidateJustifications
+			.map((value) => (typeof value === 'string' ? value.trim() : ''))
+			.find((value) => value.length > 0) || null;
 		return {
 			key,
 			title: comp.title,
 			level,
 			points: pts,
 			reasons,
+			justification,
 		};
 	});
 	return { total, competencies };
@@ -1470,7 +1547,9 @@ function renderEnemMirrorPage({ pdfDoc, fonts, data, commentsRef }) {
 		const colors = ENEM_COLORS_HEX[key] || ENEM_COLORS_HEX.C1;
 		const level = clampLevel(comp.level);
 		const points = Number(comp.points) || POINTS_PER_LEVEL[level] || 0;
-		const justification = Array.isArray(comp.justifications) ? comp.justifications[0] : comp.justification;
+		const justification = Array.isArray(comp.justifications)
+			? comp.justifications.find((value) => typeof value === 'string' && value.trim()) || comp.justification
+			: comp.justification;
 		const layout = buildCompetencyLayout(
 			centerW,
 			index,
@@ -1723,6 +1802,8 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 		bold: await pdfDoc.embedFont(StandardFonts.HelveticaBold),
 	};
 
+	const brandMarkImage = await embedBrandMark(pdfDoc);
+
 	const declaredMime = essay?.originalMimeType || null;
 	const inferredImage = (() => {
 		if (!originalBytes || originalBytes.length < 4) return null;
@@ -1799,6 +1880,7 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 		avatarImage,
 		studentInitials,
 		professorName: 'Professor Yago Sales',
+		brandMark: brandMarkImage,
 	});
 
 	const firstPage = pdfDoc.addPage([A4.width, A4.height]);
