@@ -1321,123 +1321,97 @@ function formatPasValue(value, decimals = 0) {
 	return value.toFixed(decimals);
 }
 
-function drawEnemMirrorInArea({ page, fonts, area, score }) {
-	const summary = collectEnemData(score);
-	let cursor = area.top;
-	const title = 'ESPELHO DE CORREÇÃO — ENEM';
-	page.drawText(title, {
-		x: area.x,
-		y: cursor,
-		size: TITLE_SIZE,
-		font: fonts.bold,
-		color: colorFromHex(TEXT),
-	});
-	cursor -= TITLE_SIZE + 6;
-	page.drawText('Competências e justificativas da avaliação', {
-		x: area.x,
-		y: cursor,
-		size: BODY_SIZE,
-		font: fonts.regular,
-		color: colorFromHex(TEXT_SUBTLE),
-	});
-	cursor -= BODY_SIZE + 8;
-	if (!summary) {
-		page.drawText('Dados de competências ENEM indisponíveis.', {
-			x: area.x,
-			y: cursor,
-			size: BODY_SIZE,
-			font: fonts.regular,
-			color: colorFromHex(TEXT_SUBTLE),
-		});
-		return;
+function estimatePreviewHeight(width, embeddedPage, embeddedImage) {
+	const innerWidth = Math.max(0, width - PREVIEW_PADDING * 2);
+	if (innerWidth <= 0) return PREVIEW_PADDING * 2 + 200;
+	let sourceWidth = 0;
+	let sourceHeight = 0;
+	if (embeddedPage && embeddedPage.width && embeddedPage.height) {
+		sourceWidth = embeddedPage.width;
+		sourceHeight = embeddedPage.height;
+	} else if (embeddedImage && embeddedImage.width && embeddedImage.height) {
+		sourceWidth = embeddedImage.width;
+		sourceHeight = embeddedImage.height;
 	}
-
-	const competencies = summary.competencies || [];
-	const cardWidth = area.width;
-	const minY = area.bottom;
-	for (let index = 0; index < competencies.length; index += 1) {
-		const comp = competencies[index];
-		const key = `C${index + 1}`;
-		const colors = ENEM_COLORS_HEX[key] || ENEM_COLORS_HEX.C1;
-		const level = clampLevel(comp.level);
-		const points = Number(comp.points) || POINTS_PER_LEVEL[level] || 0;
-		const layout = buildCompetencyLayout(
-			cardWidth,
-			index,
-			comp.title || `Competência ${index + 1}`,
-			level,
-			points,
-			comp.justification,
-			comp.reasons || [],
-			fonts,
-			colors,
-		);
-
-		if (cursor - layout.cardHeight < minY) {
-			if (cursor <= minY) break;
-		}
-
-		const cardBottom = drawCompetencyCard(page, area.x, cursor, cardWidth, layout, fonts, colors);
-		cursor = cardBottom - CONTENT_GAP;
-		if (cursor <= minY) break;
+	if (!sourceWidth || !sourceHeight) {
+		sourceWidth = A4.width;
+		sourceHeight = A4.height;
 	}
-
-	const totalPoints = Array.isArray(summary.competencies)
-		? summary.competencies.reduce((sum, comp) => {
-			const lvl = clampLevel(comp.level);
-			return sum + (POINTS_PER_LEVEL[lvl] || 0);
-		}, 0)
-		: null;
-	if (totalPoints != null && cursor - (TITLE_SIZE + 4) > minY) {
-		page.drawText(`NOTA FINAL: ${totalPoints} / 1000`, {
-			x: area.x,
-			y: cursor,
-			size: TITLE_SIZE,
-			font: fonts.bold,
-			color: colorFromHex(TEXT),
-		});
-	}
+	const aspect = sourceHeight / sourceWidth || Math.sqrt(2);
+	const contentHeight = innerWidth * aspect;
+	return PREVIEW_PADDING * 2 + contentHeight;
 }
 
-function drawPasMirrorInArea({ page, fonts, area, score }) {
-	const summary = collectPasData(score);
-	let cursor = area.top;
-	const title = 'ESPELHO DE CORREÇÃO — PAS/UnB';
-	page.drawText(title, {
-		x: area.x,
-		y: cursor,
-		size: TITLE_SIZE,
-		font: fonts.bold,
-		color: colorFromHex(TEXT),
-	});
-	cursor -= TITLE_SIZE + 6;
-	page.drawText('Aspectos macro e microestruturais', {
-		x: area.x,
-		y: cursor,
-		size: BODY_SIZE,
-		font: fonts.regular,
-		color: colorFromHex(TEXT_SUBTLE),
-	});
-	cursor -= BODY_SIZE + 8;
-	if (!summary) {
-		page.drawText('Dados PAS indisponíveis.', {
-			x: area.x,
-			y: cursor,
-			size: BODY_SIZE,
-			font: fonts.regular,
-			color: colorFromHex(TEXT_SUBTLE),
-		});
-		return;
-	}
+function calculatePasSummaryHeight(summary) {
+	if (!summary) return 0;
+	const columns = 2;
+	const gapY = 12;
+	const cardHeight = 56;
+	const rows = Math.ceil(4 / columns);
+	const gridHeight = rows * cardHeight + Math.max(0, rows - 1) * gapY;
+	return BODY_SIZE + 6 + gridHeight + (rows > 0 ? gapY : 0);
+}
 
-	const minY = area.bottom;
-	cursor = drawPasSummarySection(page, fonts, area.x, cursor, area.width, summary);
-	cursor -= CONTENT_GAP;
-	if (cursor <= minY) return;
-	cursor = drawPasMacroSection(page, fonts, area.x, cursor, area.width, summary);
-	cursor -= CONTENT_GAP;
-	if (cursor <= minY) return;
-	drawPasMicroSection(page, fonts, area.x, cursor, area.width, summary);
+function calculatePasMacroHeight(summary) {
+	if (!summary) return 0;
+	const headerHeight = BODY_SIZE + 6;
+	const rowHeight = BODY_SIZE + 16;
+	const rows = summary.macro.length;
+	const perRowGap = 6;
+	return headerHeight + rows * (rowHeight + perRowGap);
+}
+
+function calculatePasMicroHeight(summary) {
+	if (!summary) return 0;
+	const headerHeight = BODY_SIZE + 6;
+	const rowHeight = BODY_SIZE + 16;
+	const rows = summary.micro.length;
+	const perRowGap = 6;
+	const footer = (BODY_SIZE + 6) + (BODY_SIZE + 4) + (BODY_SIZE + 6);
+	return headerHeight + rows * (rowHeight + perRowGap) + footer;
+}
+
+function drawEnemSummarySection(page, fonts, x, yTop, width, totalPoints) {
+	let cursor = yTop;
+	drawTextSimple(page, 'Resumo do espelho', x, cursor, BODY_SIZE, fonts.bold, TEXT);
+	cursor -= BODY_SIZE + 6;
+	const cardHeight = 56;
+	drawRoundedRect(page, {
+		x,
+		y: cursor - cardHeight,
+		width,
+		height: cardHeight,
+		radius: 12,
+		fill: colorFromHex('#FFF7ED'),
+		stroke: colorFromHex('#FDBA74'),
+		strokeWidth: 1,
+	});
+	const labelSize = 9;
+	const valueSize = 18;
+	const padX = 12;
+	const padY = 10;
+	page.drawText('TOTAL ENEM', {
+		x: x + padX,
+		y: cursor - padY - labelSize,
+		size: labelSize,
+		font: fonts.bold,
+		color: colorFromHex('#EA580C'),
+	});
+	const valueText = `${Math.max(0, Math.round(totalPoints || 0))} / 1000`;
+	page.drawText(valueText, {
+		x: x + padX,
+		y: cursor - padY - labelSize - 6 - valueSize,
+		size: valueSize,
+		font: fonts.bold,
+		color: colorFromHex('#0F172A'),
+	});
+	cursor -= cardHeight + 12;
+	return cursor;
+}
+
+function calculateEnemSummaryHeight() {
+	const cardHeight = 56;
+	return BODY_SIZE + 6 + cardHeight + 12;
 }
 
 function buildHeroMeta({ classLabel, subjectLabel, modelLabel, bimesterLabel }) {
@@ -1623,93 +1597,223 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 	});
 
 	const contentWidth = A4.width - MARGIN * 2;
-	const commentsWidth = Math.min(Math.round(contentWidth * 0.3), contentWidth - 120);
-	const previewWidth = Math.max(contentWidth - commentsWidth - CONTENT_GAP, 160);
-	const previewX = MARGIN;
-	const gap = CONTENT_GAP;
-	const commentsAreaX = previewX + previewWidth + gap;
-	const commentsAreaWidth = Math.min(commentsWidth, contentWidth - previewWidth - gap);
+	const COLUMN_GAP = 6;
+	const RIGHT_RAIL_TARGET = 320;
+	const MIN_MAIN_WIDTH = 220;
+	const rightRailWidth = Math.min(RIGHT_RAIL_TARGET, Math.max(160, contentWidth - MIN_MAIN_WIDTH));
+	const mainColumnWidth = contentWidth - rightRailWidth - COLUMN_GAP;
+	if (mainColumnWidth <= 0) {
+		throw new Error('Área principal insuficiente para gerar o PDF.');
+	}
+	const mainX = MARGIN;
+	const railX = mainX + mainColumnWidth + COLUMN_GAP;
 
-	const firstPage = pdfDoc.addPage([A4.width, A4.height]);
-	firstPage.drawRectangle({ x: 0, y: 0, width: A4.width, height: A4.height, color: colorFromHex(HEX.pageBg) });
-	const firstTop = drawHeroHeader(heroArgs(firstPage, fonts));
+	let commentsIndex = 0;
+	let currentPage = null;
+
+	const startPage = (isFirst) => {
+		const page = pdfDoc.addPage([A4.width, A4.height]);
+		page.drawRectangle({ x: 0, y: 0, width: A4.width, height: A4.height, color: colorFromHex(HEX.pageBg) });
+		let top;
+		if (isFirst) {
+			top = drawHeroHeader(heroArgs(page, fonts));
+		} else {
+			top = A4.height - MARGIN;
+		}
+		const railArea = {
+			x: railX,
+			width: rightRailWidth,
+			top,
+			bottom: MARGIN,
+		};
+		const title = isFirst ? 'Comentários' : 'Comentários (continuação)';
+		commentsIndex = drawCommentsColumn({
+			page,
+			fonts,
+			area: railArea,
+			annotations: annotationsOrdered,
+			startIndex: commentsIndex,
+			title,
+		});
+		return {
+			page,
+			cursor: top,
+			bottom: MARGIN,
+		};
+	};
+
+	currentPage = startPage(true);
+
+	const ensureSpace = (height, gap = CONTENT_GAP) => {
+		const needed = height + (gap || 0);
+		if (currentPage.cursor - needed < currentPage.bottom) {
+			currentPage = startPage(false);
+		}
+	};
+
+	const applyGap = (gap = CONTENT_GAP) => {
+		if (!gap) return;
+		if (currentPage.cursor - gap >= currentPage.bottom) {
+			currentPage.cursor -= gap;
+		} else {
+			currentPage = startPage(false);
+		}
+	};
 
 	let embeddedPreviewPage = null;
 	if (!treatAsImage && embeddedPages.length) {
 		embeddedPreviewPage = embeddedPages[0];
 	}
 
+	const previewHeightEstimate = estimatePreviewHeight(mainColumnWidth, embeddedPreviewPage, treatAsImage ? embeddedImage : null);
+	ensureSpace(previewHeightEstimate);
+	const previewBottom = Math.max(currentPage.cursor - previewHeightEstimate, currentPage.bottom);
 	const previewArea = {
-		x: previewX,
-		width: previewWidth,
-		top: firstTop,
-		bottom: MARGIN,
+		x: mainX,
+		width: mainColumnWidth,
+		top: currentPage.cursor,
+		bottom: previewBottom,
 	};
 	drawDocumentPreview({
-		page: firstPage,
+		page: currentPage.page,
 		fonts,
 		area: previewArea,
 		embeddedPage: embeddedPreviewPage,
 		embeddedImage: treatAsImage ? embeddedImage : null,
 		annotations: firstPageAnnotations,
 	});
+	currentPage.cursor = previewBottom;
+	applyGap();
 
-	const commentsAreaPage1 = {
-		x: commentsAreaX,
-		width: commentsAreaWidth,
-		top: firstTop,
-		bottom: MARGIN,
-	};
-	let commentsIndex = drawCommentsColumn({
-		page: firstPage,
-		fonts,
-		area: commentsAreaPage1,
-		annotations: annotationsOrdered,
-		startIndex: 0,
-		title: 'Comentários',
-	});
+	const isPas = essay?.type === 'PAS';
+	const pasSummary = isPas ? collectPasData(score) : null;
+	const enemSummary = essay?.type === 'ENEM' ? collectEnemData(score) : null;
 
-	const secondPage = pdfDoc.addPage([A4.width, A4.height]);
-	secondPage.drawRectangle({ x: 0, y: 0, width: A4.width, height: A4.height, color: colorFromHex(HEX.pageBg) });
-	const secondTop = drawHeroHeader(heroArgs(secondPage, fonts));
-
-	const mirrorArea = {
-		x: previewX,
-		width: previewWidth,
-		top: secondTop,
-		bottom: MARGIN,
-	};
-	if (essay?.type === 'ENEM') {
-		drawEnemMirrorInArea({ page: secondPage, fonts, area: mirrorArea, score });
-	} else {
-		drawPasMirrorInArea({ page: secondPage, fonts, area: mirrorArea, score });
+	if (isPas && pasSummary) {
+		const summaryHeight = calculatePasSummaryHeight(pasSummary);
+		ensureSpace(summaryHeight);
+		currentPage.cursor = drawPasSummarySection(currentPage.page, fonts, mainX, currentPage.cursor, mainColumnWidth, pasSummary);
+		applyGap();
+	} else if (!isPas && enemSummary) {
+		const summaryHeight = calculateEnemSummaryHeight();
+		ensureSpace(summaryHeight);
+		currentPage.cursor = drawEnemSummarySection(currentPage.page, fonts, mainX, currentPage.cursor, mainColumnWidth, enemSummary.total);
+		applyGap();
 	}
 
-	const commentsAreaPage2 = {
-		x: commentsAreaX,
-		width: commentsAreaWidth,
-		top: secondTop,
-		bottom: MARGIN,
-	};
-	commentsIndex = drawCommentsColumn({
-		page: secondPage,
-		fonts,
-		area: commentsAreaPage2,
-		annotations: annotationsOrdered,
-		startIndex: commentsIndex,
-		title: commentsIndex > 0 ? 'Comentários (continuação)' : 'Comentários',
-	});
-
-	if (commentsIndex < annotationsOrdered.length) {
-		const note = 'Comentários adicionais disponíveis no workspace.';
-		const noteY = commentsAreaPage2.bottom + COMMENT.textSize + 4;
-		secondPage.drawText(note, {
-			x: commentsAreaPage2.x,
-			y: noteY,
-			size: COMMENT.textSize,
+	if (isPas) {
+		const headingHeight = TITLE_SIZE + 6 + BODY_SIZE + 8;
+		ensureSpace(headingHeight);
+		currentPage.page.drawText('ESPELHO DE CORREÇÃO — PAS/UnB', {
+			x: mainX,
+			y: currentPage.cursor,
+			size: TITLE_SIZE,
+			font: fonts.bold,
+			color: colorFromHex(TEXT),
+		});
+		currentPage.cursor -= TITLE_SIZE + 6;
+		currentPage.page.drawText('Aspectos macro e microestruturais', {
+			x: mainX,
+			y: currentPage.cursor,
+			size: BODY_SIZE,
 			font: fonts.regular,
 			color: colorFromHex(TEXT_SUBTLE),
 		});
+		currentPage.cursor -= BODY_SIZE + 8;
+		if (pasSummary) {
+			const macroHeight = calculatePasMacroHeight(pasSummary);
+			ensureSpace(macroHeight);
+			currentPage.cursor = drawPasMacroSection(currentPage.page, fonts, mainX, currentPage.cursor, mainColumnWidth, pasSummary);
+			applyGap();
+			const microHeight = calculatePasMicroHeight(pasSummary);
+			ensureSpace(microHeight, 0);
+			currentPage.cursor = drawPasMicroSection(currentPage.page, fonts, mainX, currentPage.cursor, mainColumnWidth, pasSummary);
+		} else {
+			ensureSpace(BODY_SIZE + 4, 0);
+			currentPage.page.drawText('Dados PAS indisponíveis.', {
+				x: mainX,
+				y: currentPage.cursor,
+				size: BODY_SIZE,
+				font: fonts.regular,
+				color: colorFromHex(TEXT_SUBTLE),
+			});
+			currentPage.cursor -= BODY_SIZE + 4;
+		}
+	} else {
+		const headingHeight = TITLE_SIZE + 6 + BODY_SIZE + 8;
+		ensureSpace(headingHeight);
+		currentPage.page.drawText('ESPELHO DE CORREÇÃO — ENEM', {
+			x: mainX,
+			y: currentPage.cursor,
+			size: TITLE_SIZE,
+			font: fonts.bold,
+			color: colorFromHex(TEXT),
+		});
+		currentPage.cursor -= TITLE_SIZE + 6;
+		currentPage.page.drawText('Competências e justificativas da avaliação', {
+			x: mainX,
+			y: currentPage.cursor,
+			size: BODY_SIZE,
+			font: fonts.regular,
+			color: colorFromHex(TEXT_SUBTLE),
+		});
+		currentPage.cursor -= BODY_SIZE + 8;
+		if (enemSummary && Array.isArray(enemSummary.competencies) && enemSummary.competencies.length) {
+			enemSummary.competencies.forEach((comp, index) => {
+				const key = `C${index + 1}`;
+				const colors = ENEM_COLORS_HEX[key] || ENEM_COLORS_HEX.C1;
+				const level = clampLevel(comp.level);
+				const points = Number(comp.points) || POINTS_PER_LEVEL[level] || 0;
+				const layout = buildCompetencyLayout(
+					mainColumnWidth,
+					index,
+					comp.title || `Competência ${index + 1}`,
+					level,
+					points,
+					comp.justification,
+					comp.reasons || [],
+					fonts,
+					colors,
+				);
+				ensureSpace(layout.cardHeight);
+				const cardBottom = drawCompetencyCard(
+					currentPage.page,
+					mainX,
+					currentPage.cursor,
+					mainColumnWidth,
+					layout,
+					fonts,
+					colors,
+				);
+				currentPage.cursor = cardBottom;
+				applyGap();
+			});
+			const totalLineHeight = TITLE_SIZE + 4;
+			ensureSpace(totalLineHeight, 0);
+			currentPage.page.drawText(`NOTA FINAL: ${Math.max(0, Math.round(enemSummary.total || 0))} / 1000`, {
+				x: mainX,
+				y: currentPage.cursor,
+				size: TITLE_SIZE,
+				font: fonts.bold,
+				color: colorFromHex(TEXT),
+			});
+			currentPage.cursor -= totalLineHeight;
+		} else {
+			ensureSpace(BODY_SIZE + 4, 0);
+			currentPage.page.drawText('Dados de competências ENEM indisponíveis.', {
+				x: mainX,
+				y: currentPage.cursor,
+				size: BODY_SIZE,
+				font: fonts.regular,
+				color: colorFromHex(TEXT_SUBTLE),
+			});
+			currentPage.cursor -= BODY_SIZE + 4;
+		}
+	}
+
+	while (commentsIndex < annotationsOrdered.length) {
+		currentPage = startPage(false);
+		currentPage.cursor = currentPage.bottom;
 	}
 
 	const pdfBytes = await pdfDoc.save();
