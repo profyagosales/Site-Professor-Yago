@@ -38,17 +38,6 @@ const HIGHLIGHT_LABEL_FONT_SIZE = 9;
 const PDF_FONT = { xs: 7, sm: 8, md: 10, lg: 14 };
 const AVATAR = { size: 36 };
 const POINTS_PER_LEVEL = [0, 40, 80, 120, 160, 200];
-const ACTION_PILLS = [
-	'Voltar',
-	'Abrir original',
-	'Argumentação',
-	'Ortografia/Gramática',
-	'Coesão/Coerência',
-	'Apresentação',
-	'Comentários gerais',
-	'Salvar',
-	'Gerar PDF corrigido',
-];
 const CARD_PADDING = 12;
 const LINE_GAP = 4;
 const BULLET_INDENT = 12;
@@ -149,21 +138,6 @@ function blendHex(hexA, hexB, amount = 0.5) {
 
 function clamp(value, min, max) {
 	return Math.max(min, Math.min(max, value));
-}
-
-function columns8020(contentWidth) {
-	const gap = CONTENT_GAP;
-	const left = contentWidth * 0.8;
-	const right = contentWidth - left - gap;
-	return { left, right, gap };
-}
-
-function columnsActionsCenterComments(contentWidth) {
-	const gap = CONTENT_GAP;
-	const left = Math.round(contentWidth * 0.18);
-	const right = Math.round(contentWidth * 0.2);
-	const center = Math.max(0, contentWidth - left - right - gap * 2);
-	return { left, center, right, gap };
 }
 
 function wrapText(text, font, fontSize, maxWidth) {
@@ -911,57 +885,6 @@ function drawCommentsColumn({
 	return index;
 }
 
-function drawActionsRail(page, x, yTop, width, height, fonts) {
-	if (height <= 24 || width <= 0) return;
-	let cursorY = yTop;
-	const titleSize = BODY_SIZE;
-	const labelSize = Math.max(8, BODY_SIZE - 2);
-
-	page.drawText('AÇÕES', {
-		x,
-		y: cursorY - titleSize,
-		size: titleSize,
-		font: fonts.bold,
-		color: colorFromHex(TEXT_SUBTLE),
-	});
-	cursorY -= titleSize + 8;
-
-	const padX = 6;
-	const padY = 4;
-	const gapX = 6;
-	const gapY = 6;
-
-	let rowX = x;
-	let rowY = cursorY;
-	ACTION_PILLS.forEach((text) => {
-		const pillWidth = fonts.regular.widthOfTextAtSize(text, labelSize) + padX * 2;
-		const pillHeight = labelSize + padY * 2;
-		if (rowX + pillWidth > x + width) {
-			rowX = x;
-			rowY -= pillHeight + gapY;
-			if (rowY - pillHeight < yTop - height) return;
-		}
-		page.drawRectangle({
-			x: rowX,
-			y: rowY - pillHeight,
-			width: pillWidth,
-			height: pillHeight,
-			color: colorFromHex(BG),
-			borderColor: colorFromHex(GRAY),
-			borderWidth: 1,
-			borderOpacity: 0.6,
-		});
-		page.drawText(text, {
-			x: rowX + padX,
-			y: rowY - pillHeight + padY,
-			size: labelSize,
-			font: fonts.regular,
-			color: colorFromHex(TEXT),
-		});
-		rowX += pillWidth + gapX;
-	});
-}
-
 function splitWithSpaces(input) {
 	const parts = [];
 	let acc = '';
@@ -1398,6 +1321,125 @@ function formatPasValue(value, decimals = 0) {
 	return value.toFixed(decimals);
 }
 
+function drawEnemMirrorInArea({ page, fonts, area, score }) {
+	const summary = collectEnemData(score);
+	let cursor = area.top;
+	const title = 'ESPELHO DE CORREÇÃO — ENEM';
+	page.drawText(title, {
+		x: area.x,
+		y: cursor,
+		size: TITLE_SIZE,
+		font: fonts.bold,
+		color: colorFromHex(TEXT),
+	});
+	cursor -= TITLE_SIZE + 6;
+	page.drawText('Competências e justificativas da avaliação', {
+		x: area.x,
+		y: cursor,
+		size: BODY_SIZE,
+		font: fonts.regular,
+		color: colorFromHex(TEXT_SUBTLE),
+	});
+	cursor -= BODY_SIZE + 8;
+	if (!summary) {
+		page.drawText('Dados de competências ENEM indisponíveis.', {
+			x: area.x,
+			y: cursor,
+			size: BODY_SIZE,
+			font: fonts.regular,
+			color: colorFromHex(TEXT_SUBTLE),
+		});
+		return;
+	}
+
+	const competencies = summary.competencies || [];
+	const cardWidth = area.width;
+	const minY = area.bottom;
+	for (let index = 0; index < competencies.length; index += 1) {
+		const comp = competencies[index];
+		const key = `C${index + 1}`;
+		const colors = ENEM_COLORS_HEX[key] || ENEM_COLORS_HEX.C1;
+		const level = clampLevel(comp.level);
+		const points = Number(comp.points) || POINTS_PER_LEVEL[level] || 0;
+		const layout = buildCompetencyLayout(
+			cardWidth,
+			index,
+			comp.title || `Competência ${index + 1}`,
+			level,
+			points,
+			comp.justification,
+			comp.reasons || [],
+			fonts,
+			colors,
+		);
+
+		if (cursor - layout.cardHeight < minY) {
+			if (cursor <= minY) break;
+		}
+
+		const cardBottom = drawCompetencyCard(page, area.x, cursor, cardWidth, layout, fonts, colors);
+		cursor = cardBottom - CONTENT_GAP;
+		if (cursor <= minY) break;
+	}
+
+	const totalPoints = Array.isArray(summary.competencies)
+		? summary.competencies.reduce((sum, comp) => {
+			const lvl = clampLevel(comp.level);
+			return sum + (POINTS_PER_LEVEL[lvl] || 0);
+		}, 0)
+		: null;
+	if (totalPoints != null && cursor - (TITLE_SIZE + 4) > minY) {
+		page.drawText(`NOTA FINAL: ${totalPoints} / 1000`, {
+			x: area.x,
+			y: cursor,
+			size: TITLE_SIZE,
+			font: fonts.bold,
+			color: colorFromHex(TEXT),
+		});
+	}
+}
+
+function drawPasMirrorInArea({ page, fonts, area, score }) {
+	const summary = collectPasData(score);
+	let cursor = area.top;
+	const title = 'ESPELHO DE CORREÇÃO — PAS/UnB';
+	page.drawText(title, {
+		x: area.x,
+		y: cursor,
+		size: TITLE_SIZE,
+		font: fonts.bold,
+		color: colorFromHex(TEXT),
+	});
+	cursor -= TITLE_SIZE + 6;
+	page.drawText('Aspectos macro e microestruturais', {
+		x: area.x,
+		y: cursor,
+		size: BODY_SIZE,
+		font: fonts.regular,
+		color: colorFromHex(TEXT_SUBTLE),
+	});
+	cursor -= BODY_SIZE + 8;
+	if (!summary) {
+		page.drawText('Dados PAS indisponíveis.', {
+			x: area.x,
+			y: cursor,
+			size: BODY_SIZE,
+			font: fonts.regular,
+			color: colorFromHex(TEXT_SUBTLE),
+		});
+		return;
+	}
+
+	const minY = area.bottom;
+	cursor = drawPasSummarySection(page, fonts, area.x, cursor, area.width, summary);
+	cursor -= CONTENT_GAP;
+	if (cursor <= minY) return;
+	cursor = drawPasMacroSection(page, fonts, area.x, cursor, area.width, summary);
+	cursor -= CONTENT_GAP;
+	if (cursor <= minY) return;
+	drawPasMicroSection(page, fonts, area.x, cursor, area.width, summary);
+}
+
 function buildHeroMeta({ classLabel, subjectLabel, modelLabel, bimesterLabel }) {
 	const parts = [];
 	if (classLabel) parts.push(classLabel);
@@ -1481,309 +1523,6 @@ function collectPasData(score) {
 function clampLevel(level) {
 	if (!Number.isFinite(level)) return 0;
 	return Math.max(0, Math.min(Math.round(level), 5));
-}
-
-function renderEnemMirrorPage({ pdfDoc, fonts, data, commentsRef }) {
-	const summary = collectEnemData(data.score);
-	const competencies = summary ? summary.competencies : [];
-	const totalLevels = summary ? summary.competencies.map((comp) => clampLevel(comp.level)) : [0, 0, 0, 0, 0];
-
-	const contentWidth = A4.width - MARGIN * 2;
-
-	function setupPage(continuation = false) {
-		const page = pdfDoc.addPage([A4.width, A4.height]);
-		page.drawRectangle({ x: 0, y: 0, width: A4.width, height: A4.height, color: colorFromHex(HEX.pageBg) });
-		const top = drawHeroHeader(data.heroArgs(page, fonts));
-		const cols = columnsActionsCenterComments(contentWidth);
-		const actionsX = MARGIN;
-		const actionsW = cols.left;
-		const centerX = actionsX + actionsW + cols.gap;
-		const centerW = cols.center;
-		const rightX = centerX + centerW + cols.gap;
-		const rightW = cols.right;
-
-		let y = top;
-		const title = continuation
-			? 'ESPELHO DE CORREÇÃO — ENEM (continuação)'
-			: 'ESPELHO DE CORREÇÃO — ENEM';
-		page.drawText(title, {
-			x: centerX,
-			y,
-			size: TITLE_SIZE,
-			font: fonts.bold,
-			color: colorFromHex(TEXT),
-		});
-		y -= 18;
-		page.drawText('Competências e justificativas da avaliação', {
-			x: centerX,
-			y,
-			size: BODY_SIZE,
-			font: fonts.regular,
-			color: colorFromHex(TEXT_SUBTLE),
-		});
-		y -= 14;
-
-		const commentsTitle = commentsRef.index > 0 ? 'COMENTÁRIOS (continuação)' : 'COMENTÁRIOS';
-		commentsRef.index = drawCommentsColumn({
-			page,
-			fonts,
-			area: { x: rightX, top: y + 14, bottom: MARGIN, width: rightW },
-			annotations: commentsRef.annotations,
-			startIndex: commentsRef.index,
-			title: commentsTitle,
-		});
-
-		const leftTop = y + 14;
-		const leftHeight = leftTop - MARGIN;
-		drawActionsRail(page, actionsX, leftTop, actionsW, leftHeight, fonts);
-
-		return { page, cursor: y, centerX, centerW };
-	}
-
-	let { page, cursor, centerX, centerW } = setupPage(false);
-
-	competencies.forEach((comp, index) => {
-		const key = `C${index + 1}`;
-		const colors = ENEM_COLORS_HEX[key] || ENEM_COLORS_HEX.C1;
-		const level = clampLevel(comp.level);
-		const points = Number(comp.points) || POINTS_PER_LEVEL[level] || 0;
-		const justification = Array.isArray(comp.justifications)
-			? comp.justifications.find((value) => typeof value === 'string' && value.trim()) || comp.justification
-			: comp.justification;
-		const layout = buildCompetencyLayout(
-			centerW,
-			index,
-			comp.title || `Competência ${index + 1}`,
-			level,
-			points,
-			justification,
-			comp.reasons || [],
-			fonts,
-			colors,
-		);
-
-		if (cursor - layout.cardHeight < MARGIN + BODY_SIZE * 4) {
-			({ page, cursor, centerX, centerW } = setupPage(true));
-		}
-
-		const cardBottom = drawCompetencyCard(page, centerX, cursor, centerW, layout, fonts, colors);
-		cursor = cardBottom - CONTENT_GAP;
-	});
-
-	const total = totalLevels.reduce((sum, level) => sum + (POINTS_PER_LEVEL[level] || 0), 0);
-	const finalLineHeight = TITLE_SIZE + 6;
-	if (cursor - finalLineHeight < MARGIN) {
-		({ page, cursor, centerX, centerW } = setupPage(true));
-	}
-	page.drawText(`NOTA FINAL: ${total} / 1000`, {
-		x: centerX,
-		y: cursor,
-		size: TITLE_SIZE,
-		font: fonts.bold,
-		color: colorFromHex(TEXT),
-	});
-}
-
-function renderPasMirrorPage({ pdfDoc, fonts, data, commentsRef }) {
-	const summary = collectPasData(data.score);
-	const contentWidth = A4.width - MARGIN * 2;
-
-	function setupPage(continuation = false) {
-		const page = pdfDoc.addPage([A4.width, A4.height]);
-		page.drawRectangle({ x: 0, y: 0, width: A4.width, height: A4.height, color: colorFromHex(HEX.pageBg) });
-		const top = drawHeroHeader(data.heroArgs(page, fonts));
-		const { left: leftWidth, right: rightWidth, gap } = columns8020(contentWidth);
-		const leftX = MARGIN;
-		const rightX = leftX + leftWidth + gap;
-
-		let cursor = top;
-		const title = continuation
-			? 'ESPELHO DE CORREÇÃO — PAS/UnB (continuação)'
-			: 'ESPELHO DE CORREÇÃO — PAS/UnB';
-		page.drawText(title, {
-			x: leftX,
-			y: cursor,
-			size: TITLE_SIZE,
-			font: fonts.bold,
-			color: colorFromHex(TEXT),
-		});
-		cursor -= 18;
-		page.drawText('Aspectos macro e microestruturais', {
-			x: leftX,
-			y: cursor,
-			size: BODY_SIZE,
-			font: fonts.regular,
-			color: colorFromHex(TEXT_SUBTLE),
-		});
-		cursor -= 14;
-
-		const commentsTitle = commentsRef.index > 0 ? 'COMENTÁRIOS (continuação)' : 'COMENTÁRIOS';
-		commentsRef.index = drawCommentsColumn({
-			page,
-			fonts,
-			area: { x: rightX, top: cursor + 14, bottom: MARGIN, width: rightWidth },
-			annotations: commentsRef.annotations,
-			startIndex: commentsRef.index,
-			title: commentsTitle,
-		});
-
-		return { page, cursor, leftX, leftWidth };
-	}
-
-	let { page, cursor, leftX, leftWidth } = setupPage(false);
-
-	if (summary) {
-		cursor = drawPasSummarySection(page, fonts, leftX, cursor, leftWidth, summary);
-		cursor -= CONTENT_GAP;
-		cursor = drawPasMacroSection(page, fonts, leftX, cursor, leftWidth, summary);
-		cursor -= CONTENT_GAP;
-		if (cursor - 160 < MARGIN) {
-			({ page, cursor, leftX, leftWidth } = setupPage(true));
-		}
-		cursor = drawPasMicroSection(page, fonts, leftX, cursor, leftWidth, summary);
-	}
-
-	if (commentsRef.annotations.length > commentsRef.index) {
-		const continuationPage = pdfDoc.addPage([A4.width, A4.height]);
-		continuationPage.drawRectangle({ x: 0, y: 0, width: A4.width, height: A4.height, color: colorFromHex(HEX.pageBg) });
-		const top = drawHeroHeader(data.heroArgs(continuationPage, fonts));
-		commentsRef.index = drawCommentsColumn({
-			page: continuationPage,
-			fonts,
-			area: { x: MARGIN, top, bottom: MARGIN, width: contentWidth },
-			annotations: commentsRef.annotations,
-			startIndex: commentsRef.index,
-			title: 'Comentários (continuação)',
-		});
-	}
-}
-
-function renderObservationPage({ pdfDoc, fonts, data }) {
-	const page = pdfDoc.addPage([A4.width, A4.height]);
-	page.drawRectangle({ x: 0, y: 0, width: A4.width, height: A4.height, color: colorFromHex(HEX.pageBg) });
-	const contentTop = drawHeroHeader(data.heroArgs(page, fonts));
-	let cursor = contentTop;
-	page.drawText('Observações da correção', {
-		x: MARGIN,
-		y: cursor,
-		size: 12,
-		font: fonts.bold,
-		color: colorFromHex(HEX.text),
-	});
-	cursor -= 20;
-
-	const reasons = data.score.reasons || [];
-	const otherReason = data.score.otherReason;
-	const annulled = Boolean(data.score.annulled);
-
-	drawRoundedRect(page, {
-		x: MARGIN,
-		y: cursor - 140,
-		width: A4.width - MARGIN * 2,
-		height: 140,
-		radius: 16,
-		fill: colorFromHex(HEX.background),
-		stroke: colorFromHex(HEX.border),
-		strokeWidth: 1,
-	});
-
-	page.drawText(annulled ? 'Redação anulada' : 'Situação da correção', {
-		x: MARGIN + 16,
-		y: cursor - 24,
-		size: 10,
-		font: fonts.bold,
-		color: colorFromHex(HEX.textMuted),
-	});
-	page.drawText(annulled ? 'Anulada' : 'Válida', {
-		x: MARGIN + 16,
-		y: cursor - 44,
-		size: 16,
-		font: fonts.bold,
-		color: colorFromHex(annulled ? '#DC2626' : HEX.text),
-	});
-
-	if (annulled) {
-		const reasonLines = reasons.length ? reasons : ['Nenhum motivo informado.'];
-		let reasonY = cursor - 64;
-		reasonLines.forEach((reason, idx) => {
-			const lines = wrapText(`${idx + 1}. ${reason}`, fonts.regular, 9, A4.width - MARGIN * 2 - 32);
-			lines.forEach((line) => {
-				page.drawText(line, {
-					x: MARGIN + 16,
-					y: reasonY,
-					size: 9,
-					font: fonts.regular,
-					color: colorFromHex(HEX.text),
-				});
-				reasonY -= 12;
-			});
-			reasonY -= 4;
-		});
-		if (otherReason) {
-			const lines = wrapText(`Observação adicional: ${otherReason}`, fonts.regular, 9, A4.width - MARGIN * 2 - 32);
-			lines.forEach((line) => {
-				page.drawText(line, {
-					x: MARGIN + 16,
-					y: reasonY,
-					size: 9,
-					font: fonts.regular,
-					color: colorFromHex(HEX.textMuted),
-				});
-				reasonY -= 12;
-			});
-		}
-	} else {
-		page.drawText('Sem observações adicionais.', {
-			x: MARGIN + 16,
-			y: cursor - 64,
-			size: 9,
-			font: fonts.regular,
-			color: colorFromHex(HEX.textMuted),
-		});
-	}
-}
-
-function appendOriginalPages({ pdfDoc, fonts, embeddedPages, embeddedImage, treatAsImage }) {
-	if (!treatAsImage && (!embeddedPages || !embeddedPages.length)) return;
-	const list = treatAsImage ? [embeddedImage] : embeddedPages;
-	if (!list || !list.length) return;
-
-	list.forEach((entry, index) => {
-		const page = pdfDoc.addPage([A4.width, A4.height]);
-		page.drawRectangle({ x: 0, y: 0, width: A4.width, height: A4.height, color: colorFromHex(HEX.pageBg) });
-		const title = index === 0 ? 'Documento original — Página 1' : `Documento original — Página ${index + 1}`;
-		page.drawText(title, {
-			x: MARGIN,
-			y: A4.height - MARGIN - 8,
-			size: 10,
-			font: fonts.bold,
-			color: colorFromHex(HEX.text),
-		});
-		const availableHeight = A4.height - MARGIN * 2 - 24;
-		const availableWidth = A4.width - MARGIN * 2;
-		const sourceWidth = treatAsImage ? entry.width : entry.width;
-		const sourceHeight = treatAsImage ? entry.height : entry.height;
-		const scale = Math.min(availableWidth / sourceWidth, availableHeight / sourceHeight);
-		const targetWidth = sourceWidth * scale;
-		const targetHeight = sourceHeight * scale;
-		const targetX = MARGIN + (availableWidth - targetWidth) / 2;
-		const targetY = MARGIN + (availableHeight - targetHeight) / 2;
-		drawRoundedRect(page, {
-			x: targetX - 6,
-			y: targetY - 6,
-			width: targetWidth + 12,
-			height: targetHeight + 12,
-			radius: 18,
-			fill: colorFromHex(HEX.background),
-			stroke: colorFromHex(HEX.border),
-			strokeWidth: 1,
-		});
-		if (treatAsImage) {
-			page.drawImage(entry, { x: targetX, y: targetY, width: targetWidth, height: targetHeight });
-		} else {
-			page.drawPage(entry, { x: targetX, y: targetY, width: targetWidth, height: targetHeight });
-		}
-	});
 }
 
 async function generateCorrectedEssayPdf({ essay, annotations, score, student, classInfo }) {
@@ -1883,91 +1622,95 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 		brandMark: brandMarkImage,
 	});
 
+	const contentWidth = A4.width - MARGIN * 2;
+	const commentsWidth = Math.min(Math.round(contentWidth * 0.3), contentWidth - 120);
+	const previewWidth = Math.max(contentWidth - commentsWidth - CONTENT_GAP, 160);
+	const previewX = MARGIN;
+	const gap = CONTENT_GAP;
+	const commentsAreaX = previewX + previewWidth + gap;
+	const commentsAreaWidth = Math.min(commentsWidth, contentWidth - previewWidth - gap);
+
 	const firstPage = pdfDoc.addPage([A4.width, A4.height]);
 	firstPage.drawRectangle({ x: 0, y: 0, width: A4.width, height: A4.height, color: colorFromHex(HEX.pageBg) });
-	const contentTop = drawHeroHeader(heroArgs(firstPage, fonts));
-
-	const contentWidth = A4.width - MARGIN * 2;
-	const { left: leftWidth, right: rightWidth, gap: firstGap } = columns8020(contentWidth);
-	const leftArea = {
-		x: MARGIN,
-		width: leftWidth,
-		top: contentTop,
-		bottom: MARGIN,
-	};
-	const rightArea = {
-		x: MARGIN + leftWidth + firstGap,
-		width: rightWidth,
-		top: contentTop,
-		bottom: MARGIN,
-	};
+	const firstTop = drawHeroHeader(heroArgs(firstPage, fonts));
 
 	let embeddedPreviewPage = null;
 	if (!treatAsImage && embeddedPages.length) {
 		embeddedPreviewPage = embeddedPages[0];
 	}
 
+	const previewArea = {
+		x: previewX,
+		width: previewWidth,
+		top: firstTop,
+		bottom: MARGIN,
+	};
 	drawDocumentPreview({
 		page: firstPage,
 		fonts,
-		area: leftArea,
+		area: previewArea,
 		embeddedPage: embeddedPreviewPage,
 		embeddedImage: treatAsImage ? embeddedImage : null,
 		annotations: firstPageAnnotations,
 	});
 
-	const commentsArea = { ...rightArea };
-	const commentsIndex = drawCommentsColumn({
+	const commentsAreaPage1 = {
+		x: commentsAreaX,
+		width: commentsAreaWidth,
+		top: firstTop,
+		bottom: MARGIN,
+	};
+	let commentsIndex = drawCommentsColumn({
 		page: firstPage,
 		fonts,
-		area: commentsArea,
+		area: commentsAreaPage1,
 		annotations: annotationsOrdered,
 		startIndex: 0,
 		title: 'Comentários',
 	});
 
-	const commentsRef = {
-		annotations: annotationsOrdered,
-		index: commentsIndex,
-	};
+	const secondPage = pdfDoc.addPage([A4.width, A4.height]);
+	secondPage.drawRectangle({ x: 0, y: 0, width: A4.width, height: A4.height, color: colorFromHex(HEX.pageBg) });
+	const secondTop = drawHeroHeader(heroArgs(secondPage, fonts));
 
-	const dataForPages = {
-		heroArgs,
-		score,
+	const mirrorArea = {
+		x: previewX,
+		width: previewWidth,
+		top: secondTop,
+		bottom: MARGIN,
 	};
-
 	if (essay?.type === 'ENEM') {
-		renderEnemMirrorPage({ pdfDoc, fonts, data: dataForPages, commentsRef });
+		drawEnemMirrorInArea({ page: secondPage, fonts, area: mirrorArea, score });
 	} else {
-		renderPasMirrorPage({ pdfDoc, fonts, data: dataForPages, commentsRef });
+		drawPasMirrorInArea({ page: secondPage, fonts, area: mirrorArea, score });
 	}
 
-	renderObservationPage({ pdfDoc, fonts, data: dataForPages });
-
-	if (commentsRef.index < annotationsOrdered.length) {
-		while (commentsRef.index < annotationsOrdered.length) {
-			const page = pdfDoc.addPage([A4.width, A4.height]);
-			page.drawRectangle({ x: 0, y: 0, width: A4.width, height: A4.height, color: colorFromHex(HEX.pageBg) });
-			const top = drawHeroHeader(heroArgs(page, fonts));
-			commentsRef.index = drawCommentsColumn({
-				page,
-				fonts,
-				area: { x: MARGIN, top, bottom: MARGIN, width: A4.width - MARGIN * 2 },
-				annotations: commentsRef.annotations,
-				startIndex: commentsRef.index,
-				title: 'Comentários (continuação)',
-			});
-			if (commentsRef.index === commentsRef.annotations.length) break;
-		}
-	}
-
-	appendOriginalPages({
-		pdfDoc,
+	const commentsAreaPage2 = {
+		x: commentsAreaX,
+		width: commentsAreaWidth,
+		top: secondTop,
+		bottom: MARGIN,
+	};
+	commentsIndex = drawCommentsColumn({
+		page: secondPage,
 		fonts,
-		embeddedPages,
-		embeddedImage,
-		treatAsImage,
+		area: commentsAreaPage2,
+		annotations: annotationsOrdered,
+		startIndex: commentsIndex,
+		title: commentsIndex > 0 ? 'Comentários (continuação)' : 'Comentários',
 	});
+
+	if (commentsIndex < annotationsOrdered.length) {
+		const note = 'Comentários adicionais disponíveis no workspace.';
+		const noteY = commentsAreaPage2.bottom + COMMENT.textSize + 4;
+		secondPage.drawText(note, {
+			x: commentsAreaPage2.x,
+			y: noteY,
+			size: COMMENT.textSize,
+			font: fonts.regular,
+			color: colorFromHex(TEXT_SUBTLE),
+		});
+	}
 
 	const pdfBytes = await pdfDoc.save();
 	return Buffer.from(pdfBytes);
