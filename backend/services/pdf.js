@@ -7,12 +7,10 @@ const { ENEM_RUBRIC, ENEM_REASON_LABELS } = require('../constants/enemRubric');
 
 const A4 = { width: 595, height: 842 };
 const MARGIN = 24;
-const CONTENT_GAP = 12;
+const CONTENT_GAP = 12; // legacy name (kept for compatibility)
+const SECTION_GAP = 12; // vertical gap between major sections
 const TITLE_SIZE = 11;
 const BODY_SIZE = 10;
-const PREVIEW_PADDING = 8;
-const PREVIEW_GAP = 8;
-
 const HERO = { height: 72, radius: 16, padX: 18, padY: 12, gap: 14 };
 const BRAND = { ICON: 44 };
 const SCORE_CARD = { width: 150, height: 56, radius: 14, pad: 10 };
@@ -31,14 +29,79 @@ const COMMENT = {
 
 const HIGHLIGHT_FILL_OPACITY = 0.22;
 const HIGHLIGHT_BORDER_OPACITY = 0.8;
-const HIGHLIGHT_LABEL_SIZE = 16;
-const HIGHLIGHT_LABEL_FONT_SIZE = 9;
 const PDF_FONT = { xs: 7, sm: 8, md: 10, lg: 14 };
 const AVATAR = { size: 36 };
 const POINTS_PER_LEVEL = [0, 40, 80, 120, 160, 200];
 const CARD_PADDING = 12;
 const LINE_GAP = 4;
 const BULLET_INDENT = 12;
+
+// Layout targets that mimic GradeWorkspace
+const RIGHT_RAIL_WIDTH = 320; // target rail width on the right (px)
+const COLUMN_GAP = 12; // gutter between main column and right rail
+const MIN_MAIN_WIDTH = 220; // minimal main width fallback
+
+const SPACING = {
+	section: 16,
+	block: 12,
+	title: 6,
+	subtitle: 10,
+	tableHeader: 8,
+	tableRowGap: 6,
+	annotation: 6,
+};
+
+const CLASS_TABLE = {
+	headerHeight: 28,
+	rowHeight: 44,
+	borderRadius: 14,
+	avatarSize: 34,
+	paddingX: 12,
+	paddingY: 12,
+	colGap: 10,
+	badgeSize: 18,
+	badgeFont: 9,
+	badgePadding: 4,
+};
+
+const ANNUL_CARD = {
+	padding: 12,
+	titleSize: 12,
+	textSize: 9,
+	optionGap: 6,
+	lineSpacing: 2,
+	headingGap: 4,
+	sectionGap: 4,
+	checkboxSize: 9,
+	checkboxGap: 8,
+	badgeHeight: 16,
+	radius: 16,
+};
+
+const SUMMARY_GRID = {
+	columns: 2,
+	cardHeight: 56,
+	padX: 12,
+	padY: 12,
+	gapX: 12,
+	gapY: 12,
+	labelSize: 9,
+	valueSize: 16,
+	valueGap: 6,
+};
+
+const PAS_TABLE = {
+	rowHeight: BODY_SIZE + 16,
+	rowGap: 6,
+	headerHeight: BODY_SIZE + 6,
+	radius: 10,
+};
+
+const PAS_FOOTER = {
+	topGap: 6,
+	middleGap: 4,
+	bottomGap: 6,
+};
 
 const HEX = {
 	background: '#FFFFFF',
@@ -616,149 +679,6 @@ function drawHeroHeader({
 	return card.y - CONTENT_GAP;
 }
 
-function drawDocumentPreview({
-	page,
-	fonts,
-	area,
-	embeddedPage,
-	embeddedImage,
-	annotations,
-}) {
-	const availableHeight = area.top - area.bottom;
-	if (availableHeight <= PREVIEW_PADDING * 2) return { drawn: false, highlightMap: null };
-
-	const innerWidth = area.width - PREVIEW_PADDING * 2;
-	const innerHeight = availableHeight - PREVIEW_PADDING * 2;
-	if (innerWidth <= 0 || innerHeight <= 0) return { drawn: false, highlightMap: null };
-
-	drawRoundedRect(page, {
-		x: area.x,
-		y: area.bottom,
-		width: area.width,
-		height: availableHeight,
-		radius: 16,
-		fill: colorFromHex(HEX.background),
-		stroke: colorFromHex(HEX.border),
-		strokeWidth: 1,
-	});
-
-	let sourceWidth = 0;
-	let sourceHeight = 0;
-	let drawMethod = null;
-
-	if (embeddedPage) {
-		sourceWidth = embeddedPage.width;
-		sourceHeight = embeddedPage.height;
-		drawMethod = 'page';
-	} else if (embeddedImage) {
-		sourceWidth = embeddedImage.width;
-		sourceHeight = embeddedImage.height;
-		drawMethod = 'image';
-	}
-
-	if (!sourceWidth || !sourceHeight) {
-		const placeholder = 'Pré-visualização indisponível';
-		const width = fonts.bold.widthOfTextAtSize(placeholder, 10);
-		page.drawText(placeholder, {
-			x: area.x + (area.width - width) / 2,
-			y: area.bottom + availableHeight / 2,
-			size: 10,
-			font: fonts.bold,
-			color: colorFromHex(HEX.textMuted),
-		});
-		return { drawn: false, highlightMap: null };
-	}
-
-	const scale = Math.min(innerWidth / sourceWidth, innerHeight / sourceHeight);
-	const targetWidth = sourceWidth * scale;
-	const targetHeight = sourceHeight * scale;
-	const targetX = area.x + PREVIEW_PADDING + (innerWidth - targetWidth) / 2;
-	const targetY = area.bottom + PREVIEW_PADDING + (innerHeight - targetHeight) / 2;
-
-	if (drawMethod === 'page') {
-		page.drawPage(embeddedPage, {
-			x: targetX,
-			y: targetY,
-			width: targetWidth,
-			height: targetHeight,
-		});
-	} else if (drawMethod === 'image') {
-		page.drawImage(embeddedImage, {
-			x: targetX,
-			y: targetY,
-			width: targetWidth,
-			height: targetHeight,
-		});
-	}
-
-	annotations.forEach((ann, index) => {
-		if (!Array.isArray(ann.rects) || !ann.rects.length) return;
-		const style = getCategoryStyle(ann.category);
-		const baseColor = colorFromHex(style.hex);
-		const displayNumber = resolveAnnotationNumber(ann, index + 1);
-		ann.rects.forEach((rect) => {
-			const rawWidth = clamp(rect.w, 0, 1) * targetWidth;
-			const rawHeight = clamp(rect.h, 0, 1) * targetHeight;
-			const rawX = targetX + clamp(rect.x, 0, 1) * targetWidth;
-			const rawY = targetY + (targetHeight - clamp(rect.y + rect.h, 0, 1) * targetHeight);
-
-			const clippedX = Math.max(targetX, rawX);
-			const clippedY = Math.max(targetY, rawY);
-			const clippedWidth = Math.max(0, Math.min(rawX + rawWidth, targetX + targetWidth) - clippedX);
-			const clippedHeight = Math.max(0, Math.min(rawY + rawHeight, targetY + targetHeight) - clippedY);
-			if (clippedWidth <= 0 || clippedHeight <= 0) return;
-
-			page.drawRectangle({
-				x: clippedX,
-				y: clippedY,
-				width: clippedWidth,
-				height: clippedHeight,
-				color: baseColor,
-				opacity: HIGHLIGHT_FILL_OPACITY,
-				borderColor: baseColor,
-				borderWidth: 1,
-				borderOpacity: HIGHLIGHT_BORDER_OPACITY,
-			});
-
-			const badgeDiameter = Math.min(HIGHLIGHT_LABEL_SIZE, Math.max(10, Math.min(clippedWidth, clippedHeight)));
-			if (badgeDiameter <= 0) return;
-			const badgeX = clippedX + 4;
-			const badgeY = clippedY + clippedHeight - badgeDiameter - 4;
-			const badgeRadius = badgeDiameter / 2;
-			page.drawCircle({
-				x: badgeX + badgeRadius,
-				y: badgeY + badgeRadius,
-				size: badgeRadius,
-				color: colorFromHex('#FFFFFF'),
-				borderColor: baseColor,
-				borderWidth: 1,
-			});
-
-			const labelText = String(displayNumber);
-			const textWidth = fonts.bold.widthOfTextAtSize(labelText, HIGHLIGHT_LABEL_FONT_SIZE);
-			const textHeight = fonts.bold.heightAtSize(HIGHLIGHT_LABEL_FONT_SIZE);
-			const textX = badgeX + badgeRadius - textWidth / 2;
-			const textY = badgeY + badgeRadius - textHeight / 2;
-			page.drawText(labelText, {
-				x: textX,
-				y: textY,
-				size: HIGHLIGHT_LABEL_FONT_SIZE,
-				font: fonts.bold,
-				color: colorFromHex(style.hex),
-			});
-		});
-	});
-
-	return {
-		drawn: true,
-		highlightMap: {
-			x: targetX,
-			y: targetY,
-			width: targetWidth,
-			height: targetHeight,
-		},
-	};
-}
 
 function drawCommentsColumn({
 	page,
@@ -904,6 +824,328 @@ function drawCommentsColumn({
 	}
 
 	return index;
+}
+
+/**
+ * Desenha a seção "Notas da turma" na coluna principal (lado esquerdo).
+ * Esta função tenta extrair uma lista de estudantes de `classInfo.students` e
+ * desenha uma tabela simples com Foto, Nº, Aluno e colunas de bimestres.
+ * Retorna o novo cursor (y) após desenhar a seção.
+ */
+function drawClassGradesSection(page, fonts, x, yTop, width, classInfo = {}, currentStudent = null, annotations = []) {
+	let cursor = yTop;
+	const headerSize = TITLE_SIZE;
+	const subtitleSize = BODY_SIZE - 1;
+	const headerColor = colorFromHex(TEXT);
+	const subtitleColor = colorFromHex(TEXT_SUBTLE);
+
+	// Section title
+	page.drawText('Notas da turma', {
+		x,
+		y: cursor,
+		size: headerSize,
+		font: fonts.bold,
+		color: headerColor,
+	});
+	cursor -= headerSize + SPACING.title;
+
+	const classLabel = resolveClassLabel(classInfo) || classInfo?.name || null;
+	const disciplineLabel = classInfo?.discipline || classInfo?.subject || null;
+	const bimester = classInfo?.bimester || classInfo?.bimestre || classInfo?.term || null;
+	const subtitleParts = [classLabel, disciplineLabel, bimester].filter(Boolean);
+	if (subtitleParts.length) {
+		page.drawText(subtitleParts.join(' • '), {
+			x,
+			y: cursor,
+			size: subtitleSize,
+			font: fonts.regular,
+			color: subtitleColor,
+		});
+		cursor -= subtitleSize + SPACING.subtitle;
+	}
+
+	// Prepare table data
+	const students = Array.isArray(classInfo?.students) && classInfo.students.length
+		? classInfo.students
+		: (currentStudent ? [currentStudent] : []);
+	const headers = ['Foto', 'Nº', 'Aluno'];
+	let bimCount = 0;
+	if (Array.isArray(classInfo?.bimesters) && classInfo.bimesters.length) {
+		bimCount = classInfo.bimesters.length;
+	} else if (Number.isFinite(classInfo?.bimesterCount)) {
+		bimCount = Number(classInfo.bimesterCount) || 0;
+	} else if (students.some((st) => Array.isArray(st?.grades) && st.grades.length)) {
+		bimCount = students.reduce((max, st) => Math.max(max, Array.isArray(st?.grades) ? st.grades.length : 0), 0);
+	}
+	bimCount = Math.max(1, bimCount);
+	const bimHeaders = Array.from({ length: bimCount }, (_, index) => `${index + 1}º Bimestre`);
+
+	const tableTop = cursor;
+	const tableHeight = CLASS_TABLE.headerHeight
+		+ (students.length ? students.length * CLASS_TABLE.rowHeight + Math.max(0, students.length - 1) * SPACING.tableRowGap : CLASS_TABLE.rowHeight);
+	const tableBottom = tableTop - tableHeight;
+
+	// Table container
+	drawRoundedRect(page, {
+		x,
+		y: tableBottom,
+		width,
+		height: tableHeight,
+		radius: CLASS_TABLE.borderRadius,
+		fill: colorFromHex('#FFFFFF'),
+		stroke: colorFromHex('#E2E8F0'),
+		strokeWidth: 1,
+	});
+
+	// Table header background
+	const headerBottom = tableTop - CLASS_TABLE.headerHeight;
+	drawRoundedRect(page, {
+		x,
+		y: headerBottom,
+		width,
+		height: CLASS_TABLE.headerHeight,
+		radius: CLASS_TABLE.borderRadius,
+		fill: colorFromHex('#F8FAFC'),
+		strokeWidth: 0,
+	});
+
+	const headerTextY = headerBottom + CLASS_TABLE.headerHeight / 2 + (subtitleSize / 2) - 1;
+	const photoColWidth = CLASS_TABLE.avatarSize + CLASS_TABLE.paddingX * 1.5;
+	const numberColWidth = 32;
+	const bimColWidth = 54;
+	const totalBimWidth = bimCount * bimColWidth;
+	const remaining = width - (photoColWidth + numberColWidth + totalBimWidth + CLASS_TABLE.paddingX * 2 + SPACING.tableRowGap * (2 + bimCount));
+	const nameColWidth = Math.max(120, remaining);
+
+	let headerX = x + CLASS_TABLE.paddingX;
+	page.drawText(headers[0], {
+		x: headerX,
+		y: headerTextY,
+		size: subtitleSize,
+		font: fonts.bold,
+		color: subtitleColor,
+	});
+	headerX += photoColWidth + SPACING.tableRowGap;
+	page.drawText(headers[1], {
+		x: headerX,
+		y: headerTextY,
+		size: subtitleSize,
+		font: fonts.bold,
+		color: subtitleColor,
+	});
+	headerX += numberColWidth + SPACING.tableRowGap;
+	page.drawText(headers[2], {
+		x: headerX,
+		y: headerTextY,
+		size: subtitleSize,
+		font: fonts.bold,
+		color: subtitleColor,
+	});
+
+	let bimHeaderX = x + width - CLASS_TABLE.paddingX - totalBimWidth;
+	bimHeaders.forEach((label) => {
+		const labelWidth = fonts.bold.widthOfTextAtSize(label, subtitleSize);
+		page.drawText(label, {
+			x: bimHeaderX + (bimColWidth - labelWidth) / 2,
+			y: headerTextY,
+			size: subtitleSize,
+			font: fonts.bold,
+			color: subtitleColor,
+		});
+		bimHeaderX += bimColWidth;
+	});
+
+	let rowTop = headerBottom - SPACING.tableRowGap;
+	const avatarRadius = CLASS_TABLE.avatarSize / 2;
+	const rowFontSize = BODY_SIZE - 1;
+
+	students.forEach((studentItem, index) => {
+		const rowBottom = rowTop - CLASS_TABLE.rowHeight;
+		const rowY = rowBottom + CLASS_TABLE.rowHeight / 2 + rowFontSize / 2 - 2;
+
+		drawRoundedRect(page, {
+			x,
+			y: rowBottom,
+			width,
+			height: CLASS_TABLE.rowHeight,
+			radius: 8,
+			fill: colorFromHex(index % 2 === 0 ? '#FFFFFF' : '#F9FAFB'),
+			strokeWidth: 0,
+		});
+
+		const avatarX = x + CLASS_TABLE.paddingX;
+		const avatarY = rowBottom + (CLASS_TABLE.rowHeight - CLASS_TABLE.avatarSize) / 2;
+	drawRoundedRect(page, {
+			x: avatarX,
+			y: avatarY,
+			width: CLASS_TABLE.avatarSize,
+			height: CLASS_TABLE.avatarSize,
+			radius: avatarRadius,
+			fill: blendHex(HEX.brand, HEX.brandPastel, 0.4),
+		});
+		const initials = ((studentItem?.name || currentStudent?.name || '')
+			.split(' ')
+			.filter(Boolean)
+			.slice(0, 2)
+			.map((piece) => piece[0]?.toUpperCase() ?? '')
+			.join('')) || 'A';
+		const initialsWidth = fonts.bold.widthOfTextAtSize(initials, 10);
+		page.drawText(initials, {
+			x: avatarX + (CLASS_TABLE.avatarSize - initialsWidth) / 2,
+			y: avatarY + (CLASS_TABLE.avatarSize - 10) / 2,
+			size: 10,
+			font: fonts.bold,
+			color: colorFromHex(HEX.brandDark),
+		});
+
+		let cellX = avatarX + CLASS_TABLE.avatarSize + SPACING.tableRowGap;
+		const orderLabel = String(
+			studentItem?.number || studentItem?.nr || studentItem?.order || index + 1,
+		);
+		page.drawText(orderLabel, {
+			x: cellX,
+			y: rowY,
+			size: rowFontSize,
+			font: fonts.regular,
+			color: headerColor,
+		});
+
+		cellX += numberColWidth + SPACING.tableRowGap;
+		const nameMaxWidth = nameColWidth - CLASS_TABLE.colGap;
+		const displayName = truncateText(
+			studentItem?.name || currentStudent?.name || 'Aluno',
+			fonts.regular,
+			rowFontSize,
+			nameMaxWidth,
+		);
+		page.drawText(displayName, {
+			x: cellX,
+			y: rowY,
+			size: rowFontSize,
+			font: fonts.regular,
+			color: headerColor,
+		});
+
+		let gradeX = x + width - CLASS_TABLE.paddingX - totalBimWidth;
+		for (let i = 0; i < bimCount; i += 1) {
+			const gradeValue = Array.isArray(studentItem?.grades) && studentItem.grades[i] != null
+				? studentItem.grades[i]
+				: studentItem?.[`bim${i + 1}`];
+			const gradeLabel = gradeValue != null && gradeValue !== ''
+				? String(gradeValue)
+				: '—';
+			const gradeWidth = fonts.bold.widthOfTextAtSize(gradeLabel, rowFontSize);
+			page.drawText(gradeLabel, {
+				x: gradeX + (bimColWidth - gradeWidth) / 2,
+				y: rowY,
+				size: rowFontSize,
+				font: fonts.bold,
+				color: headerColor,
+			});
+			gradeX += bimColWidth;
+		}
+
+		rowTop = rowBottom - SPACING.tableRowGap;
+	});
+
+	if (!students.length) {
+		const emptyText = 'Sem dados de notas disponíveis.';
+		const emptyWidth = fonts.regular.widthOfTextAtSize(emptyText, rowFontSize);
+		page.drawText(emptyText, {
+			x: x + (width - emptyWidth) / 2,
+			y: headerBottom - CLASS_TABLE.rowHeight / 2,
+			size: rowFontSize,
+			font: fonts.regular,
+			color: subtitleColor,
+		});
+	}
+
+	const highlightArea = {
+		x: x + CLASS_TABLE.paddingX * 0.5,
+		y: tableBottom + CLASS_TABLE.paddingY * 0.5,
+		width: width - CLASS_TABLE.paddingX,
+		height: tableHeight - CLASS_TABLE.paddingY,
+	};
+	drawAnnotationHighlights(page, fonts, highlightArea, annotations);
+
+	return tableBottom - SPACING.section;
+}
+
+function drawAnnotationHighlights(page, fonts, area, annotations) {
+	if (!annotations || !annotations.length) return;
+	const labelFontSize = CLASS_TABLE.badgeFont;
+	const badgeSize = CLASS_TABLE.badgeSize;
+	const badgeRadius = badgeSize / 2;
+	const baseOffset = 4;
+	annotations.forEach((annotation, annotationIndex) => {
+		if (!Array.isArray(annotation?.rects)) return;
+		const style = getCategoryStyle(annotation.category);
+		const color = colorFromHex(style.hex);
+		const label = String(resolveAnnotationNumber(annotation, annotationIndex + 1));
+		annotation.rects.forEach((rect) => {
+			const width = clamp(rect.w ?? rect.width ?? 0, 0, 1) * area.width;
+			const height = clamp(rect.h ?? rect.height ?? 0, 0, 1) * area.height;
+			const posX = area.x + clamp(rect.x ?? 0, 0, 1) * area.width;
+			const posY = area.y + (area.height - clamp((rect.y ?? 0) + (rect.h ?? rect.height ?? 0), 0, 1) * area.height);
+			if (width <= 0 || height <= 0) return;
+
+			page.drawRectangle({
+				x: posX,
+				y: posY,
+				width,
+				height,
+				color,
+				opacity: HIGHLIGHT_FILL_OPACITY,
+				borderColor: color,
+				borderOpacity: HIGHLIGHT_BORDER_OPACITY,
+				borderWidth: 1,
+			});
+
+			const badgeX = posX + baseOffset;
+			const badgeY = posY + height - badgeSize - baseOffset;
+			page.drawCircle({
+				x: badgeX + badgeRadius,
+				y: badgeY + badgeRadius,
+				size: badgeRadius,
+				color: colorFromHex('#FFFFFF'),
+				borderColor: color,
+				borderWidth: 1,
+			});
+
+			const labelWidth = fonts.bold.widthOfTextAtSize(label, labelFontSize);
+			const labelHeight = fonts.bold.heightAtSize(labelFontSize);
+			page.drawText(label, {
+				x: badgeX + badgeRadius - labelWidth / 2,
+				y: badgeY + badgeRadius - labelHeight / 2,
+				size: labelFontSize,
+				font: fonts.bold,
+				color,
+			});
+		});
+	});
+}
+
+function estimateClassGradesHeight(classInfo = {}, currentStudent = null) {
+	const hasClass = Boolean(resolveClassLabel(classInfo) || classInfo?.name);
+	const hasDiscipline = Boolean(classInfo?.discipline || classInfo?.subject);
+	const hasBimester = Boolean(classInfo?.bimester || classInfo?.bimestre || classInfo?.term);
+	const hasSubtitle = hasClass || hasDiscipline || hasBimester;
+	let rowCount = 0;
+	if (Array.isArray(classInfo?.students) && classInfo.students.length) {
+		rowCount = classInfo.students.length;
+	} else if (currentStudent) {
+		rowCount = 1;
+	}
+	rowCount = Math.max(1, rowCount);
+	let total = 0;
+	total += TITLE_SIZE + SPACING.title;
+	if (hasSubtitle) {
+		total += (BODY_SIZE - 1) + SPACING.subtitle;
+	}
+	total += CLASS_TABLE.headerHeight;
+	total += rowCount * CLASS_TABLE.rowHeight + (rowCount - 1) * SPACING.tableRowGap;
+	total += SPACING.section;
+	return total;
 }
 
 function splitWithSpaces(input) {
@@ -1157,24 +1399,19 @@ function drawPasSummarySection(page, fonts, x, yTop, width, summary) {
 	];
 	let cursor = yTop;
 	drawTextSimple(page, 'Resumo do espelho', x, cursor, BODY_SIZE, fonts.bold, TEXT);
-	cursor -= BODY_SIZE + 6;
+	cursor -= BODY_SIZE + SPACING.title;
 
-	const columns = 2;
-	const gapX = 12;
-	const gapY = 12;
-	const cardWidth = columns > 1 ? (width - gapX) / columns : width;
-	const cardHeight = 56;
-	const padX = 12;
-	const padY = 12;
-	const labelSize = 9;
-	const valueSize = 16;
-	const valueGap = 6;
+	const columns = SUMMARY_GRID.columns;
+	const cardWidth = columns > 1 ? (width - SUMMARY_GRID.gapX) / columns : width;
+	const cardHeight = SUMMARY_GRID.cardHeight;
+	const labelSize = SUMMARY_GRID.labelSize;
+	const valueSize = SUMMARY_GRID.valueSize;
 
 	cards.forEach((card, index) => {
 		const col = index % columns;
 		const row = Math.floor(index / columns);
-		const cardX = x + col * (cardWidth + gapX);
-		const cardTop = cursor - row * (cardHeight + gapY);
+		const cardX = x + col * (cardWidth + SUMMARY_GRID.gapX);
+		const cardTop = cursor - row * (cardHeight + SUMMARY_GRID.gapY);
 		const fillHex = card.highlight ? '#FFF7ED' : '#FFFFFF';
 		const strokeHex = card.highlight ? '#FDBA74' : '#E6E8EB';
 		drawRoundedRect(page, {
@@ -1188,9 +1425,9 @@ function drawPasSummarySection(page, fonts, x, yTop, width, summary) {
 			strokeWidth: 1,
 		});
 
-		const labelY = cardTop - padY - labelSize;
+		const labelY = cardTop - SUMMARY_GRID.padY - labelSize;
 		page.drawText(card.label, {
-			x: cardX + padX,
+			x: cardX + SUMMARY_GRID.padX,
 			y: labelY,
 			size: labelSize,
 			font: fonts.regular,
@@ -1198,9 +1435,9 @@ function drawPasSummarySection(page, fonts, x, yTop, width, summary) {
 		});
 
 		const formatted = formatPasValue(card.value, card.decimals);
-		const valueY = labelY - valueGap - valueSize;
+		const valueY = labelY - SUMMARY_GRID.valueGap - valueSize;
 		page.drawText(formatted, {
-			x: cardX + padX,
+			x: cardX + SUMMARY_GRID.padX,
 			y: valueY,
 			size: valueSize,
 			font: fonts.bold,
@@ -1209,30 +1446,31 @@ function drawPasSummarySection(page, fonts, x, yTop, width, summary) {
 	});
 
 	const rows = Math.ceil(cards.length / columns);
-	const gridHeight = rows * cardHeight + Math.max(0, rows - 1) * gapY;
-	cursor -= gridHeight + (rows > 0 ? gapY : 0);
+	const gridHeight = rows * cardHeight + Math.max(0, rows - 1) * SUMMARY_GRID.gapY;
+	cursor -= gridHeight + (rows > 0 ? SUMMARY_GRID.gapY : 0);
 	return cursor;
 }
 
 function drawPasSectionHeader(page, x, y, width, label, fonts, options = {}) {
+	const headerHeight = PAS_TABLE.headerHeight;
 	drawRoundedRect(page, {
 		x,
-		y: y - BODY_SIZE - 4,
+		y: y - headerHeight,
 		width,
-		height: BODY_SIZE + 6,
-		radius: 10,
+		height: headerHeight,
+		radius: PAS_TABLE.radius,
 		fill: options.fill ? colorFromHex(options.fill) : colorFromHex('#F8FAFC'),
 		stroke: options.border ? colorFromHex(options.border) : colorFromHex('#E2E8F0'),
 		strokeWidth: 1,
 	});
 	page.drawText(label, {
-		x: x + 12,
+		x: x + CLASS_TABLE.paddingX,
 		y: y - BODY_SIZE,
 		size: BODY_SIZE,
 		font: fonts.bold,
 		color: colorFromHex(options.title || TEXT_SUBTLE),
 	});
-	return y - (BODY_SIZE + 6);
+	return y - headerHeight;
 }
 
 function drawPasMacroSection(page, fonts, x, yTop, width, summary) {
@@ -1242,7 +1480,7 @@ function drawPasMacroSection(page, fonts, x, yTop, width, summary) {
 		border: '#CBD5F5',
 		title: '#1D4ED8',
 	});
-	const rowHeight = BODY_SIZE + 16;
+	const rowHeight = PAS_TABLE.rowHeight;
 	summary.macro.forEach((row) => {
 		const rowTop = cursor;
 		cursor -= rowHeight;
@@ -1251,7 +1489,7 @@ function drawPasMacroSection(page, fonts, x, yTop, width, summary) {
 			{ text: `0,00 – ${row.max.toFixed(2)}`, ratio: 0.2, font: fonts.regular, color: '#1D4ED8', align: 'center' },
 			{ text: `${row.value.toFixed(2)} / ${row.max.toFixed(2)}`, ratio: 0.2, font: fonts.bold, color: TEXT, align: 'right' },
 		]);
-		cursor -= 6;
+		cursor -= PAS_TABLE.rowGap;
 	});
 	return cursor;
 }
@@ -1263,7 +1501,7 @@ function drawPasMicroSection(page, fonts, x, yTop, width, summary) {
 		border: '#FCC5DB',
 		title: '#BE185D',
 	});
-	const rowHeight = BODY_SIZE + 16;
+	const rowHeight = PAS_TABLE.rowHeight;
 	summary.micro.forEach((row) => {
 		const rowTop = cursor;
 		cursor -= rowHeight;
@@ -1271,16 +1509,16 @@ function drawPasMicroSection(page, fonts, x, yTop, width, summary) {
 			{ text: row.label, ratio: 0.7, font: fonts.regular, color: TEXT },
 			{ text: String(row.value), ratio: 0.3, font: fonts.bold, color: '#BE185D', align: 'right' },
 		]);
-		cursor -= 6;
+		cursor -= PAS_TABLE.rowGap;
 	});
 
-	cursor -= BODY_SIZE + 6;
+	cursor -= BODY_SIZE + PAS_FOOTER.topGap;
 	const discountLabel = summary.discount ? `Desconto por erro: ${summary.discount.toFixed(3)} pt(s)` : 'Desconto por erro: —';
 	drawTextSimple(page, discountLabel, x, cursor, BODY_SIZE - 1, fonts.regular, TEXT_SUBTLE);
-	cursor -= BODY_SIZE + 4;
+	cursor -= BODY_SIZE + PAS_FOOTER.middleGap;
 	const nrLabel = `Nota final prevista (NR): ${summary.nr.toFixed(2)} / 10`;
 	drawTextSimple(page, nrLabel, x, cursor, BODY_SIZE, fonts.bold, TEXT);
-	cursor -= BODY_SIZE + 6;
+	cursor -= BODY_SIZE + PAS_FOOTER.bottomGap;
 	return cursor;
 }
 
@@ -1292,7 +1530,7 @@ function drawPasRow(page, fonts, x, yTop, height, width, cells) {
 		y: bottom,
 		width,
 		height: rowHeight,
-		radius: 10,
+		radius: PAS_TABLE.radius,
 		fill: colorFromHex('#FFFFFF'),
 		stroke: colorFromHex('#E2E8F0'),
 		strokeWidth: 1,
@@ -1300,7 +1538,7 @@ function drawPasRow(page, fonts, x, yTop, height, width, cells) {
 	let offset = x;
 	cells.forEach((cell) => {
 		const cellWidth = width * cell.ratio;
-		const textX = offset + 12;
+		const textX = offset + CLASS_TABLE.paddingX;
 		const textY = bottom + (rowHeight - (BODY_SIZE - 1)) / 2;
 		const align = cell.align || 'left';
 		const font = cell.font || fonts.regular;
@@ -1342,61 +1580,31 @@ function formatPasValue(value, decimals = 0) {
 	return value.toFixed(decimals);
 }
 
-function estimatePreviewHeight(width, embeddedPage, embeddedImage) {
-	const innerWidth = Math.max(0, width - PREVIEW_PADDING * 2);
-	if (innerWidth <= 0) return PREVIEW_PADDING * 2 + 200;
-	let sourceWidth = 0;
-	let sourceHeight = 0;
-	if (embeddedPage && embeddedPage.width && embeddedPage.height) {
-		sourceWidth = embeddedPage.width;
-		sourceHeight = embeddedPage.height;
-	} else if (embeddedImage && embeddedImage.width && embeddedImage.height) {
-		sourceWidth = embeddedImage.width;
-		sourceHeight = embeddedImage.height;
-	}
-	if (!sourceWidth || !sourceHeight) {
-		sourceWidth = A4.width;
-		sourceHeight = A4.height;
-	}
-	const aspect = sourceHeight / sourceWidth || Math.sqrt(2);
-	const contentHeight = innerWidth * aspect;
-	return PREVIEW_PADDING * 2 + contentHeight;
-}
-
 function calculatePasSummaryHeight(summary) {
 	if (!summary) return 0;
-	const columns = 2;
-	const gapY = 12;
-	const cardHeight = 56;
-	const rows = Math.ceil(4 / columns);
-	const gridHeight = rows * cardHeight + Math.max(0, rows - 1) * gapY;
-	return BODY_SIZE + 6 + gridHeight + (rows > 0 ? gapY : 0);
+	const rows = Math.ceil(4 / SUMMARY_GRID.columns);
+	const gridHeight = rows * SUMMARY_GRID.cardHeight + Math.max(0, rows - 1) * SUMMARY_GRID.gapY;
+	return BODY_SIZE + SPACING.title + gridHeight + (rows > 0 ? SUMMARY_GRID.gapY : 0);
 }
 
 function calculatePasMacroHeight(summary) {
 	if (!summary) return 0;
-	const headerHeight = BODY_SIZE + 6;
-	const rowHeight = BODY_SIZE + 16;
 	const rows = summary.macro.length;
-	const perRowGap = 6;
-	return headerHeight + rows * (rowHeight + perRowGap);
+	return PAS_TABLE.headerHeight + rows * (PAS_TABLE.rowHeight + PAS_TABLE.rowGap);
 }
 
 function calculatePasMicroHeight(summary) {
 	if (!summary) return 0;
-	const headerHeight = BODY_SIZE + 6;
-	const rowHeight = BODY_SIZE + 16;
 	const rows = summary.micro.length;
-	const perRowGap = 6;
-	const footer = (BODY_SIZE + 6) + (BODY_SIZE + 4) + (BODY_SIZE + 6);
-	return headerHeight + rows * (rowHeight + perRowGap) + footer;
+	const footer = 3 * BODY_SIZE + PAS_FOOTER.topGap + PAS_FOOTER.middleGap + PAS_FOOTER.bottomGap;
+	return PAS_TABLE.headerHeight + rows * (PAS_TABLE.rowHeight + PAS_TABLE.rowGap) + footer;
 }
 
 function drawEnemSummarySection(page, fonts, x, yTop, width, totalPoints) {
 	let cursor = yTop;
 	drawTextSimple(page, 'Resumo do espelho', x, cursor, BODY_SIZE, fonts.bold, TEXT);
-	cursor -= BODY_SIZE + 6;
-	const cardHeight = 56;
+	cursor -= BODY_SIZE + SPACING.title;
+	const cardHeight = SUMMARY_GRID.cardHeight;
 	drawRoundedRect(page, {
 		x,
 		y: cursor - cardHeight,
@@ -1407,10 +1615,10 @@ function drawEnemSummarySection(page, fonts, x, yTop, width, totalPoints) {
 		stroke: colorFromHex('#FDBA74'),
 		strokeWidth: 1,
 	});
-	const labelSize = 9;
-	const valueSize = 18;
-	const padX = 12;
-	const padY = 10;
+	const labelSize = SUMMARY_GRID.labelSize;
+	const valueSize = SUMMARY_GRID.valueSize + 2;
+	const padX = SUMMARY_GRID.padX;
+	const padY = SUMMARY_GRID.padY - 2;
 	page.drawText('TOTAL ENEM', {
 		x: x + padX,
 		y: cursor - padY - labelSize,
@@ -1431,111 +1639,115 @@ function drawEnemSummarySection(page, fonts, x, yTop, width, totalPoints) {
 }
 
 function calculateEnemSummaryHeight() {
-	const cardHeight = 56;
-	return BODY_SIZE + 6 + cardHeight + 12;
+	return BODY_SIZE + SPACING.title + SUMMARY_GRID.cardHeight + SUMMARY_GRID.gapY;
 }
 
-function drawAnnulmentSection(page, fonts, x, yTop, width, score) {
+function buildAnnulmentLayout(fonts, width, score) {
 	const selected = new Set(Array.isArray(score?.reasons) ? score.reasons.map(String) : []);
 	const otherReason = typeof score?.otherReason === 'string' ? score.otherReason.trim() : '';
 	const annulled = Boolean(score?.annulled || selected.size > 0);
-	const cardPadding = 12;
-	const titleSize = 12;
-	const subtitleSize = 9;
-	const optionSize = 9;
-	const optionGap = 6;
-	const checkboxSize = 9;
-	const checkboxGap = 8;
-	const innerWidth = width - cardPadding * 2;
+	const innerWidth = width - ANNUL_CARD.padding * 2;
+	const subtitleSize = ANNUL_CARD.textSize;
+	const optionWidth = innerWidth - ANNUL_CARD.checkboxSize - ANNUL_CARD.checkboxGap;
 
 	const description = annulled
 		? 'Redação anulada. Verifique os motivos abaixo.'
 		: 'Selecione os motivos aplicáveis antes de finalizar a correção.';
 	const descriptionLines = wrapText(description, fonts.regular, subtitleSize, innerWidth);
 
-	const lineSpacing = 2;
-	const headingSpacing = 4;
-	const sectionSpacing = 4;
-
 	const optionsLayout = ANNUL_OPTIONS.map((opt) => {
-		const lines = wrapText(opt.label, fonts.regular, optionSize, innerWidth - checkboxSize - checkboxGap);
-		const textHeight = lines.length * optionSize + Math.max(0, lines.length - 1) * lineSpacing;
-		const height = Math.max(checkboxSize, textHeight);
+		const lines = wrapText(opt.label, fonts.regular, subtitleSize, optionWidth);
+		const textHeight = lines.length * subtitleSize + Math.max(0, lines.length - 1) * ANNUL_CARD.lineSpacing;
+		const height = Math.max(ANNUL_CARD.checkboxSize, textHeight);
 		return { ...opt, lines, height };
 	});
 
 	let otherLines = [];
 	if (selected.has('OUTROS') && otherReason) {
-		otherLines = wrapText(otherReason, fonts.regular, subtitleSize, innerWidth - 2);
+		otherLines = wrapText(otherReason, fonts.regular, subtitleSize, optionWidth);
 	}
 
-	const badgeHeight = annulled ? 16 : 0;
-
 	const descriptionHeight = descriptionLines.length
-		? descriptionLines.length * subtitleSize + (descriptionLines.length - 1) * 2
+		? descriptionLines.length * subtitleSize + (descriptionLines.length - 1) * ANNUL_CARD.lineSpacing
 		: 0;
-	const optionsHeight = optionsLayout.reduce(
-		(acc, opt) => acc + opt.height,
-		0
-	);
-	const optionsGaps = optionGap * Math.max(optionsLayout.length - 1, 0);
+	const optionsHeight = optionsLayout.reduce((acc, opt) => acc + opt.height, 0);
+	const optionsGap = ANNUL_CARD.optionGap * Math.max(optionsLayout.length - 1, 0);
 	const otherHeight = otherLines.length
-		? subtitleSize + headingSpacing + otherLines.length * (subtitleSize + lineSpacing) - lineSpacing + sectionSpacing
+		? ANNUL_CARD.headingGap + otherLines.length * subtitleSize + Math.max(0, otherLines.length - 1) * ANNUL_CARD.lineSpacing + ANNUL_CARD.sectionGap
 		: 0;
+	const badgeHeight = annulled ? ANNUL_CARD.badgeHeight + ANNUL_CARD.sectionGap : 0;
+
 	const totalHeight =
-		cardPadding * 2 +
-		titleSize +
-		(descriptionHeight ? descriptionHeight + 8 : 6) +
+		ANNUL_CARD.padding * 2 +
+		ANNUL_CARD.titleSize +
+		(descriptionHeight ? descriptionHeight + ANNUL_CARD.headingGap : ANNUL_CARD.headingGap) +
 		optionsHeight +
-		optionsGaps +
+		optionsGap +
 		otherHeight +
 		badgeHeight;
 
-	const cardBottom = yTop - totalHeight;
+	return {
+		totalHeight,
+		selected,
+		annulled,
+		descriptionLines,
+		optionsLayout,
+		otherLines,
+		innerWidth,
+	};
+}
+
+function drawAnnulmentSection(page, fonts, x, yTop, width, score) {
+	const layout = buildAnnulmentLayout(fonts, width, score);
+	const subtitleSize = ANNUL_CARD.textSize;
+	const cardBottom = yTop - layout.totalHeight;
+
 	drawRoundedRect(page, {
 		x,
 		y: cardBottom,
 		width,
-		height: totalHeight,
-		radius: 16,
+		height: layout.totalHeight,
+		radius: ANNUL_CARD.radius,
 		fill: colorFromHex('#FFFFFF'),
 		stroke: colorFromHex('#F5D0A3'),
 		strokeWidth: 1,
 	});
 
-	let cursor = yTop - cardPadding;
+	let cursor = yTop - ANNUL_CARD.padding;
 	page.drawText('Espelho do aluno', {
-		x: x + cardPadding,
-		y: cursor - titleSize,
-		size: titleSize,
+		x: x + ANNUL_CARD.padding,
+		y: cursor - ANNUL_CARD.titleSize,
+		size: ANNUL_CARD.titleSize,
 		font: fonts.bold,
 		color: colorFromHex('#AA4A0A'),
 	});
-	cursor -= titleSize + 4;
+	cursor -= ANNUL_CARD.titleSize + ANNUL_CARD.headingGap;
 
-	descriptionLines.forEach((line) => {
+	layout.descriptionLines.forEach((line) => {
 		cursor -= subtitleSize;
 		page.drawText(line, {
-			x: x + cardPadding,
+			x: x + ANNUL_CARD.padding,
 			y: cursor,
 			size: subtitleSize,
 			font: fonts.regular,
 			color: colorFromHex(HEX.textMuted),
 		});
-		cursor -= 2;
+		cursor -= ANNUL_CARD.lineSpacing;
 	});
-	cursor -= 6;
+	if (layout.descriptionLines.length) {
+		cursor += ANNUL_CARD.lineSpacing;
+		cursor -= ANNUL_CARD.headingGap;
+	}
 
-	optionsLayout.forEach((opt) => {
-		const checked = selected.has(opt.key);
-		const rowTop = cursor;
-		const checkboxX = x + cardPadding;
-		const checkboxY = rowTop - checkboxSize;
+	layout.optionsLayout.forEach((opt) => {
+		const checked = layout.selected.has(opt.key);
+		const checkboxX = x + ANNUL_CARD.padding;
+		const checkboxY = cursor - ANNUL_CARD.checkboxSize;
 		page.drawRectangle({
 			x: checkboxX,
 			y: checkboxY,
-			width: checkboxSize,
-			height: checkboxSize,
+			width: ANNUL_CARD.checkboxSize,
+			height: ANNUL_CARD.checkboxSize,
 			radius: 2,
 			color: colorFromHex(checked ? '#FDBA74' : '#FFFFFF'),
 			borderColor: colorFromHex('#F97316'),
@@ -1545,74 +1757,80 @@ function drawAnnulmentSection(page, fonts, x, yTop, width, score) {
 			page.drawText('✓', {
 				x: checkboxX + 1.5,
 				y: checkboxY + 1,
-				size: optionSize,
+				size: subtitleSize,
 				font: fonts.bold,
 				color: colorFromHex('#B45309'),
 			});
 		}
-		let lineCursor = rowTop;
+		let lineCursor = cursor;
 		opt.lines.forEach((line) => {
-			lineCursor -= optionSize;
+			lineCursor -= subtitleSize;
 			page.drawText(line, {
-				x: checkboxX + checkboxSize + checkboxGap,
+				x: checkboxX + ANNUL_CARD.checkboxSize + ANNUL_CARD.checkboxGap,
 				y: lineCursor,
-				size: optionSize,
+				size: subtitleSize,
 				font: fonts.regular,
 				color: colorFromHex('#0F172A'),
 			});
-			lineCursor -= lineSpacing;
+			lineCursor -= ANNUL_CARD.lineSpacing;
 		});
-		cursor -= opt.height + optionGap;
+		cursor -= opt.height + ANNUL_CARD.optionGap;
 	});
-	if (optionsLayout.length) cursor += optionGap;
+	if (layout.optionsLayout.length) {
+		cursor += ANNUL_CARD.optionGap;
+	}
 
-	if (otherLines.length) {
+	if (layout.otherLines.length) {
 		page.drawText('Observação', {
-			x: x + cardPadding,
+			x: x + ANNUL_CARD.padding,
 			y: cursor - subtitleSize,
 			size: subtitleSize,
 			font: fonts.bold,
 			color: colorFromHex('#B45309'),
 		});
-		cursor -= subtitleSize + headingSpacing;
-		otherLines.forEach((line) => {
+		cursor -= subtitleSize + ANNUL_CARD.headingGap;
+		layout.otherLines.forEach((line) => {
 			cursor -= subtitleSize;
 			page.drawText(line, {
-				x: x + cardPadding,
+				x: x + ANNUL_CARD.padding,
 				y: cursor,
 				size: subtitleSize,
 				font: fonts.regular,
 				color: colorFromHex('#0F172A'),
 			});
-			cursor -= lineSpacing;
+			cursor -= ANNUL_CARD.lineSpacing;
 		});
-		cursor += lineSpacing;
-		cursor -= sectionSpacing;
+		cursor += ANNUL_CARD.lineSpacing;
+		cursor -= ANNUL_CARD.sectionGap;
 	}
 
-	if (annulled) {
-		const badgeHeightInner = badgeHeight;
-		cursor -= badgeHeightInner;
+	if (layout.annulled) {
+		cursor -= ANNUL_CARD.badgeHeight;
 		drawRoundedRect(page, {
-			x: x + cardPadding,
+			x: x + ANNUL_CARD.padding,
 			y: cursor,
 			width: 148,
-			height: badgeHeightInner,
-			radius: badgeHeightInner / 2,
+			height: ANNUL_CARD.badgeHeight,
+			radius: ANNUL_CARD.badgeHeight / 2,
 			fill: colorFromHex('#FDE68A'),
 			stroke: colorFromHex('#F59E0B'),
 			strokeWidth: 1,
 		});
 		page.drawText('Correção anulada', {
-			x: x + cardPadding + 12,
+			x: x + ANNUL_CARD.padding + 12,
 			y: cursor + 4,
 			size: subtitleSize,
 			font: fonts.bold,
 			color: colorFromHex('#92400E'),
 		});
+		cursor -= ANNUL_CARD.sectionGap;
 	}
 
 	return cardBottom;
+}
+
+function estimateAnnulmentHeight(fonts, width, score) {
+	return buildAnnulmentLayout(fonts, width, score).totalHeight;
 }
 
 function buildHeroMeta({ classLabel, subjectLabel, modelLabel, bimesterLabel }) {
@@ -1701,15 +1919,6 @@ function clampLevel(level) {
 }
 
 async function generateCorrectedEssayPdf({ essay, annotations, score, student, classInfo }) {
-	if (!essay?.originalUrl) {
-		throw new Error('Redação sem arquivo original.');
-	}
-
-	const originalBytes = await fetchRemoteBytes(essay.originalUrl);
-	if (!originalBytes || !originalBytes.length) {
-		throw new Error('Arquivo original indisponível para gerar o PDF corrigido.');
-	}
-
 	const pdfDoc = await PDFDocument.create();
 	const fonts = {
 		regular: await pdfDoc.embedFont(StandardFonts.Helvetica),
@@ -1717,42 +1926,6 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 	};
 
 	const brandMarkImage = await embedBrandMark(pdfDoc);
-
-	const declaredMime = essay?.originalMimeType || null;
-	const inferredImage = (() => {
-		if (!originalBytes || originalBytes.length < 4) return null;
-		const b0 = originalBytes[0];
-		const b1 = originalBytes[1];
-		if (b0 === 0x89 && b1 === 0x50) return 'image/png';
-		if (b0 === 0xff && b1 === 0xd8) return 'image/jpeg';
-		return null;
-	})();
-	let treatAsImage = Boolean(declaredMime?.startsWith('image/')) || (!declaredMime && inferredImage);
-	let embeddedImage = null;
-	let embeddedPages = [];
-
-	if (treatAsImage) {
-		try {
-			embeddedImage = declaredMime?.includes('png') || inferredImage?.includes('png')
-				? await pdfDoc.embedPng(originalBytes)
-				: await pdfDoc.embedJpg(originalBytes);
-		} catch (err) {
-			console.warn('[pdf] Falha ao incorporar imagem, tentando carregar como PDF.', err?.message || err);
-			treatAsImage = false;
-		}
-	}
-
-	if (!treatAsImage) {
-		try {
-			const originalDoc = await PDFDocument.load(originalBytes);
-			const count = originalDoc.getPageCount();
-			embeddedPages = await pdfDoc.embedPdf(originalBytes, Array.from({ length: count }, (_, idx) => idx));
-		} catch (err) {
-			console.warn('[pdf] Falha ao carregar PDF original, tentando como imagem.', err?.message || err);
-			treatAsImage = true;
-			embeddedImage = await pdfDoc.embedJpg(originalBytes);
-		}
-	}
 
 	const studentEntity = student || essay?.studentId || {};
 	const studentName = studentEntity?.name || essay?.studentName || 'Aluno';
@@ -1780,6 +1953,7 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 
 	const annotationsOrdered = prepareAnnotations(annotations);
 	const firstPageAnnotations = annotationsOrdered.filter((ann) => ann.page === 1);
+	const totalComments = annotationsOrdered.length;
 
 	const heroArgs = (page, fontsPack) => ({
 		page,
@@ -1798,10 +1972,7 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 	});
 
 	const contentWidth = A4.width - MARGIN * 2;
-	const COLUMN_GAP = 6;
-	const RIGHT_RAIL_TARGET = 320;
-	const MIN_MAIN_WIDTH = 220;
-	const rightRailWidth = Math.min(RIGHT_RAIL_TARGET, Math.max(160, contentWidth - MIN_MAIN_WIDTH));
+	const rightRailWidth = Math.min(RIGHT_RAIL_WIDTH, Math.max(160, contentWidth - MIN_MAIN_WIDTH));
 	const mainColumnWidth = contentWidth - rightRailWidth - COLUMN_GAP;
 	if (mainColumnWidth <= 0) {
 		throw new Error('Área principal insuficiente para gerar o PDF.');
@@ -1812,22 +1983,37 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 	let commentsIndex = 0;
 	let currentPage = null;
 
+	const ensureSpace = (height, gap = SECTION_GAP) => {
+		const needed = height + (gap || 0);
+		if (currentPage && currentPage.cursor - needed < currentPage.bottom) {
+			currentPage = startPage(false);
+		}
+	};
+
+	const applyGap = (gap = SECTION_GAP) => {
+		if (!gap) return;
+		if (currentPage && currentPage.cursor - gap >= currentPage.bottom) {
+			currentPage.cursor -= gap;
+		} else {
+			currentPage = startPage(false);
+		}
+	};
+
 	const startPage = (isFirst) => {
 		const page = pdfDoc.addPage([A4.width, A4.height]);
 		page.drawRectangle({ x: 0, y: 0, width: A4.width, height: A4.height, color: colorFromHex(HEX.pageBg) });
-		let top;
-		if (isFirst) {
-			top = drawHeroHeader(heroArgs(page, fonts));
-		} else {
-			top = A4.height - MARGIN;
-		}
+		// Always draw the hero header on every page to mirror GradeWorkspace
+		const top = drawHeroHeader(heroArgs(page, fonts));
+
 		const railArea = {
 			x: railX,
 			width: rightRailWidth,
 			top,
 			bottom: MARGIN,
 		};
-		const title = isFirst ? 'Comentários' : 'Comentários (continuação)';
+		const title = isFirst
+			? `Comentários (${totalComments})`
+			: `Comentários (${totalComments}) - continuação`;
 		commentsIndex = drawCommentsColumn({
 			page,
 			fonts,
@@ -1845,46 +2031,20 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 
 	currentPage = startPage(true);
 
-	const ensureSpace = (height, gap = CONTENT_GAP) => {
-		const needed = height + (gap || 0);
-		if (currentPage.cursor - needed < currentPage.bottom) {
-			currentPage = startPage(false);
-		}
-	};
-
-	const applyGap = (gap = CONTENT_GAP) => {
-		if (!gap) return;
-		if (currentPage.cursor - gap >= currentPage.bottom) {
-			currentPage.cursor -= gap;
-		} else {
-			currentPage = startPage(false);
-		}
-	};
-
-	let embeddedPreviewPage = null;
-	if (!treatAsImage && embeddedPages.length) {
-		embeddedPreviewPage = embeddedPages[0];
-	}
-
-	const previewHeightEstimate = estimatePreviewHeight(mainColumnWidth, embeddedPreviewPage, treatAsImage ? embeddedImage : null);
-	ensureSpace(previewHeightEstimate);
-	const previewBottom = Math.max(currentPage.cursor - previewHeightEstimate, currentPage.bottom);
-	const previewArea = {
-		x: mainX,
-		width: mainColumnWidth,
-		top: currentPage.cursor,
-		bottom: previewBottom,
-	};
-	drawDocumentPreview({
-		page: currentPage.page,
+	const classGradesHeight = estimateClassGradesHeight(classInfo, student);
+	ensureSpace(classGradesHeight, 0);
+	currentPage.cursor = drawClassGradesSection(
+		currentPage.page,
 		fonts,
-		area: previewArea,
-		embeddedPage: embeddedPreviewPage,
-		embeddedImage: treatAsImage ? embeddedImage : null,
-		annotations: firstPageAnnotations,
-	});
-	currentPage.cursor = previewBottom;
-	applyGap();
+		mainX,
+		currentPage.cursor,
+		mainColumnWidth,
+		classInfo,
+		student,
+		firstPageAnnotations,
+	);
+
+
 
 	const isPas = essay?.type === 'PAS';
 	const pasSummary = isPas ? collectPasData(score) : null;
@@ -1892,15 +2052,27 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 
 	if (isPas && pasSummary) {
 		const summaryHeight = calculatePasSummaryHeight(pasSummary);
-		ensureSpace(summaryHeight);
+		ensureSpace(summaryHeight, 0);
 		currentPage.cursor = drawPasSummarySection(currentPage.page, fonts, mainX, currentPage.cursor, mainColumnWidth, pasSummary);
-		applyGap();
+		applyGap(SPACING.block);
 	} else if (!isPas && enemSummary) {
 		const summaryHeight = calculateEnemSummaryHeight();
-		ensureSpace(summaryHeight);
+		ensureSpace(summaryHeight, 0);
 		currentPage.cursor = drawEnemSummarySection(currentPage.page, fonts, mainX, currentPage.cursor, mainColumnWidth, enemSummary.total);
-		applyGap();
+		applyGap(SPACING.block);
 	}
+
+	const annulHeight = estimateAnnulmentHeight(fonts, mainColumnWidth, score);
+	ensureSpace(annulHeight, 0);
+	currentPage.cursor = drawAnnulmentSection(
+		currentPage.page,
+		fonts,
+		mainX,
+		currentPage.cursor,
+		mainColumnWidth,
+		score,
+	);
+	applyGap(SPACING.block);
 
 	if (isPas) {
 		const headingHeight = TITLE_SIZE + 6 + BODY_SIZE + 8;
@@ -1912,7 +2084,7 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 			font: fonts.bold,
 			color: colorFromHex(TEXT),
 		});
-		currentPage.cursor -= TITLE_SIZE + 6;
+		currentPage.cursor -= TITLE_SIZE + SPACING.title;
 		currentPage.page.drawText('Aspectos macro e microestruturais', {
 			x: mainX,
 			y: currentPage.cursor,
@@ -1920,12 +2092,12 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 			font: fonts.regular,
 			color: colorFromHex(TEXT_SUBTLE),
 		});
-		currentPage.cursor -= BODY_SIZE + 8;
+		currentPage.cursor -= BODY_SIZE + SPACING.block;
 		if (pasSummary) {
 			const macroHeight = calculatePasMacroHeight(pasSummary);
-			ensureSpace(macroHeight);
+			ensureSpace(macroHeight, 0);
 			currentPage.cursor = drawPasMacroSection(currentPage.page, fonts, mainX, currentPage.cursor, mainColumnWidth, pasSummary);
-			applyGap();
+			applyGap(SPACING.block);
 			const microHeight = calculatePasMicroHeight(pasSummary);
 			ensureSpace(microHeight, 0);
 			currentPage.cursor = drawPasMicroSection(currentPage.page, fonts, mainX, currentPage.cursor, mainColumnWidth, pasSummary);
@@ -1950,7 +2122,7 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 			font: fonts.bold,
 			color: colorFromHex(TEXT),
 		});
-		currentPage.cursor -= TITLE_SIZE + 6;
+		currentPage.cursor -= TITLE_SIZE + SPACING.title;
 		currentPage.page.drawText('Competências e justificativas da avaliação', {
 			x: mainX,
 			y: currentPage.cursor,
@@ -1958,7 +2130,7 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 			font: fonts.regular,
 			color: colorFromHex(TEXT_SUBTLE),
 		});
-		currentPage.cursor -= BODY_SIZE + 8;
+		currentPage.cursor -= BODY_SIZE + SPACING.block;
 		if (enemSummary && Array.isArray(enemSummary.competencies) && enemSummary.competencies.length) {
 			enemSummary.competencies.forEach((comp, index) => {
 				const key = `C${index + 1}`;
@@ -1987,7 +2159,7 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 					colors,
 				);
 				currentPage.cursor = cardBottom;
-				applyGap();
+				applyGap(SPACING.block);
 			});
 			const totalLineHeight = TITLE_SIZE + 4;
 			ensureSpace(totalLineHeight, 0);
