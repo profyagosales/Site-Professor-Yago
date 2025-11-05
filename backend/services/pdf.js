@@ -4,50 +4,54 @@ const http = require('http');
 const https = require('https');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const { ENEM_RUBRIC, ENEM_REASON_LABELS } = require('../constants/enemRubric');
+const pdfTheme = require('./pdfTheme');
 
-const A4 = { width: 595, height: 842 };
-const MARGIN = 24;
-const CONTENT_GAP = 12; // legacy name (kept for compatibility)
-const SECTION_GAP = 12; // vertical gap between major sections
-const TITLE_SIZE = 11;
-const BODY_SIZE = 10;
-const HERO = { height: 72, radius: 16, padX: 18, padY: 12, gap: 14 };
-const BRAND = { ICON: 44 };
-const SCORE_CARD = { width: 150, height: 56, radius: 14, pad: 10 };
+const {
+	A4,
+	PAGE,
+	HERO,
+	BRAND,
+	SCORE_CARD,
+	AVATAR,
+	COLORS,
+	COMMENT_RAIL,
+	SPACING,
+	CARD,
+	ENEM_COLORS,
+	PAS_COLORS,
+	TYPOGRAPHY,
+	columns: computeColumns,
+	colorFromHex: themeColorFromHex,
+} = pdfTheme;
+
+const MARGIN = PAGE.margin;
+const CONTENT_GAP = PAGE.gutter;
+const SECTION_GAP = SPACING.section;
+const TITLE_SIZE = TYPOGRAPHY.title;
+const BODY_SIZE = TYPOGRAPHY.body;
 
 const COMMENT = {
 	titleSize: BODY_SIZE,
-	numberSize: 9,
-	categorySize: 9,
-	textSize: 8,
-	lineGap: 2,
-	cardGap: 8,
-	padding: 10,
+	numberSize: TYPOGRAPHY.small,
+	categorySize: TYPOGRAPHY.small,
+	textSize: TYPOGRAPHY.small,
+	lineGap: COMMENT_RAIL.lineGap,
+	cardGap: COMMENT_RAIL.cardGap || SPACING.block,
+	padding: COMMENT_RAIL.padding,
 	maxLines: 6,
 	circleSize: 14,
 };
 
 const HIGHLIGHT_FILL_OPACITY = 0.22;
 const HIGHLIGHT_BORDER_OPACITY = 0.8;
-const PDF_FONT = { xs: 7, sm: 8, md: 10, lg: 14 };
-const AVATAR = { size: 36 };
+const PDF_FONT = {
+	xs: TYPOGRAPHY.small - 1,
+	sm: TYPOGRAPHY.small,
+	md: TYPOGRAPHY.body,
+	lg: TYPOGRAPHY.display,
+};
 const LINE_GAP = 4;
 const BULLET_INDENT = 12;
-
-// Layout targets that mimic GradeWorkspace
-const RIGHT_RAIL_WIDTH = 320; // target rail width on the right (px)
-const COLUMN_GAP = 12; // gutter between main column and right rail
-const MIN_MAIN_WIDTH = 220; // minimal main width fallback
-
-const SPACING = {
-	section: 16,
-	block: 12,
-	title: 6,
-	subtitle: 10,
-	tableHeader: 8,
-	tableRowGap: 6,
-	annotation: 6,
-};
 
 const CLASS_TABLE = {
 	headerHeight: 28,
@@ -58,23 +62,23 @@ const CLASS_TABLE = {
 	paddingY: 12,
 	colGap: 10,
 	badgeSize: 18,
-	badgeFont: 9,
+	badgeFont: TYPOGRAPHY.small,
 	badgePadding: 4,
 };
 
 const DOCUMENT_PREVIEW = {
 	padding: 16,
-	radius: 18,
+	radius: CARD.radius,
 	shadowOffset: 4,
 	shadowOpacity: 0.12,
 	aspectRatio: Math.SQRT2 || 1.41421356237,
 	pagePadding: 18,
 	pageRadius: 12,
-	pageBorder: '#E2E8F0',
-	pageBackground: '#FFFFFF',
+	pageBorder: CARD.border,
+	pageBackground: CARD.background,
 	pageHeaderHeight: 26,
-	pageHeaderColor: '#F8FAFC',
-	lineColor: '#E2E8F0',
+	pageHeaderColor: CARD.backgroundMuted,
+	lineColor: COLORS.border,
 	lineGap: 10,
 	lineThickness: 0.8,
 	footerGap: 12,
@@ -83,17 +87,17 @@ const DOCUMENT_PREVIEW = {
 };
 
 const CARD_FRAME = {
-	radius: 18,
-	paddingX: 18,
-	paddingY: 18,
-	border: '#E2E8F0',
-	background: '#FFFFFF',
-	mutedBackground: '#F8FAFC',
-	gap: 14,
-	headerGap: 10,
-	displayGap: 8,
-	dividerColor: '#E2E8F0',
-	shadowOpacity: 0.08,
+	radius: CARD.radius,
+	paddingX: CARD.paddingX,
+	paddingY: CARD.paddingY,
+	border: CARD.border,
+	background: CARD.background,
+	mutedBackground: CARD.backgroundMuted,
+	gap: CARD.displayGap || 14,
+	headerGap: CARD.headerGap,
+	displayGap: CARD.displayGap,
+	dividerColor: CARD.border,
+	shadowOpacity: CARD.shadowOpacity,
 };
 const ANNUL_CARD = {
 	padding: CARD_FRAME.paddingX,
@@ -151,17 +155,17 @@ const PAS_FOOTER = {
 };
 
 const HEX = {
-	background: '#FFFFFF',
-	pageBg: '#F8FAFC',
-	border: '#E2E8F0',
-	borderSoft: '#F1F5F9',
-	text: '#1F2937',
-	textMuted: '#64748B',
-	textInverted: '#FFFFFF',
-	brand: '#FB923C',
-	brandDark: '#EA580C',
-	brandPastel: '#FFF7ED',
-	heroAccent: '#FDBA74',
+	background: COLORS.background,
+	pageBg: COLORS.page,
+	border: COLORS.border,
+	borderSoft: COLORS.borderMuted,
+	text: COLORS.text,
+	textMuted: COLORS.textSubtle,
+	textInverted: COLORS.textInverted,
+	brand: COLORS.brand,
+	brandDark: COLORS.brandDark,
+	brandPastel: COLORS.brandPastel,
+	heroAccent: COLORS.heroAccent,
 };
 
 const TEXT = HEX.text;
@@ -186,13 +190,7 @@ const ANNUL_OPTIONS = [
 	{ key: 'OUTROS', label: 'Outros (especificar)', hasInput: true },
 ];
 
-const ENEM_COLORS_HEX = {
-	C1: { strong: '#065F46', title: '#0F766E', pastel: '#D1FAE5' },
-	C2: { strong: '#9D174D', title: '#BE185D', pastel: '#FCE7F3' },
-	C3: { strong: '#92400E', title: '#B45309', pastel: '#FEF3C7' },
-	C4: { strong: '#1E40AF', title: '#1D4ED8', pastel: '#DBEAFE' },
-	C5: { strong: '#9A3412', title: '#EA580C', pastel: '#FFEDD5' },
-};
+const ENEM_COLORS_HEX = ENEM_COLORS;
 
 let brandMarkBytesCache = null;
 let brandMarkLoadAttempted = false;
@@ -239,8 +237,7 @@ function hexToRgbComponents(hex) {
 }
 
 function colorFromHex(hex) {
-	const { r, g, b } = hexToRgbComponents(hex);
-	return rgb(r / 255, g / 255, b / 255);
+	return themeColorFromHex(hex);
 }
 
 function blendHex(hexA, hexB, amount = 0.5) {
@@ -319,6 +316,11 @@ function drawRoundedRect(page, {
 	strokeWidth = 0,
 	opacity = 1,
 }) {
+	if (![x, y, width, height].every((value) => typeof value === 'number' && Number.isFinite(value))) {
+		throw new Error(
+			`Invalid rectangle dimensions: ${JSON.stringify({ x, y, width, height })}`,
+		);
+	}
 	const r = Math.max(0, Math.min(radius, width / 2, height / 2));
 	const path = [
 		`M ${x + r} ${y}`,
@@ -2401,48 +2403,47 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 	});
 
 	const contentWidth = A4.width - MARGIN * 2;
-	const rightRailWidth = Math.min(RIGHT_RAIL_WIDTH, Math.max(160, contentWidth - MIN_MAIN_WIDTH));
-	const mainColumnWidth = contentWidth - rightRailWidth - COLUMN_GAP;
-	if (mainColumnWidth <= 0) {
-		throw new Error('Área principal insuficiente para gerar o PDF.');
+	const { mainWidth: mainColumnWidth, railWidth: rightRailWidth } = computeColumns(contentWidth);
+	if (!mainColumnWidth || !rightRailWidth) {
+		throw new Error('Layout de colunas inválido para o PDF.');
 	}
+	const columnGap = PAGE.gutter;
 	const mainX = MARGIN;
-	const railX = mainX + mainColumnWidth + COLUMN_GAP;
+	const railX = mainX + mainColumnWidth + columnGap;
 
 	let commentsIndex = 0;
 	let currentPage = null;
+	let pageNumber = 0;
 
-	const ensureSpace = (height, gap = SECTION_GAP) => {
-		const needed = height + (gap || 0);
-		if (currentPage && currentPage.cursor - needed < currentPage.bottom) {
+	const ensureSpace = (height = 0) => {
+		if (!currentPage) currentPage = startPage(true);
+		if (height <= 0) return;
+		if (currentPage.cursor - height < currentPage.bottom + CARD_FRAME.paddingY) {
 			currentPage = startPage(false);
 		}
 	};
 
-	const applyGap = (gap = SECTION_GAP) => {
-		if (!gap) return;
-		if (currentPage && currentPage.cursor - gap >= currentPage.bottom) {
-			currentPage.cursor -= gap;
-		} else {
+	const applyGap = (gap = SPACING.block) => {
+		if (!currentPage || !gap) return;
+		if (currentPage.cursor - gap < currentPage.bottom + CARD_FRAME.paddingY) {
 			currentPage = startPage(false);
+		} else {
+			currentPage.cursor -= gap;
 		}
 	};
 
 	const startPage = (isFirst) => {
+		pageNumber += 1;
 		const page = pdfDoc.addPage([A4.width, A4.height]);
 		page.drawRectangle({ x: 0, y: 0, width: A4.width, height: A4.height, color: colorFromHex(HEX.pageBg) });
-		let top = A4.height - MARGIN;
-		if (isFirst) {
-			top = drawHeroHeader(heroArgs(page, fonts));
-		}
-
+		const top = drawHeroHeader(heroArgs(page, fonts));
 		const railArea = {
 			x: railX,
 			width: rightRailWidth,
 			top,
 			bottom: MARGIN,
 		};
-		const title = isFirst
+		const title = pageNumber === 1
 			? `Comentários (${totalComments})`
 			: `Comentários (${totalComments}) - continuação`;
 		commentsIndex = drawCommentsColumn({
@@ -2453,10 +2454,9 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 			startIndex: commentsIndex,
 			title,
 		});
-		const contentStart = isFirst ? top : top - SPACING.section;
 		return {
 			page,
-			cursor: Math.max(contentStart, MARGIN),
+			cursor: top,
 			bottom: MARGIN,
 		};
 	};
@@ -2464,7 +2464,7 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 	currentPage = startPage(true);
 
 	const classGradesHeight = estimateClassGradesHeight(classInfo, student);
-	ensureSpace(classGradesHeight, 0);
+	ensureSpace(classGradesHeight);
 	currentPage.cursor = drawClassGradesSection(
 		currentPage.page,
 		fonts,
@@ -2475,79 +2475,65 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 		student,
 		firstPageAnnotations,
 	);
+	applyGap(SPACING.section);
 
 	const previewHeight = estimateEssayPreviewHeight(mainColumnWidth);
-	ensureSpace(previewHeight, 0);
+	ensureSpace(previewHeight);
 	currentPage.cursor = drawEssayPreviewSection(
 		currentPage.page,
 		fonts,
 		mainX,
 		currentPage.cursor,
-		mainColumnWidth,
-		essay,
+	mainColumnWidth,
+	essay,
 		firstPageAnnotations,
 	);
-	applyGap(SPACING.block);
-
-
+	applyGap(SPACING.section);
 
 	const isPas = essay?.type === 'PAS';
 	const pasSummary = isPas ? collectPasData(score) : null;
 	const enemSummary = essay?.type === 'ENEM' ? collectEnemData(score) : null;
 
-	if (isPas && pasSummary) {
-		const summaryHeight = calculatePasSummaryHeight(pasSummary);
-		ensureSpace(summaryHeight, 0);
-		currentPage.cursor = drawPasSummarySection(currentPage.page, fonts, mainX, currentPage.cursor, mainColumnWidth, pasSummary);
-		applyGap(SPACING.block);
-	} else if (!isPas && enemSummary) {
-		const summaryHeight = calculateEnemSummaryHeight(enemSummary);
-		ensureSpace(summaryHeight, 0);
-		currentPage.cursor = drawEnemSummarySection(currentPage.page, fonts, mainX, currentPage.cursor, mainColumnWidth, enemSummary);
-		applyGap(SPACING.block);
-	}
-
-	const annulHeight = estimateAnnulmentHeight(fonts, mainColumnWidth, score);
-	ensureSpace(annulHeight, 0);
-	currentPage.cursor = drawAnnulmentSection(
-		currentPage.page,
-		fonts,
-		mainX,
-		currentPage.cursor,
-		mainColumnWidth,
-		score,
-	);
-	applyGap(SPACING.block);
-
 	if (isPas) {
-		const headingHeight = TITLE_SIZE + 6 + BODY_SIZE + 8;
-		ensureSpace(headingHeight);
-		currentPage.page.drawText('ESPELHO DE CORREÇÃO — PAS/UnB', {
-			x: mainX,
-			y: currentPage.cursor,
-			size: TITLE_SIZE,
-			font: fonts.bold,
-			color: colorFromHex(TEXT),
-		});
-		currentPage.cursor -= TITLE_SIZE + SPACING.title;
-		currentPage.page.drawText('Aspectos macro e microestruturais', {
-			x: mainX,
-			y: currentPage.cursor,
-			size: BODY_SIZE,
-			font: fonts.regular,
-			color: colorFromHex(TEXT_SUBTLE),
-		});
-		currentPage.cursor -= BODY_SIZE + SPACING.block;
 		if (pasSummary) {
+			const summaryHeight = calculatePasSummaryHeight(pasSummary);
+			ensureSpace(summaryHeight);
+			currentPage.cursor = drawPasSummarySection(
+				currentPage.page,
+				fonts,
+				mainX,
+				currentPage.cursor,
+				mainColumnWidth,
+				pasSummary,
+			);
+			applyGap(SPACING.section);
+
 			const macroHeight = calculatePasMacroHeight(pasSummary);
-			ensureSpace(macroHeight, 0);
-			currentPage.cursor = drawPasMacroSection(currentPage.page, fonts, mainX, currentPage.cursor, mainColumnWidth, pasSummary);
+			ensureSpace(macroHeight);
+			currentPage.cursor = drawPasMacroSection(
+				currentPage.page,
+				fonts,
+				mainX,
+				currentPage.cursor,
+				mainColumnWidth,
+				pasSummary,
+			);
 			applyGap(SPACING.block);
+
 			const microHeight = calculatePasMicroHeight(pasSummary);
-			ensureSpace(microHeight, 0);
-			currentPage.cursor = drawPasMicroSection(currentPage.page, fonts, mainX, currentPage.cursor, mainColumnWidth, pasSummary);
+			ensureSpace(microHeight);
+			currentPage.cursor = drawPasMicroSection(
+				currentPage.page,
+				fonts,
+				mainX,
+				currentPage.cursor,
+				mainColumnWidth,
+				pasSummary,
+			);
+			applyGap(SPACING.section);
 		} else {
-			ensureSpace(BODY_SIZE + 4, 0);
+			const fallbackHeight = BODY_SIZE + 4;
+			ensureSpace(fallbackHeight);
 			currentPage.page.drawText('Dados PAS indisponíveis.', {
 				x: mainX,
 				y: currentPage.cursor,
@@ -2555,11 +2541,25 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 				font: fonts.regular,
 				color: colorFromHex(TEXT_SUBTLE),
 			});
-			currentPage.cursor -= BODY_SIZE + 4;
+			currentPage.cursor -= fallbackHeight;
+			applyGap(SPACING.section);
 		}
-	} else {
-		if (enemSummary && Array.isArray(enemSummary.competencies) && enemSummary.competencies.length) {
-			enemSummary.competencies.forEach((comp, index) => {
+	} else if (enemSummary) {
+		const summaryHeight = calculateEnemSummaryHeight(enemSummary);
+		ensureSpace(summaryHeight);
+		currentPage.cursor = drawEnemSummarySection(
+			currentPage.page,
+			fonts,
+			mainX,
+			currentPage.cursor,
+			mainColumnWidth,
+			enemSummary,
+		);
+		applyGap(SPACING.section);
+
+		const competencies = Array.isArray(enemSummary?.competencies) ? enemSummary.competencies : [];
+		if (competencies.length) {
+			competencies.forEach((comp, index) => {
 				const key = `C${index + 1}`;
 				const colors = ENEM_COLORS_HEX[key] || ENEM_COLORS_HEX.C1;
 				const layout = buildEnemCompetencyLayout(
@@ -2573,7 +2573,7 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 					fonts,
 					colors,
 				);
-				ensureSpace(layout.cardHeight, 0);
+				ensureSpace(layout.cardHeight);
 				currentPage.cursor = drawEnemCompetencyCard(
 					currentPage.page,
 					mainX,
@@ -2585,7 +2585,8 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 				applyGap(SPACING.section);
 			});
 		} else {
-			ensureSpace(BODY_SIZE + 4, 0);
+			const fallbackHeight = BODY_SIZE + 4;
+			ensureSpace(fallbackHeight);
 			currentPage.page.drawText('Dados de competências ENEM indisponíveis.', {
 				x: mainX,
 				y: currentPage.cursor,
@@ -2593,8 +2594,34 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 				font: fonts.regular,
 				color: colorFromHex(TEXT_SUBTLE),
 			});
-			currentPage.cursor -= BODY_SIZE + 4;
+			currentPage.cursor -= fallbackHeight;
+			applyGap(SPACING.section);
 		}
+	} else {
+		const fallbackHeight = BODY_SIZE + 4;
+		ensureSpace(fallbackHeight);
+		currentPage.page.drawText('Dados de competências ENEM indisponíveis.', {
+			x: mainX,
+			y: currentPage.cursor,
+			size: BODY_SIZE,
+			font: fonts.regular,
+			color: colorFromHex(TEXT_SUBTLE),
+		});
+		currentPage.cursor -= fallbackHeight;
+		applyGap(SPACING.section);
+	}
+
+	const annulHeight = estimateAnnulmentHeight(fonts, mainColumnWidth, score);
+	if (annulHeight > 0) {
+		ensureSpace(annulHeight);
+		currentPage.cursor = drawAnnulmentSection(
+			currentPage.page,
+			fonts,
+			mainX,
+			currentPage.cursor,
+			mainColumnWidth,
+			score,
+		);
 	}
 
 	while (commentsIndex < annotationsOrdered.length) {
