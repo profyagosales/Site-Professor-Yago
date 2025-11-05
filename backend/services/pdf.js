@@ -31,8 +31,6 @@ const HIGHLIGHT_FILL_OPACITY = 0.22;
 const HIGHLIGHT_BORDER_OPACITY = 0.8;
 const PDF_FONT = { xs: 7, sm: 8, md: 10, lg: 14 };
 const AVATAR = { size: 36 };
-const POINTS_PER_LEVEL = [0, 40, 80, 120, 160, 200];
-const CARD_PADDING = 12;
 const LINE_GAP = 4;
 const BULLET_INDENT = 12;
 
@@ -124,6 +122,21 @@ const SUMMARY_GRID = {
 	valueSize: 16,
 	valueGap: 6,
 };
+
+const ENEM_SUMMARY_CARD = {
+	highlightHeight: 56,
+	rowPaddingY: 8,
+	columnGap: 12,
+	columnPaddingX: 12,
+	columnLabelSize: BODY_SIZE - 1,
+	columnValueSize: BODY_SIZE,
+	rowRadius: 12,
+};
+ENEM_SUMMARY_CARD.rowHeight =
+	ENEM_SUMMARY_CARD.rowPaddingY * 2
+	+ ENEM_SUMMARY_CARD.columnLabelSize
+	+ ENEM_SUMMARY_CARD.columnValueSize
+	+ LINE_GAP;
 
 const PAS_TABLE = {
 	rowHeight: BODY_SIZE + 16,
@@ -1381,57 +1394,29 @@ function estimateClassGradesHeight(classInfo = {}, currentStudent = null) {
 	return total;
 }
 
-function splitWithSpaces(input) {
-	const parts = [];
-	let acc = '';
-	for (let i = 0; i < input.length; i += 1) {
-		const ch = input[i];
-		if (ch === ' ') {
-			if (acc) parts.push(acc);
-			parts.push(' ');
-			acc = '';
-		} else {
-			acc += ch;
-		}
-	}
-	if (acc) parts.push(acc);
-	return parts;
+function formatEnemPoints(value) {
+	const numeric = Number(value);
+	if (!Number.isFinite(numeric)) return '0';
+	const normalized = Math.max(0, numeric);
+	return Number.isInteger(normalized) ? String(normalized) : normalized.toFixed(1);
 }
 
-function isUpperToken(token) {
-	const letters = token.replace(/[^A-Za-zÀ-ÿ]/g, '');
-	if (letters.length < 3) return false;
-	return letters === letters.toUpperCase();
-}
-
-function isConnectorToken(token) {
-	const trimmed = token.trim();
-	if (!trimmed) return false;
-	const normalized = trimmed.replace(/[.,;:!?)]$/, '').replace(/^[(]/, '');
-	return normalized === 'E' || normalized === 'OU' || normalized === 'E/OU';
-}
-
-function makeRichLine(line, strongHex, normalHex) {
-	return splitWithSpaces(line).map((token) => {
-		if (token.trim().length === 0) return { text: token, font: 'regular', color: normalHex };
-		if (isConnectorToken(token)) return { text: token, font: 'bold', color: strongHex };
-		if (isUpperToken(token)) return { text: token, font: 'bold', color: strongHex };
-		return { text: token, font: 'regular', color: normalHex };
-	});
-}
-
-function buildCompetencyLayout(width, index, title, level, points, justification, reasons, fonts, colors) {
-	const textWidth = width - CARD_PADDING * 2;
+function buildEnemCompetencyLayout(width, index, title, level, points, justification, reasons, fonts, colors) {
+	const innerWidth = width - CARD_FRAME.paddingX * 2;
 	const operations = [];
 	const roman = ['I', 'II', 'III', 'IV', 'V'][index] || String(index + 1);
+	const headerColor = colors?.title || TEXT;
+	const strongColor = colors?.strong || TEXT;
 	operations.push({
 		text: `Competência ${roman} — ${title}`,
 		font: 'bold',
 		size: TITLE_SIZE,
-		color: colors.title,
+		color: headerColor,
 		gapAfter: LINE_GAP,
 	});
 
+	const clampedLevel = clampLevel(level);
+	const pointsLabel = formatEnemPoints(points);
 	operations.push({
 		text: '',
 		font: 'regular',
@@ -1439,153 +1424,96 @@ function buildCompetencyLayout(width, index, title, level, points, justification
 		color: TEXT,
 		gapAfter: LINE_GAP,
 		rich: [
-			{ text: 'Nível: ', font: 'regular', color: colors.title },
-			{ text: String(level), font: 'bold', color: colors.strong },
-			{ text: ' · Pontuação: ', font: 'regular', color: colors.title },
-			{ text: String(points), font: 'bold', color: colors.strong },
-			{ text: ' pts', font: 'regular', color: colors.title },
+			{ text: 'Nível: ', font: 'regular', color: TEXT_SUBTLE },
+			{ text: String(clampedLevel), font: 'bold', color: strongColor },
+			{ text: ' · Pontuação: ', font: 'regular', color: TEXT_SUBTLE },
+			{ text: pointsLabel, font: 'bold', color: strongColor },
+			{ text: ' pts', font: 'regular', color: TEXT_SUBTLE },
 		],
 	});
 
-	const trimmedJustification = justification ? justification.trim() : '';
+	const trimmedJustification = typeof justification === 'string' ? justification.trim() : '';
 	if (trimmedJustification) {
 		operations.push({
-			text: 'Justificativa selecionada:',
-			font: 'regular',
+			text: 'Justificativa',
+			font: 'bold',
 			size: BODY_SIZE,
-			color: colors.title,
+			color: TEXT,
 			gapAfter: LINE_GAP,
 		});
-
-		let wrapped = wrapText(trimmedJustification, fonts.regular, BODY_SIZE, textWidth - BULLET_INDENT);
-		if (wrapped.length > 2) {
-			wrapped = wrapped.slice(0, 2);
-			const lastIndex = wrapped.length - 1;
-			wrapped[lastIndex] = `${wrapped[lastIndex]}…`;
-		}
-		const startIdx = operations.length;
-		wrapped.forEach((line, lineIndex) => {
-			const text = lineIndex === 0 ? `• ${line}` : line;
+		const lines = wrapText(trimmedJustification, fonts.regular, BODY_SIZE, innerWidth);
+		lines.forEach((line, indexLine) => {
 			operations.push({
-				text,
+				text: line,
 				font: 'regular',
 				size: BODY_SIZE,
 				color: TEXT,
-				indent: lineIndex === 0 ? 0 : BULLET_INDENT,
+				gapAfter: indexLine === lines.length - 1 ? 0 : LINE_GAP,
+			});
+		});
+	} else {
+		const validReasons = Array.isArray(reasons)
+			? reasons
+				.map((reason) => (typeof reason === 'string' ? reason.trim() : ''))
+				.filter((reason) => reason.length > 0)
+			: [];
+		if (validReasons.length) {
+			operations.push({
+				text: 'Justificativas',
+				font: 'bold',
+				size: BODY_SIZE,
+				color: TEXT,
 				gapAfter: LINE_GAP,
-				rich: makeRichLine(text, colors.strong, TEXT),
 			});
-		});
-		if (operations.length) operations[operations.length - 1].gapAfter = 0;
-		const contentHeight = operations.reduce((sum, op) => sum + op.size + (op.gapAfter || 0), 0);
-		const cardHeight = CARD_PADDING * 2 + contentHeight;
-		return { operations, cardHeight, reasonStartIdx: startIdx, reasonCount: wrapped.length };
-	}
-
-	if (Array.isArray(reasons) && reasons.length) {
-		operations.push({
-			text: 'Justificativas selecionadas:',
-			font: 'regular',
-			size: BODY_SIZE,
-			color: colors.title,
-			gapAfter: LINE_GAP,
-		});
-		let reasonStartIdx = null;
-		let reasonCount = 0;
-		reasons.forEach((reason) => {
-			const cleaned = (reason || '').trim();
-			if (!cleaned) return;
-			const wrapped = wrapText(cleaned, fonts.regular, BODY_SIZE, textWidth - BULLET_INDENT);
-			const lines = wrapped.length ? wrapped : [''];
-			lines.forEach((line, idx) => {
-				const text = idx === 0 ? `• ${line}` : line;
-				if (reasonStartIdx === null) reasonStartIdx = operations.length;
-				operations.push({
-					text,
-					font: 'regular',
-					size: BODY_SIZE,
-					color: TEXT,
-					indent: idx === 0 ? 0 : BULLET_INDENT,
-					gapAfter: LINE_GAP,
-					rich: makeRichLine(text, colors.strong, TEXT),
+			validReasons.forEach((reason, reasonIndex) => {
+				const wrapped = wrapText(reason, fonts.regular, BODY_SIZE, innerWidth - BULLET_INDENT);
+				const lines = wrapped.length ? wrapped : [''];
+				lines.forEach((line, lineIndex) => {
+					const isFirstLine = lineIndex === 0;
+					operations.push({
+						text: isFirstLine ? `• ${line}` : line,
+						font: 'regular',
+						size: BODY_SIZE,
+						color: TEXT,
+						indent: isFirstLine ? 0 : BULLET_INDENT,
+						gapAfter:
+							reasonIndex === validReasons.length - 1 && lineIndex === lines.length - 1
+								? 0
+								: LINE_GAP,
+					});
 				});
-				reasonCount += 1;
 			});
-		});
-		if (operations.length) operations[operations.length - 1].gapAfter = 0;
-		const contentHeight = operations.reduce((sum, op) => sum + op.size + (op.gapAfter || 0), 0);
-		const cardHeight = CARD_PADDING * 2 + contentHeight;
-		return { operations, cardHeight, reasonStartIdx, reasonCount };
-	}
-
-	operations.push({
-		text: 'Sem justificativas selecionadas.',
-		font: 'regular',
-		size: BODY_SIZE,
-		color: TEXT_SUBTLE,
-		gapAfter: LINE_GAP,
-	});
-	if (operations.length) operations[operations.length - 1].gapAfter = 0;
-	const contentHeight = operations.reduce((sum, op) => sum + op.size + (op.gapAfter || 0), 0);
-	const cardHeight = CARD_PADDING * 2 + contentHeight;
-	return { operations, cardHeight, reasonStartIdx: null, reasonCount: 0 };
-}
-
-function drawCompetencyCard(page, x, yTop, width, layout, fonts, colors) {
-	const { operations, cardHeight, reasonStartIdx, reasonCount } = layout;
-	const cardBottom = yTop - cardHeight;
-	page.drawRectangle({
-		x,
-		y: cardBottom,
-		width,
-		height: cardHeight,
-		color: colorFromHex(BG),
-		borderColor: colorFromHex(colors.title),
-		borderWidth: 1,
-		borderOpacity: 0.6,
-	});
-	page.drawRectangle({
-		x,
-		y: cardBottom,
-		width: 2,
-		height: cardHeight,
-		color: colorFromHex(colors.strong),
-	});
-
-	const baselines = [];
-	let cursor = yTop - CARD_PADDING;
-	for (let i = 0; i < operations.length; i += 1) {
-		const op = operations[i];
-		cursor -= op.size;
-		baselines[i] = cursor;
-		if (op.gapAfter) cursor -= op.gapAfter;
-	}
-
-	if (
-		colors && reasonStartIdx !== null && reasonCount > 0 &&
-		reasonStartIdx >= 0 && reasonStartIdx < operations.length
-	) {
-		const start = reasonStartIdx;
-		const end = start + reasonCount - 1;
-		const topY = baselines[start] + operations[start].size + 2;
-		const bottomY = baselines[end] - 2;
-		const rectHeight = Math.max(0, topY - bottomY);
-		if (rectHeight > 0) {
-			page.drawRectangle({
-				x: x + CARD_PADDING,
-				y: bottomY,
-				width: width - CARD_PADDING * 2,
-				height: rectHeight,
-				color: colorFromHex(colors.pastel),
-				borderWidth: 0,
+		} else {
+			operations.push({
+				text: 'Sem justificativas registradas.',
+				font: 'regular',
+				size: BODY_SIZE,
+				color: TEXT_SUBTLE,
+				gapAfter: 0,
 			});
 		}
 	}
 
+	const contentHeight = operations.reduce((sum, op) => sum + op.size + (op.gapAfter || 0), 0);
+	const cardHeight = CARD_FRAME.paddingY * 2 + contentHeight;
+	return { operations, cardHeight };
+}
+
+function drawEnemCompetencyCard(page, x, yTop, width, layout, fonts) {
+	const { operations, cardHeight } = layout;
+	const cardBottom = drawCardContainer(page, {
+		x,
+		yTop,
+		width,
+		height: cardHeight,
+	});
+	const innerX = x + CARD_FRAME.paddingX;
+	let cursor = yTop - CARD_FRAME.paddingY;
 	for (let i = 0; i < operations.length; i += 1) {
 		const op = operations[i];
-		const baseY = baselines[i];
-		let penX = x + CARD_PADDING + (op.indent || 0);
+		cursor -= op.size;
+		const baseY = cursor;
+		let penX = innerX + (op.indent || 0);
 		if (op.rich && op.rich.length) {
 			op.rich.forEach((seg) => {
 				const font = seg.font === 'bold' ? fonts.bold : fonts.regular;
@@ -1594,7 +1522,7 @@ function drawCompetencyCard(page, x, yTop, width, layout, fonts, colors) {
 					y: baseY,
 					size: op.size,
 					font,
-					color: colorFromHex(seg.color),
+					color: colorFromHex(seg.color || op.color || TEXT),
 				});
 				penX += font.widthOfTextAtSize(seg.text, op.size);
 			});
@@ -1605,11 +1533,11 @@ function drawCompetencyCard(page, x, yTop, width, layout, fonts, colors) {
 				y: baseY,
 				size: op.size,
 				font,
-				color: colorFromHex(op.color),
+				color: colorFromHex(op.color || TEXT),
 			});
 		}
+		if (op.gapAfter) cursor -= op.gapAfter;
 	}
-
 	return cardBottom;
 }
 
@@ -2013,22 +1941,28 @@ function calculatePasMicroHeight(summary) {
 		+ SPACING.section;
 }
 
-function drawEnemSummarySection(page, fonts, x, yTop, width, totalPoints) {
-	const subtitleSize = BODY_SIZE - 1;
+function drawEnemSummarySection(page, fonts, x, yTop, width, summary) {
+	if (!summary) return yTop;
+	const competencies = Array.isArray(summary?.competencies) ? summary.competencies : [];
+	const innerX = x + CARD_FRAME.paddingX;
 	const innerWidth = width - CARD_FRAME.paddingX * 2;
-	const headerHeight = TITLE_SIZE + CARD_FRAME.headerGap + subtitleSize + CARD_FRAME.displayGap;
-	const cardHeight = CARD_FRAME.paddingY * 2 + headerHeight + SUMMARY_GRID.cardHeight;
+	const highlightHeight = ENEM_SUMMARY_CARD.highlightHeight;
+	const rowHeight = competencies.length ? ENEM_SUMMARY_CARD.rowHeight : 0;
+	const cardHeight = CARD_FRAME.paddingY * 2
+		+ TITLE_SIZE
+		+ CARD_FRAME.headerGap
+		+ highlightHeight
+		+ (rowHeight ? CARD_FRAME.displayGap + rowHeight : 0);
 	const cardBottom = drawCardContainer(page, {
 		x,
 		yTop,
 		width,
 		height: cardHeight,
 	});
-	const innerX = x + CARD_FRAME.paddingX;
 	let cursor = yTop - CARD_FRAME.paddingY;
 
 	cursor -= TITLE_SIZE;
-	page.drawText('Resumo do espelho — ENEM', {
+	page.drawText('ESPELHO DE CORREÇÃO — ENEM', {
 		x: innerX,
 		y: cursor,
 		size: TITLE_SIZE,
@@ -2037,51 +1971,94 @@ function drawEnemSummarySection(page, fonts, x, yTop, width, totalPoints) {
 	});
 	cursor -= CARD_FRAME.headerGap;
 
-	cursor -= subtitleSize;
-	page.drawText('Pontuação total consolidada da avaliação.', {
-		x: innerX,
-		y: cursor,
-		size: subtitleSize,
-		font: fonts.regular,
-		color: colorFromHex(TEXT_SUBTLE),
-	});
-	cursor -= CARD_FRAME.displayGap;
-
 	const highlightTop = cursor;
+	const highlightBottom = highlightTop - highlightHeight;
 	drawRoundedRect(page, {
 		x: innerX,
-		y: highlightTop - SUMMARY_GRID.cardHeight,
+		y: highlightBottom,
 		width: innerWidth,
-		height: SUMMARY_GRID.cardHeight,
-		radius: 12,
+		height: highlightHeight,
+		radius: ENEM_SUMMARY_CARD.rowRadius,
 		fill: colorFromHex('#FFFBEB'),
 		stroke: colorFromHex('#FCD34D'),
 		strokeWidth: 1,
 	});
-	page.drawText('TOTAL ENEM', {
+	const labelSize = SUMMARY_GRID.labelSize;
+	const valueSize = SUMMARY_GRID.valueSize + 2;
+	const labelY = highlightTop - SUMMARY_GRID.padY - labelSize;
+	page.drawText('NOTA FINAL', {
 		x: innerX + SUMMARY_GRID.padX,
-		y: highlightTop - SUMMARY_GRID.padY - SUMMARY_GRID.labelSize,
-		size: SUMMARY_GRID.labelSize,
+		y: labelY,
+		size: labelSize,
 		font: fonts.bold,
 		color: colorFromHex('#B45309'),
 	});
-	const totalValue = `${Math.max(0, Math.round(totalPoints || 0))} / 1000`;
+	const totalValue = `${Math.max(0, Math.round(summary.total || 0))} / 1000`;
+	const valueY = labelY - SUMMARY_GRID.valueGap - valueSize;
 	page.drawText(totalValue, {
 		x: innerX + SUMMARY_GRID.padX,
-		y: highlightTop - SUMMARY_GRID.padY - SUMMARY_GRID.labelSize - SUMMARY_GRID.valueGap - SUMMARY_GRID.valueSize,
-		size: SUMMARY_GRID.valueSize + 2,
+		y: valueY,
+		size: valueSize,
 		font: fonts.bold,
 		color: colorFromHex('#0F172A'),
 	});
+	cursor = highlightBottom;
+
+	if (rowHeight) {
+		cursor -= CARD_FRAME.displayGap;
+		const rowTop = cursor;
+		const rowBottom = rowTop - rowHeight;
+		drawRoundedRect(page, {
+			x: innerX,
+			y: rowBottom,
+			width: innerWidth,
+			height: rowHeight,
+			radius: ENEM_SUMMARY_CARD.rowRadius,
+			fill: colorFromHex(CARD_FRAME.mutedBackground),
+			stroke: colorFromHex(CARD_FRAME.border),
+			strokeWidth: 1,
+		});
+		const columns = competencies.length;
+		const availableGap = ENEM_SUMMARY_CARD.columnGap * Math.max(columns - 1, 0);
+		const columnWidth = (innerWidth - availableGap) / columns;
+		const labelY = rowTop - ENEM_SUMMARY_CARD.rowPaddingY - ENEM_SUMMARY_CARD.columnLabelSize;
+		const valueY = labelY - LINE_GAP - ENEM_SUMMARY_CARD.columnValueSize;
+		for (let i = 0; i < columns; i += 1) {
+			const comp = competencies[i] || {};
+			const columnX = innerX + i * (columnWidth + ENEM_SUMMARY_CARD.columnGap);
+			const levelLabel = clampLevel(comp.level);
+			const colorKey = `C${i + 1}`;
+			const palette = ENEM_COLORS_HEX[colorKey] || ENEM_COLORS_HEX.C1;
+			const labelX = columnX + ENEM_SUMMARY_CARD.columnPaddingX;
+			page.drawText(`C${i + 1}`, {
+				x: labelX,
+				y: labelY,
+				size: ENEM_SUMMARY_CARD.columnLabelSize,
+				font: fonts.bold,
+				color: colorFromHex(TEXT_SUBTLE),
+			});
+			page.drawText(`Nível ${levelLabel}`, {
+				x: labelX,
+				y: valueY,
+				size: ENEM_SUMMARY_CARD.columnValueSize,
+				font: fonts.bold,
+				color: colorFromHex(palette.title),
+			});
+		}
+		cursor = rowBottom;
+	}
 
 	return cardBottom - SPACING.section;
 }
 
-function calculateEnemSummaryHeight() {
-	const subtitleSize = BODY_SIZE - 1;
-	const headerHeight = TITLE_SIZE + CARD_FRAME.headerGap + subtitleSize + CARD_FRAME.displayGap;
-	const cardHeight = CARD_FRAME.paddingY * 2 + headerHeight + SUMMARY_GRID.cardHeight;
-	return cardHeight + SPACING.section;
+function calculateEnemSummaryHeight(summary) {
+	if (!summary) return 0;
+	const hasCompetencies = Array.isArray(summary?.competencies) && summary.competencies.length > 0;
+	let total = CARD_FRAME.paddingY * 2 + TITLE_SIZE + CARD_FRAME.headerGap + ENEM_SUMMARY_CARD.highlightHeight;
+	if (hasCompetencies) {
+		total += CARD_FRAME.displayGap + ENEM_SUMMARY_CARD.rowHeight;
+	}
+	return total + SPACING.section;
 }
 
 function buildAnnulmentLayout(fonts, width, score) {
@@ -2511,9 +2488,9 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 		currentPage.cursor = drawPasSummarySection(currentPage.page, fonts, mainX, currentPage.cursor, mainColumnWidth, pasSummary);
 		applyGap(SPACING.block);
 	} else if (!isPas && enemSummary) {
-		const summaryHeight = calculateEnemSummaryHeight();
+		const summaryHeight = calculateEnemSummaryHeight(enemSummary);
 		ensureSpace(summaryHeight, 0);
-		currentPage.cursor = drawEnemSummarySection(currentPage.page, fonts, mainX, currentPage.cursor, mainColumnWidth, enemSummary.total);
+		currentPage.cursor = drawEnemSummarySection(currentPage.page, fonts, mainX, currentPage.cursor, mainColumnWidth, enemSummary);
 		applyGap(SPACING.block);
 	}
 
@@ -2568,64 +2545,32 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 			currentPage.cursor -= BODY_SIZE + 4;
 		}
 	} else {
-		const headingHeight = TITLE_SIZE + 6 + BODY_SIZE + 8;
-		ensureSpace(headingHeight);
-		currentPage.page.drawText('ESPELHO DE CORREÇÃO — ENEM', {
-			x: mainX,
-			y: currentPage.cursor,
-			size: TITLE_SIZE,
-			font: fonts.bold,
-			color: colorFromHex(TEXT),
-		});
-		currentPage.cursor -= TITLE_SIZE + SPACING.title;
-		currentPage.page.drawText('Competências e justificativas da avaliação', {
-			x: mainX,
-			y: currentPage.cursor,
-			size: BODY_SIZE,
-			font: fonts.regular,
-			color: colorFromHex(TEXT_SUBTLE),
-		});
-		currentPage.cursor -= BODY_SIZE + SPACING.block;
 		if (enemSummary && Array.isArray(enemSummary.competencies) && enemSummary.competencies.length) {
 			enemSummary.competencies.forEach((comp, index) => {
 				const key = `C${index + 1}`;
 				const colors = ENEM_COLORS_HEX[key] || ENEM_COLORS_HEX.C1;
-				const level = clampLevel(comp.level);
-				const points = Number(comp.points) || POINTS_PER_LEVEL[level] || 0;
-				const layout = buildCompetencyLayout(
+				const layout = buildEnemCompetencyLayout(
 					mainColumnWidth,
 					index,
-					comp.title || `Competência ${index + 1}`,
-					level,
-					points,
+					comp.title || ENEM_RUBRIC?.[index]?.title || `Competência ${index + 1}`,
+					comp.level,
+					comp.points,
 					comp.justification,
 					comp.reasons || [],
 					fonts,
 					colors,
 				);
-				ensureSpace(layout.cardHeight);
-				const cardBottom = drawCompetencyCard(
+				ensureSpace(layout.cardHeight, 0);
+				currentPage.cursor = drawEnemCompetencyCard(
 					currentPage.page,
 					mainX,
 					currentPage.cursor,
 					mainColumnWidth,
 					layout,
 					fonts,
-					colors,
 				);
-				currentPage.cursor = cardBottom;
-				applyGap(SPACING.block);
+				applyGap(SPACING.section);
 			});
-			const totalLineHeight = TITLE_SIZE + 4;
-			ensureSpace(totalLineHeight, 0);
-			currentPage.page.drawText(`NOTA FINAL: ${Math.max(0, Math.round(enemSummary.total || 0))} / 1000`, {
-				x: mainX,
-				y: currentPage.cursor,
-				size: TITLE_SIZE,
-				font: fonts.bold,
-				color: colorFromHex(TEXT),
-			});
-			currentPage.cursor -= totalLineHeight;
 		} else {
 			ensureSpace(BODY_SIZE + 4, 0);
 			currentPage.page.drawText('Dados de competências ENEM indisponíveis.', {
