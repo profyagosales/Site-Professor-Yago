@@ -95,7 +95,6 @@ const CARD_FRAME = {
 	dividerColor: '#E2E8F0',
 	shadowOpacity: 0.08,
 };
-
 const ANNUL_CARD = {
 	padding: CARD_FRAME.paddingX,
 	titleSize: 12,
@@ -564,18 +563,21 @@ function drawHeroHeader({
 	});
 	const cardX = MARGIN;
 
-	const accentWidth = Math.min(140, cardWidth * 0.24);
-	drawRoundedRect(page, {
-		x: cardX,
-		y: cardBottom,
-		width: accentWidth,
-		height: cardHeight,
-		radius: HERO.radius,
-		fill: colorFromHex(HEX.brandPastel),
-	});
+	const accentHeight = 22;
+	if (accentHeight > 0) {
+		drawRoundedRect(page, {
+			x: cardX,
+			y: cardBottom + cardHeight - accentHeight,
+			width: cardWidth,
+			height: accentHeight,
+			radius: HERO.radius,
+			fill: colorFromHex(HEX.brandPastel),
+			strokeWidth: 0,
+		});
+	}
 
 	const brandX = cardX + HERO.padX;
-	const brandY = cardBottom + (cardHeight - BRAND.ICON) / 2;
+	const brandY = cardBottom + cardHeight - HERO.padY - BRAND.ICON;
 	drawRoundedRect(page, {
 		x: brandX,
 		y: brandY,
@@ -593,11 +595,11 @@ function drawHeroHeader({
 			height: BRAND.ICON - 8,
 		});
 	} else {
-		const brandLabel = 'PY';
+		const fallbackLabel = 'PY';
 		const brandFontSize = 14;
-		const brandLabelWidth = fonts.bold.widthOfTextAtSize(brandLabel, brandFontSize);
-		page.drawText(brandLabel, {
-			x: brandX + (BRAND.ICON - brandLabelWidth) / 2,
+		const labelWidth = fonts.bold.widthOfTextAtSize(fallbackLabel, brandFontSize);
+		page.drawText(fallbackLabel, {
+			x: brandX + (BRAND.ICON - labelWidth) / 2,
 			y: brandY + (BRAND.ICON - brandFontSize) / 2,
 			size: brandFontSize,
 			font: fonts.bold,
@@ -606,6 +608,7 @@ function drawHeroHeader({
 	}
 
 	const scoreX = cardX + cardWidth - SCORE_CARD.width - HERO.padX;
+	const contentTop = cardBottom + cardHeight - HERO.padY;
 	const centerStart = brandX + BRAND.ICON + HERO.gap;
 	const centerWidth = Math.max(0, scoreX - centerStart - HERO.gap);
 	const canShowAvatar = Boolean(avatarImage) && centerWidth > AVATAR.size + 60;
@@ -653,17 +656,18 @@ function drawHeroHeader({
 		});
 	}
 
-	const headerLabelY = cardTop - HERO.padY - PDF_FONT.sm;
-	page.drawText(professorName || 'Professor Yago Sales', {
+	const professorLabel = professorName || 'Professor Yago Sales';
+	const labelY = contentTop - PDF_FONT.sm;
+	page.drawText(professorLabel, {
 		x: textStart,
-		y: headerLabelY,
+		y: labelY,
 		size: PDF_FONT.sm,
 		font: fonts.bold,
 		color: colorFromHex(TEXT_SUBTLE),
 	});
 
 	const displayName = ellipsize(studentName || 'Aluno', 42);
-	const nameY = headerLabelY - 6 - PDF_FONT.lg;
+	const nameY = labelY - 6 - PDF_FONT.lg;
 	page.drawText(displayName, {
 		x: textStart,
 		y: nameY,
@@ -710,8 +714,8 @@ function drawHeroHeader({
 		width: SCORE_CARD.width,
 		height: SCORE_CARD.height,
 		radius: SCORE_CARD.radius,
-		fill: colorFromHex(HEX.brandPastel),
-		stroke: colorFromHex(HEX.brand),
+		fill: colorFromHex('#FFFFFF'),
+		stroke: colorFromHex(HEX.brandPastel),
 		strokeWidth: 1,
 	});
 
