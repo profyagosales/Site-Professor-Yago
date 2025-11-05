@@ -9,7 +9,6 @@ const EssayAnnotation = require('../models/EssayAnnotation');
 const { isValidObjectId } = require('mongoose');
 const { sendEmail } = require('../services/emailService');
 const { recordEssayScore } = require('../services/gradesIntegration');
-const { renderEssayCorrectionPdf } = require('../services/pdfService');
 const { generateCorrectedEssayPdf } = require('../services/pdf');
 const { ENEM_RUBRIC } = require('../constants/enemRubric');
 const https = require('https');
@@ -1029,34 +1028,64 @@ async function updateAnnotations(req, res) {
 async function renderCorrection(req, res) {
   try {
     const { id } = req.params;
-    const essay = await Essay.findById(id);
+    const essay = await Essay.findById(id).populate('studentId').populate('classId');
     if (!essay) return res.status(404).json({ message: 'Redação não encontrada' });
 
-    const student = await Student.findById(essay.studentId);
-    const classInfo = await Class.findById(essay.classId);
+    const studentDoc =
+      (essay.studentId && typeof essay.studentId === 'object' && essay.studentId._id)
+        ? essay.studentId
+        : await Student.findById(essay.studentId);
+    const classDoc =
+      (essay.classId && typeof essay.classId === 'object' && essay.classId._id)
+        ? essay.classId
+        : await Class.findById(essay.classId);
+
+    const student = studentDoc ? (studentDoc.toObject ? studentDoc.toObject() : studentDoc) : null;
+    const classInfo = classDoc ? (classDoc.toObject ? classDoc.toObject() : classDoc) : null;
     const themeName = essay.themeId
       ? (await EssayTheme.findById(essay.themeId))?.name
       : essay.customTheme;
 
-  // thumbnailsCount opcional, padrão 2, limitado a 1..2 para caber na primeira folha
-  const thumbnailsCount = Math.max(1, Math.min(2, Number(req.body.thumbnailsCount || 2)));
-  const pdfBuffer = await renderEssayCorrectionPdf({ essay, student, classInfo, themeName, thumbnailsCount });
+    const annotationsDocs = await EssayAnnotation.find({ essayId: id }).sort({ number: 1 }).lean();
+    const annotations = annotationsDocs.map((ann) => mapAnnotationResponse(ann));
+    const normalizedAnnotations = ensureAnnotationNumbers(annotations).sort((a, b) => a.number - b.number);
+    const score = normalizeEssayScoreResponse(essay);
+
+    const pdfBuffer = await generateCorrectedEssayPdf({
+      essay,
+      annotations: normalizedAnnotations,
+      score,
+      student: student || essay.studentId,
+      classInfo: classInfo || essay.classId,
+    });
     const correctedUrl = await uploadBuffer(pdfBuffer, 'essays/corrected', 'application/pdf');
 
     essay.correctedUrl = correctedUrl;
+    if (!essay.correctionPdf) {
+      essay.correctionPdf = correctedUrl;
+    }
+    if (!essay.isCorrected) {
+      essay.isCorrected = true;
+    }
+    if (!essay.correctedAt) {
+      essay.correctedAt = new Date();
+    }
     await essay.save();
 
     if (req.body.sendEmail !== false) {
-      const html = `<!DOCTYPE html><p>Olá ${student.name},</p>` +
+      const studentName = student?.name || essay.studentName || 'Aluno';
+      const html = `<!DOCTYPE html><p>Olá ${studentName},</p>` +
         `<p>Sua redação foi corrigida.</p>` +
-        `<p>Turma: ${classInfo.series}${classInfo.letter} - ${classInfo.discipline}</p>` +
+        `<p>Turma: ${classInfo?.series ?? ''}${classInfo?.letter ?? ''} - ${classInfo?.discipline ?? ''}</p>` +
         `<p>Bimestre: ${essay.bimester}</p>` +
         `<p>Tipo: ${essay.type}</p>` +
         `<p>Tema: ${themeName}</p>` +
         `<p>Nota: ${essay.rawScore}</p>` +
         `<p>Nota bimestral: ${essay.scaledScore}</p>` +
         `<p><a href="${correctedUrl}">Baixar correção</a></p>`;
-      await sendEmail({ to: student.email, subject: 'Sua redação foi corrigida', html });
+      if (student?.email) {
+        await sendEmail({ to: student.email, subject: 'Sua redação foi corrigida', html });
+      }
     }
 
     res.json({ success: true, data: { correctedUrl } });

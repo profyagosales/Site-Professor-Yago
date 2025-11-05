@@ -2002,8 +2002,28 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 	const startPage = (isFirst) => {
 		const page = pdfDoc.addPage([A4.width, A4.height]);
 		page.drawRectangle({ x: 0, y: 0, width: A4.width, height: A4.height, color: colorFromHex(HEX.pageBg) });
+		if (isFirst) {
+			const debugY = A4.height - MARGIN - 28;
+			page.drawText('DEBUG NOVO LAYOUT', {
+				x: MARGIN,
+				y: debugY,
+				size: 26,
+				font: fonts.bold,
+				color: rgb(0.85, 0.1, 0.1),
+			});
+		}
 		// Always draw the hero header on every page to mirror GradeWorkspace
 		const top = drawHeroHeader(heroArgs(page, fonts));
+		if (isFirst) {
+			const debugY = A4.height - MARGIN - 28;
+			page.drawText('DEBUG NOVO LAYOUT', {
+				x: MARGIN,
+				y: debugY,
+				size: 26,
+				font: fonts.bold,
+				color: rgb(0.85, 0.1, 0.1),
+			});
+		}
 
 		const railArea = {
 			x: railX,
