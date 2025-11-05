@@ -64,6 +64,26 @@ const CLASS_TABLE = {
 	badgePadding: 4,
 };
 
+const DOCUMENT_PREVIEW = {
+	padding: 16,
+	radius: 18,
+	shadowOffset: 4,
+	shadowOpacity: 0.12,
+	aspectRatio: Math.SQRT2 || 1.41421356237,
+	pagePadding: 18,
+	pageRadius: 12,
+	pageBorder: '#E2E8F0',
+	pageBackground: '#FFFFFF',
+	pageHeaderHeight: 26,
+	pageHeaderColor: '#F8FAFC',
+	lineColor: '#E2E8F0',
+	lineGap: 10,
+	lineThickness: 0.8,
+	footerGap: 12,
+	footerSize: BODY_SIZE - 2,
+	subtitleSize: BODY_SIZE - 1,
+};
+
 const ANNUL_CARD = {
 	padding: 12,
 	titleSize: 12,
@@ -1125,6 +1145,166 @@ function drawAnnotationHighlights(page, fonts, area, annotations) {
 	});
 }
 
+function estimateEssayPreviewHeight(width) {
+	if (!width || width <= 0) return 0;
+	const titleHeight = TITLE_SIZE + SPACING.title;
+	const subtitleHeight = DOCUMENT_PREVIEW.subtitleSize + SPACING.subtitle;
+	const docWidth = Math.max(120, width - DOCUMENT_PREVIEW.padding * 2);
+	const docHeight = docWidth * DOCUMENT_PREVIEW.aspectRatio;
+	const cardHeight = DOCUMENT_PREVIEW.padding * 2
+		+ docHeight
+		+ DOCUMENT_PREVIEW.footerGap
+		+ DOCUMENT_PREVIEW.footerSize;
+	return titleHeight + subtitleHeight + cardHeight;
+}
+
+function drawEssayPreviewSection(page, fonts, x, yTop, width, essay, annotations = []) {
+	let cursor = yTop;
+	page.drawText('Pré-visualização da redação', {
+		x,
+		y: cursor,
+		size: TITLE_SIZE,
+		font: fonts.bold,
+		color: colorFromHex(TEXT),
+	});
+	cursor -= TITLE_SIZE + SPACING.title;
+
+	page.drawText('Visualize a primeira página corrigida e os destaques das anotações.', {
+		x,
+		y: cursor,
+		size: DOCUMENT_PREVIEW.subtitleSize,
+		font: fonts.regular,
+		color: colorFromHex(TEXT_SUBTLE),
+	});
+	cursor -= DOCUMENT_PREVIEW.subtitleSize + SPACING.subtitle;
+
+	const cardWidth = width;
+	const docWidth = Math.max(120, cardWidth - DOCUMENT_PREVIEW.padding * 2);
+	const docHeight = docWidth * DOCUMENT_PREVIEW.aspectRatio;
+	const cardHeight = DOCUMENT_PREVIEW.padding * 2
+		+ docHeight
+		+ DOCUMENT_PREVIEW.footerGap
+		+ DOCUMENT_PREVIEW.footerSize;
+	const cardTop = cursor;
+	const cardBottom = cardTop - cardHeight;
+
+	drawRoundedRect(page, {
+		x,
+		y: cardBottom,
+		width: cardWidth,
+		height: cardHeight,
+		radius: DOCUMENT_PREVIEW.radius,
+		fill: colorFromHex('#FFFFFF'),
+		stroke: colorFromHex('#E2E8F0'),
+		strokeWidth: 1,
+	});
+
+	const docX = x + DOCUMENT_PREVIEW.padding;
+	const docTop = cardTop - DOCUMENT_PREVIEW.padding;
+	const docBottom = docTop - docHeight;
+
+	const shadowX = docX + DOCUMENT_PREVIEW.shadowOffset;
+	const shadowY = docBottom - DOCUMENT_PREVIEW.shadowOffset;
+	drawRoundedRect(page, {
+		x: shadowX,
+		y: shadowY,
+		width: docWidth,
+		height: docHeight,
+		radius: DOCUMENT_PREVIEW.pageRadius,
+		fill: colorFromHex('#0F172A'),
+		opacity: DOCUMENT_PREVIEW.shadowOpacity,
+	});
+
+	drawRoundedRect(page, {
+		x: docX,
+		y: docBottom,
+		width: docWidth,
+		height: docHeight,
+		radius: DOCUMENT_PREVIEW.pageRadius,
+		fill: colorFromHex(DOCUMENT_PREVIEW.pageBackground),
+		stroke: colorFromHex(DOCUMENT_PREVIEW.pageBorder),
+		strokeWidth: 1,
+	});
+
+	const headerHeight = Math.min(DOCUMENT_PREVIEW.pageHeaderHeight, docHeight * 0.25);
+	page.drawRectangle({
+		x: docX,
+		y: docTop - headerHeight,
+		width: docWidth,
+		height: headerHeight,
+		color: colorFromHex(DOCUMENT_PREVIEW.pageHeaderColor),
+	});
+
+	const headerBadgeWidth = 70;
+	const headerBadgeHeight = 18;
+	const headerBadgeBottom = docTop - headerHeight + (headerHeight - headerBadgeHeight) / 2;
+	const badgeX = docX + docWidth - DOCUMENT_PREVIEW.pagePadding - headerBadgeWidth;
+	drawRoundedRect(page, {
+		x: badgeX,
+		y: headerBadgeBottom,
+		width: headerBadgeWidth,
+		height: headerBadgeHeight,
+		radius: headerBadgeHeight / 2,
+		fill: colorFromHex('#E2E8F0'),
+	});
+	const badgeLabel = '1ª página';
+	const badgeFontSize = BODY_SIZE - 1;
+	const badgeLabelWidth = fonts.bold.widthOfTextAtSize(badgeLabel, badgeFontSize);
+	const badgeLabelHeight = fonts.bold.heightAtSize(badgeFontSize);
+	page.drawText(badgeLabel, {
+		x: badgeX + (headerBadgeWidth - badgeLabelWidth) / 2,
+		y: headerBadgeBottom + (headerBadgeHeight - badgeLabelHeight) / 2,
+		size: badgeFontSize,
+		font: fonts.bold,
+		color: colorFromHex(TEXT_SUBTLE),
+	});
+
+	const textAreaLeft = docX + DOCUMENT_PREVIEW.pagePadding;
+	const textAreaRight = docX + docWidth - DOCUMENT_PREVIEW.pagePadding;
+	let lineY = docTop - headerHeight - DOCUMENT_PREVIEW.pagePadding;
+	const minContentY = docBottom + DOCUMENT_PREVIEW.pagePadding;
+	let variation = 0;
+	while (lineY > minContentY) {
+		const fullWidth = textAreaRight - textAreaLeft;
+		const variance = variation % 3;
+		const reduction = variance === 2 ? fullWidth * 0.35 : variance === 1 ? fullWidth * 0.18 : 0;
+		const endX = textAreaRight - reduction;
+		page.drawLine({
+			start: { x: textAreaLeft, y: lineY },
+			end: { x: endX, y: lineY },
+			color: colorFromHex(DOCUMENT_PREVIEW.lineColor),
+			thickness: DOCUMENT_PREVIEW.lineThickness,
+			opacity: 0.85,
+		});
+		lineY -= DOCUMENT_PREVIEW.lineGap;
+		variation += 1;
+	}
+
+	const highlightsArea = {
+		x: docX,
+		y: docBottom,
+		width: docWidth,
+		height: docHeight,
+	};
+	drawAnnotationHighlights(page, fonts, highlightsArea, annotations);
+
+	const highlightsCount = Array.isArray(annotations) ? annotations.length : 0;
+	const highlightsLabel = highlightsCount
+		? `${highlightsCount} anotação${highlightsCount > 1 ? 's' : ''} destacada${highlightsCount > 1 ? 's' : ''}`
+		: 'Sem anotações destacadas';
+	const footerText = `Prévia ilustrativa • ${highlightsLabel}`;
+	const footerY = docBottom - DOCUMENT_PREVIEW.footerGap;
+	page.drawText(footerText, {
+		x: x + DOCUMENT_PREVIEW.padding,
+		y: footerY,
+		size: DOCUMENT_PREVIEW.footerSize,
+		font: fonts.regular,
+		color: colorFromHex(TEXT_SUBTLE),
+	});
+
+	return cardBottom - SPACING.section;
+}
+
 function estimateClassGradesHeight(classInfo = {}, currentStudent = null) {
 	const hasClass = Boolean(resolveClassLabel(classInfo) || classInfo?.name);
 	const hasDiscipline = Boolean(classInfo?.discipline || classInfo?.subject);
@@ -2002,28 +2182,8 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 	const startPage = (isFirst) => {
 		const page = pdfDoc.addPage([A4.width, A4.height]);
 		page.drawRectangle({ x: 0, y: 0, width: A4.width, height: A4.height, color: colorFromHex(HEX.pageBg) });
-		if (isFirst) {
-			const debugY = A4.height - MARGIN - 28;
-			page.drawText('DEBUG NOVO LAYOUT', {
-				x: MARGIN,
-				y: debugY,
-				size: 26,
-				font: fonts.bold,
-				color: rgb(0.85, 0.1, 0.1),
-			});
-		}
 		// Always draw the hero header on every page to mirror GradeWorkspace
 		const top = drawHeroHeader(heroArgs(page, fonts));
-		if (isFirst) {
-			const debugY = A4.height - MARGIN - 28;
-			page.drawText('DEBUG NOVO LAYOUT', {
-				x: MARGIN,
-				y: debugY,
-				size: 26,
-				font: fonts.bold,
-				color: rgb(0.85, 0.1, 0.1),
-			});
-		}
 
 		const railArea = {
 			x: railX,
@@ -2063,6 +2223,19 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 		student,
 		firstPageAnnotations,
 	);
+
+	const previewHeight = estimateEssayPreviewHeight(mainColumnWidth);
+	ensureSpace(previewHeight, 0);
+	currentPage.cursor = drawEssayPreviewSection(
+		currentPage.page,
+		fonts,
+		mainX,
+		currentPage.cursor,
+		mainColumnWidth,
+		enessay,
+		firstPageAnnotations,
+	);
+	applyGap(SPACING.block);
 
 
 
