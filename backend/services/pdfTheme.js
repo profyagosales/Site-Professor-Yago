@@ -15,15 +15,24 @@ const TYPOGRAPHY = {
 };
 
 const HERO = {
-  height: 72,
-  radius: 16,
-  padX: 18,
-  padY: 12,
-  gap: 14,
+  height: 160,
+  radius: 18,
+  padX: 20,
+  padY: 18,
+  gap: 18,
+  brandColumnWidth: 96,
+  brandStackGap: 8,
+  brandLabelSize: 10,
+  studentAvatarGap: 16,
+  miniCardHeight: 56,
+  miniCardGap: 12,
+  miniCardPadX: 16,
+  miniCardPadY: 14,
+  afterGap: 18,
 };
 
 const BRAND = {
-  ICON: 44,
+  ICON: 56,
 };
 
 const SCORE_CARD = {
@@ -33,7 +42,7 @@ const SCORE_CARD = {
   pad: 10,
 };
 
-const AVATAR = { size: 36 };
+const AVATAR = { size: 44 };
 
 const COLORS = {
   background: '#FFFFFF',

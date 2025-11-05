@@ -11,7 +11,6 @@ const {
 	PAGE,
 	HERO,
 	BRAND,
-	SCORE_CARD,
 	AVATAR,
 	COLORS,
 	COMMENT_RAIL,
@@ -25,7 +24,6 @@ const {
 } = pdfTheme;
 
 const MARGIN = PAGE.margin;
-const CONTENT_GAP = PAGE.gutter;
 const SECTION_GAP = SPACING.section;
 const TITLE_SIZE = TYPOGRAPHY.title;
 const BODY_SIZE = TYPOGRAPHY.body;
@@ -551,6 +549,7 @@ function drawHeroHeader({
 	studentInitials,
 	professorName,
 	brandMark,
+	railWidth,
 }) {
 	const pageHeight = page.getHeight();
 	const cardWidth = A4.width - MARGIN * 2;
@@ -563,13 +562,16 @@ function drawHeroHeader({
 		height: cardHeight,
 		radius: HERO.radius,
 	});
-	const cardX = MARGIN;
+	const cardLeft = MARGIN;
+	const innerLeft = cardLeft + HERO.padX;
+	const innerRight = cardLeft + cardWidth - HERO.padX;
+	const innerTop = cardBottom + cardHeight - HERO.padY;
 
-	const accentHeight = 22;
+	const accentHeight = Math.min(28, cardHeight / 3);
 	if (accentHeight > 0) {
 		drawRoundedRect(page, {
-			x: cardX,
-			y: cardBottom + cardHeight - accentHeight,
+			x: cardLeft,
+			y: cardTop - accentHeight,
 			width: cardWidth,
 			height: accentHeight,
 			radius: HERO.radius,
@@ -578,110 +580,95 @@ function drawHeroHeader({
 		});
 	}
 
-	const brandX = cardX + HERO.padX;
-	const brandY = cardBottom + cardHeight - HERO.padY - BRAND.ICON;
+	const brandColumnWidth = HERO.brandColumnWidth;
+	const brandCenterX = innerLeft + brandColumnWidth / 2;
+	const brandIconSize = BRAND.ICON;
+	const brandIconX = brandCenterX - brandIconSize / 2;
+	const brandIconY = innerTop - brandIconSize;
 	drawRoundedRect(page, {
-		x: brandX,
-		y: brandY,
-		width: BRAND.ICON,
-		height: BRAND.ICON,
-		radius: BRAND.ICON / 2,
+		x: brandIconX,
+		y: brandIconY,
+		width: brandIconSize,
+		height: brandIconSize,
+		radius: brandIconSize / 2,
 		fill: colorFromHex(HEX.brand),
 	});
 
 	if (brandMark) {
+		const inset = 6;
 		page.drawImage(brandMark, {
-			x: brandX + 4,
-			y: brandY + 4,
-			width: BRAND.ICON - 8,
-			height: BRAND.ICON - 8,
+			x: brandIconX + inset,
+			y: brandIconY + inset,
+			width: brandIconSize - inset * 2,
+			height: brandIconSize - inset * 2,
 		});
 	} else {
 		const fallbackLabel = 'PY';
-		const brandFontSize = 14;
+		const brandFontSize = TYPOGRAPHY.display;
 		const labelWidth = fonts.bold.widthOfTextAtSize(fallbackLabel, brandFontSize);
 		page.drawText(fallbackLabel, {
-			x: brandX + (BRAND.ICON - labelWidth) / 2,
-			y: brandY + (BRAND.ICON - brandFontSize) / 2,
+			x: brandCenterX - labelWidth / 2,
+			y: brandIconY + (brandIconSize - brandFontSize) / 2,
 			size: brandFontSize,
 			font: fonts.bold,
-			color: colorFromHex('#FFFFFF'),
+			color: colorFromHex(HEX.textInverted),
 		});
 	}
 
-	const scoreX = cardX + cardWidth - SCORE_CARD.width - HERO.padX;
-	const contentTop = cardBottom + cardHeight - HERO.padY;
-	const centerStart = brandX + BRAND.ICON + HERO.gap;
-	const centerWidth = Math.max(0, scoreX - centerStart - HERO.gap);
-	const canShowAvatar = Boolean(avatarImage) && centerWidth > AVATAR.size + 60;
-	const avatarSlot = canShowAvatar ? AVATAR.size : 0;
-	const avatarGap = canShowAvatar ? 14 : 0;
-	const textMaxWidth = Math.max(120, centerWidth - avatarSlot - avatarGap);
-	const textStart = centerStart + avatarSlot + avatarGap;
-
-	if (canShowAvatar && avatarImage) {
-		const avatarX = centerStart;
-		const avatarY = cardBottom + (cardHeight - AVATAR.size) / 2;
-		drawRoundedRect(page, {
-			x: avatarX,
-			y: avatarY,
-			width: AVATAR.size,
-			height: AVATAR.size,
-			radius: AVATAR.size / 2,
-			fill: blendHex(HEX.brand, '#FFFFFF', 0.2),
-		});
-		page.drawImage(avatarImage, {
-			x: avatarX + 2,
-			y: avatarY + 2,
-			width: AVATAR.size - 4,
-			height: AVATAR.size - 4,
-		});
-	} else {
-		const placeholderSize = AVATAR.size;
-		const placeholderX = centerStart;
-		const placeholderY = cardBottom + (cardHeight - placeholderSize) / 2;
-		drawRoundedRect(page, {
-			x: placeholderX,
-			y: placeholderY,
-			width: placeholderSize,
-			height: placeholderSize,
-			radius: placeholderSize / 2,
-			fill: blendHex(HEX.brand, '#FFFFFF', 0.65),
-		});
-		const initialsWidth = fonts.bold.widthOfTextAtSize(studentInitials || 'A', 11);
-		page.drawText(studentInitials || 'A', {
-			x: placeholderX + (placeholderSize - initialsWidth) / 2,
-			y: placeholderY + (placeholderSize - 11) / 2,
-			size: 11,
-			font: fonts.bold,
-			color: colorFromHex(HEX.brandDark),
-		});
-	}
-
-	const professorLabel = professorName || 'Professor Yago Sales';
-	const labelY = contentTop - PDF_FONT.sm;
-	page.drawText(professorLabel, {
-		x: textStart,
-		y: labelY,
-		size: PDF_FONT.sm,
+	const brandLabel = professorName || 'Professor Yago Sales';
+	const brandLabelSize = HERO.brandLabelSize || TYPOGRAPHY.body;
+	const brandLabelWidth = fonts.bold.widthOfTextAtSize(brandLabel, brandLabelSize);
+	const brandLabelY = Math.max(cardBottom + HERO.padY, brandIconY - HERO.brandStackGap - brandLabelSize);
+	page.drawText(brandLabel, {
+		x: brandCenterX - brandLabelWidth / 2,
+		y: brandLabelY,
+		size: brandLabelSize,
 		font: fonts.bold,
-		color: colorFromHex(TEXT_SUBTLE),
+		color: colorFromHex(HEX.brandDark),
 	});
 
+	const avatarSize = AVATAR.size;
+	const minStudentWidth = avatarSize + HERO.studentAvatarGap + 120;
+	const minStatWidth = 140;
+	const availableWidth = cardWidth - HERO.padX * 2;
+	const interColumnGap = HERO.gap;
+	const desiredStatWidth = Math.round(railWidth || availableWidth * COLUMN.railRatio);
+	const maxStatWidth = Math.max(minStatWidth, availableWidth - brandColumnWidth - interColumnGap * 2 - minStudentWidth);
+	let statWidth = Math.min(desiredStatWidth, maxStatWidth);
+	statWidth = Math.max(minStatWidth, statWidth);
+	let statColumnX = cardLeft + cardWidth - statWidth;
+	const studentColumnX = innerLeft + brandColumnWidth + interColumnGap;
+	let studentColumnWidth = statColumnX - interColumnGap - studentColumnX;
+	if (studentColumnWidth < minStudentWidth) {
+		const deficit = minStudentWidth - studentColumnWidth;
+		statWidth = Math.max(minStatWidth, statWidth - deficit);
+		statColumnX = cardLeft + cardWidth - statWidth;
+		studentColumnWidth = statColumnX - interColumnGap - studentColumnX;
+	}
+
+	const infoAvailableWidth = Math.max(120, studentColumnWidth - avatarSize - HERO.studentAvatarGap);
+	const textWidth = Math.min(infoAvailableWidth, studentColumnWidth - avatarSize - HERO.studentAvatarGap);
+	const textStart = studentColumnX;
+	const avatarX = Math.min(studentColumnX + studentColumnWidth - avatarSize, textStart + textWidth + HERO.studentAvatarGap);
+	const avatarY = innerTop - avatarSize;
+
 	const displayName = ellipsize(studentName || 'Aluno', 42);
-	const nameY = labelY - 6 - PDF_FONT.lg;
+	let textCursor = innerTop;
+	const nameSize = PDF_FONT.lg + 2;
+	textCursor -= nameSize;
 	page.drawText(displayName, {
 		x: textStart,
-		y: nameY,
-		size: PDF_FONT.lg,
+		y: textCursor,
+		size: nameSize,
 		font: fonts.bold,
 		color: colorFromHex(TEXT),
 	});
+	textCursor -= SPACING.title;
 
-	let textCursor = nameY - (PDF_FONT.md + 6);
 	if (heroMeta) {
-		const metaLines = wrapText(heroMeta, fonts.regular, PDF_FONT.sm, textMaxWidth);
+		const metaLines = wrapText(heroMeta, fonts.regular, PDF_FONT.sm, textWidth);
 		metaLines.forEach((line) => {
+			textCursor -= PDF_FONT.sm;
 			page.drawText(line, {
 				x: textStart,
 				y: textCursor,
@@ -689,12 +676,13 @@ function drawHeroHeader({
 				font: fonts.regular,
 				color: colorFromHex(TEXT_SUBTLE),
 			});
-			textCursor -= PDF_FONT.sm + 4;
+			textCursor -= 4;
 		});
 	}
 
-	const themeLines = wrapText(`Tema: ${theme || 'Tema não informado'}`, fonts.regular, PDF_FONT.sm, textMaxWidth);
-	themeLines.forEach((line) => {
+	const themeLines = wrapText(`Tema: ${theme || 'Tema não informado'}`, fonts.regular, PDF_FONT.sm, textWidth);
+	themeLines.forEach((line, index) => {
+		textCursor -= PDF_FONT.sm;
 		page.drawText(line, {
 			x: textStart,
 			y: textCursor,
@@ -702,79 +690,152 @@ function drawHeroHeader({
 			font: fonts.regular,
 			color: colorFromHex(TEXT_SUBTLE),
 		});
-		textCursor -= PDF_FONT.sm + 3;
+		if (index < themeLines.length - 1) textCursor -= 3;
 	});
+
+	const avatarFill = blendHex(HEX.brand, HEX.brandPastel, 0.35);
+	drawRoundedRect(page, {
+		x: avatarX,
+		y: avatarY,
+		width: avatarSize,
+		height: avatarSize,
+		radius: avatarSize / 2,
+		fill: colorFromHex(avatarFill),
+	});
+	if (avatarImage) {
+		page.drawImage(avatarImage, {
+			x: avatarX + 2,
+			y: avatarY + 2,
+			width: avatarSize - 4,
+			height: avatarSize - 4,
+		});
+	} else {
+		const initials = studentInitials || 'A';
+		const initialsSize = TYPOGRAPHY.title;
+		const initialsWidth = fonts.bold.widthOfTextAtSize(initials, initialsSize);
+		page.drawText(initials, {
+			x: avatarX + (avatarSize - initialsWidth) / 2,
+			y: avatarY + (avatarSize - initialsSize) / 2,
+			size: initialsSize,
+			font: fonts.bold,
+			color: colorFromHex(HEX.brandDark),
+		});
+	}
+
+	const statPadX = HERO.miniCardPadX;
+	const statPadY = HERO.miniCardPadY;
+	const statGap = HERO.miniCardGap;
+	const statHeight = HERO.miniCardHeight;
+	const statRadius = CARD.radius;
+	const statColumnWidth = statWidth;
+	let statCursor = innerTop;
+	const statMinBottom = cardBottom + HERO.padY;
+
+	const drawStatCard = (renderer) => {
+		const available = statCursor - statMinBottom;
+		if (available < statHeight) {
+			return;
+		}
+		const cardBottomY = statCursor - statHeight;
+		drawRoundedRect(page, {
+			x: statColumnX,
+			y: cardBottomY,
+			width: statColumnWidth,
+			height: statHeight,
+			radius: statRadius,
+			fill: colorFromHex(CARD.background),
+			stroke: colorFromHex(CARD.border),
+			strokeWidth: 1,
+		});
+		renderer({
+			top: statCursor,
+			bottom: cardBottomY,
+			innerLeft: statColumnX + statPadX,
+			innerRight: statColumnX + statColumnWidth - statPadX,
+			innerWidth: statColumnWidth - statPadX * 2,
+		});
+		statCursor = cardBottomY - statGap;
+	};
 
 	const totalLabel = modelLabel === 'PAS/UnB' ? 'TOTAL PAS' : 'TOTAL ENEM';
 	const valueText = finalScore || '--';
 	const suffixText = finalSuffix || (modelLabel === 'PAS/UnB' ? '/10' : '/1000');
-	const scoreY = cardBottom + (cardHeight - SCORE_CARD.height) / 2;
-
-	drawRoundedRect(page, {
-		x: scoreX,
-		y: scoreY,
-		width: SCORE_CARD.width,
-		height: SCORE_CARD.height,
-		radius: SCORE_CARD.radius,
-		fill: colorFromHex('#FFFFFF'),
-		stroke: colorFromHex(HEX.brandPastel),
-		strokeWidth: 1,
-	});
-
-	const labelWidth = fonts.bold.widthOfTextAtSize(totalLabel, PDF_FONT.sm);
-	page.drawText(totalLabel, {
-		x: scoreX + SCORE_CARD.width - SCORE_CARD.pad - labelWidth,
-		y: scoreY + SCORE_CARD.height - SCORE_CARD.pad - PDF_FONT.sm,
-		size: PDF_FONT.sm,
-		font: fonts.bold,
-		color: colorFromHex(HEX.brand),
-	});
-
-	const valueSize = PDF_FONT.lg + 6;
+	const labelSize = TYPOGRAPHY.small;
+	const valueSize = PDF_FONT.lg + 4;
 	const suffixSize = PDF_FONT.md;
-	const suffixGap = 4;
-	const valueWidth = fonts.bold.widthOfTextAtSize(valueText, valueSize);
-	const suffixWidth = fonts.bold.widthOfTextAtSize(suffixText, suffixSize);
-	const valueX = scoreX + SCORE_CARD.width - SCORE_CARD.pad - (valueWidth + suffixGap + suffixWidth);
-	const valueY = scoreY + SCORE_CARD.pad + 4;
+	const suffixGap = 6;
 
-	page.drawText(valueText, {
-		x: valueX,
-		y: valueY,
-		size: valueSize,
-		font: fonts.bold,
-		color: colorFromHex(HEX.brandDark),
-	});
-
-	page.drawText(suffixText, {
-		x: valueX + valueWidth + suffixGap,
-		y: valueY + (valueSize - suffixSize) / 2,
-		size: suffixSize,
-		font: fonts.bold,
-		color: colorFromHex(TEXT_SUBTLE),
-	});
-
-	const modelUpper = (modelLabel || '-').toUpperCase();
-	const modelWidth = fonts.bold.widthOfTextAtSize(modelUpper, PDF_FONT.sm);
-	page.drawText(modelUpper, {
-		x: scoreX + SCORE_CARD.width - SCORE_CARD.pad - modelWidth,
-		y: scoreY + SCORE_CARD.pad,
-		size: PDF_FONT.sm,
-		font: fonts.bold,
-		color: colorFromHex(TEXT_SUBTLE),
-	});
-
-	if (deliveredAt) {
-		page.drawText(`Entregue em ${deliveredAt}`, {
-			x: textStart,
-			y: cardBottom + HERO.padY,
-			size: PDF_FONT.sm,
-			font: fonts.regular,
+	drawStatCard(({ top, innerLeft, innerWidth }) => {
+		let cursor = top - statPadY;
+		cursor -= labelSize;
+		page.drawText(totalLabel, {
+			x: innerLeft,
+			y: cursor,
+			size: labelSize,
+			font: fonts.bold,
+			color: colorFromHex(HEX.brand),
+		});
+		cursor -= SPACING.title;
+		cursor -= valueSize;
+		const valueWidth = fonts.bold.widthOfTextAtSize(String(valueText), valueSize);
+		const suffixWidth = fonts.bold.widthOfTextAtSize(String(suffixText), suffixSize);
+		let valueX = innerLeft;
+		if (valueWidth + suffixGap + suffixWidth > innerWidth) {
+			valueX = innerLeft + innerWidth - (valueWidth + suffixGap + suffixWidth);
+		}
+		page.drawText(String(valueText), {
+			x: valueX,
+			y: cursor,
+			size: valueSize,
+			font: fonts.bold,
+			color: colorFromHex(HEX.brandDark),
+		});
+		page.drawText(String(suffixText), {
+			x: valueX + valueWidth + suffixGap,
+			y: cursor + (valueSize - suffixSize) / 2,
+			size: suffixSize,
+			font: fonts.bold,
 			color: colorFromHex(TEXT_SUBTLE),
 		});
-	}
+	});
 
-	return cardBottom - CONTENT_GAP;
+	drawStatCard(({ top, innerLeft, innerWidth }) => {
+		let cursor = top - statPadY;
+		cursor -= labelSize;
+		page.drawText('Modelo', {
+			x: innerLeft,
+			y: cursor,
+			size: labelSize,
+			font: fonts.bold,
+			color: colorFromHex(TEXT_SUBTLE),
+		});
+		cursor -= SPACING.title;
+		const modelSize = PDF_FONT.md + 1;
+		cursor -= modelSize;
+		const modelText = (modelLabel || '-').toUpperCase();
+		page.drawText(modelText, {
+			x: innerLeft,
+			y: cursor,
+			size: modelSize,
+			font: fonts.bold,
+			color: colorFromHex(TEXT),
+		});
+		const deliveryLabel = deliveredAt ? `Entregue em ${deliveredAt}` : 'Entrega não informada';
+		const deliveryLines = wrapText(deliveryLabel, fonts.regular, PDF_FONT.sm, innerWidth);
+		deliveryLines.forEach((line) => {
+			cursor -= SPACING.title;
+			cursor -= PDF_FONT.sm;
+			page.drawText(line, {
+				x: innerLeft,
+				y: cursor,
+				size: PDF_FONT.sm,
+				font: fonts.regular,
+				color: colorFromHex(TEXT_SUBTLE),
+			});
+		});
+	});
+
+	return cardBottom - (HERO.afterGap || SPACING.section);
 }
 
 
@@ -1591,7 +1652,7 @@ function drawPasSummarySection(page, fonts, x, yTop, width, summary) {
 	let cursor = yTop - CARD_FRAME.paddingY;
 
 	cursor -= TITLE_SIZE;
-	page.drawText('Resumo do espelho — PAS', {
+	page.drawText('Resumo do espelho — PAS/UnB', {
 		x: innerX,
 		y: cursor,
 		size: TITLE_SIZE,
@@ -1611,13 +1672,14 @@ function drawPasSummarySection(page, fonts, x, yTop, width, summary) {
 	cursor -= CARD_FRAME.displayGap;
 
 	const gridTop = cursor;
+	const highlightPalette = PAS_COLORS.macro;
 	cards.forEach((card, index) => {
 		const row = Math.floor(index / columns);
 		const col = index % columns;
 		const cardX = innerX + col * (cardWidth + SUMMARY_GRID.gapX);
 		const cardTop = gridTop - row * (SUMMARY_GRID.cardHeight + SUMMARY_GRID.gapY);
-		const fillHex = card.highlight ? '#FFF7ED' : '#FFFFFF';
-		const borderHex = card.highlight ? '#FDBA74' : CARD_FRAME.border;
+		const fillHex = card.highlight ? highlightPalette.pastel : CARD_FRAME.background;
+		const borderHex = card.highlight ? highlightPalette.title : CARD_FRAME.border;
 		drawRoundedRect(page, {
 			x: cardX,
 			y: cardTop - SUMMARY_GRID.cardHeight,
@@ -1635,7 +1697,7 @@ function drawPasSummarySection(page, fonts, x, yTop, width, summary) {
 			y: labelY,
 			size: SUMMARY_GRID.labelSize,
 			font: fonts.regular,
-			color: colorFromHex('#475569'),
+			color: colorFromHex(TEXT_SUBTLE),
 		});
 
 		const formatted = formatPasValue(card.value, card.decimals);
@@ -1645,7 +1707,7 @@ function drawPasSummarySection(page, fonts, x, yTop, width, summary) {
 			y: valueY,
 			size: SUMMARY_GRID.valueSize,
 			font: fonts.bold,
-			color: colorFromHex(card.highlight ? '#B45309' : '#0F172A'),
+			color: colorFromHex(card.highlight ? highlightPalette.strong : TEXT),
 		});
 	});
 
@@ -1662,6 +1724,7 @@ function drawPasMacroSection(page, fonts, x, yTop, width, summary) {
 		+ rows.length * PAS_TABLE.rowHeight
 		+ Math.max(0, rows.length - 1) * PAS_TABLE.rowGap;
 	const cardHeight = CARD_FRAME.paddingY * 2 + headerHeight + tableHeight;
+	const palette = PAS_COLORS.macro;
 	const cardBottom = drawCardContainer(page, {
 		x,
 		yTop,
@@ -1698,10 +1761,10 @@ function drawPasMacroSection(page, fonts, x, yTop, width, summary) {
 	rowTop -= PAS_TABLE.headerHeight;
 	drawPasRow(page, fonts, tableLeft, headerTop, PAS_TABLE.headerHeight, tableWidth, [
 		{ text: 'Critério', ratio: 0.5, font: fonts.bold, color: TEXT },
-		{ text: 'Faixa esperada', ratio: 0.25, font: fonts.bold, color: TEXT_SUBTLE, align: 'center' },
-		{ text: 'Nota obtida', ratio: 0.25, font: fonts.bold, color: TEXT, align: 'right' },
+		{ text: 'Faixa esperada', ratio: 0.25, font: fonts.bold, color: palette.title, align: 'center' },
+		{ text: 'Nota obtida', ratio: 0.25, font: fonts.bold, color: palette.strong, align: 'right' },
 	], {
-		fill: '#F1F5F9',
+		fill: palette.pastel,
 		textSize: BODY_SIZE - 1,
 		paddingX: 16,
 		paddingY: 8,
@@ -1714,10 +1777,10 @@ function drawPasMacroSection(page, fonts, x, yTop, width, summary) {
 		rowTop -= PAS_TABLE.rowHeight;
 		drawPasRow(page, fonts, tableLeft, currentTop, PAS_TABLE.rowHeight, tableWidth, [
 			{ text: row.label, ratio: 0.5, font: fonts.regular, color: TEXT },
-			{ text: `0,00 – ${row.max.toFixed(2)}`, ratio: 0.25, font: fonts.regular, color: '#1D4ED8', align: 'center' },
-			{ text: `${row.value.toFixed(2)} / ${row.max.toFixed(2)}`, ratio: 0.25, font: fonts.bold, color: TEXT, align: 'right' },
+			{ text: `0,00 – ${row.max.toFixed(2)}`, ratio: 0.25, font: fonts.regular, color: palette.title, align: 'center' },
+			{ text: `${row.value.toFixed(2)} / ${row.max.toFixed(2)}`, ratio: 0.25, font: fonts.bold, color: palette.strong, align: 'right' },
 		], {
-			fill: index % 2 === 0 ? '#FFFFFF' : '#F8FAFC',
+			fill: index % 2 === 0 ? CARD_FRAME.background : CARD_FRAME.mutedBackground,
 			textSize: BODY_SIZE - 1,
 			paddingX: 16,
 			paddingY: 8,
@@ -1747,6 +1810,8 @@ function drawPasMicroSection(page, fonts, x, yTop, width, summary) {
 		+ discountSize
 		+ CARD_FRAME.displayGap
 		+ highlightHeight;
+	const palette = PAS_COLORS.micro;
+	const highlightPalette = PAS_COLORS.macro;
 	const cardBottom = drawCardContainer(page, {
 		x,
 		yTop,
@@ -1782,10 +1847,10 @@ function drawPasMicroSection(page, fonts, x, yTop, width, summary) {
 	let currentTop = headerTop;
 	currentTop -= PAS_TABLE.headerHeight;
 	drawPasRow(page, fonts, tableLeft, headerTop, PAS_TABLE.headerHeight, tableWidth, [
-		{ text: 'Tipo de erro', ratio: 0.7, font: fonts.bold, color: TEXT },
-		{ text: 'Ocorrências', ratio: 0.3, font: fonts.bold, color: '#BE185D', align: 'right' },
+		{ text: 'Tipo de erro', ratio: 0.7, font: fonts.bold, color: palette.strong },
+		{ text: 'Ocorrências', ratio: 0.3, font: fonts.bold, color: palette.title, align: 'right' },
 	], {
-		fill: '#FCE8F3',
+		fill: palette.pastel,
 		textSize: BODY_SIZE - 1,
 		paddingX: 16,
 		paddingY: 8,
@@ -1798,9 +1863,9 @@ function drawPasMicroSection(page, fonts, x, yTop, width, summary) {
 		currentTop -= PAS_TABLE.rowHeight;
 		drawPasRow(page, fonts, tableLeft, rowTop, PAS_TABLE.rowHeight, tableWidth, [
 			{ text: row.label, ratio: 0.7, font: fonts.regular, color: TEXT },
-			{ text: String(row.value), ratio: 0.3, font: fonts.bold, color: '#BE185D', align: 'right' },
+			{ text: String(row.value), ratio: 0.3, font: fonts.bold, color: palette.title, align: 'right' },
 		], {
-			fill: index % 2 === 0 ? '#FFFFFF' : '#FDF2F8',
+			fill: index % 2 === 0 ? CARD_FRAME.background : CARD_FRAME.mutedBackground,
 			textSize: BODY_SIZE - 1,
 			paddingX: 16,
 			paddingY: 8,
@@ -1830,8 +1895,8 @@ function drawPasMicroSection(page, fonts, x, yTop, width, summary) {
 		width: innerWidth,
 		height: highlightHeight,
 		radius: 12,
-		fill: colorFromHex('#FFFBEB'),
-		stroke: colorFromHex('#FCD34D'),
+		fill: colorFromHex(highlightPalette.pastel),
+		stroke: colorFromHex(highlightPalette.title),
 		strokeWidth: 1,
 	});
 	const nrLabel = `Nota final prevista (NR): ${summary.nr.toFixed(2)} / 10`;
@@ -1841,7 +1906,7 @@ function drawPasMicroSection(page, fonts, x, yTop, width, summary) {
 		y: nrLabelY,
 		size: BODY_SIZE,
 		font: fonts.bold,
-		color: colorFromHex('#B45309'),
+		color: colorFromHex(highlightPalette.strong),
 	});
 
 	return cardBottom - SPACING.section;
@@ -1991,8 +2056,8 @@ function drawEnemSummarySection(page, fonts, x, yTop, width, summary) {
 		width: innerWidth,
 		height: highlightHeight,
 		radius: ENEM_SUMMARY_CARD.rowRadius,
-		fill: colorFromHex('#FFFBEB'),
-		stroke: colorFromHex('#FCD34D'),
+		fill: colorFromHex(HEX.brandPastel),
+		stroke: colorFromHex(HEX.brand),
 		strokeWidth: 1,
 	});
 	const labelSize = SUMMARY_GRID.labelSize;
@@ -2003,16 +2068,16 @@ function drawEnemSummarySection(page, fonts, x, yTop, width, summary) {
 		y: labelY,
 		size: labelSize,
 		font: fonts.bold,
-		color: colorFromHex('#B45309'),
+		color: colorFromHex(HEX.brandDark),
 	});
-	const totalValue = `${Math.max(0, Math.round(summary.total || 0))} / 1000`;
+	const totalValue = `${formatEnemPoints(summary.total)} / 1000`;
 	const valueY = labelY - SUMMARY_GRID.valueGap - valueSize;
 	page.drawText(totalValue, {
 		x: innerX + SUMMARY_GRID.padX,
 		y: valueY,
 		size: valueSize,
 		font: fonts.bold,
-		color: colorFromHex('#0F172A'),
+		color: colorFromHex(TEXT),
 	});
 	cursor = highlightBottom;
 
@@ -2400,6 +2465,7 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 		studentInitials,
 		professorName: 'Professor Yago Sales',
 		brandMark: brandMarkImage,
+		railWidth: rightRailWidth,
 	});
 
 	const contentWidth = A4.width - MARGIN * 2;
@@ -2436,11 +2502,14 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 		pageNumber += 1;
 		const page = pdfDoc.addPage([A4.width, A4.height]);
 		page.drawRectangle({ x: 0, y: 0, width: A4.width, height: A4.height, color: colorFromHex(HEX.pageBg) });
-		const top = drawHeroHeader(heroArgs(page, fonts));
+		let contentTop = A4.height - MARGIN;
+		if (isFirst) {
+			contentTop = drawHeroHeader(heroArgs(page, fonts));
+		}
 		const railArea = {
 			x: railX,
 			width: rightRailWidth,
-			top,
+			top: contentTop,
 			bottom: MARGIN,
 		};
 		const title = pageNumber === 1
@@ -2454,9 +2523,10 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 			startIndex: commentsIndex,
 			title,
 		});
+		const initialCursor = isFirst ? contentTop : contentTop - SPACING.section;
 		return {
 			page,
-			cursor: top,
+			cursor: initialCursor,
 			bottom: MARGIN,
 		};
 	};
