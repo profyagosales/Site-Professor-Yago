@@ -84,18 +84,33 @@ const DOCUMENT_PREVIEW = {
 	subtitleSize: BODY_SIZE - 1,
 };
 
+const CARD_FRAME = {
+	radius: 18,
+	paddingX: 18,
+	paddingY: 18,
+	border: '#E2E8F0',
+	background: '#FFFFFF',
+	mutedBackground: '#F8FAFC',
+	gap: 14,
+	headerGap: 10,
+	displayGap: 8,
+	dividerColor: '#E2E8F0',
+	shadowOpacity: 0.08,
+};
+
 const ANNUL_CARD = {
-	padding: 12,
+	padding: CARD_FRAME.paddingX,
 	titleSize: 12,
 	textSize: 9,
-	optionGap: 6,
-	lineSpacing: 2,
-	headingGap: 4,
-	sectionGap: 4,
-	checkboxSize: 9,
-	checkboxGap: 8,
-	badgeHeight: 16,
-	radius: 16,
+	optionGap: 8,
+	lineSpacing: 3,
+	headingGap: 6,
+	sectionGap: 8,
+	checkboxSize: 10,
+	checkboxGap: 10,
+	badgeHeight: 18,
+	radius: CARD_FRAME.radius,
+	border: CARD_FRAME.border,
 };
 
 const SUMMARY_GRID = {
@@ -311,6 +326,44 @@ function drawRoundedRect(page, {
 		borderWidth: strokeWidth || undefined,
 		opacity,
 	});
+}
+
+function drawCardContainer(page, {
+	x,
+	yTop,
+	width,
+	height,
+	radius = CARD_FRAME.radius,
+	fill = CARD_FRAME.background,
+	stroke = CARD_FRAME.border,
+	strokeWidth = 1,
+	shadowOffset = 1.5,
+	shadowOpacity = CARD_FRAME.shadowOpacity,
+	shadowColor = '#0F172A',
+}) {
+	const bottom = yTop - height;
+	if (shadowOpacity > 0) {
+		drawRoundedRect(page, {
+			x: x + shadowOffset,
+			y: bottom - shadowOffset,
+			width,
+			height,
+			radius,
+			fill: colorFromHex(shadowColor),
+			opacity: shadowOpacity,
+		});
+	}
+	drawRoundedRect(page, {
+		x,
+		y: bottom,
+		width,
+		height,
+		radius,
+		fill: colorFromHex(fill),
+		stroke: stroke ? colorFromHex(stroke) : undefined,
+		strokeWidth: stroke ? strokeWidth : 0,
+	});
+	return bottom;
 }
 
 function fetchRemoteBytes(url) {
@@ -1571,181 +1624,342 @@ function drawTextSimple(page, text, x, y, size, font, colorHex = TEXT) {
 }
 
 function drawPasSummarySection(page, fonts, x, yTop, width, summary) {
+	if (!summary) return yTop;
 	const cards = [
 		{ label: 'Total de linhas', value: summary.tl, decimals: 0 },
 		{ label: 'Nota de conteúdo', value: summary.nc, decimals: 2 },
 		{ label: 'Número de erros', value: summary.totalErros, decimals: 0 },
-		{ label: 'Nota final prevista', value: summary.nr, decimals: 2, highlight: true },
+		{ label: 'Nota final prevista (NR)', value: summary.nr, decimals: 2, highlight: true },
 	];
-	let cursor = yTop;
-	drawTextSimple(page, 'Resumo do espelho', x, cursor, BODY_SIZE, fonts.bold, TEXT);
-	cursor -= BODY_SIZE + SPACING.title;
-
+	const subtitleSize = BODY_SIZE - 1;
 	const columns = SUMMARY_GRID.columns;
-	const cardWidth = columns > 1 ? (width - SUMMARY_GRID.gapX) / columns : width;
-	const cardHeight = SUMMARY_GRID.cardHeight;
-	const labelSize = SUMMARY_GRID.labelSize;
-	const valueSize = SUMMARY_GRID.valueSize;
+	const innerWidth = width - CARD_FRAME.paddingX * 2;
+	const cardWidth = columns > 1
+		? (innerWidth - (columns - 1) * SUMMARY_GRID.gapX) / columns
+		: innerWidth;
+	const rows = Math.ceil(cards.length / columns);
+	const gridHeight = rows * SUMMARY_GRID.cardHeight + Math.max(0, rows - 1) * SUMMARY_GRID.gapY;
+	const headerHeight = TITLE_SIZE + CARD_FRAME.headerGap + subtitleSize + CARD_FRAME.displayGap;
+	const cardHeight = CARD_FRAME.paddingY * 2 + headerHeight + gridHeight;
+	const cardBottom = drawCardContainer(page, {
+		x,
+		yTop,
+		width,
+		height: cardHeight,
+	});
+	const innerX = x + CARD_FRAME.paddingX;
+	let cursor = yTop - CARD_FRAME.paddingY;
 
+	cursor -= TITLE_SIZE;
+	page.drawText('Resumo do espelho — PAS', {
+		x: innerX,
+		y: cursor,
+		size: TITLE_SIZE,
+		font: fonts.bold,
+		color: colorFromHex(TEXT),
+	});
+	cursor -= CARD_FRAME.headerGap;
+
+	cursor -= subtitleSize;
+	page.drawText('Indicadores consolidados do desempenho.', {
+		x: innerX,
+		y: cursor,
+		size: subtitleSize,
+		font: fonts.regular,
+		color: colorFromHex(TEXT_SUBTLE),
+	});
+	cursor -= CARD_FRAME.displayGap;
+
+	const gridTop = cursor;
 	cards.forEach((card, index) => {
-		const col = index % columns;
 		const row = Math.floor(index / columns);
-		const cardX = x + col * (cardWidth + SUMMARY_GRID.gapX);
-		const cardTop = cursor - row * (cardHeight + SUMMARY_GRID.gapY);
+		const col = index % columns;
+		const cardX = innerX + col * (cardWidth + SUMMARY_GRID.gapX);
+		const cardTop = gridTop - row * (SUMMARY_GRID.cardHeight + SUMMARY_GRID.gapY);
 		const fillHex = card.highlight ? '#FFF7ED' : '#FFFFFF';
-		const strokeHex = card.highlight ? '#FDBA74' : '#E6E8EB';
+		const borderHex = card.highlight ? '#FDBA74' : CARD_FRAME.border;
 		drawRoundedRect(page, {
 			x: cardX,
-			y: cardTop - cardHeight,
+			y: cardTop - SUMMARY_GRID.cardHeight,
 			width: cardWidth,
-			height: cardHeight,
+			height: SUMMARY_GRID.cardHeight,
 			radius: 12,
 			fill: colorFromHex(fillHex),
-			stroke: colorFromHex(strokeHex),
+			stroke: colorFromHex(borderHex),
 			strokeWidth: 1,
 		});
 
-		const labelY = cardTop - SUMMARY_GRID.padY - labelSize;
+		const labelY = cardTop - SUMMARY_GRID.padY - SUMMARY_GRID.labelSize;
 		page.drawText(card.label, {
 			x: cardX + SUMMARY_GRID.padX,
 			y: labelY,
-			size: labelSize,
+			size: SUMMARY_GRID.labelSize,
 			font: fonts.regular,
-			color: colorFromHex('#6B7280'),
+			color: colorFromHex('#475569'),
 		});
 
 		const formatted = formatPasValue(card.value, card.decimals);
-		const valueY = labelY - SUMMARY_GRID.valueGap - valueSize;
+		const valueY = labelY - SUMMARY_GRID.valueGap - SUMMARY_GRID.valueSize;
 		page.drawText(formatted, {
 			x: cardX + SUMMARY_GRID.padX,
 			y: valueY,
-			size: valueSize,
+			size: SUMMARY_GRID.valueSize,
 			font: fonts.bold,
-			color: colorFromHex('#0F172A'),
+			color: colorFromHex(card.highlight ? '#B45309' : '#0F172A'),
 		});
 	});
 
-	const rows = Math.ceil(cards.length / columns);
-	const gridHeight = rows * cardHeight + Math.max(0, rows - 1) * SUMMARY_GRID.gapY;
-	cursor -= gridHeight + (rows > 0 ? SUMMARY_GRID.gapY : 0);
-	return cursor;
-}
-
-function drawPasSectionHeader(page, x, y, width, label, fonts, options = {}) {
-	const headerHeight = PAS_TABLE.headerHeight;
-	drawRoundedRect(page, {
-		x,
-		y: y - headerHeight,
-		width,
-		height: headerHeight,
-		radius: PAS_TABLE.radius,
-		fill: options.fill ? colorFromHex(options.fill) : colorFromHex('#F8FAFC'),
-		stroke: options.border ? colorFromHex(options.border) : colorFromHex('#E2E8F0'),
-		strokeWidth: 1,
-	});
-	page.drawText(label, {
-		x: x + CLASS_TABLE.paddingX,
-		y: y - BODY_SIZE,
-		size: BODY_SIZE,
-		font: fonts.bold,
-		color: colorFromHex(options.title || TEXT_SUBTLE),
-	});
-	return y - headerHeight;
+	return cardBottom - SPACING.section;
 }
 
 function drawPasMacroSection(page, fonts, x, yTop, width, summary) {
-	let cursor = yTop;
-	cursor = drawPasSectionHeader(page, x, cursor, width, 'ASPECTOS MACROESTRUTURAIS', fonts, {
-		fill: '#EBF2FF',
-		border: '#CBD5F5',
-		title: '#1D4ED8',
+	const rows = Array.isArray(summary?.macro) ? summary.macro : [];
+	if (!rows.length) return yTop;
+	const subtitleSize = BODY_SIZE - 1;
+	const innerWidth = width - CARD_FRAME.paddingX * 2;
+	const headerHeight = TITLE_SIZE + CARD_FRAME.headerGap + subtitleSize + CARD_FRAME.displayGap;
+	const tableHeight = PAS_TABLE.headerHeight
+		+ rows.length * PAS_TABLE.rowHeight
+		+ Math.max(0, rows.length - 1) * PAS_TABLE.rowGap;
+	const cardHeight = CARD_FRAME.paddingY * 2 + headerHeight + tableHeight;
+	const cardBottom = drawCardContainer(page, {
+		x,
+		yTop,
+		width,
+		height: cardHeight,
 	});
-	const rowHeight = PAS_TABLE.rowHeight;
-	summary.macro.forEach((row) => {
-		const rowTop = cursor;
-		cursor -= rowHeight;
-		drawPasRow(page, fonts, x, rowTop, rowHeight, width, [
-			{ text: row.label, ratio: 0.6, font: fonts.regular, color: TEXT },
-			{ text: `0,00 – ${row.max.toFixed(2)}`, ratio: 0.2, font: fonts.regular, color: '#1D4ED8', align: 'center' },
-			{ text: `${row.value.toFixed(2)} / ${row.max.toFixed(2)}`, ratio: 0.2, font: fonts.bold, color: TEXT, align: 'right' },
-		]);
-		cursor -= PAS_TABLE.rowGap;
+	const innerX = x + CARD_FRAME.paddingX;
+	let cursor = yTop - CARD_FRAME.paddingY;
+
+	cursor -= TITLE_SIZE;
+	page.drawText('Aspectos macroestruturais', {
+		x: innerX,
+		y: cursor,
+		size: TITLE_SIZE,
+		font: fonts.bold,
+		color: colorFromHex(TEXT),
 	});
-	return cursor;
+	cursor -= CARD_FRAME.headerGap;
+
+	cursor -= subtitleSize;
+	page.drawText('Critérios avaliados e respectivas notas.', {
+		x: innerX,
+		y: cursor,
+		size: subtitleSize,
+		font: fonts.regular,
+		color: colorFromHex(TEXT_SUBTLE),
+	});
+	cursor -= CARD_FRAME.displayGap;
+
+	const tableLeft = innerX;
+	const tableWidth = innerWidth;
+	let rowTop = cursor;
+	const headerTop = rowTop;
+	rowTop -= PAS_TABLE.headerHeight;
+	drawPasRow(page, fonts, tableLeft, headerTop, PAS_TABLE.headerHeight, tableWidth, [
+		{ text: 'Critério', ratio: 0.5, font: fonts.bold, color: TEXT },
+		{ text: 'Faixa esperada', ratio: 0.25, font: fonts.bold, color: TEXT_SUBTLE, align: 'center' },
+		{ text: 'Nota obtida', ratio: 0.25, font: fonts.bold, color: TEXT, align: 'right' },
+	], {
+		fill: '#F1F5F9',
+		textSize: BODY_SIZE - 1,
+		paddingX: 16,
+		paddingY: 8,
+		radius: 12,
+	});
+	rowTop -= PAS_TABLE.rowGap;
+
+	rows.forEach((row, index) => {
+		const currentTop = rowTop;
+		rowTop -= PAS_TABLE.rowHeight;
+		drawPasRow(page, fonts, tableLeft, currentTop, PAS_TABLE.rowHeight, tableWidth, [
+			{ text: row.label, ratio: 0.5, font: fonts.regular, color: TEXT },
+			{ text: `0,00 – ${row.max.toFixed(2)}`, ratio: 0.25, font: fonts.regular, color: '#1D4ED8', align: 'center' },
+			{ text: `${row.value.toFixed(2)} / ${row.max.toFixed(2)}`, ratio: 0.25, font: fonts.bold, color: TEXT, align: 'right' },
+		], {
+			fill: index % 2 === 0 ? '#FFFFFF' : '#F8FAFC',
+			textSize: BODY_SIZE - 1,
+			paddingX: 16,
+			paddingY: 8,
+			radius: 10,
+		});
+		if (index < rows.length - 1) rowTop -= PAS_TABLE.rowGap;
+	});
+
+	return cardBottom - SPACING.section;
 }
 
 function drawPasMicroSection(page, fonts, x, yTop, width, summary) {
-	let cursor = yTop;
-	cursor = drawPasSectionHeader(page, x, cursor, width, 'ASPECTOS MICROESTRUTURAIS (ERROS)', fonts, {
-		fill: '#FEF2F7',
-		border: '#FCC5DB',
-		title: '#BE185D',
+	const rows = Array.isArray(summary?.micro) ? summary.micro : [];
+	if (!rows.length) return yTop;
+	const subtitleSize = BODY_SIZE - 1;
+	const discountSize = BODY_SIZE - 1;
+	const highlightHeight = BODY_SIZE + 12;
+	const innerWidth = width - CARD_FRAME.paddingX * 2;
+	const headerHeight = TITLE_SIZE + CARD_FRAME.headerGap + subtitleSize + CARD_FRAME.displayGap;
+	const tableHeight = PAS_TABLE.headerHeight
+		+ rows.length * PAS_TABLE.rowHeight
+		+ Math.max(0, rows.length - 1) * PAS_TABLE.rowGap;
+	const cardHeight = CARD_FRAME.paddingY * 2
+		+ headerHeight
+		+ tableHeight
+		+ CARD_FRAME.displayGap
+		+ discountSize
+		+ CARD_FRAME.displayGap
+		+ highlightHeight;
+	const cardBottom = drawCardContainer(page, {
+		x,
+		yTop,
+		width,
+		height: cardHeight,
 	});
-	const rowHeight = PAS_TABLE.rowHeight;
-	summary.micro.forEach((row) => {
-		const rowTop = cursor;
-		cursor -= rowHeight;
-		drawPasRow(page, fonts, x, rowTop, rowHeight, width, [
+	const innerX = x + CARD_FRAME.paddingX;
+	let cursor = yTop - CARD_FRAME.paddingY;
+
+	cursor -= TITLE_SIZE;
+	page.drawText('Aspectos microestruturais (erros)', {
+		x: innerX,
+		y: cursor,
+		size: TITLE_SIZE,
+		font: fonts.bold,
+		color: colorFromHex(TEXT),
+	});
+	cursor -= CARD_FRAME.headerGap;
+
+	cursor -= subtitleSize;
+	page.drawText('Erros identificados e descontos aplicados.', {
+		x: innerX,
+		y: cursor,
+		size: subtitleSize,
+		font: fonts.regular,
+		color: colorFromHex(TEXT_SUBTLE),
+	});
+	cursor -= CARD_FRAME.displayGap;
+
+	const tableLeft = innerX;
+	const tableWidth = innerWidth;
+	let headerTop = cursor;
+	let currentTop = headerTop;
+	currentTop -= PAS_TABLE.headerHeight;
+	drawPasRow(page, fonts, tableLeft, headerTop, PAS_TABLE.headerHeight, tableWidth, [
+		{ text: 'Tipo de erro', ratio: 0.7, font: fonts.bold, color: TEXT },
+		{ text: 'Ocorrências', ratio: 0.3, font: fonts.bold, color: '#BE185D', align: 'right' },
+	], {
+		fill: '#FCE8F3',
+		textSize: BODY_SIZE - 1,
+		paddingX: 16,
+		paddingY: 8,
+		radius: 12,
+	});
+	currentTop -= PAS_TABLE.rowGap;
+
+	rows.forEach((row, index) => {
+		const rowTop = currentTop;
+		currentTop -= PAS_TABLE.rowHeight;
+		drawPasRow(page, fonts, tableLeft, rowTop, PAS_TABLE.rowHeight, tableWidth, [
 			{ text: row.label, ratio: 0.7, font: fonts.regular, color: TEXT },
 			{ text: String(row.value), ratio: 0.3, font: fonts.bold, color: '#BE185D', align: 'right' },
-		]);
-		cursor -= PAS_TABLE.rowGap;
+		], {
+			fill: index % 2 === 0 ? '#FFFFFF' : '#FDF2F8',
+			textSize: BODY_SIZE - 1,
+			paddingX: 16,
+			paddingY: 8,
+			radius: 10,
+		});
+		if (index < rows.length - 1) currentTop -= PAS_TABLE.rowGap;
 	});
 
-	cursor -= BODY_SIZE + PAS_FOOTER.topGap;
-	const discountLabel = summary.discount ? `Desconto por erro: ${summary.discount.toFixed(3)} pt(s)` : 'Desconto por erro: —';
-	drawTextSimple(page, discountLabel, x, cursor, BODY_SIZE - 1, fonts.regular, TEXT_SUBTLE);
-	cursor -= BODY_SIZE + PAS_FOOTER.middleGap;
+	let footerCursor = currentTop - CARD_FRAME.displayGap;
+	const discountLabel = summary.discount
+		? `Desconto por erro: ${summary.discount.toFixed(3)} ponto(s)`
+		: 'Desconto por erro: —';
+	footerCursor -= discountSize;
+	page.drawText(discountLabel, {
+		x: innerX,
+		y: footerCursor,
+		size: discountSize,
+		font: fonts.regular,
+		color: colorFromHex(TEXT_SUBTLE),
+	});
+
+	footerCursor -= CARD_FRAME.displayGap;
+	const highlightBottom = footerCursor - highlightHeight;
+	drawRoundedRect(page, {
+		x: innerX,
+		y: highlightBottom,
+		width: innerWidth,
+		height: highlightHeight,
+		radius: 12,
+		fill: colorFromHex('#FFFBEB'),
+		stroke: colorFromHex('#FCD34D'),
+		strokeWidth: 1,
+	});
 	const nrLabel = `Nota final prevista (NR): ${summary.nr.toFixed(2)} / 10`;
-	drawTextSimple(page, nrLabel, x, cursor, BODY_SIZE, fonts.bold, TEXT);
-	cursor -= BODY_SIZE + PAS_FOOTER.bottomGap;
-	return cursor;
+	const nrLabelY = highlightBottom + (highlightHeight - BODY_SIZE) / 2;
+	page.drawText(nrLabel, {
+		x: innerX + 12,
+		y: nrLabelY,
+		size: BODY_SIZE,
+		font: fonts.bold,
+		color: colorFromHex('#B45309'),
+	});
+
+	return cardBottom - SPACING.section;
 }
 
-function drawPasRow(page, fonts, x, yTop, height, width, cells) {
-	const rowHeight = height;
-	const bottom = yTop - rowHeight;
+function drawPasRow(page, fonts, x, yTop, height, width, cells, options = {}) {
+	const {
+		fill = '#FFFFFF',
+		border = CARD_FRAME.border,
+		strokeWidth = 1,
+		radius = PAS_TABLE.radius,
+		textSize = BODY_SIZE - 1,
+		paddingX = 12,
+		paddingY = 8,
+	} = options;
+	const bottom = yTop - height;
 	drawRoundedRect(page, {
 		x,
 		y: bottom,
 		width,
-		height: rowHeight,
-		radius: PAS_TABLE.radius,
-		fill: colorFromHex('#FFFFFF'),
-		stroke: colorFromHex('#E2E8F0'),
-		strokeWidth: 1,
+		height,
+		radius,
+		fill: colorFromHex(fill),
+		stroke: border ? colorFromHex(border) : undefined,
+		strokeWidth: border ? strokeWidth : 0,
 	});
 	let offset = x;
 	cells.forEach((cell) => {
-		const cellWidth = width * cell.ratio;
-		const textX = offset + CLASS_TABLE.paddingX;
-		const textY = bottom + (rowHeight - (BODY_SIZE - 1)) / 2;
+		const cellRatio = cell.ratio != null ? cell.ratio : 1 / cells.length;
+		const cellWidth = width * cellRatio;
 		const align = cell.align || 'left';
 		const font = cell.font || fonts.regular;
 		const color = cell.color || TEXT;
+		const innerHeight = Math.max(textSize, height - paddingY * 2);
+		const textY = bottom + paddingY + (innerHeight - textSize) / 2;
 		if (align === 'right') {
-			const labelWidth = font.widthOfTextAtSize(cell.text, BODY_SIZE - 1);
+			const labelWidth = font.widthOfTextAtSize(cell.text, textSize);
 			page.drawText(cell.text, {
-				x: offset + cellWidth - 12 - labelWidth,
+				x: offset + cellWidth - paddingX - labelWidth,
 				y: textY,
-				size: BODY_SIZE - 1,
+				size: textSize,
 				font,
 				color: colorFromHex(color),
 			});
 		} else if (align === 'center') {
-			const labelWidth = font.widthOfTextAtSize(cell.text, BODY_SIZE - 1);
+			const labelWidth = font.widthOfTextAtSize(cell.text, textSize);
 			page.drawText(cell.text, {
 				x: offset + (cellWidth - labelWidth) / 2,
 				y: textY,
-				size: BODY_SIZE - 1,
+				size: textSize,
 				font,
 				color: colorFromHex(color),
 			});
 		} else {
 			page.drawText(cell.text, {
-				x: textX,
+				x: offset + paddingX,
 				y: textY,
-				size: BODY_SIZE - 1,
+				size: textSize,
 				font,
 				color: colorFromHex(color),
 			});
@@ -1762,64 +1976,112 @@ function formatPasValue(value, decimals = 0) {
 
 function calculatePasSummaryHeight(summary) {
 	if (!summary) return 0;
-	const rows = Math.ceil(4 / SUMMARY_GRID.columns);
+	const columns = SUMMARY_GRID.columns;
+	const cardsCount = 4;
+	const rows = Math.ceil(cardsCount / columns);
 	const gridHeight = rows * SUMMARY_GRID.cardHeight + Math.max(0, rows - 1) * SUMMARY_GRID.gapY;
-	return BODY_SIZE + SPACING.title + gridHeight + (rows > 0 ? SUMMARY_GRID.gapY : 0);
+	const headerHeight = TITLE_SIZE + CARD_FRAME.headerGap + (BODY_SIZE - 1) + CARD_FRAME.displayGap;
+	return CARD_FRAME.paddingY * 2 + headerHeight + gridHeight + SPACING.section;
 }
 
 function calculatePasMacroHeight(summary) {
-	if (!summary) return 0;
-	const rows = summary.macro.length;
-	return PAS_TABLE.headerHeight + rows * (PAS_TABLE.rowHeight + PAS_TABLE.rowGap);
+	const rows = Array.isArray(summary?.macro) ? summary.macro.length : 0;
+	if (!rows) return 0;
+	const headerHeight = TITLE_SIZE + CARD_FRAME.headerGap + (BODY_SIZE - 1) + CARD_FRAME.displayGap;
+	const tableHeight = PAS_TABLE.headerHeight
+		+ rows * PAS_TABLE.rowHeight
+		+ Math.max(0, rows - 1) * PAS_TABLE.rowGap;
+	return CARD_FRAME.paddingY * 2 + headerHeight + tableHeight + SPACING.section;
 }
 
 function calculatePasMicroHeight(summary) {
-	if (!summary) return 0;
-	const rows = summary.micro.length;
-	const footer = 3 * BODY_SIZE + PAS_FOOTER.topGap + PAS_FOOTER.middleGap + PAS_FOOTER.bottomGap;
-	return PAS_TABLE.headerHeight + rows * (PAS_TABLE.rowHeight + PAS_TABLE.rowGap) + footer;
+	const rows = Array.isArray(summary?.micro) ? summary.micro.length : 0;
+	if (!rows) return 0;
+	const discountSize = BODY_SIZE - 1;
+	const highlightHeight = BODY_SIZE + 12;
+	const headerHeight = TITLE_SIZE + CARD_FRAME.headerGap + (BODY_SIZE - 1) + CARD_FRAME.displayGap;
+	const tableHeight = PAS_TABLE.headerHeight
+		+ rows * PAS_TABLE.rowHeight
+		+ Math.max(0, rows - 1) * PAS_TABLE.rowGap;
+	return CARD_FRAME.paddingY * 2
+		+ headerHeight
+		+ tableHeight
+		+ CARD_FRAME.displayGap
+		+ discountSize
+		+ CARD_FRAME.displayGap
+		+ highlightHeight
+		+ SPACING.section;
 }
 
 function drawEnemSummarySection(page, fonts, x, yTop, width, totalPoints) {
-	let cursor = yTop;
-	drawTextSimple(page, 'Resumo do espelho', x, cursor, BODY_SIZE, fonts.bold, TEXT);
-	cursor -= BODY_SIZE + SPACING.title;
-	const cardHeight = SUMMARY_GRID.cardHeight;
-	drawRoundedRect(page, {
+	const subtitleSize = BODY_SIZE - 1;
+	const innerWidth = width - CARD_FRAME.paddingX * 2;
+	const headerHeight = TITLE_SIZE + CARD_FRAME.headerGap + subtitleSize + CARD_FRAME.displayGap;
+	const cardHeight = CARD_FRAME.paddingY * 2 + headerHeight + SUMMARY_GRID.cardHeight;
+	const cardBottom = drawCardContainer(page, {
 		x,
-		y: cursor - cardHeight,
+		yTop,
 		width,
 		height: cardHeight,
+	});
+	const innerX = x + CARD_FRAME.paddingX;
+	let cursor = yTop - CARD_FRAME.paddingY;
+
+	cursor -= TITLE_SIZE;
+	page.drawText('Resumo do espelho — ENEM', {
+		x: innerX,
+		y: cursor,
+		size: TITLE_SIZE,
+		font: fonts.bold,
+		color: colorFromHex(TEXT),
+	});
+	cursor -= CARD_FRAME.headerGap;
+
+	cursor -= subtitleSize;
+	page.drawText('Pontuação total consolidada da avaliação.', {
+		x: innerX,
+		y: cursor,
+		size: subtitleSize,
+		font: fonts.regular,
+		color: colorFromHex(TEXT_SUBTLE),
+	});
+	cursor -= CARD_FRAME.displayGap;
+
+	const highlightTop = cursor;
+	drawRoundedRect(page, {
+		x: innerX,
+		y: highlightTop - SUMMARY_GRID.cardHeight,
+		width: innerWidth,
+		height: SUMMARY_GRID.cardHeight,
 		radius: 12,
-		fill: colorFromHex('#FFF7ED'),
-		stroke: colorFromHex('#FDBA74'),
+		fill: colorFromHex('#FFFBEB'),
+		stroke: colorFromHex('#FCD34D'),
 		strokeWidth: 1,
 	});
-	const labelSize = SUMMARY_GRID.labelSize;
-	const valueSize = SUMMARY_GRID.valueSize + 2;
-	const padX = SUMMARY_GRID.padX;
-	const padY = SUMMARY_GRID.padY - 2;
 	page.drawText('TOTAL ENEM', {
-		x: x + padX,
-		y: cursor - padY - labelSize,
-		size: labelSize,
+		x: innerX + SUMMARY_GRID.padX,
+		y: highlightTop - SUMMARY_GRID.padY - SUMMARY_GRID.labelSize,
+		size: SUMMARY_GRID.labelSize,
 		font: fonts.bold,
-		color: colorFromHex('#EA580C'),
+		color: colorFromHex('#B45309'),
 	});
-	const valueText = `${Math.max(0, Math.round(totalPoints || 0))} / 1000`;
-	page.drawText(valueText, {
-		x: x + padX,
-		y: cursor - padY - labelSize - 6 - valueSize,
-		size: valueSize,
+	const totalValue = `${Math.max(0, Math.round(totalPoints || 0))} / 1000`;
+	page.drawText(totalValue, {
+		x: innerX + SUMMARY_GRID.padX,
+		y: highlightTop - SUMMARY_GRID.padY - SUMMARY_GRID.labelSize - SUMMARY_GRID.valueGap - SUMMARY_GRID.valueSize,
+		size: SUMMARY_GRID.valueSize + 2,
 		font: fonts.bold,
 		color: colorFromHex('#0F172A'),
 	});
-	cursor -= cardHeight + 12;
-	return cursor;
+
+	return cardBottom - SPACING.section;
 }
 
 function calculateEnemSummaryHeight() {
-	return BODY_SIZE + SPACING.title + SUMMARY_GRID.cardHeight + SUMMARY_GRID.gapY;
+	const subtitleSize = BODY_SIZE - 1;
+	const headerHeight = TITLE_SIZE + CARD_FRAME.headerGap + subtitleSize + CARD_FRAME.displayGap;
+	const cardHeight = CARD_FRAME.paddingY * 2 + headerHeight + SUMMARY_GRID.cardHeight;
+	return cardHeight + SPACING.section;
 }
 
 function buildAnnulmentLayout(fonts, width, score) {
@@ -2232,7 +2494,7 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 		mainX,
 		currentPage.cursor,
 		mainColumnWidth,
-		enessay,
+		essay,
 		firstPageAnnotations,
 	);
 	applyGap(SPACING.block);
