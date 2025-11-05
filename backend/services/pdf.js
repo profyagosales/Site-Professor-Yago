@@ -553,31 +553,36 @@ function drawHeroHeader({
 }) {
 	const pageHeight = page.getHeight();
 	const cardWidth = A4.width - MARGIN * 2;
-	const card = {
+	const cardHeight = HERO.height;
+	const cardTop = pageHeight - MARGIN;
+	const cardBottom = drawCardContainer(page, {
 		x: MARGIN,
-		y: pageHeight - MARGIN - HERO.height,
+		yTop: cardTop,
 		width: cardWidth,
-		height: HERO.height,
-	};
-
-	drawRoundedRect(page, {
-		x: card.x,
-		y: card.y,
-		width: card.width,
-		height: card.height,
+		height: cardHeight,
 		radius: HERO.radius,
-		fill: colorFromHex(HEX.brand),
+	});
+	const cardX = MARGIN;
+
+	const accentWidth = Math.min(140, cardWidth * 0.24);
+	drawRoundedRect(page, {
+		x: cardX,
+		y: cardBottom,
+		width: accentWidth,
+		height: cardHeight,
+		radius: HERO.radius,
+		fill: colorFromHex(HEX.brandPastel),
 	});
 
-	const brandX = card.x + HERO.padX;
-	const brandY = card.y + (card.height - BRAND.ICON) / 2;
+	const brandX = cardX + HERO.padX;
+	const brandY = cardBottom + (cardHeight - BRAND.ICON) / 2;
 	drawRoundedRect(page, {
 		x: brandX,
 		y: brandY,
 		width: BRAND.ICON,
 		height: BRAND.ICON,
 		radius: BRAND.ICON / 2,
-		fill: colorFromHex(HEX.background),
+		fill: colorFromHex(HEX.brand),
 	});
 
 	if (brandMark) {
@@ -596,19 +601,11 @@ function drawHeroHeader({
 			y: brandY + (BRAND.ICON - brandFontSize) / 2,
 			size: brandFontSize,
 			font: fonts.bold,
-			color: colorFromHex(HEX.brandDark),
+			color: colorFromHex('#FFFFFF'),
 		});
 	}
 
-	page.drawText(professorName || 'Professor Yago Sales', {
-		x: brandX,
-		y: card.y + HERO.padY,
-		size: PDF_FONT.sm,
-		font: fonts.bold,
-		color: colorFromHex(HEX.textInverted),
-	});
-
-	const scoreX = card.x + card.width - SCORE_CARD.width - HERO.padX;
+	const scoreX = cardX + cardWidth - SCORE_CARD.width - HERO.padX;
 	const centerStart = brandX + BRAND.ICON + HERO.gap;
 	const centerWidth = Math.max(0, scoreX - centerStart - HERO.gap);
 	const canShowAvatar = Boolean(avatarImage) && centerWidth > AVATAR.size + 60;
@@ -619,14 +616,14 @@ function drawHeroHeader({
 
 	if (canShowAvatar && avatarImage) {
 		const avatarX = centerStart;
-		const avatarY = card.y + (card.height - AVATAR.size) / 2;
+		const avatarY = cardBottom + (cardHeight - AVATAR.size) / 2;
 		drawRoundedRect(page, {
 			x: avatarX,
 			y: avatarY,
 			width: AVATAR.size,
 			height: AVATAR.size,
 			radius: AVATAR.size / 2,
-			fill: colorFromHex(HEX.heroAccent),
+			fill: blendHex(HEX.brand, '#FFFFFF', 0.2),
 		});
 		page.drawImage(avatarImage, {
 			x: avatarX + 2,
@@ -637,14 +634,14 @@ function drawHeroHeader({
 	} else {
 		const placeholderSize = AVATAR.size;
 		const placeholderX = centerStart;
-		const placeholderY = card.y + (card.height - placeholderSize) / 2;
+		const placeholderY = cardBottom + (cardHeight - placeholderSize) / 2;
 		drawRoundedRect(page, {
 			x: placeholderX,
 			y: placeholderY,
 			width: placeholderSize,
 			height: placeholderSize,
 			radius: placeholderSize / 2,
-			fill: blendHex(HEX.brand, HEX.brandPastel, 0.35),
+			fill: blendHex(HEX.brand, '#FFFFFF', 0.65),
 		});
 		const initialsWidth = fonts.bold.widthOfTextAtSize(studentInitials || 'A', 11);
 		page.drawText(studentInitials || 'A', {
@@ -656,17 +653,26 @@ function drawHeroHeader({
 		});
 	}
 
+	const headerLabelY = cardTop - HERO.padY - PDF_FONT.sm;
+	page.drawText(professorName || 'Professor Yago Sales', {
+		x: textStart,
+		y: headerLabelY,
+		size: PDF_FONT.sm,
+		font: fonts.bold,
+		color: colorFromHex(TEXT_SUBTLE),
+	});
+
 	const displayName = ellipsize(studentName || 'Aluno', 42);
-	const nameY = card.y + card.height - HERO.padY - PDF_FONT.lg;
+	const nameY = headerLabelY - 6 - PDF_FONT.lg;
 	page.drawText(displayName, {
 		x: textStart,
 		y: nameY,
 		size: PDF_FONT.lg,
 		font: fonts.bold,
-		color: colorFromHex(HEX.textInverted),
+		color: colorFromHex(TEXT),
 	});
 
-	let textCursor = nameY - (PDF_FONT.md + 4);
+	let textCursor = nameY - (PDF_FONT.md + 6);
 	if (heroMeta) {
 		const metaLines = wrapText(heroMeta, fonts.regular, PDF_FONT.sm, textMaxWidth);
 		metaLines.forEach((line) => {
@@ -675,7 +681,7 @@ function drawHeroHeader({
 				y: textCursor,
 				size: PDF_FONT.sm,
 				font: fonts.regular,
-				color: colorFromHex(HEX.textInverted),
+				color: colorFromHex(TEXT_SUBTLE),
 			});
 			textCursor -= PDF_FONT.sm + 4;
 		});
@@ -688,7 +694,7 @@ function drawHeroHeader({
 			y: textCursor,
 			size: PDF_FONT.sm,
 			font: fonts.regular,
-			color: colorFromHex(HEX.textInverted),
+			color: colorFromHex(TEXT_SUBTLE),
 		});
 		textCursor -= PDF_FONT.sm + 3;
 	});
@@ -696,7 +702,7 @@ function drawHeroHeader({
 	const totalLabel = modelLabel === 'PAS/UnB' ? 'TOTAL PAS' : 'TOTAL ENEM';
 	const valueText = finalScore || '--';
 	const suffixText = finalSuffix || (modelLabel === 'PAS/UnB' ? '/10' : '/1000');
-	const scoreY = card.y + (card.height - SCORE_CARD.height) / 2;
+	const scoreY = cardBottom + (cardHeight - SCORE_CARD.height) / 2;
 
 	drawRoundedRect(page, {
 		x: scoreX,
@@ -705,7 +711,7 @@ function drawHeroHeader({
 		height: SCORE_CARD.height,
 		radius: SCORE_CARD.radius,
 		fill: colorFromHex(HEX.brandPastel),
-		stroke: colorFromHex(HEX.heroAccent),
+		stroke: colorFromHex(HEX.brand),
 		strokeWidth: 1,
 	});
 
@@ -731,7 +737,7 @@ function drawHeroHeader({
 		y: valueY,
 		size: valueSize,
 		font: fonts.bold,
-		color: colorFromHex(HEX.text),
+		color: colorFromHex(HEX.brandDark),
 	});
 
 	page.drawText(suffixText, {
@@ -739,7 +745,7 @@ function drawHeroHeader({
 		y: valueY + (valueSize - suffixSize) / 2,
 		size: suffixSize,
 		font: fonts.bold,
-		color: colorFromHex(HEX.textMuted),
+		color: colorFromHex(TEXT_SUBTLE),
 	});
 
 	const modelUpper = (modelLabel || '-').toUpperCase();
@@ -749,20 +755,20 @@ function drawHeroHeader({
 		y: scoreY + SCORE_CARD.pad,
 		size: PDF_FONT.sm,
 		font: fonts.bold,
-		color: colorFromHex(HEX.textMuted),
+		color: colorFromHex(TEXT_SUBTLE),
 	});
 
 	if (deliveredAt) {
 		page.drawText(`Entregue em ${deliveredAt}`, {
-			x: card.x + HERO.padX,
-			y: card.y - 14,
+			x: textStart,
+			y: cardBottom + HERO.padY,
 			size: PDF_FONT.sm,
 			font: fonts.regular,
-			color: colorFromHex(HEX.textMuted),
+			color: colorFromHex(TEXT_SUBTLE),
 		});
 	}
 
-	return card.y - CONTENT_GAP;
+	return cardBottom - CONTENT_GAP;
 }
 
 
@@ -2421,8 +2427,10 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 	const startPage = (isFirst) => {
 		const page = pdfDoc.addPage([A4.width, A4.height]);
 		page.drawRectangle({ x: 0, y: 0, width: A4.width, height: A4.height, color: colorFromHex(HEX.pageBg) });
-		// Always draw the hero header on every page to mirror GradeWorkspace
-		const top = drawHeroHeader(heroArgs(page, fonts));
+		let top = A4.height - MARGIN;
+		if (isFirst) {
+			top = drawHeroHeader(heroArgs(page, fonts));
+		}
 
 		const railArea = {
 			x: railX,
@@ -2441,9 +2449,10 @@ async function generateCorrectedEssayPdf({ essay, annotations, score, student, c
 			startIndex: commentsIndex,
 			title,
 		});
+		const contentStart = isFirst ? top : top - SPACING.section;
 		return {
 			page,
-			cursor: top,
+			cursor: Math.max(contentStart, MARGIN),
 			bottom: MARGIN,
 		};
 	};
