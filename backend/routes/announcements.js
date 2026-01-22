@@ -179,4 +179,40 @@ router.get('/teacher/:teacherId', authRequired, listTeacherAnnouncements);
 router.get('/student/:studentId', authRequired, listStudentAnnouncements);
 router.delete('/:id', authRequired, ensureTeacher, deleteAnnouncement);
 
+// Endpoint proxy para fazer download de PDFs (evita CORS issues com Cloudinary)
+router.get('/attachment/proxy/:attachmentId', authRequired, async (req, res, next) => {
+  try {
+    const { attachmentId } = req.params;
+    const { url } = req.query;
+    
+    if (!url) {
+      return res.status(400).json({ success: false, message: 'URL ausente' });
+    }
+
+    // Validar que é uma URL válida
+    try {
+      new URL(url);
+    } catch (err) {
+      return res.status(400).json({ success: false, message: 'URL inválida' });
+    }
+
+    // Fazer proxy do request para o Cloudinary
+    const https = require('https');
+    https.get(url, { timeout: 30000 }, (proxyRes) => {
+      // Adicionar headers de CORS
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      res.setHeader('Content-Type', proxyRes.headers['content-type'] || 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${attachmentId}.pdf"`);
+      
+      proxyRes.pipe(res);
+    }).on('error', (err) => {
+      console.error('[Announcements] Erro ao fazer proxy de attachment:', err);
+      return res.status(500).json({ success: false, message: 'Erro ao carregar arquivo' });
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
 module.exports = router;

@@ -504,6 +504,74 @@ html, body, #root { height: 100%; background: var(--c-bg); }
     color: rgba(15, 23, 42, 0.75);
     font-variant-numeric: tabular-nums;
   }
+    /* Layout de coluna única para Divisão de Notas */
+    .grade-single-column {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      height: 100%;
+    }
+    .grade-single-column__header {
+      display: grid;
+      grid-template-columns: 1fr 100px;
+      align-items: center;
+      gap: 16px;
+      padding: 0 8px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: rgba(15, 23, 42, 0.6);
+      border-bottom: 2px solid rgba(15, 23, 42, 0.1);
+      padding-bottom: 12px;
+    }
+    .grade-single-column__header span:last-child {
+      text-align: right;
+    }
+    .grade-single-column__body {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 4px;
+      min-height: 0;
+    }
+    .grade-single-column__body::-webkit-scrollbar {
+      width: 6px;
+    }
+    .grade-single-column__body::-webkit-scrollbar-thumb {
+      background: #d1d5db;
+      border-radius: 9999px;
+    }
+    .grade-single-column__body:hover::-webkit-scrollbar-thumb {
+      background: #c0c4cc;
+    }
+    .grade-single-column__footer {
+      display: grid;
+      grid-template-columns: 1fr 100px;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 8px;
+      margin-top: auto;
+      border-top: 2px solid rgba(15, 23, 42, 0.1);
+      background: linear-gradient(135deg, rgba(251, 146, 60, 0.05) 0%, rgba(234, 122, 40, 0.05) 100%);
+      border-radius: 12px;
+    }
+    .grade-single-column__total-label {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(15, 23, 42, 0.8);
+    }
+    .grade-single-column__total-value {
+      text-align: right;
+      font-size: 16px;
+      font-weight: 700;
+      color: #ea7a28;
+      font-variant-numeric: tabular-nums;
+    }
   .dash-card .overflow-y-auto::-webkit-scrollbar {
     width: 6px;
   }

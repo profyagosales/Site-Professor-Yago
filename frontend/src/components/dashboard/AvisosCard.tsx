@@ -169,25 +169,32 @@ function AttachmentList({ attachments, className = '' }: AttachmentListProps) {
         }
         if (isPdf(attachment)) {
           const pdfUrl = attachment.url;
+          const attachmentId = attachment.name?.replace(/[^a-zA-Z0-9-_]/g, '') || 'documento';
+          
+          // Usar proxy via backend para evitar CORS issues
+          const proxyUrl = `/api/announcements/attachment/proxy/${attachmentId}?url=${encodeURIComponent(pdfUrl)}`;
+          
           const handleOpenPdf = (e) => {
+            e.stopPropagation();
             e.preventDefault();
             try {
-              // Tentar abrir em nova aba
-              const opened = window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+              // Tentar abrir em nova aba via proxy
+              const opened = window.open(proxyUrl, '_blank', 'noopener,noreferrer');
               if (!opened) {
                 throw new Error('Bloqueador de popup detectado');
               }
             } catch (err) {
               console.error('[AvisosCard] Erro ao abrir PDF:', err);
-              // Fallback: criar link e simular download
+              // Fallback: fazer download direto via proxy
               const link = document.createElement('a');
-              link.href = pdfUrl;
+              link.href = proxyUrl;
               link.download = attachment.name || 'documento.pdf';
-              link.target = '_blank';
-              link.rel = 'noopener noreferrer';
+              link.style.display = 'none';
               document.body.appendChild(link);
               link.click();
-              document.body.removeChild(link);
+              setTimeout(() => {
+                document.body.removeChild(link);
+              }, 100);
             }
           };
           return (
@@ -195,7 +202,12 @@ function AttachmentList({ attachments, className = '' }: AttachmentListProps) {
               key={attachment.url}
               type="button"
               onClick={handleOpenPdf}
-              className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  handleOpenPdf(e);
+                }
+              }}
+              className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 cursor-pointer"
             >
               <FiFileText aria-hidden="true" className="h-4 w-4" />
               {attachment.name || 'Ver PDF'}

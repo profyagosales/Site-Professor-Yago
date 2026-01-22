@@ -26,18 +26,7 @@ type Props = {
   className?: string;
 };
 
-function splitOddEven<T>(items: T[]) {
-  const left: T[] = [];
-  const right: T[] = [];
-  items.forEach((value, index) => {
-    if (index % 2 === 0) {
-      left.push(value);
-    } else {
-      right.push(value);
-    }
-  });
-  return { left, right };
-}
+
 
 export default function DivisaoNotasCard({
   ano,
@@ -138,7 +127,13 @@ export default function DivisaoNotasCard({
     return scheme.byBimester?.[selectedBimester]?.items ?? [];
   }, [scheme, selectedBimester]);
 
-  const { left: leftItems, right: rightItems } = useMemo(() => splitOddEven(itens), [itens]);
+  const totalPoints = useMemo(() => {
+    return itens.reduce((sum, item) => sum + (item.points ?? 0), 0);
+  }, [itens]);
+
+  const totalPointsFormatted = useMemo(() => formatPoints(totalPoints), [totalPoints]);
+
+  const { left: leftItems, right: rightItems } = useMemo(() => ({ left: itens, right: [] }), [itens]);
 
   const handleEdit = () => {
     if (!classId) return;
@@ -171,25 +166,17 @@ export default function DivisaoNotasCard({
     );
   } else {
     bodyContent = itens.length ? (
-      <div className="grade-columns-scroll">
-        <div className="grade-columns-container">
-          {[leftItems, rightItems].map((columnItems, index) => (
-            <div className="grade-column" key={`grade-column-${index}`}>
-              <div className="grade-column__header">
-                <span>Item</span>
-                <span className="text-right">Pontos</span>
-              </div>
-              <div className="grade-column__body">
-                {columnItems.length ? (
-                  columnItems.map((item) => <LinhaItem key={item.id} item={item} />)
-                ) : (
-                  <p className="grade-column__empty" aria-hidden="true">
-                    —
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
+      <div className="grade-single-column">
+        <div className="grade-single-column__header">
+          <span>Item</span>
+          <span>Pontos</span>
+        </div>
+        <div className="grade-single-column__body">
+          {itens.map((item) => <LinhaItem key={item.id} item={item} />)}
+        </div>
+        <div className="grade-single-column__footer">
+          <span className="grade-single-column__total-label">Total</span>
+          <span className="grade-single-column__total-value">{totalPointsFormatted} pts</span>
         </div>
       </div>
     ) : (
