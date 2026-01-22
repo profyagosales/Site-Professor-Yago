@@ -180,7 +180,8 @@ router.get('/student/:studentId', authRequired, listStudentAnnouncements);
 router.delete('/:id', authRequired, ensureTeacher, deleteAnnouncement);
 
 // Endpoint proxy para fazer download de PDFs (evita CORS issues com Cloudinary)
-router.get('/attachment/proxy/:attachmentId', authRequired, async (req, res, next) => {
+// Não requer auth para permitir abertura direta via window.open
+router.get('/attachment/proxy/:attachmentId', async (req, res, next) => {
   try {
     const { attachmentId } = req.params;
     const { url } = req.query;

@@ -98,6 +98,13 @@ export default function DivisaoNotasModal({
     [totals],
   );
 
+  const overLimitBimesters = useMemo(
+    () => BIMESTERS.filter((b) => totals[b] > 10.0001),
+    [totals],
+  );
+
+  const hasOverLimit = overLimitBimesters.length > 0;
+
   const updateItems = (bimester: Bimestre, recipe: (items: EditableItem[]) => EditableItem[]) => {
     setLocalScheme((prev) => {
       const current = prev.byBimester[bimester] ?? createEditableBimester(prev.classId, prev.year, bimester);
@@ -169,8 +176,9 @@ export default function DivisaoNotasModal({
       toast.error('Preencha o nome de todos os itens.');
       return;
     }
-    if (!allTotalsValid) {
-      toast.error('Cada bimestre deve somar exatamente 10,0 pontos.');
+    if (hasOverLimit) {
+      setInvalidBimester(overLimitBimesters[0]);
+      toast.error('Algum bimestre excede 10,0 pontos. Ajuste para salvar.');
       return;
     }
 
@@ -181,6 +189,9 @@ export default function DivisaoNotasModal({
       const saved = await saveGradeScheme(payload);
       setLocalScheme(createEditableScheme(saved, classId, ano));
       onSaved?.();
+      if (!allTotalsValid) {
+        toast.info('Salvo. Alguns bimestres ainda não somam 10 pts; ajuste depois se precisar.');
+      }
       onClose();
     } catch (error: any) {
       const status = error?.status;
@@ -237,15 +248,18 @@ export default function DivisaoNotasModal({
 
   return (
     <div className="modal-overlay">
-      <div className="modal max-h-[90vh]">
-        <header className="modal-header">
-          <h3>Configurar divisão de notas</h3>
+      <div className="modal w-full max-w-5xl max-h-[92vh] overflow-hidden">
+        <header className="modal-header sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/95 px-6 py-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Configurar divisão de notas</p>
+            <h3 className="text-lg font-semibold text-slate-900">Ajuste os itens por bimestre</h3>
+          </div>
           <button className="btn btn-outline" type="button" onClick={onClose}>
             Fechar
           </button>
         </header>
 
-        <div className="modal-body space-y-5" style={{ maxHeight: '70vh', overflowY: 'auto', paddingRight: '8px' }}>
+        <div className="modal-body space-y-5 px-6 py-4" style={{ maxHeight: '70vh', overflowY: 'auto', paddingRight: '8px' }}>
           <div className="rounded-2xl border border-slate-200 p-4">
             <div className="text-sm font-medium text-slate-700">Bimestre padrão no card</div>
             <p className="mt-1 text-xs text-slate-500">
@@ -315,10 +329,10 @@ export default function DivisaoNotasModal({
             </p>
           )}
 
-          <TotalsGrid totals={totals} invalid={invalidBimester} />
+          <TotalsGrid totals={totals} invalid={invalidBimester} overLimit={overLimitBimesters} />
         </div>
 
-        <footer className="modal-footer sticky bottom-0 left-0 right-0 flex justify-end gap-3 border-t border-slate-200 bg-white/95 p-4">
+        <footer className="modal-footer sticky bottom-0 left-0 right-0 flex justify-end gap-3 border-t border-slate-200 bg-white/95 px-6 py-4">
           <button className="btn btn-ghost" type="button" onClick={onClose}>
             Cancelar
           </button>
@@ -326,7 +340,7 @@ export default function DivisaoNotasModal({
             className="btn btn-primary"
             type="button"
             onClick={handleSave}
-            disabled={saving || !classId || !hasAllNames || !allTotalsValid}
+            disabled={saving || !classId || !hasAllNames || hasOverLimit}
           >
             {saving ? 'Salvando…' : 'Salvar'}
           </button>
@@ -471,18 +485,18 @@ function ItemRow({
   );
 }
 
-function TotalsGrid({ totals, invalid }: { totals: Record<Bimestre, number>; invalid: Bimestre | null }) {
+function TotalsGrid({ totals, invalid, overLimit }: { totals: Record<Bimestre, number>; invalid: Bimestre | null; overLimit: Bimestre[] }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {BIMESTERS.map((bim) => {
         const total = totals[bim];
+        const over = overLimit.includes(bim);
         const ok = Math.abs(total - 10) < 0.001;
-        const variant =
-          invalid === bim
-            ? 'border border-rose-500 bg-rose-50 text-rose-700'
-            : ok
-              ? 'border border-emerald-100 bg-emerald-50 text-emerald-700'
-              : 'border border-amber-200 bg-amber-50 text-amber-700';
+        const variant = over
+          ? 'border border-rose-500 bg-rose-50 text-rose-700'
+          : ok
+            ? 'border border-emerald-100 bg-emerald-50 text-emerald-700'
+            : 'border border-amber-200 bg-amber-50 text-amber-700';
         return (
           <div key={bim} className={`rounded-xl px-3 py-2 text-sm font-medium ${variant}`}>
             {bim}º bimestre: {total.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} / 10,0

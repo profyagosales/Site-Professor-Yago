@@ -170,32 +170,29 @@ function AttachmentList({ attachments, className = '' }: AttachmentListProps) {
         if (isPdf(attachment)) {
           const pdfUrl = attachment.url;
           const attachmentId = attachment.name?.replace(/[^a-zA-Z0-9-_]/g, '') || 'documento';
-          
-          // Usar proxy via backend para evitar CORS issues
-          const proxyUrl = `/api/announcements/attachment/proxy/${attachmentId}?url=${encodeURIComponent(pdfUrl)}`;
-          
+
+          const rawBase = (import.meta as any)?.env?.VITE_API_BASE_URL?.trim?.() || '';
+          const normalizedBase = rawBase
+            ? rawBase.replace(/\/$/, '')
+            : 'https://api.professoryagosales.com.br';
+          const proxyUrl = `${normalizedBase}/api/announcements/attachment/proxy/${attachmentId}?url=${encodeURIComponent(pdfUrl)}`;
+
           const handleOpenPdf = (e) => {
             e.stopPropagation();
             e.preventDefault();
-            try {
-              // Tentar abrir em nova aba via proxy
-              const opened = window.open(proxyUrl, '_blank', 'noopener,noreferrer');
-              if (!opened) {
-                throw new Error('Bloqueador de popup detectado');
-              }
-            } catch (err) {
-              console.error('[AvisosCard] Erro ao abrir PDF:', err);
-              // Fallback: fazer download direto via proxy
-              const link = document.createElement('a');
-              link.href = proxyUrl;
-              link.download = attachment.name || 'documento.pdf';
-              link.style.display = 'none';
-              document.body.appendChild(link);
-              link.click();
-              setTimeout(() => {
-                document.body.removeChild(link);
-              }, 100);
-            }
+            // Tenta abrir; se bloqueado, faz download
+            const opened = window.open(proxyUrl, '_blank', 'noopener,noreferrer');
+            if (opened) return;
+            // Fallback download silencioso
+            const link = document.createElement('a');
+            link.href = proxyUrl;
+            link.download = attachment.name || 'documento.pdf';
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            setTimeout(() => {
+              document.body.removeChild(link);
+            }, 100);
           };
           return (
             <button
