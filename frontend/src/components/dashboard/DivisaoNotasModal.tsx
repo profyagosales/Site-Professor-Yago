@@ -180,7 +180,7 @@ export default function DivisaoNotasModal({
 
     try {
       setSaving(true);
-      setInvalidBimestre(null);
+      setInvalidBimester(null);
       const payload = toServiceScheme(localScheme);
       const saved = await saveGradeScheme(payload);
       setLocalScheme(createEditableScheme(saved, classId, ano));
