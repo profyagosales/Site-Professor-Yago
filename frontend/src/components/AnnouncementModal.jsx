@@ -91,8 +91,6 @@ const INITIAL_FORM = {
   subject: '',
   html: DEFAULT_EDITOR_VALUE,
   plainText: '',
-  attachments: [],
-  existingAttachments: [],
   selectedClasses: [],
   emailList: '',
   bccTeachers: false,
@@ -133,8 +131,6 @@ const mapFromEditing = (announcement, defaultClassIds = []) => {
     subject: announcement.subject || '',
     html,
     plainText: stripHtml(html),
-    attachments: [],
-    existingAttachments: announcement.attachments || [],
     selectedClasses,
     emailList: emails,
     bccTeachers: Boolean(announcement.includeTeachers),
@@ -239,29 +235,6 @@ export default function AnnouncementModal({
     [onClose, submitting]
   )
 
-  const handleAttachmentChange = (event) => {
-    const files = Array.from(event.target.files || []).filter((file) => file.type === 'application/pdf')
-    if (!files.length) return
-    setForm((prev) => ({
-      ...prev,
-      attachments: [...prev.attachments, ...files],
-    }))
-    event.target.value = ''
-  }
-
-  const removeAttachment = (index) => {
-    setForm((prev) => ({
-      ...prev,
-      attachments: prev.attachments.filter((_, idx) => idx !== index),
-    }))
-  }
-
-  const removeExistingAttachment = (index) => {
-    setForm((prev) => ({
-      ...prev,
-      existingAttachments: prev.existingAttachments.filter((_, idx) => idx !== index),
-    }))
-  }
 
   const handleImageUpload = useCallback(async () => {
     const input = document.createElement('input')
@@ -318,19 +291,29 @@ export default function AnnouncementModal({
     event.preventDefault()
     if (!canSubmit || submitting) return
 
-    // Enviar para todas as turmas do professor
-    const allClassIds = availableClasses.map((klass) => klass.id)
+    // Determinar tipo e valor do alvo
+    let targetType = form.targetMode === 'email' ? 'email' : 'class'
+    let targetValue = form.targetMode === 'email' 
+      ? form.emailList.split(EMAIL_SPLIT_REGEX).map((e) => e.trim()).filter(Boolean)
+      : form.selectedClasses
+
+    // Se for criação, enviar para todas as turmas do professor
+    if (!isEditMode) {
+      targetType = 'class'
+      targetValue = availableClasses.map((klass) => klass.id)
+    }
 
     const payload = {
-      type: 'class',
-      value: allClassIds,
+      type: targetType,
+      value: targetValue,
       subject: form.subject.trim(),
       html: form.html,
       message: form.plainText,
       scheduleAt: undefined,
       bccTeachers: false,
-      attachments: form.attachments,
-      keepAttachments: form.existingAttachments.map((item) => item.url).filter(Boolean),
+      keepAttachments: (initialAnnouncement?.attachments || [])
+        .map((item) => item.url)
+        .filter(Boolean),
     }
 
     setSubmitting(true)
@@ -362,11 +345,9 @@ export default function AnnouncementModal({
       const onSavedHandler = typeof onSaved === 'function' ? onSaved : () => {}
       onSavedHandler()
 
-      // Finalmente, fechar modal após um delay pequeno para garantir que o toast apareça
+      // Fechar modal imediatamente (forçando mesmo durante submitting)
+      closeIfAllowed(true)
       setSubmitting(false)
-      setTimeout(() => {
-        onClose?.()
-      }, 500)
     } catch (err) {
       console.error('[AnnouncementModal] Falha ao salvar aviso', err)
       toast.error(err instanceof Error ? err.message : 'Erro ao salvar aviso')
@@ -414,55 +395,6 @@ export default function AnnouncementModal({
               </div>
             </div>
 
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="mb-1 block text-sm font-medium text-slate-700">Anexos (PDF)</label>
-                <input type="file" accept="application/pdf" multiple onChange={handleAttachmentChange} />
-              </div>
-              {form.existingAttachments.length ? (
-                <div className="mt-3 space-y-2">
-                  <p className="text-xs uppercase tracking-wide text-slate-500">Anexos atuais</p>
-                  <ul className="space-y-2">
-                    {form.existingAttachments.map((attachment, index) => (
-                      <li
-                        key={attachment.url ?? `${attachment.name}-${index}`}
-                        className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700"
-                      >
-                        <a
-                          href={attachment.url ?? '#'}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 text-slate-700 underline-offset-2 hover:underline"
-                        >
-                          📄 {attachment.name || 'Anexo'}
-                        </a>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => removeExistingAttachment(index)}>
-                          Remover
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-              {form.attachments.length ? (
-                <div className="mt-3 space-y-2">
-                  <p className="text-xs uppercase tracking-wide text-slate-500">Novos anexos</p>
-                  <ul className="space-y-2">
-                    {form.attachments.map((file, index) => (
-                      <li
-                        key={`${file.name}-${index}`}
-                        className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700"
-                      >
-                        <span>📎 {file.name}</span>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => removeAttachment(index)}>
-                          Remover
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </div>
           </div>
           <footer className="flex shrink-0 items-center justify-end gap-3 border-t border-slate-100 px-6 py-4">
             <Button type="button" variant="ghost" onClick={closeIfAllowed} disabled={submitting}>

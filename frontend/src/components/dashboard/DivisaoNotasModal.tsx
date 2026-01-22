@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
+import { cn } from '@/utils/cn';
 import {
   DEFAULT_SCHEME,
   GRADE_SCHEME_DEFAULT_STORAGE_KEY,
@@ -141,13 +142,11 @@ export default function DivisaoNotasModal({
         item.id === id
           ? {
               ...item,
-              ...patch,
               id,
               name: patch.name !== undefined ? patch.name : item.name,
               label: patch.label !== undefined ? patch.label : patch.name !== undefined ? patch.name : item.label,
             }
           : item,
-      ),
     );
   };
 
@@ -248,10 +247,10 @@ export default function DivisaoNotasModal({
 
   return (
     <div className="modal-overlay">
-      <div className="modal w-full max-w-5xl max-h-[92vh] overflow-hidden">
-        <header className="modal-header sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/95 px-6 py-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Configurar divisão de notas</p>
+      <div className="modal overflow-hidden rounded-3xl border border-slate-100 shadow-2xl">
+        <header className="modal-header sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/95">
+          <div className="space-y-1">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500">Configurar divisão de notas</p>
             <h3 className="text-lg font-semibold text-slate-900">Ajuste os itens por bimestre</h3>
           </div>
           <button className="btn btn-outline" type="button" onClick={onClose}>
@@ -259,80 +258,108 @@ export default function DivisaoNotasModal({
           </button>
         </header>
 
-        <div className="modal-body space-y-5 px-6 py-4" style={{ maxHeight: '70vh', overflowY: 'auto', paddingRight: '8px' }}>
-          <div className="rounded-2xl border border-slate-200 p-4">
-            <div className="text-sm font-medium text-slate-700">Bimestre padrão no card</div>
-            <p className="mt-1 text-xs text-slate-500">
-              Escolha qual bimestre será exibido por padrão no card da divisão de notas.
-            </p>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {BIMESTERS.map((bim) => (
-                <label
-                  key={bim}
-                  className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm ${
-                    defaultChoice === bim
-                      ? 'border-orange-300 bg-orange-50 text-orange-700'
-                      : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="grade-scheme-default"
-                    value={bim}
-                    checked={defaultChoice === bim}
-                    onChange={() => setDefaultChoice(bim)}
+        <div className="modal-body">
+          <div className="grid gap-4 lg:grid-cols-[360px,1fr] xl:grid-cols-[380px,1fr]">
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex flex-col gap-1">
+                  <div className="text-sm font-semibold text-slate-800">Bimestre padrão no card</div>
+                  <p className="text-xs text-slate-500">Escolha qual bimestre será exibido por padrão no card da divisão de notas.</p>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {BIMESTERS.map((bim) => (
+                    <label
+                      key={bim}
+                      className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm transition ${
+                        defaultChoice === bim
+                          ? 'border-orange-300 bg-orange-50 text-orange-700 shadow-sm'
+                          : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="grade-scheme-default"
+                        value={bim}
+                        checked={defaultChoice === bim}
+                        onChange={() => setDefaultChoice(bim)}
+                      />
+                      <span>{bim}º bimestre</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="mt-3">
+                  <button
+                    className="btn btn-outline"
+                    type="button"
+                    onClick={handleSaveDefaultBimester}
+                    disabled={!onSaveDefaultBimester || savingDefault}
+                  >
+                    {savingDefault ? 'Salvando…' : 'Salvar como padrão'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-semibold text-slate-800">Selecione o bimestre para editar</span>
+                  <p className="text-xs text-slate-500">Edite um bimestre por vez; você pode salvar mesmo que outros bimestres ainda não somem 10 pts.</p>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {BIMESTERS.map((bim) => (
+                    <button
+                      key={bim}
+                      className={cn(
+                        'bimestre-pill px-4 py-2 text-sm font-semibold',
+                        active === bim
+                          ? 'bg-orange-100 text-orange-700 ring-1 ring-orange-200'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      )}
+                      type="button"
+                      aria-pressed={active === bim}
+                      onClick={() => setActive(bim)}
+                    >
+                      {bim}º
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <h4 className="mb-2 text-sm font-semibold text-slate-800">Totais por bimestre</h4>
+                <TotalsGrid totals={totals} invalid={invalidBimester} overLimit={overLimitBimesters} />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-col">
+                    <h4 className="text-sm font-semibold text-slate-800">Itens do {active}º bimestre</h4>
+                    <p className="text-xs text-slate-500">Adicione avaliações, trabalhos ou atividades e distribua os pontos.</p>
+                  </div>
+                  <button className="btn btn-outline" type="button" onClick={() => addItem(active)}>
+                    Adicionar item
+                  </button>
+                </div>
+
+                {classId ? (
+                  <ItemList
+                    items={itens}
+                    onRemove={(id) => removeItem(active, id)}
+                    onMove={(id, dir) => moveItem(active, id, dir)}
+                    onPatch={(id, patch) => patchItem(active, id, patch)}
                   />
-                  <span>{bim}º bimestre</span>
-                </label>
-              ))}
-            </div>
-            <div className="mt-3">
-              <button
-                className="btn btn-outline"
-                type="button"
-                onClick={handleSaveDefaultBimester}
-                disabled={!onSaveDefaultBimester || savingDefault}
-              >
-                {savingDefault ? 'Salvando…' : 'Salvar como padrão'}
-              </button>
+                ) : (
+                  <p className="mt-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
+                    Cadastre uma turma para configurar a divisão de notas.
+                  </p>
+                )}
+              </div>
             </div>
           </div>
-
-          <div className="flex flex-col gap-2">
-            <span className="text-sm text-slate-600">Selecione o bimestre para editar</span>
-            <div className="flex flex-wrap gap-2">
-              {BIMESTERS.map((bim) => (
-                <button
-                  key={bim}
-                  className="bimestre-pill"
-                  type="button"
-                  aria-pressed={active === bim}
-                  onClick={() => setActive(bim)}
-                >
-                  {bim}º
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {classId ? (
-            <ItemList
-              items={itens}
-              onAdd={() => addItem(active)}
-              onRemove={(id) => removeItem(active, id)}
-              onMove={(id, dir) => moveItem(active, id, dir)}
-              onPatch={(id, patch) => patchItem(active, id, patch)}
-            />
-          ) : (
-            <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
-              Cadastre uma turma para configurar a divisão de notas.
-            </p>
-          )}
-
-          <TotalsGrid totals={totals} invalid={invalidBimester} overLimit={overLimitBimesters} />
         </div>
 
-        <footer className="modal-footer sticky bottom-0 left-0 right-0 flex justify-end gap-3 border-t border-slate-200 bg-white/95 px-6 py-4">
+        <footer className="modal-footer sticky bottom-0 left-0 right-0 flex justify-end gap-3 border-t border-slate-200 bg-white/95">
           <button className="btn btn-ghost" type="button" onClick={onClose}>
             Cancelar
           </button>
@@ -352,13 +379,11 @@ export default function DivisaoNotasModal({
 
 function ItemList({
   items,
-  onAdd,
   onRemove,
   onMove,
   onPatch,
 }: {
   items: EditableItem[];
-  onAdd: () => void;
   onRemove: (id: string) => void;
   onMove: (id: string, dir: -1 | 1) => void;
   onPatch: (id: string, patch: Partial<EditableItem>) => void;
@@ -382,9 +407,6 @@ function ItemList({
           />
         ))}
       </div>
-      <button className="btn btn-outline" type="button" onClick={onAdd}>
-        Adicionar item
-      </button>
     </div>
   );
 }
