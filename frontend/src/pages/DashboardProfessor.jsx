@@ -108,10 +108,10 @@ function DashboardProfessor(){
   if(!user) return <div className="page-safe pt-20"><p>Carregando...</p></div>
 
   return (
-    <div className="page-safe pt-4 space-y-6">
-      <section className="mx-auto w-full max-w-[1600px]">
-        <div className="grid grid-cols-1 gap-[var(--dash-gap)] lg:grid-cols-2">
-          <div className="h-[var(--h-stack)]">
+    <div className="page-safe pt-4 space-y-6 h-screen flex flex-col">
+      <section className="mx-auto w-full max-w-[1600px] flex-1 flex flex-col">
+        <div className="grid grid-cols-1 gap-[var(--dash-gap)] lg:grid-cols-2 h-full">
+          <div className="min-h-0">
             <AvisosCard
               onEdit={(announcement) => {
                 setAnnouncementDraft(announcement)
@@ -124,7 +124,7 @@ function DashboardProfessor(){
             />
           </div>
 
-          <div className="h-[var(--h-stack)]">
+          <div className="min-h-0">
             <DivisaoNotasCard
               ano={gradeSchemeYear}
               classId={primaryClassId || null}
@@ -133,10 +133,6 @@ function DashboardProfessor(){
               refreshToken={gradeSchemeRefreshKey}
             />
           </div>
-        </div>
-
-        <div className="mt-6">
-          {/* TODO(remove/radar-ranking): Radar/Ranking card removido do dashboard */}
         </div>
       </section>
       <DivisaoNotasModal

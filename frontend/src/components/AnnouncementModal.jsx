@@ -7,6 +7,20 @@ import { createAnnouncement, updateAnnouncement, uploadAnnouncementImage } from 
 import Modal from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 
+const QUILL_CONTAINER_STYLES = `
+  .announcement-modal-quill-container .ql-container {
+    height: auto;
+    border: none;
+    font-size: inherit;
+  }
+  .announcement-modal-quill-container .ql-editor {
+    min-height: 300px;
+  }
+  .announcement-modal-quill-container .ql-toolbar {
+    border-radius: 0.75rem 0.75rem 0 0;
+  }
+`
+
 const EMAIL_SPLIT_REGEX = /[,;\n]+/
 
 const toId = (value) => {
@@ -325,23 +339,34 @@ export default function AnnouncementModal({
         ? await updateAnnouncement(editingIdString, payload)
         : await createAnnouncement(payload)
 
-      toast.success(isEditMode ? 'Aviso atualizado' : 'Aviso criado')
+      // Mensagem de sucesso
+      toast.success(isEditMode ? 'Aviso atualizado!' : 'Aviso criado!')
       if (response?.mail?.sent === false) {
         toast.warning('Aviso criado; e-mail pendente (ver logs)')
       }
+
+      // Disparar evento de refresh
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('announcements:refresh'))
       }
-      const onSavedHandler = typeof onSaved === 'function' ? onSaved : () => {}
-      await onSavedHandler()
+
+      // Limpar draft
       draftsRef.current.delete(contextKey)
+
+      // Resetar formulário se for criação
       if (!isEditMode) {
         setForm(mapFromDefaults(defaultClassIds))
       }
+
+      // Fechar modal imediatamente
       closeIfAllowed(true)
+
+      // Chamar callback de salvamento (sem await para não bloquear)
+      const onSavedHandler = typeof onSaved === 'function' ? onSaved : () => {}
+      onSavedHandler()
     } catch (err) {
       console.error('[AnnouncementModal] Falha ao salvar aviso', err)
-      toast.error('Erro ao salvar aviso')
+      toast.error(err instanceof Error ? err.message : 'Erro ao salvar aviso')
     } finally {
       setSubmitting(false)
     }
@@ -355,7 +380,9 @@ export default function AnnouncementModal({
   )
 
   return (
-    <Modal open={open} onClose={closeIfAllowed} className="max-w-5xl overflow-hidden">
+    <>
+      <style>{QUILL_CONTAINER_STYLES}</style>
+      <Modal open={open} onClose={closeIfAllowed} className="max-w-5xl overflow-hidden">
       <div className="flex max-h-[85vh] flex-col overflow-hidden">
         <header className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <h2 className="text-xl font-semibold text-slate-900">{isEditMode ? 'Editar aviso' : 'Novo aviso'}</h2>
@@ -378,14 +405,16 @@ export default function AnnouncementModal({
 
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Mensagem</label>
-              <ReactQuill
-                ref={quillRef}
-                theme="snow"
-                modules={quillModules}
-                formats={formats}
-                value={form.html}
-                onChange={onQuillChange}
-              />
+              <div className="announcement-modal-quill-container h-80 overflow-y-auto rounded-xl border border-slate-200 shadow-sm">
+                <ReactQuill
+                  ref={quillRef}
+                  theme="snow"
+                  modules={quillModules}
+                  formats={formats}
+                  value={form.html}
+                  onChange={onQuillChange}
+                />
+              </div>
             </div>
 
             <div>
@@ -449,5 +478,6 @@ export default function AnnouncementModal({
         </form>
       </div>
     </Modal>
+    </>
   )
 }

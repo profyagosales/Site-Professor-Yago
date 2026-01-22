@@ -468,7 +468,7 @@ export default function AvisosCard({
               </Button>
             ) : null}
             <Button
-              variant="link"
+              variant="ghost"
               size="sm"
               onClick={openModal}
               disabled={loading || (!error && !announcements.length)}
