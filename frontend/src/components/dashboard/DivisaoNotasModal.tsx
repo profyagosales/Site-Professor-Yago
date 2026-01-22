@@ -100,11 +100,11 @@ export default function DivisaoNotasModal({
   );
 
   const overLimitBimesters = useMemo(
-    () => BIMESTERS.filter((b) => totals[b] > 10.0001),
-    [totals],
+    () => [],
+    [],
   );
 
-  const hasOverLimit = overLimitBimesters.length > 0;
+  const hasOverLimit = false;
 
   const updateItems = (bimester: Bimestre, recipe: (items: EditableItem[]) => EditableItem[]) => {
     setLocalScheme((prev) => {
@@ -177,15 +177,10 @@ export default function DivisaoNotasModal({
       toast.error('Preencha o nome de todos os itens.');
       return;
     }
-    if (hasOverLimit) {
-      setInvalidBimester(overLimitBimesters[0]);
-      toast.error('Algum bimestre excede 10,0 pontos. Ajuste para salvar.');
-      return;
-    }
 
     try {
       setSaving(true);
-      setInvalidBimester(null);
+      setInvalidBimestre(null);
       const payload = toServiceScheme(localScheme);
       const saved = await saveGradeScheme(payload);
       setLocalScheme(createEditableScheme(saved, classId, ano));
@@ -204,7 +199,8 @@ export default function DivisaoNotasModal({
         if (bimester) {
           setInvalidBimester(bimester);
         }
-        toast.error(error?.message ?? 'A soma de pontos deve ser igual a 10,0.');
+        const msg = error?.message || 'Erro ao salvar: verifique os valores.';
+        toast.error(msg);
       } else {
         toast.error(error?.message ?? 'Falha ao salvar divisão de notas.');
       }
@@ -304,7 +300,7 @@ export default function DivisaoNotasModal({
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex flex-col gap-1">
                   <span className="text-sm font-semibold text-slate-800">Selecione o bimestre para editar</span>
-                  <p className="text-xs text-slate-500">Edite um bimestre por vez; você pode salvar mesmo que outros bimestres ainda não somem 10 pts.</p>
+                  <p className="text-xs text-slate-500">Edite um bimestre por vez. Você pode incluir pontos extras para os alunos ultrapassando 10 pts.</p>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {BIMESTERS.map((bim) => (
@@ -335,9 +331,9 @@ export default function DivisaoNotasModal({
             <div className="space-y-4">
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-col">
+                  <div className="flex flex-col gap-0.5">
                     <h4 className="text-sm font-semibold text-slate-800">Itens do {active}º bimestre</h4>
-                    <p className="text-xs text-slate-500">Adicione avaliações, trabalhos ou atividades e distribua os pontos.</p>
+                    <p className="text-xs text-slate-500">Total: <span className="font-semibold text-slate-700">{totals[active].toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</span> / 10,0 pts</p>
                   </div>
                   <button className="btn btn-outline" type="button" onClick={() => addItem(active)}>
                     Adicionar item
@@ -369,7 +365,7 @@ export default function DivisaoNotasModal({
             className="btn btn-primary"
             type="button"
             onClick={handleSave}
-            disabled={saving || !classId || !hasAllNames || hasOverLimit}
+            disabled={saving || !classId || !hasAllNames}
           >
             {saving ? 'Salvando…' : 'Salvar'}
           </button>

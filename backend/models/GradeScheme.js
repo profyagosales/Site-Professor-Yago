@@ -75,13 +75,6 @@ gradeSchemeSchema.pre('validate', function computeTotalPoints(next) {
   const roundedTotal = Number(total.toFixed(1));
   this.totalPoints = roundedTotal;
 
-  // Permitir salvar parcial (< 10); apenas bloquear quando ultrapassar 10
-  if (roundedTotal > 10.001) {
-    const error = new Error('Total de pontos não pode ultrapassar 10.');
-    error.status = 400;
-    return next(error);
-  }
-
   return next();
 });
 
