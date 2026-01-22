@@ -181,11 +181,8 @@ export default function AnnouncementModal({
   const canSubmit = useMemo(() => {
     if (!form.subject.trim()) return false
     if (!form.plainText.trim()) return false
-    if (form.targetMode === 'class') {
-      return form.selectedClasses.length > 0
-    }
-    return form.emailList.split(EMAIL_SPLIT_REGEX).some((entry) => entry.trim())
-  }, [form.subject, form.plainText, form.targetMode, form.selectedClasses.length, form.emailList])
+    return true
+  }, [form.subject, form.plainText])
 
   useEffect(() => {
     if (!open) return
@@ -307,18 +304,17 @@ export default function AnnouncementModal({
     event.preventDefault()
     if (!canSubmit || submitting) return
 
-    const sanitizedEmails = form.targetMode === 'email'
-      ? sanitizeEmails(form.emailList.split(EMAIL_SPLIT_REGEX))
-      : []
+    // Enviar para todas as turmas do professor
+    const allClassIds = availableClasses.map((klass) => klass.id)
 
     const payload = {
-      type: form.targetMode,
-      value: form.targetMode === 'class' ? form.selectedClasses : sanitizedEmails,
+      type: 'class',
+      value: allClassIds,
       subject: form.subject.trim(),
       html: form.html,
       message: form.plainText,
-      scheduleAt: form.sendMode === 'schedule' && form.scheduleAt ? form.scheduleAt : undefined,
-      bccTeachers: form.targetMode === 'class' ? form.bccTeachers : false,
+      scheduleAt: undefined,
+      bccTeachers: false,
       attachments: form.attachments,
       keepAttachments: form.existingAttachments.map((item) => item.url).filter(Boolean),
     }
@@ -359,7 +355,7 @@ export default function AnnouncementModal({
   )
 
   return (
-    <Modal open={open} onClose={closeIfAllowed} className="max-w-3xl overflow-hidden">
+    <Modal open={open} onClose={closeIfAllowed} className="max-w-5xl overflow-hidden">
       <div className="flex max-h-[85vh] flex-col overflow-hidden">
         <header className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <h2 className="text-xl font-semibold text-slate-900">{isEditMode ? 'Editar aviso' : 'Novo aviso'}</h2>
@@ -440,148 +436,6 @@ export default function AnnouncementModal({
                   </ul>
                 </div>
               ) : null}
-            </div>
-
-            <div className="flex flex-wrap gap-4 text-sm text-slate-700">
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="target"
-                  value="class"
-                  checked={form.targetMode === 'class'}
-                  onChange={() =>
-                    setForm((prev) => ({
-                      ...prev,
-                      targetMode: 'class',
-                      emailList: '',
-                    }))
-                  }
-                />
-                Enviar para turmas
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="target"
-                  value="email"
-                  checked={form.targetMode === 'email'}
-                  onChange={() =>
-                    setForm((prev) => ({
-                      ...prev,
-                      targetMode: 'email',
-                      selectedClasses: [],
-                      bccTeachers: false,
-                    }))
-                  }
-                />
-                Enviar para e-mails
-              </label>
-            </div>
-
-            {form.targetMode === 'class' ? (
-              <div className="space-y-3">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Turmas</label>
-                  <select
-                    multiple
-                    className="h-36 max-h-40 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400 overflow-auto"
-                    value={form.selectedClasses}
-                    onChange={(event) => {
-                      const values = Array.from(event.target.selectedOptions || []).map((option) => option.value)
-                      setForm((prev) => ({
-                        ...prev,
-                        selectedClasses: values,
-                      }))
-                    }}
-                  >
-                    {availableClasses.map((klass) => (
-                      <option key={klass.id} value={klass.id}>
-                        {klass.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <label className="flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={form.bccTeachers}
-                    onChange={(event) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        bccTeachers: event.target.checked,
-                      }))
-                    }
-                  />
-                  Incluir professores em cópia oculta
-                </label>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">E-mails (separados por vírgula)</label>
-                  <textarea
-                    rows={4}
-                    className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                    value={form.emailList}
-                    onChange={(event) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        emailList: event.target.value,
-                      }))
-                    }
-                    onBlur={handleEmailsBlur}
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-3">
-              <label className="flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="radio"
-                  name="send-mode"
-                  value="now"
-                  checked={form.sendMode === 'now'}
-                  onChange={() =>
-                    setForm((prev) => ({
-                      ...prev,
-                      sendMode: 'now',
-                      scheduleAt: '',
-                    }))
-                  }
-                />
-                Enviar agora
-              </label>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <label className="flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="radio"
-                    name="send-mode"
-                    value="schedule"
-                    checked={form.sendMode === 'schedule'}
-                    onChange={() =>
-                      setForm((prev) => ({
-                        ...prev,
-                        sendMode: 'schedule',
-                      }))
-                    }
-                  />
-                  Agendar envio
-                </label>
-                {form.sendMode === 'schedule' ? (
-                  <input
-                    type="datetime-local"
-                    className="rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                    value={form.scheduleAt}
-                    onChange={(event) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        scheduleAt: event.target.value,
-                      }))
-                    }
-                  />
-                ) : null}
-              </div>
             </div>
           </div>
           <footer className="flex items-center justify-end gap-3 border-t border-slate-100 px-6 py-4">

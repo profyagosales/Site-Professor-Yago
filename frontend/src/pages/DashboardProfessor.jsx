@@ -110,8 +110,8 @@ function DashboardProfessor(){
   return (
     <div className="page-safe pt-4 space-y-6">
       <section className="mx-auto w-full max-w-[1600px]">
-        <div className="grid grid-cols-1 gap-[var(--dash-gap)] lg:grid-cols-2 [--grid-h:calc(var(--h-stack)*2+var(--dash-gap))]">
-          <aside className="lg:row-span-2 lg:h-[var(--grid-h)]">
+        <div className="grid grid-cols-1 gap-[var(--dash-gap)] lg:grid-cols-2">
+          <div className="h-[var(--h-stack)]">
             <AvisosCard
               onEdit={(announcement) => {
                 setAnnouncementDraft(announcement)
@@ -122,7 +122,7 @@ function DashboardProfessor(){
                 setAnnouncementOpen(true)
               }}
             />
-          </aside>
+          </div>
 
           <div className="h-[var(--h-stack)]">
             <DivisaoNotasCard

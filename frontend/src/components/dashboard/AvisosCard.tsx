@@ -565,7 +565,7 @@ export default function AvisosCard({
       </section>
 
       <Modal open={modalOpen} onClose={closeModal}>
-        <div className="w-full max-w-3xl p-6">
+        <div className="w-full max-w-5xl p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="card-title text-slate-900">Todos os avisos</h2>
             <Button variant="ghost" onClick={closeModal}>
