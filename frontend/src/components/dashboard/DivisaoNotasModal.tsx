@@ -142,11 +142,13 @@ export default function DivisaoNotasModal({
         item.id === id
           ? {
               ...item,
+              ...patch,
               id,
               name: patch.name !== undefined ? patch.name : item.name,
               label: patch.label !== undefined ? patch.label : patch.name !== undefined ? patch.name : item.label,
             }
-          : item,
+          : item
+      )
     );
   };
 
