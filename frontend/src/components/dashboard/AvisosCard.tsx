@@ -168,17 +168,38 @@ function AttachmentList({ attachments, className = '' }: AttachmentListProps) {
           );
         }
         if (isPdf(attachment)) {
+          const pdfUrl = attachment.url;
+          const handleOpenPdf = (e) => {
+            e.preventDefault();
+            try {
+              // Tentar abrir em nova aba
+              const opened = window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+              if (!opened) {
+                throw new Error('Bloqueador de popup detectado');
+              }
+            } catch (err) {
+              console.error('[AvisosCard] Erro ao abrir PDF:', err);
+              // Fallback: criar link e simular download
+              const link = document.createElement('a');
+              link.href = pdfUrl;
+              link.download = attachment.name || 'documento.pdf';
+              link.target = '_blank';
+              link.rel = 'noopener noreferrer';
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }
+          };
           return (
-            <a
+            <button
               key={attachment.url}
-              href={attachment.url}
-              target="_blank"
-              rel="noreferrer"
+              type="button"
+              onClick={handleOpenPdf}
               className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
             >
               <FiFileText aria-hidden="true" className="h-4 w-4" />
               {attachment.name || 'Ver PDF'}
-            </a>
+            </button>
           );
         }
         return (
@@ -478,7 +499,7 @@ export default function AvisosCard({
           </div>
         </header>
 
-        <div className="mt-3 flex-1 min-h-0 card-scroll-y pr-1">
+        <div className="mt-3 flex-1 min-h-0 card-scroll-y pr-1" style={{ maxHeight: 'calc(100% - 70px)' }}>
           {loading ? (
             <div className="flex h-full items-center justify-center">
               <div className="h-24 w-full max-w-sm animate-pulse rounded-xl bg-slate-100" />

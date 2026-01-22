@@ -358,40 +358,37 @@ export default function AnnouncementModal({
         setForm(mapFromDefaults(defaultClassIds))
       }
 
-      // Fechar modal imediatamente
-      closeIfAllowed(true)
-
-      // Chamar callback de salvamento (sem await para não bloquear)
+      // Chamar callback de salvamento
       const onSavedHandler = typeof onSaved === 'function' ? onSaved : () => {}
       onSavedHandler()
+
+      // Finalmente, fechar modal após um delay pequeno para garantir que o toast apareça
+      setSubmitting(false)
+      setTimeout(() => {
+        onClose?.()
+      }, 500)
     } catch (err) {
       console.error('[AnnouncementModal] Falha ao salvar aviso', err)
       toast.error(err instanceof Error ? err.message : 'Erro ao salvar aviso')
-    } finally {
       setSubmitting(false)
     }
   }
 
   const quillModules = useMemo(() => modules(handleImageUpload), [handleImageUpload])
 
-  const bodyStyle = useMemo(
-    () => ({ maxHeight: '70vh', overflowY: 'auto', overscrollBehavior: 'contain' }),
-    []
-  )
-
   return (
     <>
       <style>{QUILL_CONTAINER_STYLES}</style>
       <Modal open={open} onClose={closeIfAllowed} className="max-w-5xl overflow-hidden">
-      <div className="flex max-h-[85vh] flex-col overflow-hidden">
+      <div className="flex h-screen max-h-[90vh] flex-col overflow-hidden">
         <header className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <h2 className="text-xl font-semibold text-slate-900">{isEditMode ? 'Editar aviso' : 'Novo aviso'}</h2>
           <Button type="button" variant="ghost" size="sm" onClick={() => closeIfAllowed(true)} disabled={submitting}>
             Fechar
           </Button>
         </header>
-        <form onSubmit={handleSubmit} className="flex flex-1 flex-col">
-          <div className="space-y-5 px-6 py-4" style={bodyStyle}>
+        <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex-1 space-y-5 overflow-y-auto px-6 py-4">
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Assunto</label>
               <input
@@ -467,7 +464,7 @@ export default function AnnouncementModal({
               ) : null}
             </div>
           </div>
-          <footer className="flex items-center justify-end gap-3 border-t border-slate-100 px-6 py-4">
+          <footer className="flex shrink-0 items-center justify-end gap-3 border-t border-slate-100 px-6 py-4">
             <Button type="button" variant="ghost" onClick={closeIfAllowed} disabled={submitting}>
               Cancelar
             </Button>

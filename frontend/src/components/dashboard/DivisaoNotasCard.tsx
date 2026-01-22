@@ -216,29 +216,28 @@ export default function DivisaoNotasCard({
       )}
     >
       <header className="dash-card__header">
-        <div className="flex flex-wrap items-center gap-3">
-          <h2 className="dash-card__title">Divisão de notas</h2>
-          <div className="hidden items-center gap-2 md:flex">
-            {BIMESTERS.map((bim) => (
-              <button
-                key={bim}
-                className={cn(
-                  'rounded-full px-3 py-1 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300',
-                  selectedBimester === bim
-                    ? 'bg-orange-100 text-orange-700 ring-1 ring-orange-200'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
-                )}
-                type="button"
-                aria-pressed={selectedBimester === bim}
-                onClick={() => {
-                  userSelectedRef.current = true;
-                  setSelectedBimester(bim);
-                }}
-              >
-                {bim}º
-              </button>
-            ))}
-          </div>
+        <h2 className="dash-card__title">Divisão de notas</h2>
+        
+        <div className="hidden items-center justify-center gap-2 flex-1 md:flex">
+          {BIMESTERS.map((bim) => (
+            <button
+              key={bim}
+              className={cn(
+                'rounded-full px-3 py-1 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300',
+                selectedBimester === bim
+                  ? 'bg-orange-100 text-orange-700 ring-1 ring-orange-200'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+              )}
+              type="button"
+              aria-pressed={selectedBimester === bim}
+              onClick={() => {
+                userSelectedRef.current = true;
+                setSelectedBimester(bim);
+              }}
+            >
+              {bim}º
+            </button>
+          ))}
         </div>
 
         <div className="dash-card__actions">

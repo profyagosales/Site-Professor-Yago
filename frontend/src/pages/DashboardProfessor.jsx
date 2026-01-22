@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'react-toastify'
 import AnnouncementModal from '@/components/AnnouncementModal'
 import { getCurrentUser } from '@/services/auth'
+import { listMyClasses } from '@/services/classes.service'
 import AvisosCard from '@/components/dashboard/AvisosCard'
 import DivisaoNotasCard from '@/components/dashboard/DivisaoNotasCard'
 import DivisaoNotasModal from '@/components/dashboard/DivisaoNotasModal'
@@ -36,6 +37,7 @@ function resolveAvatarUrl(source) {
 
 function DashboardProfessor(){
   const [user, setUser] = useState(null)
+  const [classes, setClasses] = useState([])
   const [loading, setLoading] = useState(true)
   const [announcementOpen, setAnnouncementOpen] = useState(false)
   const [announcementDraft, setAnnouncementDraft] = useState(null)
@@ -73,6 +75,23 @@ function DashboardProfessor(){
         const currentUser = await getCurrentUser()
         if (abort) return
         setUser(currentUser)
+
+        if (!currentUser?.id) {
+          setLoading(false)
+          return
+        }
+
+        // Carregar turmas do professor
+        try {
+          const classesResponse = await listMyClasses({ teacherId: currentUser.id })
+          if (abort) return
+          const classList = Array.isArray(classesResponse) ? classesResponse : []
+          setClasses(classList)
+        } catch (err) {
+          console.error('Erro ao carregar turmas do professor', err)
+          setClasses([])
+        }
+
         setLoading(false)
       } catch (error) {
         if (!abort) {
@@ -103,7 +122,7 @@ function DashboardProfessor(){
     [teacherId],
   )
 
-  const primaryClassId = ''
+  const primaryClassId = classes.length > 0 ? (classes[0].id || classes[0]._id) : ''
 
   if(!user) return <div className="page-safe pt-20"><p>Carregando...</p></div>
 
