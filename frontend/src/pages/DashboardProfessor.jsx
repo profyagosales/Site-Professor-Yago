@@ -104,7 +104,6 @@ function DashboardProfessor(){
   )
 
   const primaryClassId = ''
-  const gradeSchemeYear = new Date().getFullYear()
 
   if(!user) return <div className="page-safe pt-20"><p>Carregando...</p></div>
 
